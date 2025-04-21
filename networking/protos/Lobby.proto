@@ -1,0 +1,246 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.lobby";
+option java_outer_classname = "lobby";
+option java_multiple_files = false;
+
+import "_Character.proto";
+import "_Item.proto";
+
+message SC2S_CHARACTER_SELECT_ENTER_REQ {
+}
+
+message SS2C_CHARACTER_SELECT_ENTER_RES {
+  uint32 result = 1;
+}
+
+message SC2S_LOBBY_CHARACTER_INFO_REQ {
+}
+
+message SS2C_LOBBY_CHARACTER_INFO_RES {
+  uint32 result = 1;
+  .DC.Packet.SCHARACTER_INFO characterDataBase = 2;
+}
+
+message SC2S_OPEN_LOBBY_MAP_REQ {
+}
+
+message SS2C_OPEN_LOBBY_MAP_RES {
+}
+
+message SC2S_LOBBY_REGION_SELECT_REQ {
+  uint32 region = 1;
+}
+
+message SS2C_LOBBY_REGION_SELECT_RES {
+  uint32 result = 1;
+  uint32 region = 2;
+}
+
+message SC2S_LOBBY_ENTER_FROM_GAME_REQ {
+}
+
+message SS2C_LOBBY_ENTER_FROM_GAME_RES {
+  uint32 result = 1;
+}
+
+message SC2S_LOBBY_GAME_TYPE_SELECT_REQ {
+  uint32 gameTypeIndex = 1;
+  string dungeonIdTag = 2;
+  int32 gearPoolIndex = 3;
+}
+
+message SS2C_LOBBY_GAME_TYPE_SELECT_RES {
+  uint32 result = 1;
+  uint32 gameTypeIndex = 2;
+  string dungeonIdTag = 3;
+  int32 gearPoolIndex = 4;
+}
+
+message SACCOUNT_CURRENCY_INFO {
+  uint32 currencyType = 1;
+  uint32 currencyValue = 2;
+}
+
+message SS2C_LOBBY_ACCOUNT_CURRENCY_LIST_NOT {
+  repeated .DC.Packet.SACCOUNT_CURRENCY_INFO currencyInfos = 1;
+  string buyRedstoneShardUrl = 2;
+}
+
+message SS2C_LOBBY_CHARACTER_LOBBY_EMOTE_NOT {
+  repeated .DC.Packet.SCUSTOMIZE_LOBBY_EMOTE lobbyEmoteList = 1;
+}
+
+message SREPORT_PUNISH_INFO {
+  .DC.Packet.SACCOUNT_NICKNAME nickname = 1;
+  int32 reportBanType = 2;
+}
+
+message SS2C_LOBBY_REPORT_PUNISH_LIST_NOT {
+  enum REPORT_BAN_TYPE {
+    NONE_BAN_TYPE = 0;
+    PERMANENT_BAN = 1;
+    TEMPORARY_BAN = 2;
+  }
+
+  repeated .DC.Packet.SREPORT_PUNISH_INFO infos = 1;
+}
+
+message SC2S_USER_CHARACTER_GAME_STAT_INFO_REQ {
+  string seasonId = 1;
+  int32 gameType = 2;
+  string dungeonIdTag = 3;
+}
+
+message SS2C_USER_CHARACTER_GAME_STAT_INFO_RES {
+  string seasonId = 1;
+  int32 gameType = 2;
+  repeated .DC.Packet.SGameStat gameStats = 3;
+  string dungeonIdTag = 4;
+}
+
+message SC2S_KNIGHT_PROGRAM_LINK_SELECT_REQ {
+}
+
+message SS2C_KNIGHT_PROGRAM_LINK_SELECT_RES {
+  int32 result = 1;
+  string url = 2;
+}
+
+message SC2S_GM_TRADE_CHAT_BAN_REQ {
+  string accountId = 1;
+  string characterId = 2;
+  string nickName = 3;
+  string lastChatMsg = 4;
+  uint32 banType = 5;
+}
+
+message SS2C_GM_TRADE_CHAT_BAN_RES {
+  uint32 result = 1;
+}
+
+message SS2C_FRIEND_ITEM_RECOVERED_NOT {
+  repeated .DC.Packet.SItem items = 1;
+}
+
+message SS2C_FRIEND_ITEM_RECOVERY_RECEIVE_NOT {
+}
+
+message SC2S_FRIEND_ITEM_RECOVERED_NOT_CHECK_REQ {
+}
+
+message SS2C_FRIEND_ITEM_RECOVERED_NOT_CHECK_RES {
+}
+
+message SC2S_FRIEND_ITEM_RECOVERY_RECEIVE_NOT_CHECK_REQ {
+}
+
+message SS2C_FRIEND_ITEM_RECOVERY_RECEIVE_NOT_CHECK_RES {
+}
+
+message SC2S_LOBBY_RANDOM_MATCHMAKING_REQ {
+  int32 isRandomMatchmaking = 1;
+}
+
+message SS2C_LOBBY_RANDOM_MATCHMAKING_RES {
+  int32 result = 1;
+}
+
+message SS2C_DLC_LEGENDARY_STATUS_DUPLICATE_WARNING_NOT {
+}
+
+message SARENA_STAT_INFO {
+  int32 resultStatus = 1;
+  int32 resultValue = 2;
+}
+
+message SS2C_ARENA_STAT_NOT {
+  repeated .DC.Packet.SARENA_STAT_INFO arenaStats = 1;
+  int32 kill = 2;
+  int32 death = 3;
+  int32 assist = 4;
+}
+
+message SLOBBY_MMR_INFO {
+  uint32 gameType = 1;
+  int32 rating = 2;
+  uint32 remainingPlacementCount = 3;
+  string rankId = 4;
+}
+
+message SS2C_LOBBY_MMR_NOT {
+  repeated .DC.Packet.SLOBBY_MMR_INFO infos = 1;
+}
+
+message SC2S_LAST_GAME_RESULT_REQ {
+}
+
+message SS2C_LAST_GAME_RESULT_RES {
+  uint32 result = 1;
+  uint32 gameType = 2;
+  string seasonId = 3;
+  uint32 beforeRankScore = 4;
+  uint32 afterRankScore = 5;
+  string rankId = 6;
+  uint32 placementCount = 7;
+  uint32 placementGoalCount = 8;
+}
+
+message SC2S_ARENA_RECENT_MATCH_REQ {
+  optional int32 pageIndex = 1;
+}
+
+message SARENA_GAME_HISTORY {
+  int32 historyIndex = 1;
+  uint32 gameType = 2;
+  string seasonId = 3;
+  int32 gameResult = 4;
+  uint32 teamType = 5;
+  uint32 blueTeamWinRounds = 6;
+  uint32 redTeamWinRounds = 7;
+  .DC.Packet.SArenaUserStat gameStat = 8;
+  int32 beforeRankScore = 9;
+  int32 afterRankScore = 10;
+  int32 isSurrender = 11;
+  uint64 elapsedSecAfterMatch = 12;
+  int32 playTimeSec = 13;
+  int32 isPlacementGame = 14;
+}
+
+message SS2C_ARENA_RECENT_MATCH_RES {
+  uint32 result = 1;
+  int32 pageIndex = 2;
+  int32 maxPageCount = 3;
+  repeated .DC.Packet.SARENA_GAME_HISTORY history = 4;
+}
+
+message SC2S_ARENA_RECENT_MATCH_DETAIL_REQ {
+  optional int32 historyIndex = 1;
+}
+
+message SS2C_ARENA_RECENT_MATCH_DETAIL_RES {
+  uint32 result = 1;
+  int32 historyIndex = 2;
+  int32 winningTeamType = 3;
+  repeated .DC.Packet.SArenaGameResultRecord users = 4;
+  uint64 characterId = 5;
+}
+
+message SS2C_REPORT_ACCURACY_STAT_NOT {
+  int32 reportedCount = 1;
+  int32 cheaterBanCount = 2;
+}
+
+message SC2S_CONTENTS_OPEN_STATUS_REQ {
+  uint32 toggleContentType = 1;
+}
+
+message SS2C_CONTENTS_OPEN_STATUS_RES {
+  uint32 result = 1;
+  uint32 toggleContentType = 2;
+  uint32 openStatus = 3;
+  int64 remainTimeSec = 4;
+}
+

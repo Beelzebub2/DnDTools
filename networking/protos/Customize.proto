@@ -1,0 +1,64 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.customize";
+option java_outer_classname = "customize";
+option java_multiple_files = false;
+
+message SCUSTOMIZE_BASE_INFO {
+  uint32 customizeType = 1;
+  string customizeId = 2;
+  uint32 isEquip = 3;
+  int32 equipSlotIndex = 4;
+}
+
+message SC2S_CUSTOMIZE_INFO_REQ {
+}
+
+message SS2C_CUSTOMIZE_INFO_RES {
+  uint32 loopFlag = 1;
+  repeated .DC.Packet.SCUSTOMIZE_BASE_INFO infos = 2;
+}
+
+message SC2S_CUSTOMIZE_MOUNT_REQ {
+  uint32 customizeType = 1;
+  string customizeId = 2;
+  uint32 equipSlotIndex = 3;
+}
+
+message SS2C_CUSTOMIZE_MOUNT_RES {
+  uint32 result = 1;
+  uint32 customizeType = 2;
+  repeated .DC.Packet.SCUSTOMIZE_BASE_INFO infos = 3;
+}
+
+message SC2S_CUSTOMIZE_UNMOUNT_REQ {
+  uint32 customizeType = 1;
+  string customizeId = 2;
+}
+
+message SS2C_CUSTOMIZE_UNMOUNT_RES {
+  uint32 result = 1;
+  uint32 customizeType = 2;
+  repeated .DC.Packet.SCUSTOMIZE_BASE_INFO infos = 3;
+}
+
+message SC2S_CUSTOMIZE_NEW_ITEM_CHECK_REQ {
+  string itemId = 1;
+}
+
+message SS2C_CUSTOMIZE_NEW_ITEM_CHECK_RES {
+}
+
+message SS2C_CUSTOMIZE_NEW_ITEM_ALERT_NOT {
+}
+
+message SC2S_CUSTOMIZE_UPDATE_SKIN_ICON_TYPE_REQ {
+  uint32 skinIconType = 1;
+}
+
+message SS2C_CUSTOMIZE_UPDATE_SKIN_ICON_TYPE_RES {
+  uint32 result = 1;
+}
+

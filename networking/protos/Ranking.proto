@@ -1,0 +1,168 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.ranking";
+option java_outer_classname = "ranking";
+option java_multiple_files = false;
+
+import "_Character.proto";
+
+message SC2S_RANKING_INFO_REQ {
+}
+
+message SRANKING_REWARD_INFO {
+  enum REWARD_STATE {
+    REWARD_STATE_NONE = 0;
+    ACTIVE = 1;
+    RECEIVED = 2;
+    FINISHED = 3;
+  }
+
+  string groupId = 1;
+  int32 rewardState = 2;
+}
+
+message SRANKING_INFO {
+  enum STATE {
+    NONE = 0;
+    PRESEASON = 1;
+    SEASON = 2;
+  }
+
+  string seasonId = 2;
+  string beginDate = 3;
+  string beginTime = 4;
+  string endDate = 5;
+  string endTime = 6;
+  string wipeDate = 7;
+  string wipeTime = 8;
+  string rewardDate = 9;
+  string rewardTime = 10;
+  repeated .DC.Packet.SRankUserInfo rankInfo = 11;
+  repeated .DC.Packet.SRANKING_REWARD_INFO rewardInfos = 12;
+}
+
+message SS2C_RANKING_INFO_RES {
+  repeated .DC.Packet.SRANKING_INFO rankingInfos = 1;
+  string currentDate = 2;
+  string currentTime = 3;
+}
+
+message SRankRecord {
+  uint32 pageIndex = 1;
+  uint32 rank = 2;
+  uint32 score = 3;
+  float percentage = 4;
+  string accountId = 5;
+  .DC.Packet.SACCOUNT_NICKNAME nickName = 6;
+  string characterClass = 7;
+  string characterId = 8;
+}
+
+message SC2S_RANKING_RANGE_REQ {
+  string seasonId = 1;
+  string sheetId = 2;
+  string contentId = 3;
+  uint32 startIndex = 4;
+  uint32 endIndex = 5;
+  string characterClass = 6;
+}
+
+message SS2C_RANKING_RANGE_RES {
+  uint32 result = 1;
+  string seasonId = 2;
+  repeated .DC.Packet.SRankRecord records = 3;
+  string sheetId = 4;
+  string contentId = 5;
+  uint32 allRowCount = 6;
+  uint32 startIndex = 7;
+  uint32 endIndex = 8;
+  string characterClass = 9;
+}
+
+message SC2S_RANKING_CHARACTER_REQ {
+  string seasonId = 1;
+  string sheetId = 2;
+  string contentId = 3;
+  .DC.Packet.SACCOUNT_NICKNAME nickName = 4;
+  string characterClass = 5;
+}
+
+message SC2S_RANKING_REWARD_GET_REQ {
+  string seasonId = 1;
+  string groupId = 2;
+}
+
+message SS2C_RANKING_REWARD_GET_RES {
+  int32 result = 1;
+}
+
+message SS2C_RANKING_CHARACTER_RES {
+  uint32 result = 1;
+  string seasonId = 2;
+  .DC.Packet.SRankRecord rankRecord = 3;
+  string sheetId = 4;
+  string contentId = 5;
+  uint32 allRowCount = 6;
+  string characterClass = 7;
+  uint32 playGameCount = 8;
+  uint32 placementGameCount = 9;
+  uint32 mmrRating = 10;
+}
+
+message SC2S_RANKING_AP_CONFIG_REQ {
+  int32 gameType = 1;
+  string dungeonTagId = 2;
+}
+
+message SRANKING_AP_CONFIG_RECORD {
+  string rankAPId = 1;
+  int32 requiredTotalAP = 2;
+  int32 requiredTopRank = 3;
+}
+
+message SRANKING_EF_CONFIG_RECORD {
+  string rankEFId = 1;
+  int32 entranceFee = 2;
+}
+
+message SRANKING_CONFIG_INFO {
+  int32 gameType = 1;
+  string dungeonIdTag = 2;
+  repeated .DC.Packet.SRANKING_AP_CONFIG_RECORD apRecords = 3;
+  repeated .DC.Packet.SRANKING_EF_CONFIG_RECORD efRecords = 4;
+}
+
+message SS2C_RANKING_AP_CONFIG_RES {
+  repeated .DC.Packet.SRANKING_CONFIG_INFO configInfos = 1;
+}
+
+message SS2C_RANKING_HAS_REWARD_NOT {
+  int32 isHasReward = 1;
+}
+
+enum RANKING_TYPE {
+  NONE = 0;
+  TreasureCollector = 1;
+  KillerOutlaw = 2;
+  EscapeArtist = 3;
+  VeteranAdventurer = 4;
+  Slayer_Lich = 5;
+  Slayer_GhostKing = 6;
+  Slayer_SkeletonWarlord = 7;
+  Slayer_CaveTroll = 8;
+  Slayer_BossAll = 9;
+  Arena = 10;
+}
+
+enum CONTENT_TYPE {
+  NONE_CONTENT = 0;
+  TREASURE_COLLECTOR = 1;
+  KILLER_OUTLAW = 2;
+  ESCAPE_ARTIST = 3;
+  VETERAN_ADVENTURER = 4;
+  SLAYER = 5;
+  ARENA = 6;
+}
+
