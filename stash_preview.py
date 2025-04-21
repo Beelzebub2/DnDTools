@@ -2,73 +2,135 @@ import json
 import os
 import re
 import difflib
+from typing import Tuple, Dict, List, Optional
+from dataclasses import dataclass
 from PIL import Image, ImageDraw
+import logging
 
-ITEM_DATA_FILE = "item-data.json"
-PACKET_DATA_FILE = "packet_data.json"
-MATCHING_DB_FILE = "matchingdb.json"    # new
-GRID_WIDTH, GRID_HEIGHT = 12, 20
-CELL_SIZE = 45  # Most items use 45x45 px per cell
+@dataclass
+class ItemInfo:
+    name: str
+    slotId: int  # Changed from slot_id to match incoming JSON
+    itemId: str  # Changed from item_id to match incoming JSON
+    itemCount: int  # Changed from item_count to match incoming JSON
 
-def load_json(filename):
-    with open(filename, "r", encoding="utf-8") as f:
-        return json.load(f)
+class ItemDataManager:
+    def __init__(self):
+        self.ITEM_DATA_FILE = "item-data.json"
+        self.MATCHING_DB_FILE = "matchingdb.json"
+        self.item_data = self.load_json(self.ITEM_DATA_FILE)
+        self.matching_db = self.load_matching_db()
+        self.image_cache = {}
 
-def normalize_name(name):
-    """Lowercase, strip prefix, remove non-alphanumerics, keep all words."""
-    if not name:
-        return ""
-    name = name.lower()
-    name = re.sub(r"designdataitem:|id_item_", "", name)
-    name = re.sub(r"[^a-z0-9]", "", name)
-    return name
+    @staticmethod
+    def load_json(filename: str) -> dict:
+        with open(filename, "r", encoding="utf-8") as f:
+            return json.load(f)
 
-def normalize_name_words(name):
-    """Lowercase, strip prefix, split on non-chars, remove trivial words, sort remaining."""
-    if not name:
-        return ""
-    name = name.lower()
-    name = re.sub(r"designdataitem:|id_item_", "", name)
-    name = re.sub(r"[^a-z0-9 ]", " ", name)
-    words = [w for w in name.split() if w not in {"item", "of", "the"}]
-    return " " .join(sorted(words))
+    def load_matching_db(self) -> dict:
+        try:
+            return self.load_json(self.MATCHING_DB_FILE)
+        except Exception:
+            return {}
 
-def get_item_image_path(item_name, item_data):
-    # try manual override first
-    try:
-        matching_db = load_json(MATCHING_DB_FILE)
-    except Exception:
-        matching_db = {}
-    if item_name in matching_db:
-        item_name = matching_db[item_name]
+    def save_matching_db(self) -> None:
+        with open(self.MATCHING_DB_FILE, "w", encoding="utf-8") as f:
+            json.dump(self.matching_db, f, indent=2)
 
-    norm_name = normalize_name(item_name)
-    norm_words = normalize_name_words(item_name)
-    # exact and partial match as before
-    for data in item_data.values():
-        candidates = [data.get("name",""), data.get("matched_darkerdb_name","")]
-        for cand in candidates:
-            if normalize_name(cand)==norm_name or normalize_name_words(cand)==norm_words:
-                return data["path"].replace("\\",os.sep), data["inventory_width"], data["inventory_height"], data["name"]
-    for data in item_data.values():
-        candidates = [data.get("name",""), data.get("matched_darkerdb_name","")]
-        for cand in candidates:
-            if norm_name in normalize_name(cand) or norm_words in normalize_name_words(cand):
-                return data["path"].replace("\\",os.sep), data["inventory_width"], data["inventory_height"], data["name"]
-    # fuzzy match fallback
-    # build map of normalized -> data
-    name_map = {}
-    for data in item_data.values():
-        for cand in (data.get("name",""), data.get("matched_darkerdb_name","")):
-            key = normalize_name(cand)
-            name_map[key] = data
-    keys = list(name_map.keys())
-    close = difflib.get_close_matches(norm_name, keys, n=1, cutoff=0.7)
-    if close:
-        data = name_map[close[0]]
-        print(f"Fuzzy matched '{item_name}' → '{data['name']}'")
-        return data["path"].replace("\\",os.sep), data["inventory_width"], data["inventory_height"], data["name"]
-    return None, None, None, None
+    @staticmethod
+    def normalize_name(name: str) -> str:
+        if not name:
+            return ""
+        name = name.lower()
+        name = re.sub(r"designdataitem:|id_item_", "", name)
+        name = re.sub(r"[^a-z0-9]", "", name)
+        return name
+
+    def get_item_image_path(self, item_name: str) -> Tuple[Optional[str], Optional[int], Optional[int], Optional[str]]:
+        if item_name in self.matching_db:
+            item_name = self.matching_db[item_name]
+
+        norm_name = self.normalize_name(item_name)
+        
+        # Try exact match first
+        for data in self.item_data.values():
+            if self.normalize_name(data.get("name", "")) == norm_name:
+                return (data["path"].replace("\\", os.sep),
+                        data["inventory_width"],
+                        data["inventory_height"],
+                        data["name"])
+
+        # Try fuzzy match as fallback
+        name_map = {self.normalize_name(data.get("name", "")): data 
+                   for data in self.item_data.values()}
+        close = difflib.get_close_matches(norm_name, list(name_map.keys()), n=1, cutoff=0.7)
+        
+        if close:
+            data = name_map[close[0]]
+            logging.info(f"Fuzzy matched '{item_name}' → '{data['name']}'")
+            return (data["path"].replace("\\", os.sep),
+                    data["inventory_width"],
+                    data["inventory_height"],
+                    data["name"])
+                    
+        return None, None, None, None
+
+class StashPreviewGenerator:
+    def __init__(self, grid_width: int = 12, grid_height: int = 20, cell_size: int = 45):
+        self.GRID_WIDTH = grid_width
+        self.GRID_HEIGHT = grid_height
+        self.CELL_SIZE = cell_size
+        self.item_manager = ItemDataManager()
+        logging.basicConfig(level=logging.INFO)
+
+    def generate_preview(self, stash_id: str, items: List[ItemInfo]) -> Image.Image:
+        preview = Image.new("RGBA", 
+                          (self.GRID_WIDTH * self.CELL_SIZE, 
+                           self.GRID_HEIGHT * self.CELL_SIZE))
+        self._draw_grid(preview)
+        
+        for item in items:
+            self._place_item(preview, item)
+            
+        return preview
+
+    def _draw_grid(self, img: Image.Image) -> None:
+        draw = ImageDraw.Draw(img)
+        # Fill background
+        draw.rectangle([0, 0, img.width, img.height], fill=(24, 20, 16, 255))
+        # Draw border
+        draw.rectangle([0, 0, img.width - 1, img.height - 1],
+                      outline=(212, 175, 55, 255), width=4)
+        # Draw grid lines
+        grid_color = (60, 50, 30, 180)
+        for x in range(1, self.GRID_WIDTH):
+            x_pos = x * self.CELL_SIZE
+            draw.line([(x_pos, 0), (x_pos, img.height)], fill=grid_color)
+        for y in range(1, self.GRID_HEIGHT):
+            y_pos = y * self.CELL_SIZE
+            draw.line([(0, y_pos), (img.width, y_pos)], fill=grid_color)
+
+    def _place_item(self, preview: Image.Image, item: ItemInfo) -> None:
+        img_path, w, h, matched_name = self.item_manager.get_item_image_path(item.name)
+        if not img_path or not os.path.exists(img_path):
+            logging.warning(f"Item not found or missing image: {item.name}")
+            return
+
+        try:
+            item_img = Image.open(img_path).convert("RGBA")
+            expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
+            if item_img.size != expected_size:
+                item_img = item_img.resize(expected_size, Image.LANCZOS)
+            
+            x, y = item.slotId % self.GRID_WIDTH, item.slotId // self.GRID_WIDTH  # Updated to use slotId
+            preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+            logging.info(f"Placed '{matched_name}' at ({x},{y})")
+            
+            # Record successful match
+            self.item_manager.matching_db[item.name] = matched_name
+            
+        except Exception as e:
+            logging.error(f"Failed to process image {img_path}: {e}")
 
 def get_item_name_from_id(item_id, item_data):
     # Extract base name from item_id
@@ -96,42 +158,20 @@ def parse_stashes(packet_data, item_data):
             name = get_item_name_from_id(item_id, item_data)
             stash_items.append({
                 "name": name,
-                "slotId": slot_id,
-                "itemId": item_id,
-                "itemCount": item.get("itemCount", 1)
+                "slotId": slot_id,  # Already matches ItemInfo field name
+                "itemId": item_id,   # Already matches ItemInfo field name
+                "itemCount": item.get("itemCount", 1)  # Already matches ItemInfo field name
             })
         if stash_items:
             stashes[inventory_id] = stash_items
     return stashes
 
 def slotid_to_xy(slot_id):
-    return slot_id % GRID_WIDTH, slot_id // GRID_WIDTH
-
-def draw_darkanddarker_grid(img, grid_w, grid_h, cell_size):
-    draw = ImageDraw.Draw(img)
-    # Fill background with dark color
-    draw.rectangle([0, 0, img.width, img.height], fill=(24, 20, 16, 255))
-    # Draw gold border
-    border_color = (212, 175, 55, 255)  # gold
-    border_width = 4
-    draw.rectangle(
-        [0, 0, img.width - 1, img.height - 1],
-        outline=border_color,
-        width=border_width
-    )
-    # Draw grid lines (subtle)
-    grid_color = (60, 50, 30, 180)
-    for x in range(1, grid_w):
-        x_pos = x * cell_size
-        draw.line([(x_pos, 0), (x_pos, img.height)], fill=grid_color, width=1)
-    for y in range(1, grid_h):
-        y_pos = y * cell_size
-        draw.line([(0, y_pos), (img.width, y_pos)], fill=grid_color, width=1)
-    # Optionally, add a slight vignette or shadow (not implemented for simplicity)
+    return slot_id % 12, slot_id // 12
 
 def main():
-    item_data = load_json(ITEM_DATA_FILE)
-    packet_data = load_json(PACKET_DATA_FILE)
+    item_data = ItemDataManager().item_data
+    packet_data = ItemDataManager.load_json("packet_data.json")
     matching_db = {}  # collect original → matched names
 
     stashes = parse_stashes(packet_data, item_data)
@@ -139,50 +179,17 @@ def main():
         print("No stashes found in packet data.")
         return
 
+    generator = StashPreviewGenerator()
+
     for stash_id, items in stashes.items():
         print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
-        preview = Image.new("RGBA", (GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE), (0, 0, 0, 255))
-        draw_darkanddarker_grid(preview, GRID_WIDTH, GRID_HEIGHT, CELL_SIZE)
-        found_count = 0
-        not_found_count = 0
-
-        for idx, item in enumerate(items):
-            img_path, w, h, matched_name = get_item_image_path(item["name"], item_data)
-            if not img_path:
-                print(f"[{idx+1}/{len(items)}] Item not found in item-data: '{item['name']}' (itemId: {item['itemId']})")
-                not_found_count += 1
-                continue
-            if not os.path.exists(img_path):
-                print(f"[{idx+1}/{len(items)}] Image file missing: {img_path} for item '{matched_name}'")
-                not_found_count += 1
-                continue
-
-            try:
-                item_img = Image.open(img_path).convert("RGBA")
-            except Exception as e:
-                print(f"[{idx+1}/{len(items)}] Failed to open image {img_path}: {e}")
-                not_found_count += 1
-                continue
-
-            expected_w, expected_h = (w or 1) * CELL_SIZE, (h or 1) * CELL_SIZE
-            if item_img.size != (expected_w, expected_h):
-                item_img = item_img.resize((expected_w, expected_h), Image.LANCZOS)
-
-            x, y = slotid_to_xy(item["slotId"])
-            preview.paste(item_img, (x * CELL_SIZE, y * CELL_SIZE), item_img)
-            print(f"[{idx+1}/{len(items)}] Placed '{matched_name}' at ({x},{y}) size {w}x{h}")
-            found_count += 1
-            # record the mapping
-            matching_db[item["name"]] = matched_name
-
+        preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
         outname = f"stash_preview_{stash_id}.png"
         preview.save(outname)
-        print(f"Done. Items placed: {found_count}, not found/skipped: {not_found_count}")
         print(f"Preview saved as {outname}")
 
     # save the matching database
-    with open("matchingdb.json", "w", encoding="utf-8") as f:
-        json.dump(matching_db, f, indent=2)
+    generator.item_manager.save_matching_db()
     print("Matching DB saved as matchingdb.json")
 
 if __name__ == "__main__":

@@ -3,71 +3,82 @@ import socket
 import psutil
 import struct
 import sys
+import logging
+from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
-import protos.Lobby_pb2
-import stash_preview        # new
+import Lobby_pb2
 
-import os
+class PacketCapture:
+    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300)):
+        self.interface = interface
+        self.port_range = port_range
+        self.packet_data = b""
+        logging.basicConfig(level=logging.INFO)
+        self.logger = logging.getLogger(__name__)
 
-protos_dir = os.path.join(os.path.dirname(__file__), "protos")
+    def get_local_ip(self) -> Optional[str]:
+        for interface, addrs in psutil.net_if_addrs().items():
+            if interface == self.interface:
+                for addr in addrs:
+                    if addr.family == socket.AF_INET:
+                        return addr.address
+        return None
 
-if protos_dir not in sys.path:
-    sys.path.append(protos_dir)
+    def process_packet(self, data: bytes) -> None:
+        if len(data) > 8:
+            self.packet_data += data
+            packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
 
-def get_local_ip(interface_name):
-    for interface, addrs in psutil.net_if_addrs().items():
-        if interface == interface_name:
-            for addr in addrs:
-                if addr.family == socket.AF_INET:  # IPv4 address
-                    return addr.address
-    return None
+            if proto_type == 44:  # S2C_LOBBY_CHARACTER_INFO_RES
+                if len(self.packet_data) == packet_length:
+                    self.logger.info(f"Processing packet: Length={packet_length}, Type={proto_type}")
+                    self.save_packet_data()
+                elif len(self.packet_data) > packet_length:
+                    self.logger.error("Packet data overflow")
+                    self.packet_data = b""
+            else:
+                self.packet_data = b""
 
-def capture_packets(interface='Ethernet', port_range=(20200, 20300)):
-    local_ip = get_local_ip(interface)
-    if not local_ip:
-        print(f"Could not find IP address for interface {interface}")
-        return
+    def save_packet_data(self) -> None:
+        try:
+            info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
+            info.ParseFromString(self.packet_data[8:])
+            json_data = MessageToJson(info)
+            
+            with open("packet_data.json", "w") as json_file:
+                json_file.write(json_data)
+            self.logger.info("Successfully saved packet data")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to save packet data: {e}")
+        finally:
+            self.packet_data = b""
 
-    capture = pyshark.LiveCapture(interface=interface, display_filter=f'ip.dst == {local_ip} and tcp.srcport >= {port_range[0]} and tcp.srcport <= {port_range[1]}')
+    def capture(self) -> None:
+        local_ip = self.get_local_ip()
+        if not local_ip:
+            self.logger.error(f"Could not find IP address for interface {self.interface}")
+            return
 
-    packet_data = b""
-    for packet in capture.sniff_continuously():
-        if 'TCP' in packet:
-            if hasattr(packet.tcp, 'payload'):
-                payload = packet.tcp.payload.binary_value
-                if len(payload) > 8:
-                    packet_data += payload
-                    packet_length, proto_type, random_padding = struct.unpack('<IHH', packet_data[:8])
+        display_filter = (f'ip.dst == {local_ip} and '
+                         f'tcp.srcport >= {self.port_range[0]} and '
+                         f'tcp.srcport <= {self.port_range[1]}')
+        
+        capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
 
-                    if proto_type == 44: # S2C_LOBBY_CHARACTER_INFO_RES
-                        print(f"Packet Length: {packet_length}, Proto Type: {proto_type}, Random Padding: {random_padding}")
-                        print(f"{len(packet_data)}/{packet_length}")
-                        
-                        if len(packet_data) == packet_length:
-                            print(f"Packet Length: {packet_length}, Proto Type: {proto_type}, Random Padding: {random_padding}")
+        try:
+            for packet in capture.sniff_continuously():
+                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                    self.process_packet(packet.tcp.payload.binary_value)
+        except KeyboardInterrupt:
+            self.logger.info("Capture stopped by user")
+        except Exception as e:
+            self.logger.error(f"Capture error: {e}")
 
-                            data = packet_data[8:]
-
-                            info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
-                            info.ParseFromString(data)
-
-                            json_data = MessageToJson(info)
-
-                            with open("packet_data.json", "w") as json_file:
-                                json_file.write(json_data)
-
-                            # once the packet JSON is saved, generate stash previews:
-                            stash_preview.main()
-                            return
-
-                            packet_data = b""
-
-                        if len(packet_data) > packet_length:
-                            print("ERROR")
-                            packet_data = b""
-                    else:
-                        packet_data = b""
+def main():
+    capture = PacketCapture()
+    capture.capture()
 
 if __name__ == "__main__":
-    capture_packets()
+    main()
 
