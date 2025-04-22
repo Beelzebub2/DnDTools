@@ -10,16 +10,6 @@
             <label for="interface">Network Interface</label>
             <input type="text" id="interface" class="settings-input" placeholder="e.g. Ethernet">
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label for="portLow">Port Range Start</label>
-                <input type="number" id="portLow" class="settings-input" placeholder="20200">
-            </div>
-            <div class="form-group">
-                <label for="portHigh">Port Range End</label>
-                <input type="number" id="portHigh" class="settings-input" placeholder="20300">
-            </div>
-        </div>
         <button id="saveSettings" class="btn-primary">Save Settings</button>
     </div>
 </div>
@@ -28,17 +18,12 @@
 {% block scripts %}
 <script>
     window.addEventListener('load', async () => {
-        const form = document.querySelector('.settings-form');
         const interfaceInput = document.getElementById('interface');
-        const portLowInput = document.getElementById('portLow');
-        const portHighInput = document.getElementById('portHigh');
 
         // Load current settings
         try {
             const settings = await fetch('/api/capture/settings').then(r => r.json());
             interfaceInput.value = settings.interface;
-            portLowInput.value = settings.port_range[0];
-            portHighInput.value = settings.port_range[1];
         } catch (error) {
             console.error('Failed to load settings:', error);
         }
@@ -49,11 +34,7 @@
                 const response = await fetch('/api/capture/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        interface: interfaceInput.value,
-                        port_low: parseInt(portLowInput.value),
-                        port_high: parseInt(portHighInput.value)
-                    })
+                    body: JSON.stringify({ interface: interfaceInput.value })
                 });
 
                 const result = await response.json();

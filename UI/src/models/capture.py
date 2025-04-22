@@ -158,61 +158,28 @@ class PacketCapture:
              
             # Check for target JSON content
             if '"result": 1' in json_data and '"characterDataBase": {' in json_data:
-                # Get character details
+                # Get character ID for filename
                 char_data = info.characterDataBase
-                original_nickname = char_data.nickName.originalNickName
-                raw_class = char_data.characterClass
-                class_name = raw_class.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
+                char_id = str(char_data.characterId)
                 
-                # Create character summary
-                char_summary = {
-                    "accountId": char_data.accountId,
-                    "accountNickname": char_data.accountNickname,
-                    "characterId": char_data.characterId,
-                    "characterName": original_nickname,
-                    "characterClass": class_name,
-                    "level": char_data.level,
-                    "gender": char_data.gender,
-                    "rank": {
-                        "name": char_data.nickName.rankId.replace("LeaderboardRankData:Id_LeaderboardRank_", "").replace("_", " "),
-                        "fame": char_data.nickName.fame,
-                        "iconType": char_data.nickName.rankIconType
-                    },
-                    "lastUpdated": datetime.now().strftime("%Y-%m-%d"),
-                    "streamingModeName": char_data.nickName.streamingModeNickName
-                }
-                
-                # Save character summary
-                char_dir = os.path.join(self.data_dir, "characters")
-                os.makedirs(char_dir, exist_ok=True)
-                char_file = os.path.join(char_dir, f"{char_data.characterId}.json")
-                with open(char_file, "w", encoding='utf-8') as f:
-                    json.dump(char_summary, f, indent=2, ensure_ascii=False)
-                print(f"Saved character summary to {char_file}")
-
-                # Still save full JSON to timestamped file in data folder
+                # Save to data directory with character ID and timestamp
                 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                data_file = os.path.join(self.data_dir, f"{timestamp}.json")
+                data_file = os.path.join(self.data_dir, f"{char_id}_{timestamp}.json")
+                
                 with open(data_file, "w", encoding='utf-8') as f:
                     f.write(json_data)
                 print(f"Saved target packet data to {data_file}")
                 print("Target JSON found, stopping capture.")
                 return True
             
-            # Save both to data dir and root for compatibility
+            # Save other packets to timestamped files
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             data_file = os.path.join(self.data_dir, f"{timestamp}.json")
-            root_file = "packet_data.json"
             
-            # Save to timestamped file
             with open(data_file, "w", encoding='utf-8') as f:
                 f.write(json_data)
-                
-            # Save/update packet_data.json in root
-            with open(root_file, "w", encoding='utf-8') as f:
-                f.write(json_data)
             
-            print(f"Successfully saved packet data to {data_file} and {root_file}")
+            print(f"Successfully saved packet data to {data_file}")
             return False
             
         except Exception as e:

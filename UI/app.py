@@ -1,5 +1,5 @@
 import webview
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_from_directory
 import os
 from src.models.stash_manager import StashManager
 from src.models.stash_preview import ItemDataManager
@@ -65,21 +65,15 @@ class Api:
         # perform capture synchronously; return True only when valid data file is saved
         import asyncio
         asyncio.set_event_loop(asyncio.new_event_loop())
-        return self.packet_capture.capture()
+        result = self.packet_capture.capture()
+        if result:
+            # Reload data after successful capture
+            self.stash_manager.characters_cache = {}
+            self.stash_manager._load_data()
+        return result
 
-    def record_character(self, character_id):
-        import glob, shutil
-        data_dir = self.stash_manager.data_dir
-        files = glob.glob(os.path.join(data_dir, "*.json"))
-        if not files:
-            return False
-        latest = max(files, key=os.path.getmtime)
-        dest = os.path.join(data_dir, f"{character_id}.json")
-        shutil.copy(latest, dest)
-        # Reload data
-        self.stash_manager.characters_cache = {}
-        self.stash_manager._load_data()
-        return True
+    def get_character_stash_previews(self, character_id):
+        return self.stash_manager.get_character_stash_previews(character_id)
 
 # Initialize API
 api = Api()
@@ -91,11 +85,15 @@ def api_characters():
 
 @server.route('/api/character/<character_id>/stashes')
 def api_character_stashes(character_id):
-    return jsonify(api.get_character_stashes(character_id))
+    return jsonify(api.get_character_stash_previews(character_id))
 
 @server.route('/api/character/<character_id>/details')
 def api_character_details(character_id):
     return jsonify(api.get_character_details(character_id) or {}), 200
+
+@server.route('/output/<path:filename>')
+def serve_preview(filename):
+    return send_from_directory(os.path.join(app_dir, 'output'), filename)
 
 @server.route('/api/search_items')
 def api_search_items():
@@ -115,7 +113,7 @@ def api_capture_start():
 
 @server.route('/api/record_character/<character_id>', methods=['POST'])
 def api_record_character(character_id):
-    return jsonify({'success': api.record_character(character_id)})
+    return jsonify({'success': False, 'error': 'Recording individual characters is no longer supported'})
 
 @server.route('/')
 def index():
