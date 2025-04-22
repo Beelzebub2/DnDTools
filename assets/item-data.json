@@ -2,7 +2,7 @@
   "Arming_Sword_2.png": {
     "name": "ArmingSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Arming_Sword_2.png",
+    "path": "images\\weapons\\Arming_Sword_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -14,7 +14,7 @@
   "Crystal_Sword_2.png": {
     "name": "CrystalSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Crystal_Sword_2.png",
+    "path": "images\\weapons\\Crystal_Sword_2.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -26,7 +26,7 @@
   "Falchion_2.png": {
     "name": "Falchion",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Falchion_2.png",
+    "path": "images\\weapons\\Falchion_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -38,7 +38,7 @@
   "Longsword_2.png": {
     "name": "Longsword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Longsword_2.png",
+    "path": "images\\weapons\\Longsword_2.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -50,7 +50,7 @@
   "Rapier_2.png": {
     "name": "Rapier",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Rapier_2.png",
+    "path": "images\\weapons\\Rapier_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -62,7 +62,7 @@
   "Short_Sword_2.png": {
     "name": "ShortSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Short_Sword_2.png",
+    "path": "images\\weapons\\Short_Sword_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -74,7 +74,7 @@
   "Viking_Sword_2.png": {
     "name": "VikingSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Viking_Sword_2.png",
+    "path": "images\\weapons\\Viking_Sword_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -86,7 +86,7 @@
   "Zweihander_2.png": {
     "name": "Zweihander",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Zweihander_2.png",
+    "path": "images\\weapons\\Zweihander_2.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -98,7 +98,7 @@
   "Blade_of_Righteousness.png": {
     "name": "BladeOfRighteousness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Blade_of_Righteousness.png",
+    "path": "images\\weapons\\Blade_of_Righteousness.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -110,7 +110,7 @@
   "Demon%27s_Glee.png": {
     "name": "DemonsGlee",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Demon%27s_Glee.png",
+    "path": "images\\weapons\\Demon%27s_Glee.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -122,7 +122,7 @@
   "Divine_Blade.png": {
     "name": "DivineBlade",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Divine_Blade.png",
+    "path": "images\\weapons\\Divine_Blade.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -134,7 +134,7 @@
   "Divine_Short_Sword.png": {
     "name": "DivineShortSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Divine_Short_Sword.png",
+    "path": "images\\weapons\\Divine_Short_Sword.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -146,7 +146,7 @@
   "Falchion_of_Honor.png": {
     "name": "FalchionofHonor",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Falchion_of_Honor.png",
+    "path": "images\\weapons\\Falchion_of_Honor.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -158,7 +158,7 @@
   "Frostlight_Crystal_Sword.png": {
     "name": "FrostlightCrystalSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Frostlight_Crystal_Sword.png",
+    "path": "images\\weapons\\Frostlight_Crystal_Sword.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -170,7 +170,7 @@
   "Golden_Viking_Sword.png": {
     "name": "GoldenVikingSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Golden_Viking_Sword.png",
+    "path": "images\\weapons\\Golden_Viking_Sword.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -182,7 +182,7 @@
   "Grimslayer.png": {
     "name": "GrimSlayer",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Grimslayer.png",
+    "path": "images\\weapons\\Grimslayer.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -194,7 +194,7 @@
   "Short_Sword_of_Righteousness.png": {
     "name": "ShortSwordOfRighteousness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Short_Sword_of_Righteousness.png",
+    "path": "images\\weapons\\Short_Sword_of_Righteousness.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -206,7 +206,7 @@
   "Sovereign%27s_Ghostblade.png": {
     "name": "SovereignsGhostblade",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sovereign%27s_Ghostblade.png",
+    "path": "images\\weapons\\Sovereign%27s_Ghostblade.png",
     "width": 45,
     "height": 135,
     "size": "1x4",
@@ -218,7 +218,7 @@
   "Sterling_Blade.png": {
     "name": "SterlingBlade",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sterling_Blade.png",
+    "path": "images\\weapons\\Sterling_Blade.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -230,7 +230,7 @@
   "Sterling_Short_Sword.png": {
     "name": "SterlingShortSword",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sterling_Short_Sword.png",
+    "path": "images\\weapons\\Sterling_Short_Sword.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -242,7 +242,7 @@
   "Void_Blade.png": {
     "name": "VoidBlade",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Void_Blade.png",
+    "path": "images\\weapons\\Void_Blade.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -254,7 +254,7 @@
   "Club_2.png": {
     "name": "Club",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Club_2.png",
+    "path": "images\\weapons\\Club_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -266,7 +266,7 @@
   "Flanged_Mace_2.png": {
     "name": "FlangedMace",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Flanged_Mace_2.png",
+    "path": "images\\weapons\\Flanged_Mace_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -278,7 +278,7 @@
   "Lute_2.png": {
     "name": "Lute",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Lute_2.png",
+    "path": "images\\weapons\\Lute_2.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -290,7 +290,7 @@
   "Morning_Star_2.png": {
     "name": "MorningStar",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Morning_Star_2.png",
+    "path": "images\\weapons\\Morning_Star_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -302,7 +302,7 @@
   "Quarterstaff_2.png": {
     "name": "Quarterstaff",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Quarterstaff_2.png",
+    "path": "images\\weapons\\Quarterstaff_2.png",
     "width": 45,
     "height": 180,
     "size": "1x5",
@@ -314,7 +314,7 @@
   "Torch_2.png": {
     "name": "Torch",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Torch_2.png",
+    "path": "images\\weapons\\Torch_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -326,7 +326,7 @@
   "War_Hammer_2.png": {
     "name": "WarHammer",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\War_Hammer_2.png",
+    "path": "images\\weapons\\War_Hammer_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -338,7 +338,7 @@
   "War_Maul_2.png": {
     "name": "WarMaul",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\War_Maul_2.png",
+    "path": "images\\weapons\\War_Maul_2.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -350,7 +350,7 @@
   "Boneshaper.png": {
     "name": "Boneshaper",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Boneshaper.png",
+    "path": "images\\weapons\\Boneshaper.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -362,7 +362,7 @@
   "Divine_Rod.png": {
     "name": "DivineRod",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Divine_Rod.png",
+    "path": "images\\weapons\\Divine_Rod.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -374,7 +374,7 @@
   "Divine_Staff.png": {
     "name": "DivineStaff",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Divine_Staff.png",
+    "path": "images\\weapons\\Divine_Staff.png",
     "width": 45,
     "height": 180,
     "size": "1x5",
@@ -386,7 +386,7 @@
   "Light_Bringer.png": {
     "name": "LightBringer",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Light_Bringer.png",
+    "path": "images\\weapons\\Light_Bringer.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -398,7 +398,7 @@
   "Rod_of_Righteousness.png": {
     "name": "RodOfRighteousness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Rod_of_Righteousness.png",
+    "path": "images\\weapons\\Rod_of_Righteousness.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -410,7 +410,7 @@
   "Staff_of_Righteousness.png": {
     "name": "StaffOfRighteousness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Staff_of_Righteousness.png",
+    "path": "images\\weapons\\Staff_of_Righteousness.png",
     "width": 45,
     "height": 180,
     "size": "1x5",
@@ -422,7 +422,7 @@
   "Sterling_Rod.png": {
     "name": "SterlingRod",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sterling_Rod.png",
+    "path": "images\\weapons\\Sterling_Rod.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -434,7 +434,7 @@
   "Sterling_Staff.png": {
     "name": "SterlingStaff",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sterling_Staff.png",
+    "path": "images\\weapons\\Sterling_Staff.png",
     "width": 45,
     "height": 180,
     "size": "1x5",
@@ -446,7 +446,7 @@
   "Troll%27s_Bane.png": {
     "name": "TrollBane",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Troll%27s_Bane.png",
+    "path": "images\\weapons\\Troll%27s_Bane.png",
     "width": 45,
     "height": 180,
     "size": "1x5",
@@ -458,7 +458,7 @@
   "Castillon_Dagger_2.png": {
     "name": "CastillonDagger",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Castillon_Dagger_2.png",
+    "path": "images\\weapons\\Castillon_Dagger_2.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -470,7 +470,7 @@
   "Kris_Dagger_2.png": {
     "name": "KrisDagger",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Kris_Dagger_2.png",
+    "path": "images\\weapons\\Kris_Dagger_2.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -482,7 +482,7 @@
   "Rondel_Dagger_2.png": {
     "name": "RondelDagger",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Rondel_Dagger_2.png",
+    "path": "images\\weapons\\Rondel_Dagger_2.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -494,7 +494,7 @@
   "Stiletto_Dagger_2.png": {
     "name": "StilettoDagger",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Stiletto_Dagger_2.png",
+    "path": "images\\weapons\\Stiletto_Dagger_2.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -506,7 +506,7 @@
   "Dagger_of_Righteousness.png": {
     "name": "DaggerOfRighteousness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Dagger_of_Righteousness.png",
+    "path": "images\\weapons\\Dagger_of_Righteousness.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -518,7 +518,7 @@
   "Divine_Dagger.png": {
     "name": "DivineDagger",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Divine_Dagger.png",
+    "path": "images\\weapons\\Divine_Dagger.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -530,7 +530,7 @@
   "Icefang.png": {
     "name": "Icefang",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Icefang.png",
+    "path": "images\\weapons\\Icefang.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -542,7 +542,7 @@
   "Sterling_Dagger.png": {
     "name": "SterlingDagger",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sterling_Dagger.png",
+    "path": "images\\weapons\\Sterling_Dagger.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -554,7 +554,7 @@
   "Throwing_Knife.png": {
     "name": "ThrowingKnife",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Throwing_Knife.png",
+    "path": "images\\weapons\\Throwing_Knife.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -566,7 +566,7 @@
   "Bardiche_2.png": {
     "name": "Bardiche",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Bardiche_2.png",
+    "path": "images\\weapons\\Bardiche_2.png",
     "width": 90,
     "height": 225,
     "size": "2x5",
@@ -578,7 +578,7 @@
   "Halberd_2.png": {
     "name": "Halberd",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Halberd_2.png",
+    "path": "images\\weapons\\Halberd_2.png",
     "width": 90,
     "height": 225,
     "size": "2x5",
@@ -590,7 +590,7 @@
   "Spear_2.png": {
     "name": "Spear",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Spear_2.png",
+    "path": "images\\weapons\\Spear_2.png",
     "width": 45,
     "height": 225,
     "size": "1x5",
@@ -602,7 +602,7 @@
   "Frostlight_Spear.png": {
     "name": "FrostlightSpear",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Frostlight_Spear.png",
+    "path": "images\\weapons\\Frostlight_Spear.png",
     "width": 45,
     "height": 225,
     "size": "1x5",
@@ -614,7 +614,7 @@
   "Spear_of_Rot.png": {
     "name": "SpearofRot",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Spear_of_Rot.png",
+    "path": "images\\weapons\\Spear_of_Rot.png",
     "width": 45,
     "height": 225,
     "size": "1x5",
@@ -626,7 +626,7 @@
   "Battle_Axe_2.png": {
     "name": "BattleAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Battle_Axe_2.png",
+    "path": "images\\weapons\\Battle_Axe_2.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -638,7 +638,7 @@
   "Double_Axe_2.png": {
     "name": "DoubleAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Double_Axe_2.png",
+    "path": "images\\weapons\\Double_Axe_2.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -650,7 +650,7 @@
   "Felling_Axe_2.png": {
     "name": "FellingAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Felling_Axe_2.png",
+    "path": "images\\weapons\\Felling_Axe_2.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -662,7 +662,7 @@
   "Hatchet_2.png": {
     "name": "Hatchet",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Hatchet_2.png",
+    "path": "images\\weapons\\Hatchet_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -674,7 +674,7 @@
   "Horseman%27s_Axe_2.png": {
     "name": "HorsemansAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Horseman%27s_Axe_2.png",
+    "path": "images\\weapons\\Horseman%27s_Axe_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -686,7 +686,7 @@
   "Axe_of_Righteousness.png": {
     "name": "AxeOfRighteousness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Axe_of_Righteousness.png",
+    "path": "images\\weapons\\Axe_of_Righteousness.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -698,7 +698,7 @@
   "Divine_Axe.png": {
     "name": "DivineAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Divine_Axe.png",
+    "path": "images\\weapons\\Divine_Axe.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -710,7 +710,7 @@
   "Francisca_Axe.png": {
     "name": "FranciscaAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Francisca_Axe.png",
+    "path": "images\\weapons\\Francisca_Axe.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -722,7 +722,7 @@
   "Golden_Felling_Axe.png": {
     "name": "GoldenFellingAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Golden_Felling_Axe.png",
+    "path": "images\\weapons\\Golden_Felling_Axe.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -734,7 +734,7 @@
   "Sterling_Axe.png": {
     "name": "SterlingAxe",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sterling_Axe.png",
+    "path": "images\\weapons\\Sterling_Axe.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -746,7 +746,7 @@
   "Longbow_2.png": {
     "name": "Longbow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Longbow_2.png",
+    "path": "images\\weapons\\Longbow_2.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -758,7 +758,7 @@
   "Recurve_Bow_2.png": {
     "name": "RecurveBow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Recurve_Bow_2.png",
+    "path": "images\\weapons\\Recurve_Bow_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -770,7 +770,7 @@
   "Survival_Bow_2.png": {
     "name": "SurvivalBow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Survival_Bow_2.png",
+    "path": "images\\weapons\\Survival_Bow_2.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -782,7 +782,7 @@
   "Bow_of_Righteousness.png": {
     "name": "BowOfRighteousness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Bow_of_Righteousness.png",
+    "path": "images\\weapons\\Bow_of_Righteousness.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -794,7 +794,7 @@
   "Centaur%27s_Madness.png": {
     "name": "CentaurMadness",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Centaur%27s_Madness.png",
+    "path": "images\\weapons\\Centaur%27s_Madness.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -806,7 +806,7 @@
   "Divine_Bow.png": {
     "name": "DivineBow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Divine_Bow.png",
+    "path": "images\\weapons\\Divine_Bow.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -818,7 +818,7 @@
   "Sterling_Bow.png": {
     "name": "SterlingBow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Sterling_Bow.png",
+    "path": "images\\weapons\\Sterling_Bow.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -830,7 +830,7 @@
   "Crossbow_2.png": {
     "name": "Crossbow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Crossbow_2.png",
+    "path": "images\\weapons\\Crossbow_2.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -842,7 +842,7 @@
   "Hand_Crossbow_2.png": {
     "name": "HandCrossbow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Hand_Crossbow_2.png",
+    "path": "images\\weapons\\Hand_Crossbow_2.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -854,7 +854,7 @@
   "Windlass_Crossbow_2.png": {
     "name": "WindlassCrossbow",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Windlass_Crossbow_2.png",
+    "path": "images\\weapons\\Windlass_Crossbow_2.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -866,7 +866,7 @@
   "Ceremonial_Staff_2.png": {
     "name": "CeremonialStaff",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Ceremonial_Staff_2.png",
+    "path": "images\\weapons\\Ceremonial_Staff_2.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -878,7 +878,7 @@
   "Crystal_Ball_2.png": {
     "name": "CrystalBall",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Crystal_Ball_2.png",
+    "path": "images\\weapons\\Crystal_Ball_2.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -887,22 +887,10 @@
     "inventory_height": 2,
     "matched_darkerdb_name": "Crystal Ball"
   },
-  "Nothing.png": {
-    "name": "nothing",
-    "category": "weapons",
-    "path": "assets\\images\\weapons\\Nothing.png",
-    "width": 90,
-    "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
-  },
   "Magic_Staff_2.png": {
     "name": "WizardStaff",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Magic_Staff_2.png",
+    "path": "images\\weapons\\Magic_Staff_2.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -914,7 +902,7 @@
   "Spellbook_2.png": {
     "name": "Spellbook",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Spellbook_2.png",
+    "path": "images\\weapons\\Spellbook_2.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -926,7 +914,7 @@
   "Cyclops_Vision_Crystal.png": {
     "name": "CyclopsVisionCrystal",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Cyclops_Vision_Crystal.png",
+    "path": "images\\weapons\\Cyclops_Vision_Crystal.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -938,7 +926,7 @@
   "Mana_Sphere.png": {
     "name": "ManaSphere",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Mana_Sphere.png",
+    "path": "images\\weapons\\Mana_Sphere.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -950,7 +938,7 @@
   "Buckler_2.png": {
     "name": "Buckler",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Buckler_2.png",
+    "path": "images\\weapons\\Buckler_2.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -962,7 +950,7 @@
   "Heater_Shield_2.png": {
     "name": "HeaterShield",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Heater_Shield_2.png",
+    "path": "images\\weapons\\Heater_Shield_2.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -974,7 +962,7 @@
   "Lantern_Shield_2.png": {
     "name": "LanternShield",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Lantern_Shield_2.png",
+    "path": "images\\weapons\\Lantern_Shield_2.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -986,7 +974,7 @@
   "Pavise_2.png": {
     "name": "Pavise",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Pavise_2.png",
+    "path": "images\\weapons\\Pavise_2.png",
     "width": 135,
     "height": 180,
     "size": "3x4",
@@ -998,7 +986,7 @@
   "Round_Shield_2.png": {
     "name": "RoundShield",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Round_Shield_2.png",
+    "path": "images\\weapons\\Round_Shield_2.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -1010,7 +998,7 @@
   "Frostlight_Lantern_Shield.png": {
     "name": "FrostlightLanternShield",
     "category": "weapons",
-    "path": "assets\\images\\weapons\\Frostlight_Lantern_Shield.png",
+    "path": "images\\weapons\\Frostlight_Lantern_Shield.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -1022,7 +1010,7 @@
   "Arcane_Hood.png": {
     "name": "ArcaneHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Arcane_Hood.png",
+    "path": "images\\armors\\Arcane_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1034,7 +1022,7 @@
   "Armet.png": {
     "name": "Armet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Armet.png",
+    "path": "images\\armors\\Armet.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1046,7 +1034,7 @@
   "Barbuta_Helm.png": {
     "name": "BarbutaHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Barbuta_Helm.png",
+    "path": "images\\armors\\Barbuta_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1058,7 +1046,7 @@
   "Ceremonial_Headdress.png": {
     "name": "CeremonialHeaddress",
     "category": "armors",
-    "path": "assets\\images\\armors\\Ceremonial_Headdress.png",
+    "path": "images\\armors\\Ceremonial_Headdress.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1070,7 +1058,7 @@
   "Chapel_De_Fer.png": {
     "name": "ChapelDeFer",
     "category": "armors",
-    "path": "assets\\images\\armors\\Chapel_De_Fer.png",
+    "path": "images\\armors\\Chapel_De_Fer.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1082,7 +1070,7 @@
   "Chaperon.png": {
     "name": "Chaperon",
     "category": "armors",
-    "path": "assets\\images\\armors\\Chaperon.png",
+    "path": "images\\armors\\Chaperon.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1094,7 +1082,7 @@
   "Coif.png": {
     "name": "Coif",
     "category": "armors",
-    "path": "assets\\images\\armors\\Coif.png",
+    "path": "images\\armors\\Coif.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1106,7 +1094,7 @@
   "Crusader_Helm.png": {
     "name": "CrusaderHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Crusader_Helm.png",
+    "path": "images\\armors\\Crusader_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1118,7 +1106,7 @@
   "Darkgrove_Hood.png": {
     "name": "DarkgroveHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Darkgrove_Hood.png",
+    "path": "images\\armors\\Darkgrove_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1130,7 +1118,7 @@
   "Elkwood_Crown.png": {
     "name": "ElkwoodCrown",
     "category": "armors",
-    "path": "assets\\images\\armors\\Elkwood_Crown.png",
+    "path": "images\\armors\\Elkwood_Crown.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1142,7 +1130,7 @@
   "Feathered_Hat.png": {
     "name": "FeatheredHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Feathered_Hat.png",
+    "path": "images\\armors\\Feathered_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1154,7 +1142,7 @@
   "Forest_Hood.png": {
     "name": "ForestHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Forest_Hood.png",
+    "path": "images\\armors\\Forest_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1166,7 +1154,7 @@
   "Gjermundbu.png": {
     "name": "Gjermundbu",
     "category": "armors",
-    "path": "assets\\images\\armors\\Gjermundbu.png",
+    "path": "images\\armors\\Gjermundbu.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1178,7 +1166,7 @@
   "Great_Helm.png": {
     "name": "GreatHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Great_Helm.png",
+    "path": "images\\armors\\Great_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1190,7 +1178,7 @@
   "Hounskull.png": {
     "name": "Hounskull",
     "category": "armors",
-    "path": "assets\\images\\armors\\Hounskull.png",
+    "path": "images\\armors\\Hounskull.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1202,7 +1190,7 @@
   "Kettle_Hat.png": {
     "name": "KettleHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Kettle_Hat.png",
+    "path": "images\\armors\\Kettle_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1214,7 +1202,7 @@
   "Leather_Bonnet.png": {
     "name": "LeatherBonnet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Leather_Bonnet.png",
+    "path": "images\\armors\\Leather_Bonnet.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1226,7 +1214,7 @@
   "Leather_Cap.png": {
     "name": "LeatherCap",
     "category": "armors",
-    "path": "assets\\images\\armors\\Leather_Cap.png",
+    "path": "images\\armors\\Leather_Cap.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1238,7 +1226,7 @@
   "Norman_Nasal_Helm.png": {
     "name": "NormanNasalHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Norman_Nasal_Helm.png",
+    "path": "images\\armors\\Norman_Nasal_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1250,7 +1238,7 @@
   "Occultist_Hood.png": {
     "name": "OccultistHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Occultist_Hood.png",
+    "path": "images\\armors\\Occultist_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1262,7 +1250,7 @@
   "Open_Sallet.png": {
     "name": "OpenSallet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Open_Sallet.png",
+    "path": "images\\armors\\Open_Sallet.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1274,7 +1262,7 @@
   "Ranger_Hood.png": {
     "name": "RangerHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Ranger_Hood.png",
+    "path": "images\\armors\\Ranger_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1286,7 +1274,7 @@
   "Rogue_Cowl.png": {
     "name": "RogueCowl",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rogue_Cowl.png",
+    "path": "images\\armors\\Rogue_Cowl.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1298,7 +1286,7 @@
   "Sallet.png": {
     "name": "Sallet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Sallet.png",
+    "path": "images\\armors\\Sallet.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1310,7 +1298,7 @@
   "Shadow_Hood.png": {
     "name": "ShadowHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Shadow_Hood.png",
+    "path": "images\\armors\\Shadow_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1322,7 +1310,7 @@
   "Shadow_Mask.png": {
     "name": "ShadowMask",
     "category": "armors",
-    "path": "assets\\images\\armors\\Shadow_Mask.png",
+    "path": "images\\armors\\Shadow_Mask.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1334,7 +1322,7 @@
   "Spangenhelm.png": {
     "name": "Spangenhelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Spangenhelm.png",
+    "path": "images\\armors\\Spangenhelm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1346,7 +1334,7 @@
   "Straw_Hat.png": {
     "name": "StrawHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Straw_Hat.png",
+    "path": "images\\armors\\Straw_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1358,7 +1346,7 @@
   "Topfhelm.png": {
     "name": "Topfhelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Topfhelm.png",
+    "path": "images\\armors\\Topfhelm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1370,7 +1358,7 @@
   "Viking_Helm.png": {
     "name": "VikingHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Viking_Helm.png",
+    "path": "images\\armors\\Viking_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1382,7 +1370,7 @@
   "Visored_Barbuta_Helm.png": {
     "name": "VisoredBarbutaHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Visored_Barbuta_Helm.png",
+    "path": "images\\armors\\Visored_Barbuta_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1394,7 +1382,7 @@
   "Visored_Sallet.png": {
     "name": "VisoredSallet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Visored_Sallet.png",
+    "path": "images\\armors\\Visored_Sallet.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1406,7 +1394,7 @@
   "Wizard_Hat.png": {
     "name": "WizardHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Wizard_Hat.png",
+    "path": "images\\armors\\Wizard_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1418,7 +1406,7 @@
   "Cobalt_Chapel_De_Fer.png": {
     "name": "CobaltChapelDeFer",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Chapel_De_Fer.png",
+    "path": "images\\armors\\Cobalt_Chapel_De_Fer.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1430,7 +1418,7 @@
   "Cobalt_Hat.png": {
     "name": "CobaltHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Hat.png",
+    "path": "images\\armors\\Cobalt_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1442,7 +1430,7 @@
   "Cobalt_Hood.png": {
     "name": "CobaltHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Hood.png",
+    "path": "images\\armors\\Cobalt_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1454,7 +1442,7 @@
   "Cobalt_Viking_Helm.png": {
     "name": "CobaltVikingHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Viking_Helm.png",
+    "path": "images\\armors\\Cobalt_Viking_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1466,7 +1454,7 @@
   "Copperlight_Kettle_Hat.png": {
     "name": "CopperlightKettleHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Kettle_Hat.png",
+    "path": "images\\armors\\Copperlight_Kettle_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1478,7 +1466,7 @@
   "Copperlight_Shadow_Hood.png": {
     "name": "CopperlightShadowHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Shadow_Hood.png",
+    "path": "images\\armors\\Copperlight_Shadow_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1490,7 +1478,7 @@
   "Copperlight_Straw_Hat.png": {
     "name": "CopperlightStrawHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Straw_Hat.png",
+    "path": "images\\armors\\Copperlight_Straw_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1502,7 +1490,7 @@
   "Cowl_of_Darkness.png": {
     "name": "CowlofDarkness",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cowl_of_Darkness.png",
+    "path": "images\\armors\\Cowl_of_Darkness.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1514,7 +1502,7 @@
   "Dread_Hood.png": {
     "name": "DreadHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Dread_Hood.png",
+    "path": "images\\armors\\Dread_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1526,7 +1514,7 @@
   "Frostlight_Crusader_Helm.png": {
     "name": "FrostlightCrusaderHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Crusader_Helm.png",
+    "path": "images\\armors\\Frostlight_Crusader_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1538,7 +1526,7 @@
   "Frostlight_Feathered_Hat.png": {
     "name": "FrostlightFeatheredHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Feathered_Hat.png",
+    "path": "images\\armors\\Frostlight_Feathered_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1550,7 +1538,7 @@
   "Frostlight_Hood.png": {
     "name": "FrostlightHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Hood.png",
+    "path": "images\\armors\\Frostlight_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1562,7 +1550,7 @@
   "Frostlight_Norman_Nasal_Helm.png": {
     "name": "FrostlightNormanNasalHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Norman_Nasal_Helm.png",
+    "path": "images\\armors\\Frostlight_Norman_Nasal_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1574,7 +1562,7 @@
   "Frostlight_Wizard_Hat.png": {
     "name": "FrostlightWizardHat",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Wizard_Hat.png",
+    "path": "images\\armors\\Frostlight_Wizard_Hat.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1586,7 +1574,7 @@
   "Golden_Armet.png": {
     "name": "GoldenArmet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Armet.png",
+    "path": "images\\armors\\Golden_Armet.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1598,7 +1586,7 @@
   "Golden_Gjermundbu.png": {
     "name": "GoldenGjermundbu",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Gjermundbu.png",
+    "path": "images\\armors\\Golden_Gjermundbu.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1610,7 +1598,7 @@
   "Golden_Hounskull.png": {
     "name": "GoldenHounskull",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Hounskull.png",
+    "path": "images\\armors\\Golden_Hounskull.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1622,7 +1610,7 @@
   "Golden_Leaf_Hood.png": {
     "name": "GoldenLeafHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Leaf_Hood.png",
+    "path": "images\\armors\\Golden_Leaf_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1634,7 +1622,7 @@
   "Golden_Scarf.png": {
     "name": "GoldenScarf",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Scarf.png",
+    "path": "images\\armors\\Golden_Scarf.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1646,7 +1634,7 @@
   "Rubysilver_Barbuta_Helm.png": {
     "name": "RubysilverBarbutaHelm",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Barbuta_Helm.png",
+    "path": "images\\armors\\Rubysilver_Barbuta_Helm.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1658,7 +1646,7 @@
   "Rubysilver_Cap.png": {
     "name": "RubysilverLeatherCap",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Cap.png",
+    "path": "images\\armors\\Rubysilver_Cap.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1670,7 +1658,7 @@
   "Rubysilver_Hood.png": {
     "name": "RubysilverHood",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Hood.png",
+    "path": "images\\armors\\Rubysilver_Hood.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -1682,7 +1670,7 @@
   "Adventurer_Tunic.png": {
     "name": "AdventurerTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Adventurer_Tunic.png",
+    "path": "images\\armors\\Adventurer_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1694,7 +1682,7 @@
   "Arcane_Garb.png": {
     "name": "ArcaneGarb",
     "category": "armors",
-    "path": "assets\\images\\armors\\Arcane_Garb.png",
+    "path": "images\\armors\\Arcane_Garb.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1706,7 +1694,7 @@
   "Bloodwoven_Robe.png": {
     "name": "BloodwovenRobe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Bloodwoven_Robe.png",
+    "path": "images\\armors\\Bloodwoven_Robe.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1718,7 +1706,7 @@
   "Champion_Armor.png": {
     "name": "ChampionArmor",
     "category": "armors",
-    "path": "assets\\images\\armors\\Champion_Armor.png",
+    "path": "images\\armors\\Champion_Armor.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1730,7 +1718,7 @@
   "Crusader_Armor.png": {
     "name": "CrusaderArmor",
     "category": "armors",
-    "path": "assets\\images\\armors\\Crusader_Armor.png",
+    "path": "images\\armors\\Crusader_Armor.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1742,7 +1730,7 @@
   "Dark_Cuirass.png": {
     "name": "DarkCuirass",
     "category": "armors",
-    "path": "assets\\images\\armors\\Dark_Cuirass.png",
+    "path": "images\\armors\\Dark_Cuirass.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1754,7 +1742,7 @@
   "Dark_Plate_Armor.png": {
     "name": "DarkPlateArmor",
     "category": "armors",
-    "path": "assets\\images\\armors\\Dark_Plate_Armor.png",
+    "path": "images\\armors\\Dark_Plate_Armor.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1766,7 +1754,7 @@
   "Darkgrove_Robe.png": {
     "name": "DarkgroveRobe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Darkgrove_Robe.png",
+    "path": "images\\armors\\Darkgrove_Robe.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1778,7 +1766,7 @@
   "Doublet.png": {
     "name": "Doublet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Doublet.png",
+    "path": "images\\armors\\Doublet.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1790,7 +1778,7 @@
   "Fine_Cuirass.png": {
     "name": "FineCuirass",
     "category": "armors",
-    "path": "assets\\images\\armors\\Fine_Cuirass.png",
+    "path": "images\\armors\\Fine_Cuirass.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1802,7 +1790,7 @@
   "Frock.png": {
     "name": "Frock",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frock.png",
+    "path": "images\\armors\\Frock.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1814,7 +1802,7 @@
   "Grand_Brigandine.png": {
     "name": "GrandBrigandine",
     "category": "armors",
-    "path": "assets\\images\\armors\\Grand_Brigandine.png",
+    "path": "images\\armors\\Grand_Brigandine.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1826,7 +1814,7 @@
   "Heavy_Gambeson.png": {
     "name": "HeavyGambeson",
     "category": "armors",
-    "path": "assets\\images\\armors\\Heavy_Gambeson.png",
+    "path": "images\\armors\\Heavy_Gambeson.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1838,7 +1826,7 @@
   "Light_Aketon.png": {
     "name": "LightAketon",
     "category": "armors",
-    "path": "assets\\images\\armors\\Light_Aketon.png",
+    "path": "images\\armors\\Light_Aketon.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1850,7 +1838,7 @@
   "Marauder_Outfit.png": {
     "name": "MarauderOutfit",
     "category": "armors",
-    "path": "assets\\images\\armors\\Marauder_Outfit.png",
+    "path": "images\\armors\\Marauder_Outfit.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1862,7 +1850,7 @@
   "Mystic_Vestments.png": {
     "name": "MysticVestments",
     "category": "armors",
-    "path": "assets\\images\\armors\\Mystic_Vestments.png",
+    "path": "images\\armors\\Mystic_Vestments.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1874,7 +1862,7 @@
   "Northern_Full_Tunic.png": {
     "name": "NorthernFullTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Northern_Full_Tunic.png",
+    "path": "images\\armors\\Northern_Full_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1886,7 +1874,7 @@
   "Occultist_Robe.png": {
     "name": "OccultistRobe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Occultist_Robe.png",
+    "path": "images\\armors\\Occultist_Robe.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1898,7 +1886,7 @@
   "Occultist_Tunic.png": {
     "name": "OccultistTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Occultist_Tunic.png",
+    "path": "images\\armors\\Occultist_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1910,7 +1898,7 @@
   "Oracle_Robe.png": {
     "name": "OracleRobe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Oracle_Robe.png",
+    "path": "images\\armors\\Oracle_Robe.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1922,7 +1910,7 @@
   "Ornate_Jazerant.png": {
     "name": "OrnateJazerant",
     "category": "armors",
-    "path": "assets\\images\\armors\\Ornate_Jazerant.png",
+    "path": "images\\armors\\Ornate_Jazerant.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1934,7 +1922,7 @@
   "Padded_Tunic.png": {
     "name": "PaddedTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Padded_Tunic.png",
+    "path": "images\\armors\\Padded_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1946,7 +1934,7 @@
   "Pourpoint.png": {
     "name": "Poupoint",
     "category": "armors",
-    "path": "assets\\images\\armors\\Pourpoint.png",
+    "path": "images\\armors\\Pourpoint.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1958,7 +1946,7 @@
   "Regal_Gambeson.png": {
     "name": "RegalGambeson",
     "category": "armors",
-    "path": "assets\\images\\armors\\Regal_Gambeson.png",
+    "path": "images\\armors\\Regal_Gambeson.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1970,7 +1958,7 @@
   "Ritual_Robe.png": {
     "name": "RitualRobe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Ritual_Robe.png",
+    "path": "images\\armors\\Ritual_Robe.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1982,7 +1970,7 @@
   "Studded_Leather.png": {
     "name": "StuddedLeather",
     "category": "armors",
-    "path": "assets\\images\\armors\\Studded_Leather.png",
+    "path": "images\\armors\\Studded_Leather.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -1994,7 +1982,7 @@
   "Templar_Armor.png": {
     "name": "TemplarArmor",
     "category": "armors",
-    "path": "assets\\images\\armors\\Templar_Armor.png",
+    "path": "images\\armors\\Templar_Armor.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2006,7 +1994,7 @@
   "Troubadour_Outfit.png": {
     "name": "TroubadourOutfit",
     "category": "armors",
-    "path": "assets\\images\\armors\\Troubadour_Outfit.png",
+    "path": "images\\armors\\Troubadour_Outfit.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2018,7 +2006,7 @@
   "Wanderer_Attire.png": {
     "name": "WandererAttire",
     "category": "armors",
-    "path": "assets\\images\\armors\\Wanderer_Attire.png",
+    "path": "images\\armors\\Wanderer_Attire.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2030,7 +2018,7 @@
   "Warden_Outfit.png": {
     "name": "WardenOutfit",
     "category": "armors",
-    "path": "assets\\images\\armors\\Warden_Outfit.png",
+    "path": "images\\armors\\Warden_Outfit.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2042,7 +2030,7 @@
   "Cobalt_Frock.png": {
     "name": "CobaltFrock",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Frock.png",
+    "path": "images\\armors\\Cobalt_Frock.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2054,7 +2042,7 @@
   "Cobalt_Regal_Gambeson.png": {
     "name": "CobaltRegalGambeson",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Regal_Gambeson.png",
+    "path": "images\\armors\\Cobalt_Regal_Gambeson.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2066,7 +2054,7 @@
   "Cobalt_Templar_Armor.png": {
     "name": "CobaltTemplarArmor",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Templar_Armor.png",
+    "path": "images\\armors\\Cobalt_Templar_Armor.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2078,7 +2066,7 @@
   "Copperlight_Attire.png": {
     "name": "CopperlightAttire",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Attire.png",
+    "path": "images\\armors\\Copperlight_Attire.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2090,7 +2078,7 @@
   "Copperlight_Outfit.png": {
     "name": "CopperlightOutfit",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Outfit.png",
+    "path": "images\\armors\\Copperlight_Outfit.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2102,7 +2090,7 @@
   "Copperlight_Sanctum_Plate_Armor.png": {
     "name": "CopperlightSanctumPlateArmor",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Sanctum_Plate_Armor.png",
+    "path": "images\\armors\\Copperlight_Sanctum_Plate_Armor.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2114,7 +2102,7 @@
   "Copperlight_Tunic.png": {
     "name": "CopperlightTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Tunic.png",
+    "path": "images\\armors\\Copperlight_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2126,7 +2114,7 @@
   "Dark_Matter_Tunic.png": {
     "name": "DarkMatterTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Dark_Matter_Tunic.png",
+    "path": "images\\armors\\Dark_Matter_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2138,7 +2126,7 @@
   "Frostlight_Abyss_Plate_Armor.png": {
     "name": "FrostlightAbyssPlateArmor",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Abyss_Plate_Armor.png",
+    "path": "images\\armors\\Frostlight_Abyss_Plate_Armor.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2150,7 +2138,7 @@
   "Frostlight_Aketon.png": {
     "name": "FrostlightAketon",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Aketon.png",
+    "path": "images\\armors\\Frostlight_Aketon.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2162,7 +2150,7 @@
   "Frostlight_Oracle_Robe.png": {
     "name": "FrostlightOracleRobe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Oracle_Robe.png",
+    "path": "images\\armors\\Frostlight_Oracle_Robe.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2174,7 +2162,7 @@
   "Frostlight_Warden_Outfit.png": {
     "name": "FrostlightWardenOutfit",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Warden_Outfit.png",
+    "path": "images\\armors\\Frostlight_Warden_Outfit.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2186,7 +2174,7 @@
   "Golden_Padded_Tunic.png": {
     "name": "GoldenPaddedTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Padded_Tunic.png",
+    "path": "images\\armors\\Golden_Padded_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2198,7 +2186,7 @@
   "Golden_Plate.png": {
     "name": "GoldenPlate",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Plate.png",
+    "path": "images\\armors\\Golden_Plate.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2210,7 +2198,7 @@
   "Golden_Robe.png": {
     "name": "GoldenRobe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Robe.png",
+    "path": "images\\armors\\Golden_Robe.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2222,7 +2210,7 @@
   "Robe_of_Darkness.png": {
     "name": "RobeofDarkness",
     "category": "armors",
-    "path": "assets\\images\\armors\\Robe_of_Darkness.png",
+    "path": "images\\armors\\Robe_of_Darkness.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2234,7 +2222,7 @@
   "Rubysilver_Cuirass.png": {
     "name": "RubysilverFineCuirass",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Cuirass.png",
+    "path": "images\\armors\\Rubysilver_Cuirass.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2246,7 +2234,7 @@
   "Rubysilver_Doublet.png": {
     "name": "RubysilverDoublet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Doublet.png",
+    "path": "images\\armors\\Rubysilver_Doublet.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2258,7 +2246,7 @@
   "Rubysilver_Vestments.png": {
     "name": "RubysilverMysticVestments",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Vestments.png",
+    "path": "images\\armors\\Rubysilver_Vestments.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2270,7 +2258,7 @@
   "Studded_Wyvern_Leather.png": {
     "name": "StuddedWyvernLeather",
     "category": "armors",
-    "path": "assets\\images\\armors\\Studded_Wyvern_Leather.png",
+    "path": "images\\armors\\Studded_Wyvern_Leather.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2282,7 +2270,7 @@
   "Tri-Pelt_Doublet.png": {
     "name": "TriPeltDoublet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Tri-Pelt_Doublet.png",
+    "path": "images\\armors\\Tri-Pelt_Doublet.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2294,7 +2282,7 @@
   "Tri-Pelt_Northern_Full_Tunic.png": {
     "name": "TriPeltNorthernFullTunic",
     "category": "armors",
-    "path": "assets\\images\\armors\\Tri-Pelt_Northern_Full_Tunic.png",
+    "path": "images\\armors\\Tri-Pelt_Northern_Full_Tunic.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -2306,7 +2294,7 @@
   "Bardic_Pants.png": {
     "name": "BardicPants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Bardic_Pants.png",
+    "path": "images\\armors\\Bardic_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2318,7 +2306,7 @@
   "Buttoned_Leggings.png": {
     "name": "ButtonedLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Buttoned_Leggings.png",
+    "path": "images\\armors\\Buttoned_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2330,7 +2318,7 @@
   "Cloth_Pants.png": {
     "name": "ClothPants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cloth_Pants.png",
+    "path": "images\\armors\\Cloth_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2342,7 +2330,7 @@
   "Copperlight_Leggings.png": {
     "name": "CopperlightLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Leggings.png",
+    "path": "images\\armors\\Copperlight_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2354,7 +2342,7 @@
   "Dark_Leather_Leggings.png": {
     "name": "DarkLeatherLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Dark_Leather_Leggings.png",
+    "path": "images\\armors\\Dark_Leather_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2366,7 +2354,7 @@
   "Heavy_Leather_Leggings.png": {
     "name": "HeavyLeatherLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Heavy_Leather_Leggings.png",
+    "path": "images\\armors\\Heavy_Leather_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2378,7 +2366,7 @@
   "Leather_Chausses.png": {
     "name": "LeatherChausses",
     "category": "armors",
-    "path": "assets\\images\\armors\\Leather_Chausses.png",
+    "path": "images\\armors\\Leather_Chausses.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2390,7 +2378,7 @@
   "Leather_Leggings.png": {
     "name": "LeatherLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Leather_Leggings.png",
+    "path": "images\\armors\\Leather_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2402,7 +2390,7 @@
   "Loose_Trousers.png": {
     "name": "LooseTrousers",
     "category": "armors",
-    "path": "assets\\images\\armors\\Loose_Trousers.png",
+    "path": "images\\armors\\Loose_Trousers.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2414,7 +2402,7 @@
   "Occultist_Pants.png": {
     "name": "OccultistPants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Occultist_Pants.png",
+    "path": "images\\armors\\Occultist_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2426,7 +2414,7 @@
   "Padded_Leggings.png": {
     "name": "PaddedLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Padded_Leggings.png",
+    "path": "images\\armors\\Padded_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2438,7 +2426,7 @@
   "Plate_Pants.png": {
     "name": "PlatePants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Plate_Pants.png",
+    "path": "images\\armors\\Plate_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2450,7 +2438,7 @@
   "Sleek_Hide_Pants.png": {
     "name": "SleekHidePants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Sleek_Hide_Pants.png",
+    "path": "images\\armors\\Sleek_Hide_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2462,7 +2450,7 @@
   "Tanglethread_Trousers.png": {
     "name": "TanglethreadTrousers",
     "category": "armors",
-    "path": "assets\\images\\armors\\Tanglethread_Trousers.png",
+    "path": "images\\armors\\Tanglethread_Trousers.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2474,7 +2462,7 @@
   "Brave_Hunter%27s_Pants.png": {
     "name": "BraveHunterPants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Brave_Hunter%27s_Pants.png",
+    "path": "images\\armors\\Brave_Hunter%27s_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2486,7 +2474,7 @@
   "Cobalt_Plate_Pants.png": {
     "name": "CobaltPlatePants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Plate_Pants.png",
+    "path": "images\\armors\\Cobalt_Plate_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2498,7 +2486,7 @@
   "Cobalt_Trousers.png": {
     "name": "CobaltTrousers",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Trousers.png",
+    "path": "images\\armors\\Cobalt_Trousers.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2510,7 +2498,7 @@
   "Copperlight_Pants.png": {
     "name": "CopperlightPants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Pants.png",
+    "path": "images\\armors\\Copperlight_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2522,7 +2510,7 @@
   "Copperlight_Plate_Pants.png": {
     "name": "CopperlightPlatePants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Plate_Pants.png",
+    "path": "images\\armors\\Copperlight_Plate_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2534,7 +2522,7 @@
   "Demonclad_Leggings.png": {
     "name": "DemoncladLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Demonclad_Leggings.png",
+    "path": "images\\armors\\Demonclad_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2546,7 +2534,7 @@
   "Frostlight_Leather_Leggings.png": {
     "name": "FrostlightLeatherLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Leather_Leggings.png",
+    "path": "images\\armors\\Frostlight_Leather_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2558,7 +2546,7 @@
   "Frostlight_Plate_Pants.png": {
     "name": "FrostlightPlatePants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Plate_Pants.png",
+    "path": "images\\armors\\Frostlight_Plate_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2570,7 +2558,7 @@
   "Frostlight_Trousers.png": {
     "name": "FrostlightTrousers",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Trousers.png",
+    "path": "images\\armors\\Frostlight_Trousers.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2582,7 +2570,7 @@
   "Golden_Chausses.png": {
     "name": "GoldenChausses",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Chausses.png",
+    "path": "images\\armors\\Golden_Chausses.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2594,7 +2582,7 @@
   "Golden_Leggings.png": {
     "name": "GoldenLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Leggings.png",
+    "path": "images\\armors\\Golden_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2606,7 +2594,7 @@
   "Golden_Plate_Pants.png": {
     "name": "GoldenPlatePants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Plate_Pants.png",
+    "path": "images\\armors\\Golden_Plate_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2618,7 +2606,7 @@
   "Rubysilver_Leggings.png": {
     "name": "RubysilverLeatherLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Leggings.png",
+    "path": "images\\armors\\Rubysilver_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2630,7 +2618,7 @@
   "Rubysilver_Plate_Pants.png": {
     "name": "RubysilverPlatePants",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Plate_Pants.png",
+    "path": "images\\armors\\Rubysilver_Plate_Pants.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2642,7 +2630,7 @@
   "Wolf_Hunter_Leggings.png": {
     "name": "WolfHunterLeggings",
     "category": "armors",
-    "path": "assets\\images\\armors\\Wolf_Hunter_Leggings.png",
+    "path": "images\\armors\\Wolf_Hunter_Leggings.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -2654,7 +2642,7 @@
   "Arcane_Gloves.png": {
     "name": "ArcaneGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Arcane_Gloves.png",
+    "path": "images\\armors\\Arcane_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2666,7 +2654,7 @@
   "Bloodwoven_Gloves.png": {
     "name": "BloodwovenGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Bloodwoven_Gloves.png",
+    "path": "images\\armors\\Bloodwoven_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2678,7 +2666,7 @@
   "Elkwood_Gloves.png": {
     "name": "ElkwoodGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Elkwood_Gloves.png",
+    "path": "images\\armors\\Elkwood_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2690,7 +2678,7 @@
   "Gloves_of_Utility.png": {
     "name": "GlovesOfUtility",
     "category": "armors",
-    "path": "assets\\images\\armors\\Gloves_of_Utility.png",
+    "path": "images\\armors\\Gloves_of_Utility.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2702,7 +2690,7 @@
   "Heavy_Gauntlets.png": {
     "name": "HeavyGauntlet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Heavy_Gauntlets.png",
+    "path": "images\\armors\\Heavy_Gauntlets.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2714,7 +2702,7 @@
   "Leather_Gloves.png": {
     "name": "LeatherGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Leather_Gloves.png",
+    "path": "images\\armors\\Leather_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2726,7 +2714,7 @@
   "Light_Gauntlets.png": {
     "name": "LightGauntlets",
     "category": "armors",
-    "path": "assets\\images\\armors\\Light_Gauntlets.png",
+    "path": "images\\armors\\Light_Gauntlets.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2738,7 +2726,7 @@
   "Mystic_Gloves.png": {
     "name": "MysticGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Mystic_Gloves.png",
+    "path": "images\\armors\\Mystic_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2750,7 +2738,7 @@
   "Rawhide_Gloves.png": {
     "name": "RawhideGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rawhide_Gloves.png",
+    "path": "images\\armors\\Rawhide_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2762,7 +2750,7 @@
   "Reinforced_Gloves.png": {
     "name": "ReinforcedGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Reinforced_Gloves.png",
+    "path": "images\\armors\\Reinforced_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2774,7 +2762,7 @@
   "Riveted_Gloves.png": {
     "name": "RivetedGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Riveted_Gloves.png",
+    "path": "images\\armors\\Riveted_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2786,7 +2774,7 @@
   "Runestone_Gloves.png": {
     "name": "RunestoneGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Runestone_Gloves.png",
+    "path": "images\\armors\\Runestone_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2798,7 +2786,7 @@
   "Cobalt_Heavy_Gauntlet.png": {
     "name": "CobaltHeavyGauntlet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Heavy_Gauntlet.png",
+    "path": "images\\armors\\Cobalt_Heavy_Gauntlet.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2810,7 +2798,7 @@
   "Cobalt_Leather_Gloves.png": {
     "name": "CobaltLeatherGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Leather_Gloves.png",
+    "path": "images\\armors\\Cobalt_Leather_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2822,7 +2810,7 @@
   "Copperlight_Gauntlets.png": {
     "name": "CopperlightGauntlets",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Gauntlets.png",
+    "path": "images\\armors\\Copperlight_Gauntlets.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2834,7 +2822,7 @@
   "Copperlight_Riveted_Gloves.png": {
     "name": "CopperlightRivetedGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Riveted_Gloves.png",
+    "path": "images\\armors\\Copperlight_Riveted_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2846,7 +2834,7 @@
   "Demon_Grip_Gloves.png": {
     "name": "DemonGripGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Demon_Grip_Gloves.png",
+    "path": "images\\armors\\Demon_Grip_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2858,7 +2846,7 @@
   "Frostlight_Gauntlets.png": {
     "name": "FrostlightGauntlets",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Gauntlets.png",
+    "path": "images\\armors\\Frostlight_Gauntlets.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2870,7 +2858,7 @@
   "Frostlight_Mystic_Gloves.png": {
     "name": "FrostlightMysticGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Mystic_Gloves.png",
+    "path": "images\\armors\\Frostlight_Mystic_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2882,7 +2870,7 @@
   "Frostlight_Riveted_Gloves.png": {
     "name": "FrostlightRivetedGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Riveted_Gloves.png",
+    "path": "images\\armors\\Frostlight_Riveted_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2894,7 +2882,7 @@
   "Frostlight_Runestone_Gloves.png": {
     "name": "FrostlightRunestoneGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Runestone_Gloves.png",
+    "path": "images\\armors\\Frostlight_Runestone_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2906,7 +2894,7 @@
   "Golden_Gauntlets.png": {
     "name": "GoldenGauntlets",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Gauntlets.png",
+    "path": "images\\armors\\Golden_Gauntlets.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2918,7 +2906,7 @@
   "Golden_Gloves.png": {
     "name": "GoldenGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Gloves.png",
+    "path": "images\\armors\\Golden_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2930,7 +2918,7 @@
   "Gravewolf_Gloves.png": {
     "name": "GravewolfGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Gravewolf_Gloves.png",
+    "path": "images\\armors\\Gravewolf_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2942,7 +2930,7 @@
   "Rubysilver_Gauntlets.png": {
     "name": "RubysilverHeavyGauntlet",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Gauntlets.png",
+    "path": "images\\armors\\Rubysilver_Gauntlets.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2954,7 +2942,7 @@
   "Rubysilver_Rawhide_Gloves.png": {
     "name": "RubysilverRawhideGloves",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Rawhide_Gloves.png",
+    "path": "images\\armors\\Rubysilver_Rawhide_Gloves.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2966,7 +2954,7 @@
   "Adventurer_Boots.png": {
     "name": "AdventurerBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Adventurer_Boots.png",
+    "path": "images\\armors\\Adventurer_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2978,7 +2966,7 @@
   "Buckled_Boots.png": {
     "name": "BuckledBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Buckled_Boots.png",
+    "path": "images\\armors\\Buckled_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -2990,7 +2978,7 @@
   "Buttoned_Boots.png": {
     "name": "ButtonedBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Buttoned_Boots.png",
+    "path": "images\\armors\\Buttoned_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3002,7 +2990,7 @@
   "Cuffed_Boots.png": {
     "name": "CuffedBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cuffed_Boots.png",
+    "path": "images\\armors\\Cuffed_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3014,7 +3002,7 @@
   "Darkleaf_Boots.png": {
     "name": "DarkleafBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Darkleaf_Boots.png",
+    "path": "images\\armors\\Darkleaf_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3026,7 +3014,7 @@
   "Dashing_Boots.png": {
     "name": "DashingBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Dashing_Boots.png",
+    "path": "images\\armors\\Dashing_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3038,7 +3026,7 @@
   "Forest_Boots.png": {
     "name": "ForestBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Forest_Boots.png",
+    "path": "images\\armors\\Forest_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3050,7 +3038,7 @@
   "Heavy_Boots.png": {
     "name": "HeavyBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Heavy_Boots.png",
+    "path": "images\\armors\\Heavy_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3062,7 +3050,7 @@
   "Laced_Turnshoe.png": {
     "name": "LacedTurnshoe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Laced_Turnshoe.png",
+    "path": "images\\armors\\Laced_Turnshoe.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3074,7 +3062,7 @@
   "Lightfoot_Boots.png": {
     "name": "LightfootBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Lightfoot_Boots.png",
+    "path": "images\\armors\\Lightfoot_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3086,7 +3074,7 @@
   "Low_Boots.png": {
     "name": "LowBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Low_Boots.png",
+    "path": "images\\armors\\Low_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3098,7 +3086,7 @@
   "Occultist_Boots.png": {
     "name": "OccultistBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Occultist_Boots.png",
+    "path": "images\\armors\\Occultist_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3110,7 +3098,7 @@
   "Old_Shoes.png": {
     "name": "OldShoes",
     "category": "armors",
-    "path": "assets\\images\\armors\\Old_Shoes.png",
+    "path": "images\\armors\\Old_Shoes.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3122,7 +3110,7 @@
   "Plate_Boots.png": {
     "name": "PlateBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Plate_Boots.png",
+    "path": "images\\armors\\Plate_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3134,7 +3122,7 @@
   "Rugged_Boots.png": {
     "name": "RuggedBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rugged_Boots.png",
+    "path": "images\\armors\\Rugged_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3146,7 +3134,7 @@
   "Stillmend_Boots.png": {
     "name": "StillmendBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Stillmend_Boots.png",
+    "path": "images\\armors\\Stillmend_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3158,7 +3146,7 @@
   "Stitched_Turnshoe.png": {
     "name": "StitchedTurnshoe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Stitched_Turnshoe.png",
+    "path": "images\\armors\\Stitched_Turnshoe.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3170,7 +3158,7 @@
   "Turnshoe.png": {
     "name": "Turnshoe",
     "category": "armors",
-    "path": "assets\\images\\armors\\Turnshoe.png",
+    "path": "images\\armors\\Turnshoe.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3182,7 +3170,7 @@
   "Wizard_Shoes.png": {
     "name": "WizardShoes",
     "category": "armors",
-    "path": "assets\\images\\armors\\Wizard_Shoes.png",
+    "path": "images\\armors\\Wizard_Shoes.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3194,7 +3182,7 @@
   "Cobalt_Lightfoot_Boots.png": {
     "name": "CobaltLightfootBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Lightfoot_Boots.png",
+    "path": "images\\armors\\Cobalt_Lightfoot_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3206,7 +3194,7 @@
   "Cobalt_Plate_Boots.png": {
     "name": "CobaltPlateBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cobalt_Plate_Boots.png",
+    "path": "images\\armors\\Cobalt_Plate_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3218,7 +3206,7 @@
   "Copperlight_Lightfoot_Boots.png": {
     "name": "CopperlightLightfootBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Lightfoot_Boots.png",
+    "path": "images\\armors\\Copperlight_Lightfoot_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3230,7 +3218,7 @@
   "Copperlight_Plate_Boots.png": {
     "name": "CopperlightPlateBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Copperlight_Plate_Boots.png",
+    "path": "images\\armors\\Copperlight_Plate_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3242,7 +3230,7 @@
   "Foul_Boots.png": {
     "name": "FoulBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Foul_Boots.png",
+    "path": "images\\armors\\Foul_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3254,7 +3242,7 @@
   "Frostlight_Lightfoot_Boots.png": {
     "name": "FrostlightLightfootBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Lightfoot_Boots.png",
+    "path": "images\\armors\\Frostlight_Lightfoot_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3266,7 +3254,7 @@
   "Frostlight_Plate_Boots.png": {
     "name": "FrostlightPlateBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Plate_Boots.png",
+    "path": "images\\armors\\Frostlight_Plate_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3278,7 +3266,7 @@
   "Frostlight_Rugged_Boots.png": {
     "name": "FrostlightRuggedBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Rugged_Boots.png",
+    "path": "images\\armors\\Frostlight_Rugged_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3290,7 +3278,7 @@
   "Golden_Boots.png": {
     "name": "GoldenBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Boots.png",
+    "path": "images\\armors\\Golden_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3302,7 +3290,7 @@
   "Golden_Plate_Boots.png": {
     "name": "GoldenPlateBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Plate_Boots.png",
+    "path": "images\\armors\\Golden_Plate_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3314,7 +3302,7 @@
   "Rubysilver_Adventurer_Boots.png": {
     "name": "RubysilverAdventurerBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Adventurer_Boots.png",
+    "path": "images\\armors\\Rubysilver_Adventurer_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3326,7 +3314,7 @@
   "Rubysilver_Plate_Boots.png": {
     "name": "RubysilverPlateBoots",
     "category": "armors",
-    "path": "assets\\images\\armors\\Rubysilver_Plate_Boots.png",
+    "path": "images\\armors\\Rubysilver_Plate_Boots.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3338,7 +3326,7 @@
   "Shoes_of_Darkness.png": {
     "name": "ShoesofDarkness",
     "category": "armors",
-    "path": "assets\\images\\armors\\Shoes_of_Darkness.png",
+    "path": "images\\armors\\Shoes_of_Darkness.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -3350,7 +3338,7 @@
   "Adventurer_Cloak.png": {
     "name": "AdventurerCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Adventurer_Cloak.png",
+    "path": "images\\armors\\Adventurer_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3362,7 +3350,7 @@
   "Mercurial_Cloak.png": {
     "name": "MercurialCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Mercurial_Cloak.png",
+    "path": "images\\armors\\Mercurial_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3374,7 +3362,7 @@
   "Radiant_Cloak.png": {
     "name": "RadiantCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Radiant_Cloak.png",
+    "path": "images\\armors\\Radiant_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3386,7 +3374,7 @@
   "Splendid_Cloak.png": {
     "name": "SplendidCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Splendid_Cloak.png",
+    "path": "images\\armors\\Splendid_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3398,7 +3386,7 @@
   "Tattered_Cloak.png": {
     "name": "TatteredCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Tattered_Cloak.png",
+    "path": "images\\armors\\Tattered_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3410,7 +3398,7 @@
   "Vigilant_Cloak.png": {
     "name": "VigilantCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Vigilant_Cloak.png",
+    "path": "images\\armors\\Vigilant_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3422,7 +3410,7 @@
   "Watchman_Cloak.png": {
     "name": "WatchmanCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Watchman_Cloak.png",
+    "path": "images\\armors\\Watchman_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3434,7 +3422,7 @@
   "Cloak_of_Darkness.png": {
     "name": "CloakofDarkness",
     "category": "armors",
-    "path": "assets\\images\\armors\\Cloak_of_Darkness.png",
+    "path": "images\\armors\\Cloak_of_Darkness.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3446,7 +3434,7 @@
   "Frostlight_Cloak.png": {
     "name": "FrostlightCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Frostlight_Cloak.png",
+    "path": "images\\armors\\Frostlight_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3458,7 +3446,7 @@
   "Golden_Cloak.png": {
     "name": "GoldenCloak",
     "category": "armors",
-    "path": "assets\\images\\armors\\Golden_Cloak.png",
+    "path": "images\\armors\\Golden_Cloak.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -3470,7 +3458,7 @@
   "Badger_Pendant.png": {
     "name": "BadgerPendant",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Badger_Pendant.png",
+    "path": "images\\accessories\\Badger_Pendant.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3482,7 +3470,7 @@
   "Bear_Pendant.png": {
     "name": "BearPendant",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Bear_Pendant.png",
+    "path": "images\\accessories\\Bear_Pendant.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3494,7 +3482,7 @@
   "Fangs_of_Death_Necklace.png": {
     "name": "FangsofDeathNecklace",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Fangs_of_Death_Necklace.png",
+    "path": "images\\accessories\\Fangs_of_Death_Necklace.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3506,7 +3494,7 @@
   "Fox_Pendant.png": {
     "name": "FoxPendant",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Fox_Pendant.png",
+    "path": "images\\accessories\\Fox_Pendant.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3518,7 +3506,7 @@
   "Frost_Amulet.png": {
     "name": "FrostAmulet",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Frost_Amulet.png",
+    "path": "images\\accessories\\Frost_Amulet.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3530,7 +3518,7 @@
   "Monkey_Pendant.png": {
     "name": "MonkeyPendant",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Monkey_Pendant.png",
+    "path": "images\\accessories\\Monkey_Pendant.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3542,7 +3530,7 @@
   "Necklace_of_Peace.png": {
     "name": "NecklaceOfPeace",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Necklace_of_Peace.png",
+    "path": "images\\accessories\\Necklace_of_Peace.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3554,7 +3542,7 @@
   "Owl_Pendant.png": {
     "name": "OwlPendant",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Owl_Pendant.png",
+    "path": "images\\accessories\\Owl_Pendant.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3566,7 +3554,7 @@
   "Ox_Pendant.png": {
     "name": "OxPendant",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ox_Pendant.png",
+    "path": "images\\accessories\\Ox_Pendant.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3578,7 +3566,7 @@
   "Phoenix_Choker.png": {
     "name": "PhoenixChoker",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Phoenix_Choker.png",
+    "path": "images\\accessories\\Phoenix_Choker.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3590,7 +3578,7 @@
   "Rat_Pendant.png": {
     "name": "RatPendant",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Rat_Pendant.png",
+    "path": "images\\accessories\\Rat_Pendant.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3602,7 +3590,7 @@
   "Torq_of_Soul.png": {
     "name": "SoulTorq",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Torq_of_Soul.png",
+    "path": "images\\accessories\\Torq_of_Soul.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3614,7 +3602,7 @@
   "Wind_Locket.png": {
     "name": "WindLocket",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Wind_Locket.png",
+    "path": "images\\accessories\\Wind_Locket.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3626,7 +3614,7 @@
   "Grimsmile_Ring.png": {
     "name": "GrimsmileRing",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Grimsmile_Ring.png",
+    "path": "images\\accessories\\Grimsmile_Ring.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3638,7 +3626,7 @@
   "Ring_of_Courage.png": {
     "name": "RingOfCourage",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ring_of_Courage.png",
+    "path": "images\\accessories\\Ring_of_Courage.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3650,7 +3638,7 @@
   "Ring_of_Finesse.png": {
     "name": "RingOfFinesse",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ring_of_Finesse.png",
+    "path": "images\\accessories\\Ring_of_Finesse.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3662,7 +3650,7 @@
   "Ring_of_Quickness.png": {
     "name": "RingOfQuickness",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ring_of_Quickness.png",
+    "path": "images\\accessories\\Ring_of_Quickness.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3674,7 +3662,7 @@
   "Ring_of_Resolve.png": {
     "name": "RingOfResolve",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ring_of_Resolve.png",
+    "path": "images\\accessories\\Ring_of_Resolve.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3686,7 +3674,7 @@
   "Ring_of_Survival.png": {
     "name": "RingOfSurvival",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ring_of_Survival.png",
+    "path": "images\\accessories\\Ring_of_Survival.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3698,7 +3686,7 @@
   "Ring_of_Vitality.png": {
     "name": "RingOfVitality",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ring_of_Vitality.png",
+    "path": "images\\accessories\\Ring_of_Vitality.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3710,7 +3698,7 @@
   "Ring_of_Wisdom.png": {
     "name": "RingOfWisdom",
     "category": "accessories",
-    "path": "assets\\images\\accessories\\Ring_of_Wisdom.png",
+    "path": "images\\accessories\\Ring_of_Wisdom.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3722,7 +3710,7 @@
   "Ale.png": {
     "name": "Ale",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Ale.png",
+    "path": "images\\utilities\\Ale.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3734,7 +3722,7 @@
   "Great_Potion_of_Luck.png": {
     "name": "LuckPotion",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Great_Potion_of_Luck.png",
+    "path": "images\\utilities\\Great_Potion_of_Luck.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3746,7 +3734,7 @@
   "Magic_Protection_Potion.png": {
     "name": "MagicProtectionPotion",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Magic_Protection_Potion.png",
+    "path": "images\\utilities\\Magic_Protection_Potion.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3758,7 +3746,7 @@
   "Potion_of_Clarity.png": {
     "name": "ClarityPotion",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Potion_of_Clarity.png",
+    "path": "images\\utilities\\Potion_of_Clarity.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3770,7 +3758,7 @@
   "Potion_of_Healing.png": {
     "name": "HealingPotion",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Potion_of_Healing.png",
+    "path": "images\\utilities\\Potion_of_Healing.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3782,7 +3770,7 @@
   "Potion_of_Invisibility.png": {
     "name": "InvisibilityPotion",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Potion_of_Invisibility.png",
+    "path": "images\\utilities\\Potion_of_Invisibility.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3794,7 +3782,7 @@
   "Potion_of_Luck.png": {
     "name": "LuckPotion",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Potion_of_Luck.png",
+    "path": "images\\utilities\\Potion_of_Luck.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3806,7 +3794,7 @@
   "Potion_of_Protection.png": {
     "name": "ProtectionPotion",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Potion_of_Protection.png",
+    "path": "images\\utilities\\Potion_of_Protection.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3818,7 +3806,7 @@
   "Troll%27s_Blood.png": {
     "name": "TrollBlood",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Troll%27s_Blood.png",
+    "path": "images\\utilities\\Troll%27s_Blood.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -3830,7 +3818,7 @@
   "Bandage.png": {
     "name": "Bandage",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Bandage.png",
+    "path": "images\\utilities\\Bandage.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3842,7 +3830,7 @@
   "Frozen_Iron_Key.png": {
     "name": "FrozenIronKey",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Frozen_Iron_Key.png",
+    "path": "images\\utilities\\Frozen_Iron_Key.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -3854,7 +3842,7 @@
   "Golden_Key.png": {
     "name": "GoldenKey",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Golden_Key.png",
+    "path": "images\\utilities\\Golden_Key.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -3866,7 +3854,7 @@
   "Lockpick.png": {
     "name": "Lockpick",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Lockpick.png",
+    "path": "images\\utilities\\Lockpick.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3878,7 +3866,7 @@
   "Mystical_Gem.png": {
     "name": "MysticalGem",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Mystical_Gem.png",
+    "path": "images\\utilities\\Mystical_Gem.png",
     "width": 60,
     "height": 60,
     "size": "1x1",
@@ -3890,7 +3878,7 @@
   "Old_Rusty_Key.png": {
     "name": "OldRustyKey",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Old_Rusty_Key.png",
+    "path": "images\\utilities\\Old_Rusty_Key.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -3902,7 +3890,7 @@
   "Skull_Key.png": {
     "name": "SkullKey",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Skull_Key.png",
+    "path": "images\\utilities\\Skull_Key.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -3914,7 +3902,7 @@
   "Surgical_Kit.png": {
     "name": "SurgicalKit",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Surgical_Kit.png",
+    "path": "images\\utilities\\Surgical_Kit.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -3926,7 +3914,7 @@
   "Trap_Disarming_Kit.png": {
     "name": "TrapDisarmingKit",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Trap_Disarming_Kit.png",
+    "path": "images\\utilities\\Trap_Disarming_Kit.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -3938,7 +3926,7 @@
   "Campfire_Kit.png": {
     "name": "CampfireKit",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Campfire_Kit.png",
+    "path": "images\\utilities\\Campfire_Kit.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -3950,7 +3938,7 @@
   "Hunting_Trap.png": {
     "name": "HuntingTrap",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Hunting_Trap.png",
+    "path": "images\\utilities\\Hunting_Trap.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -3962,7 +3950,7 @@
   "Soul_Heart.png": {
     "name": "SoulHeart",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Soul_Heart.png",
+    "path": "images\\utilities\\Soul_Heart.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -3974,7 +3962,7 @@
   "Explosive_Bottle.png": {
     "name": "ExplosiveBottle",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Explosive_Bottle.png",
+    "path": "images\\utilities\\Explosive_Bottle.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -3986,7 +3974,7 @@
   "Lantern.png": {
     "name": "Lantern",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Lantern.png",
+    "path": "images\\utilities\\Lantern.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -3998,7 +3986,7 @@
   "Oil_Lantern.png": {
     "name": "OilLantern",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Oil_Lantern.png",
+    "path": "images\\utilities\\Oil_Lantern.png",
     "width": 60,
     "height": 120,
     "size": "1x2",
@@ -4010,7 +3998,7 @@
   "Torch.png": {
     "name": "Torch",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Torch.png",
+    "path": "images\\utilities\\Torch.png",
     "width": 60,
     "height": 180,
     "size": "1x3",
@@ -4022,7 +4010,7 @@
   "Wanderlight_Lantern.png": {
     "name": "WanderlightLantern",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Wanderlight_Lantern.png",
+    "path": "images\\utilities\\Wanderlight_Lantern.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -4034,7 +4022,7 @@
   "Drum.png": {
     "name": "Drum",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Drum.png",
+    "path": "images\\utilities\\Drum.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -4046,7 +4034,7 @@
   "Flute.png": {
     "name": "Flute",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Flute.png",
+    "path": "images\\utilities\\Flute.png",
     "width": 60,
     "height": 180,
     "size": "1x3",
@@ -4058,7 +4046,7 @@
   "Lute.png": {
     "name": "Lute",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Lute.png",
+    "path": "images\\utilities\\Lute.png",
     "width": 60,
     "height": 90,
     "size": "2x3",
@@ -4070,7 +4058,7 @@
   "Lyre.png": {
     "name": "Lyre",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Lyre.png",
+    "path": "images\\utilities\\Lyre.png",
     "width": 60,
     "height": 60,
     "size": "2x2",
@@ -4082,7 +4070,7 @@
   "Pickaxe.png": {
     "name": "Pickaxe",
     "category": "utilities",
-    "path": "assets\\images\\utilities\\Pickaxe.png",
+    "path": "images\\utilities\\Pickaxe.png",
     "width": 60,
     "height": 120,
     "size": "2x3",
@@ -4094,307 +4082,307 @@
   "Blue_Sapphire.png": {
     "name": "blue sapphire",
     "category": "misc",
-    "path": "assets\\images\\misc\\Blue_Sapphire.png",
+    "path": "images\\misc\\Blue_Sapphire.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Blue_Sapphire"
   },
   "Diamond.png": {
     "name": "diamond",
     "category": "misc",
-    "path": "assets\\images\\misc\\Diamond.png",
+    "path": "images\\misc\\Diamond.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Diamond"
   },
   "Emerald.png": {
     "name": "emerald",
     "category": "misc",
-    "path": "assets\\images\\misc\\Emerald.png",
+    "path": "images\\misc\\Emerald.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Emerald"
   },
   "Ruby.png": {
     "name": "ruby",
     "category": "misc",
-    "path": "assets\\images\\misc\\Ruby.png",
+    "path": "images\\misc\\Ruby.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Ruby"
   },
   "Ancient_Scroll.png": {
     "name": "ancient scroll",
     "category": "misc",
-    "path": "assets\\images\\misc\\Ancient_Scroll.png",
+    "path": "images\\misc\\Ancient_Scroll.png",
     "width": 90,
     "height": 135,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x3",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 3,
+    "matched_darkerdb_name": "Ancient_Scroll"
   },
   "Ceremonial_Dagger.png": {
     "name": "ceremonial dagger",
     "category": "misc",
-    "path": "assets\\images\\misc\\Ceremonial_Dagger.png",
+    "path": "images\\misc\\Ceremonial_Dagger.png",
     "width": 90,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x1",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Ceremonial_Dagger"
   },
   "Dotted_Gold_Bangle.png": {
     "name": "dotted gold bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Dotted_Gold_Bangle.png",
+    "path": "images\\misc\\Dotted_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Dotted_Gold_Bangle"
   },
   "Gem_Necklace.png": {
     "name": "gem necklace",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gem_Necklace.png",
+    "path": "images\\misc\\Gem_Necklace.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gem_Necklace"
   },
   "Gem_Ring.png": {
     "name": "gem ring",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gem_Ring.png",
+    "path": "images\\misc\\Gem_Ring.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gem_Ring"
   },
   "Glimmer_Bangle.png": {
     "name": "glimmer bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Glimmer_Bangle.png",
+    "path": "images\\misc\\Glimmer_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Glimmer_Bangle"
   },
   "Gold_Band.png": {
     "name": "gold band",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Band.png",
+    "path": "images\\misc\\Gold_Band.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gold_Band"
   },
   "Gold_Bowl.png": {
     "name": "gold bowl",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Bowl.png",
+    "path": "images\\misc\\Gold_Bowl.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Bowl"
   },
   "Gold_Candelabra.png": {
     "name": "gold candelabra",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Candelabra.png",
+    "path": "images\\misc\\Gold_Candelabra.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Candelabra"
   },
   "Gold_Candle_Holder.png": {
     "name": "gold candle holder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Candle_Holder.png",
+    "path": "images\\misc\\Gold_Candle_Holder.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Candle_Holder"
   },
   "Gold_Candle_Platter.png": {
     "name": "gold candle platter",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Candle_Platter.png",
+    "path": "images\\misc\\Gold_Candle_Platter.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gold_Candle_Platter"
   },
   "Gold_Chalice.png": {
     "name": "gold chalice",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Chalice.png",
+    "path": "images\\misc\\Gold_Chalice.png",
     "width": 45,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x2",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Chalice"
   },
   "Gold_Crown.png": {
     "name": "gold crown",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Crown.png",
+    "path": "images\\misc\\Gold_Crown.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Crown"
   },
   "Gold_Goblet.png": {
     "name": "gold goblet",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Goblet.png",
+    "path": "images\\misc\\Gold_Goblet.png",
     "width": 45,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x2",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Goblet"
   },
   "Gold_Waterpot.png": {
     "name": "gold waterpot",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Waterpot.png",
+    "path": "images\\misc\\Gold_Waterpot.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Waterpot"
   },
   "Leaf_Gold_Bangle.png": {
     "name": "leaf gold bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Leaf_Gold_Bangle.png",
+    "path": "images\\misc\\Leaf_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Leaf_Gold_Bangle"
   },
   "Light_Gold_Bangle.png": {
     "name": "light gold bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Light_Gold_Bangle.png",
+    "path": "images\\misc\\Light_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Light_Gold_Bangle"
   },
   "Patterned_Gold_Bangle.png": {
     "name": "patterned gold bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Patterned_Gold_Bangle.png",
+    "path": "images\\misc\\Patterned_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Patterned_Gold_Bangle"
   },
   "Pearl_Necklace.png": {
     "name": "pearl necklace",
     "category": "misc",
-    "path": "assets\\images\\misc\\Pearl_Necklace.png",
+    "path": "images\\misc\\Pearl_Necklace.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Pearl_Necklace"
   },
   "Shine_Bangle.png": {
     "name": "shine bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Shine_Bangle.png",
+    "path": "images\\misc\\Shine_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Shine_Bangle"
   },
   "Silver_Chalice.png": {
     "name": "silver chalice",
     "category": "misc",
-    "path": "assets\\images\\misc\\Silver_Chalice.png",
+    "path": "images\\misc\\Silver_Chalice.png",
     "width": 45,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x2",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Silver_Chalice"
   },
   "Silver_Coin.png": {
     "name": "SilverCoin",
     "category": "misc",
-    "path": "assets\\images\\misc\\Silver_Coin.png",
+    "path": "images\\misc\\Silver_Coin.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4406,55 +4394,55 @@
   "Simple_Gold_Bangle.png": {
     "name": "simple gold bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Simple_Gold_Bangle.png",
+    "path": "images\\misc\\Simple_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Simple_Gold_Bangle"
   },
   "Slim_Bangle.png": {
     "name": "slim bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Slim_Bangle.png",
+    "path": "images\\misc\\Slim_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Slim_Bangle"
   },
   "Triple_Gem_Bangle.png": {
     "name": "triple gem bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Triple_Gem_Bangle.png",
+    "path": "images\\misc\\Triple_Gem_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Triple_Gem_Bangle"
   },
   "Turquoise_Gem_Bangle.png": {
     "name": "turquoise gem bangle",
     "category": "misc",
-    "path": "assets\\images\\misc\\Turquoise_Gem_Bangle.png",
+    "path": "images\\misc\\Turquoise_Gem_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Turquoise_Gem_Bangle"
   },
   "Armor_Scrap.png": {
     "name": "ArmorScrap",
     "category": "misc",
-    "path": "assets\\images\\misc\\Armor_Scrap.png",
+    "path": "images\\misc\\Armor_Scrap.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4466,7 +4454,7 @@
   "Banshee_Sonnet.png": {
     "name": "BansheeSonnet",
     "category": "misc",
-    "path": "assets\\images\\misc\\Banshee_Sonnet.png",
+    "path": "images\\misc\\Banshee_Sonnet.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -4478,7 +4466,7 @@
   "Bat_Claw.png": {
     "name": "BatClaw",
     "category": "misc",
-    "path": "assets\\images\\misc\\Bat_Claw.png",
+    "path": "images\\misc\\Bat_Claw.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4490,7 +4478,7 @@
   "Bat_Wing.png": {
     "name": "BatWing",
     "category": "misc",
-    "path": "assets\\images\\misc\\Bat_Wing.png",
+    "path": "images\\misc\\Bat_Wing.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4502,7 +4490,7 @@
   "Beetle_Wings.png": {
     "name": "BeetleWings",
     "category": "misc",
-    "path": "assets\\images\\misc\\Beetle_Wings.png",
+    "path": "images\\misc\\Beetle_Wings.png",
     "width": 45,
     "height": 90,
     "size": "1x3",
@@ -4514,7 +4502,7 @@
   "Blue_Eyeballs.png": {
     "name": "BlueEyeballs",
     "category": "misc",
-    "path": "assets\\images\\misc\\Blue_Eyeballs.png",
+    "path": "images\\misc\\Blue_Eyeballs.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4526,7 +4514,7 @@
   "Bone.png": {
     "name": "Bone",
     "category": "misc",
-    "path": "assets\\images\\misc\\Bone.png",
+    "path": "images\\misc\\Bone.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -4538,7 +4526,7 @@
   "Bowstring.png": {
     "name": "Bowstring",
     "category": "misc",
-    "path": "assets\\images\\misc\\Bowstring.png",
+    "path": "images\\misc\\Bowstring.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4550,7 +4538,7 @@
   "Broken_Skull.png": {
     "name": "BrokenSkull",
     "category": "misc",
-    "path": "assets\\images\\misc\\Broken_Skull.png",
+    "path": "images\\misc\\Broken_Skull.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4562,7 +4550,7 @@
   "Bug_Shell.png": {
     "name": "BugShell",
     "category": "misc",
-    "path": "assets\\images\\misc\\Bug_Shell.png",
+    "path": "images\\misc\\Bug_Shell.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4574,7 +4562,7 @@
   "Captured_Mana_Flakes.png": {
     "name": "CapturedManaFlakes",
     "category": "misc",
-    "path": "assets\\images\\misc\\Captured_Mana_Flakes.png",
+    "path": "images\\misc\\Captured_Mana_Flakes.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4586,7 +4574,7 @@
   "Centaur_Horn.png": {
     "name": "HornOfCentaur",
     "category": "misc",
-    "path": "assets\\images\\misc\\Centaur_Horn.png",
+    "path": "images\\misc\\Centaur_Horn.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4598,7 +4586,7 @@
   "Centaur_Tail.png": {
     "name": "TailOfCentaur",
     "category": "misc",
-    "path": "assets\\images\\misc\\Centaur_Tail.png",
+    "path": "images\\misc\\Centaur_Tail.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -4610,7 +4598,7 @@
   "Chocolate_Chip_Muffin.png": {
     "name": "ChocolateChipMuffin",
     "category": "misc",
-    "path": "assets\\images\\misc\\Chocolate_Chip_Muffin.png",
+    "path": "images\\misc\\Chocolate_Chip_Muffin.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4622,7 +4610,7 @@
   "Chronicles_of_the_Cursed_Crown.png": {
     "name": "ChroniclesoftheCursedCrown",
     "category": "misc",
-    "path": "assets\\images\\misc\\Chronicles_of_the_Cursed_Crown.png",
+    "path": "images\\misc\\Chronicles_of_the_Cursed_Crown.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4634,7 +4622,7 @@
   "Cockatrice%27s_Lucky_Feather.png": {
     "name": "CockatricesLuckyFeather",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cockatrice%27s_Lucky_Feather.png",
+    "path": "images\\misc\\Cockatrice%27s_Lucky_Feather.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4646,7 +4634,7 @@
   "Cursed_Crown.png": {
     "name": "CursedCrown",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cursed_Crown.png",
+    "path": "images\\misc\\Cursed_Crown.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4658,7 +4646,7 @@
   "Cyclops_Eye.png": {
     "name": "CyclopsEye",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cyclops_Eye.png",
+    "path": "images\\misc\\Cyclops_Eye.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4670,7 +4658,7 @@
   "Cyclops_Rags.png": {
     "name": "CyclopsRags",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cyclops_Rags.png",
+    "path": "images\\misc\\Cyclops_Rags.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4682,7 +4670,7 @@
   "Cyclops%27s_Club.png": {
     "name": "CyclopsClub",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cyclops%27s_Club.png",
+    "path": "images\\misc\\Cyclops%27s_Club.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -4694,7 +4682,7 @@
   "Dark_Matter.png": {
     "name": "DarkMatter",
     "category": "misc",
-    "path": "assets\\images\\misc\\Dark_Matter.png",
+    "path": "images\\misc\\Dark_Matter.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4706,7 +4694,7 @@
   "Demon_Blood.png": {
     "name": "DemonBlood",
     "category": "misc",
-    "path": "assets\\images\\misc\\Demon_Blood.png",
+    "path": "images\\misc\\Demon_Blood.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4718,7 +4706,7 @@
   "Demon_Dog_Thorn.png": {
     "name": "DemonDogThorns",
     "category": "misc",
-    "path": "assets\\images\\misc\\Demon_Dog_Thorn.png",
+    "path": "images\\misc\\Demon_Dog_Thorn.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -4730,7 +4718,7 @@
   "Diary_of_the_Toz.png": {
     "name": "DiaryoftheToz",
     "category": "misc",
-    "path": "assets\\images\\misc\\Diary_of_the_Toz.png",
+    "path": "images\\misc\\Diary_of_the_Toz.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4742,7 +4730,7 @@
   "Dog_Collar.png": {
     "name": "DogCollar",
     "category": "misc",
-    "path": "assets\\images\\misc\\Dog_Collar.png",
+    "path": "images\\misc\\Dog_Collar.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4754,7 +4742,7 @@
   "Ectoplasm.png": {
     "name": "Ectoplasm",
     "category": "misc",
-    "path": "assets\\images\\misc\\Ectoplasm.png",
+    "path": "images\\misc\\Ectoplasm.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4766,7 +4754,7 @@
   "Enchanted_Dark_Fabric.png": {
     "name": "EnchantedDarkFabric",
     "category": "misc",
-    "path": "assets\\images\\misc\\Enchanted_Dark_Fabric.png",
+    "path": "images\\misc\\Enchanted_Dark_Fabric.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4778,7 +4766,7 @@
   "Extra_Thick_Pelt.png": {
     "name": "ExtraThickPelts",
     "category": "misc",
-    "path": "assets\\images\\misc\\Extra_Thick_Pelt.png",
+    "path": "images\\misc\\Extra_Thick_Pelt.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4790,7 +4778,7 @@
   "Firefly%27s_Abdomen.png": {
     "name": "FireflyAbdomen",
     "category": "misc",
-    "path": "assets\\images\\misc\\Firefly%27s_Abdomen.png",
+    "path": "images\\misc\\Firefly%27s_Abdomen.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4802,7 +4790,7 @@
   "Frost_Wyvern_Egg.png": {
     "name": "FrostWyvernEgg",
     "category": "misc",
-    "path": "assets\\images\\misc\\Frost_Wyvern_Egg.png",
+    "path": "images\\misc\\Frost_Wyvern_Egg.png",
     "width": 135,
     "height": 135,
     "size": "3x3",
@@ -4814,7 +4802,7 @@
   "Frost_Wyvern%27s_Claws.png": {
     "name": "FrostWyvernClaws",
     "category": "misc",
-    "path": "assets\\images\\misc\\Frost_Wyvern%27s_Claws.png",
+    "path": "images\\misc\\Frost_Wyvern%27s_Claws.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4826,7 +4814,7 @@
   "Frost_Wyvern%27s_Hide.png": {
     "name": "FrostWyvernsHide",
     "category": "misc",
-    "path": "assets\\images\\misc\\Frost_Wyvern%27s_Hide.png",
+    "path": "images\\misc\\Frost_Wyvern%27s_Hide.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4838,7 +4826,7 @@
   "Frosted_Feather.png": {
     "name": "FrostedFeather",
     "category": "misc",
-    "path": "assets\\images\\misc\\Frosted_Feather.png",
+    "path": "images\\misc\\Frosted_Feather.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4850,7 +4838,7 @@
   "Frozen_Heart.png": {
     "name": "FrozenHeart",
     "category": "misc",
-    "path": "assets\\images\\misc\\Frozen_Heart.png",
+    "path": "images\\misc\\Frozen_Heart.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4862,7 +4850,7 @@
   "Ghostly_Essence.png": {
     "name": "GhostlyEssence",
     "category": "misc",
-    "path": "assets\\images\\misc\\Ghostly_Essence.png",
+    "path": "images\\misc\\Ghostly_Essence.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4874,7 +4862,7 @@
   "Giant_Bat_Ear.png": {
     "name": "GiantBatEar",
     "category": "misc",
-    "path": "assets\\images\\misc\\Giant_Bat_Ear.png",
+    "path": "images\\misc\\Giant_Bat_Ear.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4886,7 +4874,7 @@
   "Giant_Bat_Hide.png": {
     "name": "GiantBatHide",
     "category": "misc",
-    "path": "assets\\images\\misc\\Giant_Bat_Hide.png",
+    "path": "images\\misc\\Giant_Bat_Hide.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4898,7 +4886,7 @@
   "Giant_Toe.png": {
     "name": "GiantToe",
     "category": "misc",
-    "path": "assets\\images\\misc\\Giant_Toe.png",
+    "path": "images\\misc\\Giant_Toe.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -4910,7 +4898,7 @@
   "Glowing_Blue_Ice_Eyes.png": {
     "name": "GlowingBlueIceEyes",
     "category": "misc",
-    "path": "assets\\images\\misc\\Glowing_Blue_Ice_Eyes.png",
+    "path": "images\\misc\\Glowing_Blue_Ice_Eyes.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4922,7 +4910,7 @@
   "Goblin_Ear.png": {
     "name": "GoblinEars",
     "category": "misc",
-    "path": "assets\\images\\misc\\Goblin_Ear.png",
+    "path": "images\\misc\\Goblin_Ear.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4934,7 +4922,7 @@
   "Golden_Teeth.png": {
     "name": "GoldenTeeth",
     "category": "misc",
-    "path": "assets\\images\\misc\\Golden_Teeth.png",
+    "path": "images\\misc\\Golden_Teeth.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4946,7 +4934,7 @@
   "Grave_Essence.png": {
     "name": "GraveEssence",
     "category": "misc",
-    "path": "assets\\images\\misc\\Grave_Essence.png",
+    "path": "images\\misc\\Grave_Essence.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4958,7 +4946,7 @@
   "Honeybliss_Pear.png": {
     "name": "HoneyblissPear",
     "category": "misc",
-    "path": "assets\\images\\misc\\Honeybliss_Pear.png",
+    "path": "images\\misc\\Honeybliss_Pear.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -4970,7 +4958,7 @@
   "Infected_Flesh.png": {
     "name": "InfectedFlesh",
     "category": "misc",
-    "path": "assets\\images\\misc\\Infected_Flesh.png",
+    "path": "images\\misc\\Infected_Flesh.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -4982,7 +4970,7 @@
   "Intact_Skull.png": {
     "name": "IntactSkull",
     "category": "misc",
-    "path": "assets\\images\\misc\\Intact_Skull.png",
+    "path": "images\\misc\\Intact_Skull.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -4994,7 +4982,7 @@
   "Kobold%27s_Ear.png": {
     "name": "KoboldEar",
     "category": "misc",
-    "path": "assets\\images\\misc\\Kobold%27s_Ear.png",
+    "path": "images\\misc\\Kobold%27s_Ear.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5006,7 +4994,7 @@
   "Maggots.png": {
     "name": "Maggots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Maggots.png",
+    "path": "images\\misc\\Maggots.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5018,7 +5006,7 @@
   "Manuscripts_of_the_Warlord.png": {
     "name": "ManuscriptsoftheWarlord",
     "category": "misc",
-    "path": "assets\\images\\misc\\Manuscripts_of_the_Warlord.png",
+    "path": "images\\misc\\Manuscripts_of_the_Warlord.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5030,7 +5018,7 @@
   "Mimic_Tongue.png": {
     "name": "TongueOfMimic",
     "category": "misc",
-    "path": "assets\\images\\misc\\Mimic_Tongue.png",
+    "path": "images\\misc\\Mimic_Tongue.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5042,7 +5030,7 @@
   "Mimic_Tooth.png": {
     "name": "MimicTooth",
     "category": "misc",
-    "path": "assets\\images\\misc\\Mimic_Tooth.png",
+    "path": "images\\misc\\Mimic_Tooth.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5054,7 +5042,7 @@
   "Moldy_Bread.png": {
     "name": "MoldyBread",
     "category": "misc",
-    "path": "assets\\images\\misc\\Moldy_Bread.png",
+    "path": "images\\misc\\Moldy_Bread.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5066,7 +5054,7 @@
   "Old_Bloody_Bandage.png": {
     "name": "OldBloodyBandage",
     "category": "misc",
-    "path": "assets\\images\\misc\\Old_Bloody_Bandage.png",
+    "path": "images\\misc\\Old_Bloody_Bandage.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5078,7 +5066,7 @@
   "Old_Cloth.png": {
     "name": "OldCloth",
     "category": "misc",
-    "path": "assets\\images\\misc\\Old_Cloth.png",
+    "path": "images\\misc\\Old_Cloth.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5090,7 +5078,7 @@
   "Primitive_Bracelet.png": {
     "name": "PrimitiveBracelet",
     "category": "misc",
-    "path": "assets\\images\\misc\\Primitive_Bracelet.png",
+    "path": "images\\misc\\Primitive_Bracelet.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5102,7 +5090,7 @@
   "Rotten_Fluids.png": {
     "name": "RottenFluids",
     "category": "misc",
-    "path": "assets\\images\\misc\\Rotten_Fluids.png",
+    "path": "images\\misc\\Rotten_Fluids.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5114,7 +5102,7 @@
   "Rusty_Broken_Sword.png": {
     "name": "RustyBrokenSword",
     "category": "misc",
-    "path": "assets\\images\\misc\\Rusty_Broken_Sword.png",
+    "path": "images\\misc\\Rusty_Broken_Sword.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5126,7 +5114,7 @@
   "Spectral_Fabric.png": {
     "name": "SpectralFabric",
     "category": "misc",
-    "path": "assets\\images\\misc\\Spectral_Fabric.png",
+    "path": "images\\misc\\Spectral_Fabric.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5138,7 +5126,7 @@
   "Spectral_Hilt.png": {
     "name": "SpectralHilt",
     "category": "misc",
-    "path": "assets\\images\\misc\\Spectral_Hilt.png",
+    "path": "images\\misc\\Spectral_Hilt.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5150,7 +5138,7 @@
   "Spider_Silk.png": {
     "name": "SpiderSilk",
     "category": "misc",
-    "path": "assets\\images\\misc\\Spider_Silk.png",
+    "path": "images\\misc\\Spider_Silk.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5162,7 +5150,7 @@
   "Token_of_Honor.png": {
     "name": "TokenOfHonor",
     "category": "misc",
-    "path": "assets\\images\\misc\\Token_of_Honor.png",
+    "path": "images\\misc\\Token_of_Honor.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5174,7 +5162,7 @@
   "Torn_Bat_Wing.png": {
     "name": "TornBatWing",
     "category": "misc",
-    "path": "assets\\images\\misc\\Torn_Bat_Wing.png",
+    "path": "images\\misc\\Torn_Bat_Wing.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5186,7 +5174,7 @@
   "Troll_Pelt.png": {
     "name": "TrollPelt",
     "category": "misc",
-    "path": "assets\\images\\misc\\Troll_Pelt.png",
+    "path": "images\\misc\\Troll_Pelt.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5198,7 +5186,7 @@
   "Troll%27s_Club.png": {
     "name": "TrollsClub",
     "category": "misc",
-    "path": "assets\\images\\misc\\Troll%27s_Club.png",
+    "path": "images\\misc\\Troll%27s_Club.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -5210,7 +5198,7 @@
   "Volcanic_Ash.png": {
     "name": "VolcanicAsh",
     "category": "misc",
-    "path": "assets\\images\\misc\\Volcanic_Ash.png",
+    "path": "images\\misc\\Volcanic_Ash.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5222,7 +5210,7 @@
   "Warlord%27s_Armor_Shard.png": {
     "name": "WarlordsArmorShard",
     "category": "misc",
-    "path": "assets\\images\\misc\\Warlord%27s_Armor_Shard.png",
+    "path": "images\\misc\\Warlord%27s_Armor_Shard.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5234,7 +5222,7 @@
   "Warlord%27s_Broken_Sword_Blade.png": {
     "name": "WarlordsBrokenSwordBlade",
     "category": "misc",
-    "path": "assets\\images\\misc\\Warlord%27s_Broken_Sword_Blade.png",
+    "path": "images\\misc\\Warlord%27s_Broken_Sword_Blade.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -5246,7 +5234,7 @@
   "Wendigo%27s_Antler_Fragment.png": {
     "name": "WendigosAntlerFragment",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wendigo%27s_Antler_Fragment.png",
+    "path": "images\\misc\\Wendigo%27s_Antler_Fragment.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5258,7 +5246,7 @@
   "Wendigo%27s_Entrails.png": {
     "name": "WendigosEntrails",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wendigo%27s_Entrails.png",
+    "path": "images\\misc\\Wendigo%27s_Entrails.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5270,7 +5258,7 @@
   "Wendigo%27s_Hoof.png": {
     "name": "WendigoHoof",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wendigo%27s_Hoof.png",
+    "path": "images\\misc\\Wendigo%27s_Hoof.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5282,7 +5270,7 @@
   "Wendigo%27s_Sharp_Claws.png": {
     "name": "WendigoSharpClaws",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wendigo%27s_Sharp_Claws.png",
+    "path": "images\\misc\\Wendigo%27s_Sharp_Claws.png",
     "width": 90,
     "height": 45,
     "size": "2x1",
@@ -5294,7 +5282,7 @@
   "Wolf_Claw.png": {
     "name": "WolfClaw",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wolf_Claw.png",
+    "path": "images\\misc\\Wolf_Claw.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5306,7 +5294,7 @@
   "Wolf_Fang.png": {
     "name": "WolfFang",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wolf_Fang.png",
+    "path": "images\\misc\\Wolf_Fang.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5318,7 +5306,7 @@
   "Wolf_Pelt.png": {
     "name": "WolfPelt",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wolf_Pelt.png",
+    "path": "images\\misc\\Wolf_Pelt.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5330,7 +5318,7 @@
   "Yeti%27s_Teeth.png": {
     "name": "YetisTeeth",
     "category": "misc",
-    "path": "assets\\images\\misc\\Yeti%27s_Teeth.png",
+    "path": "images\\misc\\Yeti%27s_Teeth.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5342,7 +5330,7 @@
   "Cobalt_Ore.png": {
     "name": "CobaltOres",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cobalt_Ore.png",
+    "path": "images\\misc\\Cobalt_Ore.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5354,7 +5342,7 @@
   "Copper_Ore.png": {
     "name": "CopperOres",
     "category": "misc",
-    "path": "assets\\images\\misc\\Copper_Ore.png",
+    "path": "images\\misc\\Copper_Ore.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5366,7 +5354,7 @@
   "Froststone_Ore.png": {
     "name": "FrostStoneOres",
     "category": "misc",
-    "path": "assets\\images\\misc\\Froststone_Ore.png",
+    "path": "images\\misc\\Froststone_Ore.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5378,7 +5366,7 @@
   "Gold_Ore.png": {
     "name": "GoldOres",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Ore.png",
+    "path": "images\\misc\\Gold_Ore.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5390,7 +5378,7 @@
   "Iron_Ore.png": {
     "name": "IronOres",
     "category": "misc",
-    "path": "assets\\images\\misc\\Iron_Ore.png",
+    "path": "images\\misc\\Iron_Ore.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5402,7 +5390,7 @@
   "Rubysilver_Ore.png": {
     "name": "RubysilverOres",
     "category": "misc",
-    "path": "assets\\images\\misc\\Rubysilver_Ore.png",
+    "path": "images\\misc\\Rubysilver_Ore.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5414,7 +5402,7 @@
   "Cobalt_Ingot.png": {
     "name": "CobaltIngots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cobalt_Ingot.png",
+    "path": "images\\misc\\Cobalt_Ingot.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5426,7 +5414,7 @@
   "Copper_Ingot.png": {
     "name": "CopperIngots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Copper_Ingot.png",
+    "path": "images\\misc\\Copper_Ingot.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5438,7 +5426,7 @@
   "Froststone_Ingot.png": {
     "name": "FrostStoneIngots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Froststone_Ingot.png",
+    "path": "images\\misc\\Froststone_Ingot.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5450,7 +5438,7 @@
   "Gold_Ingot.png": {
     "name": "GoldIngots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Ingot.png",
+    "path": "images\\misc\\Gold_Ingot.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5462,7 +5450,7 @@
   "Iron_Ingot.png": {
     "name": "IronIngots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Iron_Ingot.png",
+    "path": "images\\misc\\Iron_Ingot.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5474,7 +5462,7 @@
   "Rubysilver_Ingot.png": {
     "name": "RubysilverIngots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Rubysilver_Ingot.png",
+    "path": "images\\misc\\Rubysilver_Ingot.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5486,7 +5474,7 @@
   "Silver_Ingot.png": {
     "name": "SilverIngots",
     "category": "misc",
-    "path": "assets\\images\\misc\\Silver_Ingot.png",
+    "path": "images\\misc\\Silver_Ingot.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5498,7 +5486,7 @@
   "Cobalt_Powder.png": {
     "name": "CobaltPowder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Cobalt_Powder.png",
+    "path": "images\\misc\\Cobalt_Powder.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5510,7 +5498,7 @@
   "Copper_Powder.png": {
     "name": "CopperPowder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Copper_Powder.png",
+    "path": "images\\misc\\Copper_Powder.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5522,7 +5510,7 @@
   "Froststone_Powder.png": {
     "name": "FrostStonePowder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Froststone_Powder.png",
+    "path": "images\\misc\\Froststone_Powder.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5534,7 +5522,7 @@
   "Gold_Powder.png": {
     "name": "GoldPowder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Powder.png",
+    "path": "images\\misc\\Gold_Powder.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5546,7 +5534,7 @@
   "Iron_Powder.png": {
     "name": "IronPowder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Iron_Powder.png",
+    "path": "images\\misc\\Iron_Powder.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5558,7 +5546,7 @@
   "Rubysilver_Powder.png": {
     "name": "RubysilverPowder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Rubysilver_Powder.png",
+    "path": "images\\misc\\Rubysilver_Powder.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5570,7 +5558,7 @@
   "Silver_Powder.png": {
     "name": "SilverPowder",
     "category": "misc",
-    "path": "assets\\images\\misc\\Silver_Powder.png",
+    "path": "images\\misc\\Silver_Powder.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5582,7 +5570,7 @@
   "Candy_Cane.png": {
     "name": "CandyCane",
     "category": "misc",
-    "path": "assets\\images\\misc\\Candy_Cane.png",
+    "path": "images\\misc\\Candy_Cane.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5594,7 +5582,7 @@
   "Candy_Corn.png": {
     "name": "CandyCorns",
     "category": "misc",
-    "path": "assets\\images\\misc\\Candy_Corn.png",
+    "path": "images\\misc\\Candy_Corn.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5606,7 +5594,7 @@
   "Gingerbread_Cookie.png": {
     "name": "GingerbreadCookies",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gingerbread_Cookie.png",
+    "path": "images\\misc\\Gingerbread_Cookie.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5618,7 +5606,7 @@
   "Gold_Coin.png": {
     "name": "GoldCoins",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Coin.png",
+    "path": "images\\misc\\Gold_Coin.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5630,7 +5618,7 @@
   "Golden_Skull_Token.png": {
     "name": "GoldenSkulltoken",
     "category": "misc",
-    "path": "assets\\images\\misc\\Golden_Skull_Token.png",
+    "path": "images\\misc\\Golden_Skull_Token.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5642,7 +5630,7 @@
   "Heart_Candy.png": {
     "name": "ValentineCandies",
     "category": "misc",
-    "path": "assets\\images\\misc\\Heart_Candy.png",
+    "path": "images\\misc\\Heart_Candy.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5654,7 +5642,7 @@
   "Silver_Skull_Token.png": {
     "name": "SilverSkulltoken",
     "category": "misc",
-    "path": "assets\\images\\misc\\Silver_Skull_Token.png",
+    "path": "images\\misc\\Silver_Skull_Token.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5666,7 +5654,7 @@
   "Gold_Coin_Bag.png": {
     "name": "GoldCoinBag",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Coin_Bag.png",
+    "path": "images\\misc\\Gold_Coin_Bag.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5678,7 +5666,7 @@
   "Gold_Coin_Chest.png": {
     "name": "GoldCoinChest",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Coin_Chest.png",
+    "path": "images\\misc\\Gold_Coin_Chest.png",
     "width": 120,
     "height": 90,
     "size": "3x2",
@@ -5690,7 +5678,7 @@
   "Gold_Coin_Pouch.png": {
     "name": "GoldCoinPouch",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Coin_Pouch.png",
+    "path": "images\\misc\\Gold_Coin_Pouch.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5702,7 +5690,7 @@
   "Gold_Coin_Purse.png": {
     "name": "GoldCoinPurse",
     "category": "misc",
-    "path": "assets\\images\\misc\\Gold_Coin_Purse.png",
+    "path": "images\\misc\\Gold_Coin_Purse.png",
     "width": 45,
     "height": 45,
     "size": "1x1",
@@ -5714,7 +5702,7 @@
   "Spectral_Coinbag.png": {
     "name": "SpectralCoinbag",
     "category": "misc",
-    "path": "assets\\images\\misc\\Spectral_Coinbag.png",
+    "path": "images\\misc\\Spectral_Coinbag.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -5726,7 +5714,7 @@
   "Black_Rose.png": {
     "name": "BlackRose",
     "category": "misc",
-    "path": "assets\\images\\misc\\Black_Rose.png",
+    "path": "images\\misc\\Black_Rose.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5738,7 +5726,7 @@
   "Lifeleaf.png": {
     "name": "Lifeleaf",
     "category": "misc",
-    "path": "assets\\images\\misc\\Lifeleaf.png",
+    "path": "images\\misc\\Lifeleaf.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5750,7 +5738,7 @@
   "Phantom_Flower.png": {
     "name": "PhantomFlower",
     "category": "misc",
-    "path": "assets\\images\\misc\\Phantom_Flower.png",
+    "path": "images\\misc\\Phantom_Flower.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5762,7 +5750,7 @@
   "Wardweed.png": {
     "name": "Wardweed",
     "category": "misc",
-    "path": "assets\\images\\misc\\Wardweed.png",
+    "path": "images\\misc\\Wardweed.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5774,7 +5762,7 @@
   "Arrow.png": {
     "name": "Arrow",
     "category": "misc",
-    "path": "assets\\images\\misc\\Arrow.png",
+    "path": "images\\misc\\Arrow.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5786,7 +5774,7 @@
   "Bolt.png": {
     "name": "Bolt",
     "category": "misc",
-    "path": "assets\\images\\misc\\Bolt.png",
+    "path": "images\\misc\\Bolt.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5798,7 +5786,7 @@
   "Kuma%27s_Claw.png": {
     "name": "ArmingSword",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Kuma%27s_Claw.png",
+    "path": "images\\artifacts\\Kuma%27s_Claw.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5810,7 +5798,7 @@
   "Kuma%27s_Fang.png": {
     "name": "Falchion",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Kuma%27s_Fang.png",
+    "path": "images\\artifacts\\Kuma%27s_Fang.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5822,7 +5810,7 @@
   "Fulgor.png": {
     "name": "Longsword",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Fulgor.png",
+    "path": "images\\artifacts\\Fulgor.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -5834,7 +5822,7 @@
   "Viola.png": {
     "name": "Rapier",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Viola.png",
+    "path": "images\\artifacts\\Viola.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5846,7 +5834,7 @@
   "Bloodsap_Blade.png": {
     "name": "BloodsapBlade",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Bloodsap_Blade.png",
+    "path": "images\\artifacts\\Bloodsap_Blade.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5858,7 +5846,7 @@
   "Deathbloom.png": {
     "name": "StilettoDagger",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Deathbloom.png",
+    "path": "images\\artifacts\\Deathbloom.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5870,7 +5858,7 @@
   "Haze_Blade.png": {
     "name": "HazeBlade",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Haze_Blade.png",
+    "path": "images\\artifacts\\Haze_Blade.png",
     "width": 45,
     "height": 90,
     "size": "1x2",
@@ -5882,7 +5870,7 @@
   "Pulverizing_Prayer.png": {
     "name": "MorningStar",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Pulverizing_Prayer.png",
+    "path": "images\\artifacts\\Pulverizing_Prayer.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5894,7 +5882,7 @@
   "Stinky_Stick.png": {
     "name": "Quarterstaff",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Stinky_Stick.png",
+    "path": "images\\artifacts\\Stinky_Stick.png",
     "width": 45,
     "height": 180,
     "size": "1x5",
@@ -5906,7 +5894,7 @@
   "Cinder.png": {
     "name": "Halberd",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Cinder.png",
+    "path": "images\\artifacts\\Cinder.png",
     "width": 90,
     "height": 225,
     "size": "2x5",
@@ -5918,7 +5906,7 @@
   "Echo_of_Screams.png": {
     "name": "BattleAxe",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Echo_of_Screams.png",
+    "path": "images\\artifacts\\Echo_of_Screams.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -5930,7 +5918,7 @@
   "Life_after_Death.png": {
     "name": "DoubleAxe",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Life_after_Death.png",
+    "path": "images\\artifacts\\Life_after_Death.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -5942,7 +5930,7 @@
   "Soulscraper.png": {
     "name": "FellingAxe",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Soulscraper.png",
+    "path": "images\\artifacts\\Soulscraper.png",
     "width": 90,
     "height": 180,
     "size": "2x4",
@@ -5954,7 +5942,7 @@
   "Famine.png": {
     "name": "HorsemansAxe",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Famine.png",
+    "path": "images\\artifacts\\Famine.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5966,7 +5954,7 @@
   "Nipalan.png": {
     "name": "Longbow",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Nipalan.png",
+    "path": "images\\artifacts\\Nipalan.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -5978,7 +5966,7 @@
   "Pestilence.png": {
     "name": "RecurveBow",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Pestilence.png",
+    "path": "images\\artifacts\\Pestilence.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -5990,7 +5978,7 @@
   "Elven_Bow_of_Truth.png": {
     "name": "SurvivalBow",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Elven_Bow_of_Truth.png",
+    "path": "images\\artifacts\\Elven_Bow_of_Truth.png",
     "width": 45,
     "height": 135,
     "size": "1x3",
@@ -6002,7 +5990,7 @@
   "Aegis.png": {
     "name": "HeaterShield",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Aegis.png",
+    "path": "images\\artifacts\\Aegis.png",
     "width": 90,
     "height": 120,
     "size": "2x3",
@@ -6014,7 +6002,7 @@
   "Delirium.png": {
     "name": "Buckler",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Delirium.png",
+    "path": "images\\artifacts\\Delirium.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -6026,7 +6014,7 @@
   "Dryad%27s_Wrath.png": {
     "name": "RoundShield",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Dryad%27s_Wrath.png",
+    "path": "images\\artifacts\\Dryad%27s_Wrath.png",
     "width": 90,
     "height": 135,
     "size": "2x3",
@@ -6038,7 +6026,7 @@
   "Thorn_Shield.png": {
     "name": "ThornShield",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Thorn_Shield.png",
+    "path": "images\\artifacts\\Thorn_Shield.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -6050,7 +6038,7 @@
   "Spellweaver.png": {
     "name": "Spellbook",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Spellweaver.png",
+    "path": "images\\artifacts\\Spellweaver.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
@@ -6062,7 +6050,7 @@
   "Illusory.png": {
     "name": "WizardStaff",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Illusory.png",
+    "path": "images\\artifacts\\Illusory.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -6074,7 +6062,7 @@
   "Spellplunder_Rod.png": {
     "name": "SpellplunderRod",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Spellplunder_Rod.png",
+    "path": "images\\artifacts\\Spellplunder_Rod.png",
     "width": 45,
     "height": 180,
     "size": "1x4",
@@ -6086,7 +6074,7 @@
   "Zirkzi%27s_Eye.png": {
     "name": "CrystalBall",
     "category": "artifacts",
-    "path": "assets\\images\\artifacts\\Zirkzi%27s_Eye.png",
+    "path": "images\\artifacts\\Zirkzi%27s_Eye.png",
     "width": 90,
     "height": 90,
     "size": "2x2",
