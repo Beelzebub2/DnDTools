@@ -1,4 +1,4 @@
-import scheme
+from stash_preview import ItemDataManager
 
 class Item:
     def __init__(self, name, rarity, position, width, height):
@@ -55,11 +55,9 @@ class Item:
             rarity_id = 0
 
         position = data.get("slotId", -1)
-        width, height = scheme.get_dimensions(name)
-        # TODO
-        # matching_db = ItemDataManager().load_matching_db()
-        # print(matching_db)
-        # im not sure whats going on with matching_db and how to use it to get item info like dimensions
+        # Retrieve dimensions using ItemDataManager (was this the intention?)
+        manager = ItemDataManager()
+        _, width, height, _ = manager.get_item_image_path(name) or (None, 1, 1, None)
 
         return Item(name, rarity_id, position, width, height)
 
