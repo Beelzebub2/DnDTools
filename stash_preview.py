@@ -4,7 +4,7 @@ import re
 import difflib
 from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import logging
 from datetime import datetime
 
@@ -97,6 +97,10 @@ class StashPreviewGenerator:
         self.CELL_SIZE = cell_size
         self.item_manager = ItemDataManager()
         logging.basicConfig(level=logging.INFO)
+        try:
+            self.font = ImageFont.truetype("arial.ttf", 16)
+        except:
+            self.font = ImageFont.load_default()
 
     def generate_preview(self, stash_id: str, items: List[ItemInfo]) -> Image.Image:
         preview = Image.new("RGBA", 
@@ -143,6 +147,18 @@ class StashPreviewGenerator:
             
             # Record successful match
             self.item_manager.matching_db[item.name] = matched_name
+            
+            # Draw item count if greater than 1
+            if item.itemCount > 1:
+                draw = ImageDraw.Draw(preview)
+                count_text = str(item.itemCount)
+                bbox = draw.textbbox((0, 0), count_text, font=self.font)
+                text_width = bbox[2] - bbox[0]
+                text_height = bbox[3] - bbox[1]
+                text_x = x * self.CELL_SIZE + self.CELL_SIZE - text_width - 4
+                text_y = y * self.CELL_SIZE + self.CELL_SIZE - text_height - 2
+                draw.text((text_x+1, text_y+1), count_text, fill='black', font=self.font)
+                draw.text((text_x, text_y), count_text, fill='white', font=self.font)
             
         except Exception as e:
             logging.error(f"Failed to process image {img_path}: {e}")
