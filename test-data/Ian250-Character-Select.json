@@ -1,0 +1,1466 @@
+{
+  "totalCharacterCount": 10,
+  "pageIndex": 1,
+  "characterList": [
+    {
+      "characterId": "4696297",
+      "nickName": {
+        "originalNickName": "Ian252",
+        "streamingModeNickName": "Bard#4696297",
+        "fame": 139,
+        "rankIconType": 1
+      },
+      "characterClass": "DesignDataPlayerCharacter:Id_PlayerCharacter_Bard",
+      "createAt": "1701034851000",
+      "gender": 1,
+      "level": 1,
+      "lastloginDate": "1745281618000",
+      "equipItemList": [
+        {
+          "itemUniqueId": "9289739826392209",
+          "itemId": "DesignDataItem:Id_Item_WandererAttire_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 2,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 22
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -4
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392225",
+          "itemId": "DesignDataItem:Id_Item_HealingPotion_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 15,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392211",
+          "itemId": "DesignDataItem:Id_Item_LeatherGloves_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 3,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 6
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+              "propertyValue": 1
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392227",
+          "itemId": "DesignDataItem:Id_Item_Flute_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 16,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 22
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -13
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392213",
+          "itemId": "DesignDataItem:Id_Item_ClothPants_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 4,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 16
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -3
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392229",
+          "itemId": "DesignDataItem:Id_Item_Lyre_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 17,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Resourcefulness",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -17
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392215",
+          "itemId": "DesignDataItem:Id_Item_AdventurerBoots_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 5,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 13
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": 6
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392217",
+          "itemId": "DesignDataItem:Id_Item_Torch_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 8,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 9
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392219",
+          "itemId": "DesignDataItem:Id_Item_Lute_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 9,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 20
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -15
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392221",
+          "itemId": "DesignDataItem:Id_Item_Rapier_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 10,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 18
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -15
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739826392223",
+          "itemId": "DesignDataItem:Id_Item_Drum_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 14,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 24
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -29
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        }
+      ],
+      "equipCharacterSkinList": [
+        "CharacterSkinData:Id_CharacterSkin_EliteSkeleton"
+      ]
+    },
+    {
+      "orderIndex": 1,
+      "characterId": "4701629",
+      "nickName": {
+        "originalNickName": "Ian256",
+        "streamingModeNickName": "Cleric#4701629",
+        "fame": 317,
+        "rankIconType": 1
+      },
+      "characterClass": "DesignDataPlayerCharacter:Id_PlayerCharacter_Cleric",
+      "createAt": "1701058995000",
+      "gender": 1,
+      "level": 20,
+      "lastloginDate": "1745281542000",
+      "equipItemList": [
+        {
+          "itemUniqueId": "2251801924155522",
+          "itemId": "DesignDataItem:Id_Item_GreatHelm_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 1,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 34
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+              "propertyValue": 21
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_HeadshotReductionMod",
+              "propertyValue": 230
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -8
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155526",
+          "itemId": "DesignDataItem:Id_Item_HeavyGauntlet_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 3,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 17
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+              "propertyValue": 15
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+              "propertyValue": -5
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -1
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155524",
+          "itemId": "DesignDataItem:Id_Item_CrusaderArmor_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 2,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 66
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+              "propertyValue": 25
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -13
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155530",
+          "itemId": "DesignDataItem:Id_Item_DashingBoots_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 5,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 15
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+              "propertyValue": 11
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": 6
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+              "propertyValue": 1
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155528",
+          "itemId": "DesignDataItem:Id_Item_PlatePants_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 4,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 32
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+              "propertyValue": 25
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+              "propertyValue": -5
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -9
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155534",
+          "itemId": "DesignDataItem:Id_Item_CampfireKit_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 9,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155532",
+          "itemId": "DesignDataItem:Id_Item_Torch_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 8,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 9
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155538",
+          "itemId": "DesignDataItem:Id_Item_MorningStar_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 12,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 33
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+              "propertyValue": 150
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -20
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155536",
+          "itemId": "DesignDataItem:Id_Item_Spellbook_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 10,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 18
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamage",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+              "propertyValue": 50
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155542",
+          "itemId": "DesignDataItem:Id_Item_HealingPotion_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 14,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155540",
+          "itemId": "DesignDataItem:Id_Item_HeaterShield_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 13,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 21
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -15
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155546",
+          "itemId": "DesignDataItem:Id_Item_ProtectionPotion_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 16,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155544",
+          "itemId": "DesignDataItem:Id_Item_Bandage_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 15,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "2251801924155548",
+          "itemId": "DesignDataItem:Id_Item_Drum_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 17,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 24
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -29
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        }
+      ],
+      "equipCharacterSkinList": [
+        "CharacterSkinData:Id_CharacterSkin_FelidianPantherMan"
+      ],
+      "orderId": 1
+    },
+    {
+      "orderIndex": 2,
+      "characterId": "4696745",
+      "nickName": {
+        "originalNickName": "Ian253",
+        "streamingModeNickName": "Wizard#4696745",
+        "fame": 224,
+        "rankIconType": 1
+      },
+      "characterClass": "DesignDataPlayerCharacter:Id_PlayerCharacter_Wizard",
+      "createAt": "1701036947000",
+      "gender": 1,
+      "level": 26,
+      "lastloginDate": "1745279853000",
+      "equipItemList": [
+        {
+          "itemUniqueId": "3941716857482380",
+          "itemId": "DesignDataItem:Id_Item_ExplosiveBottle_3001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 9,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 3,
+          "originType": 1,
+          "originNickName": "Ian253",
+          "originSteamingModeNickName": "Wizard#4696745",
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "3941716611509277",
+          "itemId": "DesignDataItem:Id_Item_CrystalBall_3001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 11,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamageAdd",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamage",
+              "propertyValue": 5
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -15
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+              "propertyValue": 100
+            }
+          ],
+          "secondaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedBonus",
+              "propertyValue": 6
+            }
+          ],
+          "lootState": 3,
+          "originType": 1,
+          "originNickName": "Ian253",
+          "originSteamingModeNickName": "Wizard#4696745",
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "3941716173986278",
+          "itemId": "DesignDataItem:Id_Item_Bandage_2001",
+          "itemCount": 3,
+          "inventoryId": 3,
+          "slotId": 15,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 3,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "3941716173986273",
+          "itemId": "DesignDataItem:Id_Item_HealingPotion_2001",
+          "itemCount": 3,
+          "inventoryId": 3,
+          "slotId": 14,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 3,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "7881327499043547",
+          "itemId": "DesignDataItem:Id_Item_HeavyBoots_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 5,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 15
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": 4
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "7881327499043545",
+          "itemId": "DesignDataItem:Id_Item_ClothPants_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 4,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 15
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -3
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "3941716983830210",
+          "itemId": "DesignDataItem:Id_Item_ClarityPotion_1001",
+          "itemCount": 3,
+          "inventoryId": 3,
+          "slotId": 16,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 3,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "7881327499043549",
+          "itemId": "DesignDataItem:Id_Item_ThrowingKnife_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 17,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 9
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9571216782919145",
+          "itemId": "DesignDataItem:Id_Item_RondelDagger_5001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 10,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 24
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+              "propertyValue": 50
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "secondaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalHealing",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+              "propertyValue": 27
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamageAdd",
+              "propertyValue": 1
+            }
+          ],
+          "lootState": 2,
+          "originType": 1,
+          "originNickName": "Ian253",
+          "originSteamingModeNickName": "Wizard#4696745",
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "7881327499043539",
+          "itemId": "DesignDataItem:Id_Item_ArcaneHood_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 1,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 13
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_HeadshotReductionMod",
+              "propertyValue": 80
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -2
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9571216782919146",
+          "itemId": "DesignDataItem:Id_Item_Crossbow_4001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 12,
+          "itemAmmoCount": 1,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 40
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+              "propertyValue": 300
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -50
+            }
+          ],
+          "secondaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamageAdd",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthBonus",
+              "propertyValue": 28
+            }
+          ],
+          "lootState": 2,
+          "originType": 1,
+          "originNickName": "Ian253",
+          "originSteamingModeNickName": "Wizard#4696745",
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "3941716746247675",
+          "itemId": "DesignDataItem:Id_Item_Torch_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 8,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 9
+            }
+          ],
+          "lootState": 3,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "7881327499043543",
+          "itemId": "DesignDataItem:Id_Item_RivetedGloves_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 3,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 11
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+              "propertyValue": 2
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "7881327499043541",
+          "itemId": "DesignDataItem:Id_Item_PaddedTunic_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 2,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 34
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -7
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        }
+      ],
+      "equipCharacterSkinList": [
+        "CharacterSkinData:Id_CharacterSkin_OrcMan"
+      ],
+      "orderId": 2
+    },
+    {
+      "orderIndex": 3,
+      "characterId": "4759949",
+      "nickName": {
+        "originalNickName": "Ian257",
+        "streamingModeNickName": "Warlock#4759949",
+        "rankId": "LeaderboardRankData:Id_LeaderboardRank_Apprentice_I",
+        "fame": 339,
+        "rankIconType": 1,
+        "adventureRankId": "LeaderboardRankData:Id_LeaderboardRank_Apprentice_I"
+      },
+      "characterClass": "DesignDataPlayerCharacter:Id_PlayerCharacter_Warlock",
+      "createAt": "1701492524000",
+      "gender": 1,
+      "level": 31,
+      "lastloginDate": "1745265309000",
+      "equipItemList": [
+        {
+          "itemUniqueId": "5629519181779014",
+          "itemId": "DesignDataItem:Id_Item_OccultistHood_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 1,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 12
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_HeadshotReductionMod",
+              "propertyValue": 80
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalHealing",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -2
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779022",
+          "itemId": "DesignDataItem:Id_Item_LightfootBoots_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 5,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 3
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": 10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779020",
+          "itemId": "DesignDataItem:Id_Item_LeatherLeggings_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 4,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 20
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -4
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779018",
+          "itemId": "DesignDataItem:Id_Item_ReinforcedGloves_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 3,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 10
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+              "propertyValue": 2
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779016",
+          "itemId": "DesignDataItem:Id_Item_OracleRobe_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 2,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 30
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+              "propertyValue": 25
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -6
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779030",
+          "itemId": "DesignDataItem:Id_Item_Longsword_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 12,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 36
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -30
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779028",
+          "itemId": "DesignDataItem:Id_Item_Spellbook_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 10,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 18
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamage",
+              "propertyValue": 1
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+              "propertyValue": 50
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779026",
+          "itemId": "DesignDataItem:Id_Item_CampfireKit_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 9,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779024",
+          "itemId": "DesignDataItem:Id_Item_Torch_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 8,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 9
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779038",
+          "itemId": "DesignDataItem:Id_Item_Drum_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 17,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 24
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -29
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779036",
+          "itemId": "DesignDataItem:Id_Item_ProtectionPotion_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 16,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779034",
+          "itemId": "DesignDataItem:Id_Item_Bandage_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 15,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "5629519181779032",
+          "itemId": "DesignDataItem:Id_Item_HealingPotion_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 14,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        }
+      ],
+      "equipCharacterSkinList": [
+        "CharacterSkinData:Id_CharacterSkin_NightmareSkeleton"
+      ],
+      "orderId": 3
+    },
+    {
+      "orderIndex": 4,
+      "characterId": "4696080",
+      "nickName": {
+        "originalNickName": "Ian251",
+        "streamingModeNickName": "Barbarian#4696080",
+        "fame": 262,
+        "rankIconType": 1
+      },
+      "characterClass": "DesignDataPlayerCharacter:Id_PlayerCharacter_Barbarian",
+      "createAt": "1701033821000",
+      "gender": 1,
+      "level": 11,
+      "lastloginDate": "1745130288000",
+      "equipItemList": [
+        {
+          "itemUniqueId": "9289739889413139",
+          "itemId": "DesignDataItem:Id_Item_ProtectionPotion_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 17,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413123",
+          "itemId": "DesignDataItem:Id_Item_ClothPants_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 4,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 15
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -3
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413137",
+          "itemId": "DesignDataItem:Id_Item_CampfireKit_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 16,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413121",
+          "itemId": "DesignDataItem:Id_Item_ReinforcedGloves_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 3,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 10
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+              "propertyValue": 2
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413127",
+          "itemId": "DesignDataItem:Id_Item_FranciscaAxe_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 9,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 9
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739848657715",
+          "itemId": "DesignDataItem:Id_Item_Torch_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 8,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 9
+            }
+          ],
+          "lootState": 3,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413125",
+          "itemId": "DesignDataItem:Id_Item_AdventurerBoots_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 5,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 13
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+              "propertyValue": 2
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": 6
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413131",
+          "itemId": "DesignDataItem:Id_Item_RoundShield_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 13,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+              "propertyValue": 18
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -12
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413129",
+          "itemId": "DesignDataItem:Id_Item_BattleAxe_1001",
+          "itemCount": 1,
+          "inventoryId": 3,
+          "slotId": 10,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+              "propertyValue": 42
+            },
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -30
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413135",
+          "itemId": "DesignDataItem:Id_Item_Bandage_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 15,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        },
+        {
+          "itemUniqueId": "9289739889413133",
+          "itemId": "DesignDataItem:Id_Item_HealingPotion_1001",
+          "itemCount": 2,
+          "inventoryId": 3,
+          "slotId": 14,
+          "primaryPropertyArray": [
+            {
+              "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+              "propertyValue": -10
+            }
+          ],
+          "lootState": 1,
+          "tradable": 1
+        }
+      ],
+      "equipCharacterSkinList": [
+        "CharacterSkinData:Id_CharacterSkin_LizardmenBlue"
+      ],
+      "orderId": 4
+    }
+  ],
+  "slotInfos": [
+    {
+      "slotType": 1,
+      "slotStatus": 1
+    },
+    {
+      "orderIndex": 1,
+      "slotType": 2,
+      "slotStatus": 1
+    },
+    {
+      "orderIndex": 2,
+      "slotType": 2,
+      "slotStatus": 1
+    },
+    {
+      "orderIndex": 3,
+      "slotType": 2,
+      "slotStatus": 1
+    },
+    {
+      "orderIndex": 4,
+      "slotType": 2,
+      "slotStatus": 1
+    }
+  ],
+  "availableSlotCount": 10
+}
