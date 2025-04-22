@@ -1,4 +1,4 @@
-# Dark and Darker Stash Preview Generator
+# Dark and Darker Tools
 
 <p align="center">
   <img src="assets/banner.jpg" alt="DnDTools Banner" width="640" height="320">
@@ -14,7 +14,7 @@
 </p>
 
 
-A tool to capture and generate visual previews of Dark and Darker stash contents.
+A tool to capture and generate visual previews of Dark and Darker stash contents and organize them.
 
 ## ⚠️ Disclaimer
 
