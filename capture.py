@@ -8,6 +8,10 @@ import logging
 from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
 import Lobby_pb2
+import Account_pb2
+
+SS2C_LOBBY_CHARACTER_INFO_RES = 44
+SS2C_ACCOUNT_CHARACTER_LIST_RES = 18
 
 class PacketCapture:
     def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300)):
@@ -32,19 +36,30 @@ class PacketCapture:
             self.packet_data += data
             packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
 
-            if proto_type == 44:  # S2C_LOBBY_CHARACTER_INFO_RES
+            if proto_type == SS2C_LOBBY_CHARACTER_INFO_RES:
                 if len(self.packet_data) == packet_length:
                     self.logger.info(f"Processing packet: Length={packet_length}, Type={proto_type}")
-                    self.save_packet_data()
+
+                    info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
+                    self.save_packet_data(info)
+                elif len(self.packet_data) > packet_length:
+                    self.logger.error("Packet data overflow")
+                    self.packet_data = b""
+            elif proto_type == SS2C_ACCOUNT_CHARACTER_LIST_RES:
+                print(f"{len(self.packet_data)}/{packet_length}")
+                if len(self.packet_data) == packet_length:
+                    self.logger.info(f"Processing packet: Length={packet_length}, Type={proto_type}")
+
+                    info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
+                    self.save_packet_data(info)
                 elif len(self.packet_data) > packet_length:
                     self.logger.error("Packet data overflow")
                     self.packet_data = b""
             else:
                 self.packet_data = b""
 
-    def save_packet_data(self) -> None:
+    def save_packet_data(self, info) -> None:
         try:
-            info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
             info.ParseFromString(self.packet_data[8:])
             json_data = MessageToJson(info)
 
