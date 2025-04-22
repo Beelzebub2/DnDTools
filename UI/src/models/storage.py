@@ -1,7 +1,7 @@
 import heapq
-import macros
-from item import Item
-from point import Point
+from src.models import macros
+from src.models.item import Item
+from src.models.point import Point
 from enum import Enum
 
 class StashType(Enum):
@@ -95,17 +95,47 @@ class Storage:
             heapq.heappush(self.pq, item)
 
     def __repr__(self):
+        import os
+        import json
+        from pathlib import Path
+
+        # Try to load character data
+        char_dir = Path(__file__).parent.parent.parent / 'data' / 'characters'
+        characters = []
+        
+        if os.path.exists(char_dir):
+            for char_file in os.listdir(char_dir):
+                if char_file.endswith('.json'):
+                    with open(char_dir / char_file, 'r') as f:
+                        char_data = json.load(f)
+                        characters.append(char_data)
+
+        if not characters:
+            return "No character data found. Please capture character data first."
+
+        # Create the grid representation
         grid = [["." for _ in range(self.width)] for _ in range(self.height)]
 
         for x in range(self.width):
             for y in range(self.height):
                 item = self.grid[x][y]
                 if item != 0:
-                    # Just display the first letter of the item name or a hash of it
                     grid[y][x] = item.name[0].upper() if item.name else "#"
 
-        # Create a string representation row by row
+        # Create the display string
         lines = []
+        
+        # Add character information
+        for char in characters:
+            lines.append(f"\nCharacter: {char['characterName']}")
+            lines.append(f"Class: {char['characterClass']}")
+            lines.append(f"Level: {char['level']}")
+            lines.append(f"Rank: {char['rank']['name']}")
+            lines.append("-" * 40)
+
+        # Add inventory grid
+        lines.append("\nInventory:")
         for row in grid:
             lines.append(" ".join(row))
+
         return "\n".join(lines)

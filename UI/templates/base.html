@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dark and Darker Stash Organizer</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+    <nav class="sidebar">
+        <div class="nav-header">
+            <h1>Stash Organizer</h1>
+        </div>
+        <ul class="nav-links">
+            <li>
+                <a href="{{ url_for('index') }}" class="nav-link">
+                    <span class="material-icons">inventory_2</span>
+                    Characters
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('record') }}" class="nav-link">
+                    <span class="material-icons">add_circle</span>
+                    Record Character
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('search') }}" class="nav-link">
+                    <span class="material-icons">search</span>
+                    Search Items
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('settings') }}" class="nav-link">
+                    <span class="material-icons">settings</span>
+                    Settings
+                </a>
+            </li>
+        </ul>
+    </nav>
+    <main class="content">
+        <div class="content-header">
+            <h2>{% block header %}{% endblock %}</h2>
+        </div>
+        {% block content %}{% endblock %}
+    </main>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
+</body>
+
+</html>

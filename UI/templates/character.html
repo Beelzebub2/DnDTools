@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block header %}
+<span id="characterHeader">Character Details</span>
+{% endblock %}
+
+{% block content %}
+<div class="character-details">
+    <div id="characterInfo" class="character-header">
+        <div class="loading">Loading character details...</div>
+    </div>
+    <div class="stash-container">
+        <div id="stashSelector" class="stash-tabs"></div>
+        <div id="stashGrid" class="stash-grid"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Fetch character details via pywebview API or HTTP fallback
+    const updateCharacterInfo = async (characterId) => {
+        const charInfo = document.getElementById('characterInfo');
+        const charHeader = document.getElementById('characterHeader');
+        try {
+            let details;
+            if (window.pywebview && window.pywebview.api) {
+                details = await window.pywebview.api.get_character_details(characterId);
+            } else {
+                const res = await fetch(`/api/character/${characterId}/details`);
+                details = await res.json();
+            }
+            charHeader.textContent = details.nickname;
+            charInfo.innerHTML = `
+            <div class="char-info-grid">
+                <div class="char-info-item">
+                    <h1 class="character-name">${details.nickname}</h1>
+                    <div class="character-subtitle">Level ${details.level} ${details.class}</div>
+                </div>
+                <div class="char-info-item">
+                    <div class="info-label">Total Items</div>
+                    <div class="info-value">${details.totalItems}</div>
+                </div>
+                <div class="char-info-item">
+                    <div class="info-label">Stash Count</div>
+                    <div class="info-value">${details.stashCount}</div>
+                </div>
+                <div class="char-info-item">
+                    <div class="info-label">Last Updated</div>
+                    <div class="info-value">${formatDate(details.lastUpdate)}</div>
+                </div>
+            </div>
+        `;
+        } catch (error) {
+            handleApiError(error, charInfo);
+        }
+    };
+
+    const createStashTabs = (stashes) => {
+        const selector = document.getElementById('stashSelector');
+        selector.innerHTML = '';
+
+        Object.keys(stashes).forEach((stashId, index) => {
+            const tab = document.createElement('div');
+            tab.className = 'stash-tab';
+            if (index === 0) tab.classList.add('active');
+            tab.textContent = `Stash ${index + 1}`;
+            tab.dataset.stashId = stashId;
+            tab.onclick = () => {
+                document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                createStashGrid(stashes[stashId]);
+            };
+            selector.appendChild(tab);
+        });
+    };
+
+    const createStashGrid = (items) => {
+        const grid = document.getElementById('stashGrid');
+        grid.innerHTML = '';
+
+        // Create 12x20 grid
+        for (let i = 0; i < 240; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'stash-slot';
+
+            // Find item in this slot
+            const item = items.find(item => item.slotId === i);
+            if (item) {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'stash-item';
+                itemDiv.textContent = item.name;
+
+                if (item.count > 1) {
+                    const count = document.createElement('div');
+                    count.className = 'item-count';
+                    count.textContent = item.count;
+                    itemDiv.appendChild(count);
+                }
+
+                // Add tooltip with item details
+                itemDiv.title = `${item.name}\nQuantity: ${item.count}`;
+
+                slot.appendChild(itemDiv);
+            }
+
+            grid.appendChild(slot);
+        }
+    };
+
+    // Initialize page when DOM is loaded
+    window.addEventListener('DOMContentLoaded', async () => {
+        const characterId = window.location.pathname.split('/').pop();
+        try {
+            await updateCharacterInfo(characterId);
+            let stashes;
+            if (window.pywebview && window.pywebview.api) {
+                stashes = await window.pywebview.api.get_character_stashes(characterId);
+            } else {
+                const res = await fetch(`/api/character/${characterId}/stashes`);
+                stashes = await res.json();
+            }
+            if (Object.keys(stashes).length > 0) {
+                createStashTabs(stashes);
+                createStashGrid(stashes[Object.keys(stashes)[0]]);
+            } else {
+                document.querySelector('.stash-container').innerHTML = '<div class="loading">No stash data found.</div>';
+            }
+        } catch (error) {
+            handleApiError(error, document.querySelector('.character-details'));
+        }
+    });
+</script>
+{% endblock %}

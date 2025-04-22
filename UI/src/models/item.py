@@ -1,5 +1,5 @@
-from stash_preview import ItemDataManager, slotid_to_xy
-from point import Point
+from src.models.stash_preview import ItemDataManager, slotid_to_xy
+from src.models.point import Point
 
 class Item:
     def __init__(self, name, rarity, position, width, height, stash):

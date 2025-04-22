@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block header %}Record Character{% endblock %}
+
+{% block content %}
+<div class="record-container">
+    <h2>Record Character Data</h2>
+
+    <div class="instructions-panel">
+        <h3>Instructions</h3>
+        <ol>
+            <li>Start the game and go to the character select screen</li>
+            <li>Click "Start Capture" below</li>
+            <li>Select your character in-game</li>
+            <li>When the packet is captured, select your character from the list</li>
+        </ol>
+    </div>
+
+    <div class="capture-controls">
+        <button id="startCapture" class="btn-primary">Start Capture</button>
+        <div id="captureStatus" class="status-text">Ready to capture</div>
+    </div>
+
+    <div class="character-select" style="display: none;">
+        <h3>Select Character to Record</h3>
+        <div class="character-grid" id="characterGrid">
+            <!-- Characters will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.addEventListener('load', () => {
+        const startButton = document.getElementById('startCapture');
+        const status = document.getElementById('captureStatus');
+        const characterSelect = document.querySelector('.character-select');
+        const characterGrid = document.getElementById('characterGrid');
+
+        let characters = [];
+
+        async function loadCharacters() {
+            try {
+                characters = await fetch('/api/characters').then(r => r.json());
+                characterGrid.innerHTML = '';
+                characters.forEach(char => {
+                    const card = document.createElement('div');
+                    card.className = 'character-card';
+                    card.innerHTML = `
+                    <div class="character-name">${char.nickname}</div>
+                    <div class="character-info">
+                        <div>Class: ${char.class}</div>
+                        <div>Level: ${char.level}</div>
+                    </div>
+                `;
+                    card.onclick = () => recordCharacter(char.id);
+                    characterGrid.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Failed to load characters:', error);
+            }
+        }
+
+        async function startCapture() {
+            try {
+                startButton.disabled = true;
+                status.textContent = 'Capturing...';
+                status.className = 'status-text capturing';
+
+                const response = await fetch('/api/capture/start', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    status.textContent = 'Character data captured!';
+                    status.className = 'status-text success';
+                    characterSelect.style.display = 'block';
+                    await loadCharacters();
+                } else {
+                    status.textContent = 'Failed to start capture';
+                    status.className = 'status-text error';
+                    startButton.disabled = false;
+                }
+            } catch (error) {
+                console.error('Capture failed:', error);
+                status.textContent = 'Capture failed';
+                status.className = 'status-text error';
+                startButton.disabled = false;
+            }
+        }
+
+        async function recordCharacter(characterId) {
+            try {
+                const response = await fetch(`/api/record_character/${characterId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    status.textContent = 'Character recorded successfully!';
+                    status.className = 'status-text success';
+                    setTimeout(() => {
+                        window.location.href = `/character/${characterId}`;
+                    }, 1500);
+                } else {
+                    status.textContent = 'Failed to record character';
+                    status.className = 'status-text error';
+                }
+            } catch (error) {
+                console.error('Failed to record character:', error);
+                status.textContent = 'Failed to record character';
+                status.className = 'status-text error';
+            }
+        }
+
+        startButton.onclick = startCapture;
+    });
+</script>
+{% endblock %}

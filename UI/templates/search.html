@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block header %}Search Items{% endblock %}
+
+{% block content %}
+<div class="search-container">
+    <input type="text" class="search-input" placeholder="Search for items across all characters..." id="searchInput">
+    <div class="search-results" id="searchResults"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let searchTimeout;
+
+    const debounce = (func, wait) => {
+        return (...args) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => func(...args), wait);
+        };
+    };
+
+    const displayResults = (results) => {
+        const container = document.getElementById('searchResults');
+        container.innerHTML = '';
+
+        if (results.length === 0) {
+            container.innerHTML = '<div class="loading">No items found</div>';
+            return;
+        }
+
+        results.forEach(result => {
+            const item = document.createElement('div');
+            item.className = 'result-item';
+            item.innerHTML = `
+            <div class="character-name">${result.characterName}</div>
+            <div class="character-info">
+                <div>Item: ${result.item.name}</div>
+                <div>Count: ${result.item.count}</div>
+                <div>Slot: ${result.item.slotId}</div>
+            </div>
+        `;
+
+            item.onclick = () => window.location.href = `/character/${result.characterId}`;
+            container.appendChild(item);
+        });
+    };
+
+    window.addEventListener('load', () => {
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+
+        const performSearch = debounce(async (query) => {
+            if (!query || query.length < 2) {
+                searchResults.innerHTML = '';
+                return;
+            }
+
+            searchResults.innerHTML = '<div class="loading">Searching...</div>';
+            try {
+                const results = await pywebview.api.search_items(query);
+                displayResults(results);
+            } catch (error) {
+                searchResults.innerHTML = '<div class="loading">Error searching items. Please try again.</div>';
+            }
+        }, 300);
+
+        searchInput.addEventListener('input', (e) => performSearch(e.target.value));
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block header %}Capture Settings{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+    <h2>Capture Settings</h2>
+    <div class="settings-form">
+        <div class="form-group">
+            <label for="interface">Network Interface</label>
+            <input type="text" id="interface" class="settings-input" placeholder="e.g. Ethernet">
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="portLow">Port Range Start</label>
+                <input type="number" id="portLow" class="settings-input" placeholder="20200">
+            </div>
+            <div class="form-group">
+                <label for="portHigh">Port Range End</label>
+                <input type="number" id="portHigh" class="settings-input" placeholder="20300">
+            </div>
+        </div>
+        <button id="saveSettings" class="btn-primary">Save Settings</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.addEventListener('load', async () => {
+        const form = document.querySelector('.settings-form');
+        const interfaceInput = document.getElementById('interface');
+        const portLowInput = document.getElementById('portLow');
+        const portHighInput = document.getElementById('portHigh');
+
+        // Load current settings
+        try {
+            const settings = await fetch('/api/capture/settings').then(r => r.json());
+            interfaceInput.value = settings.interface;
+            portLowInput.value = settings.port_range[0];
+            portHighInput.value = settings.port_range[1];
+        } catch (error) {
+            console.error('Failed to load settings:', error);
+        }
+
+        // Save settings
+        document.getElementById('saveSettings').onclick = async () => {
+            try {
+                const response = await fetch('/api/capture/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        interface: interfaceInput.value,
+                        port_low: parseInt(portLowInput.value),
+                        port_high: parseInt(portHighInput.value)
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    showNotification('Settings saved successfully', 'success');
+                } else {
+                    showNotification('Failed to save settings', 'error');
+                }
+            } catch (error) {
+                console.error('Failed to save settings:', error);
+                showNotification('Failed to save settings', 'error');
+            }
+        };
+    });
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.querySelector('.settings-container').appendChild(notification);
+        setTimeout(() => notification.remove(), 3000);
+    }
+</script>
+{% endblock %}

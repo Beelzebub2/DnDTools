@@ -2,19 +2,22 @@ import pyshark
 import socket
 import psutil
 import struct
+import json
 from datetime import datetime
 import os
 import logging
 import sys
-import shutil  # Add this import
+import shutil
 from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
-protos_path = os.path.join(current_dir, "networking", "protos")
-sys.path.append(protos_path)
+ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
+protos_path = os.path.join(ui_root, "networking", "protos")
+sys.path.insert(0, protos_path)
 
+# Direct imports from that folder
 from networking.protos import Lobby_pb2
 from networking.protos import _PacketCommand_pb2
 
@@ -59,7 +62,7 @@ class PacketCapture:
             padding in [0, 256]  # Common padding values
         )
 
-    def process_packet(self, data: bytes) -> None:
+    def process_packet(self, data: bytes) -> Optional[bool]:
         if len(data) > 0:
             # Add incoming data to buffer
             self.packet_data += data
@@ -69,7 +72,7 @@ class PacketCapture:
             if current_size > self.MAX_BUFFER_SIZE:
                 print(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
                 self.reset_state()
-                return
+                return False
 
             # Try to parse/validate header
             if self.expected_packet_length is None and current_size >= 8:
@@ -79,14 +82,14 @@ class PacketCapture:
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
                         print(f"Invalid header: Length={packet_length}, Type={proto_type}, Padding={random_padding}")
                         self.reset_state()
-                        return
+                        return False
 
                     print(f"New packet header: Length={packet_length}, Type={proto_type}, Padding={random_padding}")
                     self.expected_packet_length = packet_length
                     self.expected_proto_type = proto_type
                 except struct.error:
                     self.reset_state()
-                    return
+                    return False
 
             # Process packet data
             if self.expected_packet_length and self.expected_proto_type:
@@ -99,25 +102,32 @@ class PacketCapture:
                 # Complete packet
                 if current_size == self.expected_packet_length:
                     if self.verify_packet():
-                        self.save_packet_data()
+                        found = self.save_packet_data()
+                        if found:
+                            return True
                     self.reset_state()
                 # Progress update
                 elif current_size % 8192 == 0:
                     print(f"Accumulating: {current_size}/{self.expected_packet_length}")
+        return False
 
     def verify_packet(self) -> bool:
         """Verify packet integrity before saving"""
+        if len(self.packet_data) != self.expected_packet_length:
+            return False
+        data = self.packet_data[8:]
+        # Only verify supported packet types
         try:
-            if len(self.packet_data) != self.expected_packet_length:
+            if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
+                info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
+            elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
+                info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
+            else:
                 return False
-                
-            # Try parsing the protobuf message without saving
-            data = self.packet_data[8:]
-            info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
             info.ParseFromString(data)
             return True
-        except Exception as e:
-            print(f"Packet verification failed: {e}")
+        except Exception:
+            # Suppress parse errors during verification
             return False
 
     def reset_state(self) -> None:
@@ -126,15 +136,68 @@ class PacketCapture:
         self.expected_packet_length = None
         self.expected_proto_type = None
 
-    def save_packet_data(self) -> None:
+    def save_packet_data(self) -> bool:
         try:
             if len(self.packet_data) != self.expected_packet_length:
                 raise ValueError("Packet length mismatch")
                 
             data = self.packet_data[8:]
-            info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
-            info.ParseFromString(data)
-            json_data = MessageToJson(info)
+            # Select protobuf message based on packet type
+            try:
+                if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
+                    info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
+                elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
+                    info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
+                else:
+                    return False
+                info.ParseFromString(data)
+                json_data = MessageToJson(info)
+            except Exception as e:
+                print(f"Failed to parse packet data for proto type {self.expected_proto_type}: {e}")
+                return False
+             
+            # Check for target JSON content
+            if '"result": 1' in json_data and '"characterDataBase": {' in json_data:
+                # Get character details
+                char_data = info.characterDataBase
+                original_nickname = char_data.nickName.originalNickName
+                raw_class = char_data.characterClass
+                class_name = raw_class.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
+                
+                # Create character summary
+                char_summary = {
+                    "accountId": char_data.accountId,
+                    "accountNickname": char_data.accountNickname,
+                    "characterId": char_data.characterId,
+                    "characterName": original_nickname,
+                    "characterClass": class_name,
+                    "level": char_data.level,
+                    "gender": char_data.gender,
+                    "rank": {
+                        "name": char_data.nickName.rankId.replace("LeaderboardRankData:Id_LeaderboardRank_", "").replace("_", " "),
+                        "fame": char_data.nickName.fame,
+                        "iconType": char_data.nickName.rankIconType
+                    },
+                    "lastUpdated": datetime.now().strftime("%Y-%m-%d"),
+                    "streamingModeName": char_data.nickName.streamingModeNickName
+                }
+                
+                # Save character summary
+                char_dir = os.path.join(self.data_dir, "characters")
+                os.makedirs(char_dir, exist_ok=True)
+                char_file = os.path.join(char_dir, f"{char_data.characterId}.json")
+                with open(char_file, "w", encoding='utf-8') as f:
+                    json.dump(char_summary, f, indent=2, ensure_ascii=False)
+                print(f"Saved character summary to {char_file}")
+
+                # Still save full JSON to timestamped file in data folder
+                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+                data_file = os.path.join(self.data_dir, f"{timestamp}.json")
+                with open(data_file, "w", encoding='utf-8') as f:
+                    f.write(json_data)
+                print(f"Saved target packet data to {data_file}")
+                print("Target JSON found, stopping capture.")
+                return True
             
             # Save both to data dir and root for compatibility
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -150,16 +213,18 @@ class PacketCapture:
                 f.write(json_data)
             
             print(f"Successfully saved packet data to {data_file} and {root_file}")
+            return False
             
         except Exception as e:
             print(f"Failed to save packet data: {str(e)}")
             raise
 
-    def capture(self) -> None:
+    def capture(self) -> bool:
+        found_flag = False
         local_ip = self.get_local_ip()
         if not local_ip:
             print(f"Could not find IP address for interface {self.interface}")
-            return
+            return False
 
         display_filter = (f'ip.dst == {local_ip} and '
                          f'tcp.srcport >= {self.port_range[0]} and '
@@ -170,7 +235,11 @@ class PacketCapture:
         try:
             for packet in capture.sniff_continuously():
                 if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-                    self.process_packet(packet.tcp.payload.binary_value)
+                    found = self.process_packet(packet.tcp.payload.binary_value)
+                    if found:
+                        print("Desired packet found, stopping capture.")
+                        found_flag = True
+                        break
         except KeyboardInterrupt:
             print("Capture stopped by user")
         except Exception as e:
@@ -181,6 +250,7 @@ class PacketCapture:
             except:
                 pass
             self.packet_data = b""
+        return found_flag
 
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):

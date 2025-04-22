@@ -1,5 +1,5 @@
 import pyautogui
-from point import Point
+from src.models.point import Point
 
 # all positions are for 1920x1080 resolution
 stash_screen_pos = Point(1394, 218)
