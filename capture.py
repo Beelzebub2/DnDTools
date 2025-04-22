@@ -2,7 +2,8 @@ import pyshark
 import socket
 import psutil
 import struct
-import sys
+from datetime import datetime
+import os
 import logging
 from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
@@ -15,6 +16,8 @@ class PacketCapture:
         self.packet_data = b""
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+        self.data_dir = "data"
+        os.makedirs(self.data_dir, exist_ok=True)
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
@@ -44,10 +47,13 @@ class PacketCapture:
             info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
             info.ParseFromString(self.packet_data[8:])
             json_data = MessageToJson(info)
-            
-            with open("packet_data.json", "w") as json_file:
+
+            filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            path = os.path.join(self.data_dir, f"{filename}.json")
+            with open(path, "w") as json_file:
                 json_file.write(json_data)
-            self.logger.info("Successfully saved packet data")
+
+            self.logger.info(f"Successfully saved packet data to: {path}")
             
         except Exception as e:
             self.logger.error(f"Failed to save packet data: {e}")
