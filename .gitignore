@@ -2,6 +2,7 @@
 previews/
 packet_data.json
 output/
+data/
 
 # Python
 __pycache__/
