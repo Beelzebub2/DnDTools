@@ -2,7 +2,8 @@ import pyshark
 import socket
 import psutil
 import struct
-import sys
+from datetime import datetime
+import os
 import logging
 import os
 from typing import Tuple, Optional
@@ -26,6 +27,8 @@ class PacketCapture:
         self.packet_data = b""
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
+        self.data_dir = "data"
+        os.makedirs(self.data_dir, exist_ok=True)
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
