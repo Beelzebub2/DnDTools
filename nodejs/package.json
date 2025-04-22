@@ -25,6 +25,6 @@
     "sharp": "^0.34.1",
     "cap": "^0.14.0",
     "protobufjs": "^7.2.3",
-    "robotjs": "^0.6.0"
+    "@nut-tree/nut-js": "^2.0.0"
   }
 }
