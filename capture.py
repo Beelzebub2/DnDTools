@@ -5,7 +5,7 @@ import struct
 from datetime import datetime
 import os
 import logging
-import os
+import sys
 from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
 
@@ -40,9 +40,14 @@ class PacketCapture:
 
     def process_packet(self, data: bytes) -> None:
         if len(data) > 8:
+            # Check if adding new data would exceed reasonable buffer size
+            if len(self.packet_data) + len(data) > 100000:  # 100KB max buffer
+                print(f"Buffer overflow protection - clearing buffer")
+                self.packet_data = b""
+                
             self.packet_data += data
             
-            # Only try to parse header if we haven't validated it yet
+            # Only process if we have enough data for the header
             if len(self.packet_data) >= 8:
                 packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
                 
@@ -53,13 +58,11 @@ class PacketCapture:
                     if len(self.packet_data) == packet_length:
                         print(f"Complete packet received - Length: {packet_length}, Type: {proto_type}")
                         self.save_packet_data()
-                    # Overflow detected - reset buffer
+                    # Overflow detected - trim excess bytes
                     elif len(self.packet_data) > packet_length:
-                        print(f"Packet overflow detected ({len(self.packet_data)} > {packet_length})")
-                        self.packet_data = b""
-                    # Still waiting for more fragments
-                    else:
-                        print(f"Waiting for more data...")
+                        print(f"Packet overflow detected ({len(self.packet_data)} > {packet_length}), trimming excess bytes")
+                        self.packet_data = self.packet_data[:packet_length]
+                        self.save_packet_data()
                 else:
                     print(f"Incorrect packet type: {proto_type}")
                     self.packet_data = b""
