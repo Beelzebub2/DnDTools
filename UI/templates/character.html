@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 
 {% block header %}
+<style>
+    .stash-preview {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-top: 20px;
+    }
+
+    .stash-preview-image {
+        max-width: 100%;
+        height: auto;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+    }
+</style>
 <span id="characterHeader">Character Details</span>
 {% endblock %}
 
@@ -10,14 +25,21 @@
         <div class="loading">Loading character details...</div>
     </div>
     <div class="stash-container">
-        <div id="stashSelector" class="stash-tabs"></div>
-        <div id="stashGrid" class="stash-grid"></div>
+        <!-- loading spinner -->
+        <div id="stashSpinner" class="spinner"></div>
+        <!-- stash parts hidden until loaded -->
+        <div id="stashSelector" class="stash-tabs hidden"></div>
+        <div id="stashPreview" class="stash-preview hidden">
+            <img id="currentStashPreview" class="stash-preview-image" src="" alt="Stash Preview">
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+    const charId = window.location.pathname.split('/').pop();
+
     // Fetch character details via pywebview API or HTTP fallback
     const updateCharacterInfo = async (characterId) => {
         const charInfo = document.getElementById('characterInfo');
@@ -58,74 +80,80 @@
 
     const createStashTabs = (stashes) => {
         const selector = document.getElementById('stashSelector');
+        const preview = document.getElementById('currentStashPreview');
         selector.innerHTML = '';
 
-        Object.keys(stashes).forEach((stashId, index) => {
+        // Ensure stashes is an object
+        const stashesObj = stashes || {};
+        const stashKeys = Object.keys(stashesObj);
+        let firstStashUrl = null;
+
+        stashKeys.forEach((stashId, index) => {
             const tab = document.createElement('div');
             tab.className = 'stash-tab';
-            if (index === 0) tab.classList.add('active');
+            if (index === 0) {
+                tab.classList.add('active');
+                // Store the first URL but don't set it yet
+                firstStashUrl = stashes[stashId];
+            }
             tab.textContent = `Stash ${index + 1}`;
             tab.dataset.stashId = stashId;
             tab.onclick = () => {
                 document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                createStashGrid(stashes[stashId]);
+                preview.src = stashes[stashId]; // Set src on click
             };
             selector.appendChild(tab);
         });
+
+        // Return the URL of the first stash to be loaded initially
+        return firstStashUrl;
     };
 
-    const createStashGrid = (items) => {
-        const grid = document.getElementById('stashGrid');
-        grid.innerHTML = '';
+    const loadStashes = async () => {
+        const spinner = document.getElementById('stashSpinner');
+        const selector = document.getElementById('stashSelector');
+        const previewContainer = document.getElementById('stashPreview');
+        const previewImage = document.getElementById('currentStashPreview'); // Get the image element
 
-        // Create 12x20 grid
-        for (let i = 0; i < 240; i++) {
-            const slot = document.createElement('div');
-            slot.className = 'stash-slot';
+        // show spinner, hide stash content
+        spinner.classList.remove('hidden');
+        selector.classList.add('hidden');
+        previewContainer.classList.add('hidden');
+        previewImage.src = ""; // Ensure src is empty while hidden
 
-            // Find item in this slot
-            const item = items.find(item => item.slotId === i);
-            if (item) {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'stash-item';
-                itemDiv.textContent = item.name;
+        try {
+            const response = await fetch(`/api/character/${charId}/stashes`);
+            const stashes = await response.json();
 
-                if (item.count > 1) {
-                    const count = document.createElement('div');
-                    count.className = 'item-count';
-                    count.textContent = item.count;
-                    itemDiv.appendChild(count);
+            // Check if we have any stashes
+            const stashKeys = Object.keys(stashes || {});
+            if (stashKeys.length > 0) {
+                const firstStashUrl = createStashTabs(stashes);
+                // Set the src only after making the container visible
+                if (firstStashUrl) {
+                    previewImage.src = firstStashUrl;
                 }
-
-                // Add tooltip with item details
-                itemDiv.title = `${item.name}\nQuantity: ${item.count}`;
-
-                slot.appendChild(itemDiv);
+                // hide spinner, show stash content
+                selector.classList.remove('hidden');
+                previewContainer.classList.remove('hidden');
+            } else {
+                // Show empty state
+                previewContainer.innerHTML = '<div class="empty-state">No stashes found for this character</div>';
+                previewContainer.classList.remove('hidden');
             }
-
-            grid.appendChild(slot);
+            spinner.classList.add('hidden');
+        } catch (error) {
+            handleApiError(error, document.getElementById('stashContainer'));
+            spinner.classList.add('hidden');
         }
     };
 
     // Initialize page when DOM is loaded
     window.addEventListener('DOMContentLoaded', async () => {
-        const characterId = window.location.pathname.split('/').pop();
         try {
-            await updateCharacterInfo(characterId);
-            let stashes;
-            if (window.pywebview && window.pywebview.api) {
-                stashes = await window.pywebview.api.get_character_stashes(characterId);
-            } else {
-                const res = await fetch(`/api/character/${characterId}/stashes`);
-                stashes = await res.json();
-            }
-            if (Object.keys(stashes).length > 0) {
-                createStashTabs(stashes);
-                createStashGrid(stashes[Object.keys(stashes)[0]]);
-            } else {
-                document.querySelector('.stash-container').innerHTML = '<div class="loading">No stash data found.</div>';
-            }
+            await updateCharacterInfo(charId);
+            await loadStashes();
         } catch (error) {
             handleApiError(error, document.querySelector('.character-details'));
         }

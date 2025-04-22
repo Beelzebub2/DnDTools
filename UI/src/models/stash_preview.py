@@ -18,27 +18,26 @@ class ItemInfo:
 class ItemDataManager:
     def __init__(self):
         # Project root directory for resolving asset paths
-        self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        assets_dir = os.path.join(self.base_dir, "assets")
-        self.ITEM_DATA_FILE = os.path.join(assets_dir, "item-data.json")
-        self.MATCHING_DB_FILE = os.path.join(assets_dir, "matchingdb.json")
-        os.makedirs(assets_dir, exist_ok=True)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        self.ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
+        self.assets_dir = os.path.join(self.ui_root)  # Changed from "assets" subfolder to UI root
+        self.ITEM_DATA_FILE = os.path.join(self.assets_dir, "assets", "item-data.json")
+        self.MATCHING_DB_FILE = os.path.join(self.assets_dir, "assets", "matchingdb.json")
         
+        if not os.path.exists(self.ITEM_DATA_FILE):
+            raise FileNotFoundError(f"Could not find item-data.json at {self.ITEM_DATA_FILE}")
+            
         self.item_data = self.load_json(self.ITEM_DATA_FILE)
-        self.matching_db = self.load_matching_db()
-        self.image_cache = {}
+        self.matching_db = {}
         self.unmatched_items = set()
+        
+        if os.path.exists(self.MATCHING_DB_FILE):
+            self.matching_db = self.load_json(self.MATCHING_DB_FILE)
 
     @staticmethod
     def load_json(filename: str) -> dict:
         with open(filename, "r", encoding="utf-8") as f:
             return json.load(f)
-
-    def load_matching_db(self) -> dict:
-        try:
-            return self.load_json(self.MATCHING_DB_FILE)
-        except Exception:
-            return {}
 
     def save_matching_db(self) -> None:
         with open(self.MATCHING_DB_FILE, "w", encoding="utf-8") as f:
@@ -61,24 +60,24 @@ class ItemDataManager:
             # Find the item data using the matched name
             for data in self.item_data.values():
                 if data.get("name") == matched_name:
-                    rel = data["path"].replace("\\", os.sep)
-                    full = os.path.join(self.base_dir, rel)
-                    return (full,
+                    rel_path = data["path"]
+                    full_path = os.path.join(self.assets_dir, rel_path)
+                    return (full_path,
                             data["inventory_width"],
                             data["inventory_height"],
                             data["name"])
-
+                            
         # If not in matching DB, try direct match
         norm_name = self.normalize_name(item_name)
         for data in self.item_data.values():
             if self.normalize_name(data.get("name", "")) == norm_name:
-                rel = data["path"].replace("\\", os.sep)
-                full = os.path.join(self.base_dir, rel)
-                return (full,
+                rel_path = data["path"]
+                full_path = os.path.join(self.assets_dir, rel_path)
+                return (full_path,
                         data["inventory_width"],
                         data["inventory_height"],
                         data["name"])
-
+                        
         # Only track as unmatched if we haven't seen it before
         if item_name not in self.matching_db:
             self.unmatched_items.add(item_name)
@@ -96,9 +95,7 @@ class ItemDataManager:
             print(f"Saved {len(self.unmatched_items)} unmatched items to {filename}")
 
 class StashPreviewGenerator:
-    def __init__(self, grid_width: int = 12, grid_height: int = 20, cell_size: int = 45):
-        self.GRID_WIDTH = grid_width
-        self.GRID_HEIGHT = grid_height
+    def __init__(self, cell_size: int = 45):
         self.CELL_SIZE = cell_size
         self.item_manager = ItemDataManager()
         logging.basicConfig(level=logging.INFO)
@@ -107,18 +104,201 @@ class StashPreviewGenerator:
         except:
             self.font = ImageFont.load_default()
 
+    def _get_stash_dimensions(self, stash_id: str) -> Tuple[int, int]:
+        """Return appropriate grid dimensions based on stash type"""
+        # Convert stash_id to int if it's a string of digits
+        try:
+            stash_type = int(stash_id)
+        except (ValueError, TypeError):
+            # Default to standard stash size if we can't parse the ID
+            return 12, 20
+            
+        # BAG inventory (type 2)
+        if stash_type == 2:
+            return 10, 5
+        # Equipment (type 3) - Special layout for equipped items
+        elif stash_type == 3:
+            # Equipment has a special layout that's not a simple grid
+            # We use a larger canvas to accommodate the specific positions
+            return 10, 10  # Width and height to accommodate the equipment layout
+        else:
+            return 12, 20
+
     def generate_preview(self, stash_id: str, items: List[ItemInfo]) -> Image.Image:
+        # Get appropriate dimensions for this stash type
+        grid_width, grid_height = self._get_stash_dimensions(stash_id)
+        
         preview = Image.new("RGBA", 
-                          (self.GRID_WIDTH * self.CELL_SIZE, 
-                           self.GRID_HEIGHT * self.CELL_SIZE))
-        self._draw_grid(preview)
+                          (grid_width * self.CELL_SIZE, 
+                           grid_height * self.CELL_SIZE))
+                           
+        try:
+            stash_type = int(stash_id)
+        except (ValueError, TypeError):
+            stash_type = -1
+        
+        # Special handling for equipment screen (type 3)
+        if stash_type == 3:
+            self._draw_equipment_layout(preview)
+        else:
+            self._draw_grid(preview, grid_width, grid_height)
         
         for item in items:
-            self._place_item(preview, item)
+            # Special handling for equipment screen (type 3)
+            if stash_type == 3:
+                self._place_equipment_item(preview, item)
+            else:
+                self._place_item(preview, item, grid_width, grid_height)
             
         return preview
+        
+    def _draw_equipment_layout(self, img: Image.Image) -> None:
+        """Draw the special equipment layout with slots for armor, weapons, consumables"""
+        draw = ImageDraw.Draw(img)
+        
+        # Fill background
+        draw.rectangle([0, 0, img.width, img.height], fill=(24, 20, 16, 255))
+        
+        # Draw border
+        draw.rectangle([0, 0, img.width - 1, img.height - 1],
+                      outline=(212, 175, 55, 255), width=4)
+        
+        # Define slot positions based on the screenshot
+        # Format: (x, y, width, height) in grid cells
+        equipment_slots = {
+            # Weapon slots (1x4)
+            "weapon1": (0, 0, 2, 4),  # Left weapon slots
+            "weapon2": (8, 0, 2, 4),  # Right weapon slots
+            
+            # Top row - Head and amulet
+            "head": (3, 0, 2, 2),     # Helmet/head armor
+            "amulet": (5, 0, 2, 2),   # Amulet/necklace
+            
+            # Middle - Body armor and rings
+            "chest": (3, 2, 4, 3),    # Body armor (centered)
+            "ring1": (2, 3, 1, 1),    # Left ring
+            "ring2": (7, 3, 1, 1),    # Right ring
+            
+            # Gloves and accessories
+            "gloves": (2, 5, 2, 2),   # Gloves (left of pants)
+            "cape": (6, 5, 2, 2),     # Cape (right of pants)
+            
+            # Bottom row - Pants and boots
+            "pants": (3, 5, 4, 3),    # Pants/leggings
+            "boots": (4, 8, 2, 2),    # Boots
+            
+            # Consumable slots - 6 on each side in two columns
+            # Left side consumables
+            "consumable1": (0, 5, 1, 1),
+            "consumable2": (1, 5, 1, 1),
+            "consumable3": (0, 6, 1, 1),
+            "consumable4": (1, 6, 1, 1),
+            "consumable5": (0, 7, 1, 1),
+            "consumable6": (1, 7, 1, 1),
+            
+            # Right side consumables
+            "consumable7": (8, 5, 1, 1),
+            "consumable8": (9, 5, 1, 1),
+            "consumable9": (8, 6, 1, 1),
+            "consumable10": (9, 6, 1, 1),
+            "consumable11": (8, 7, 1, 1),
+            "consumable12": (9, 7, 1, 1)
+        }
+        
+        # Draw each equipment slot
+        for slot_name, (x, y, w, h) in equipment_slots.items():
+            # Draw slot border
+            draw.rectangle(
+                [x * self.CELL_SIZE, y * self.CELL_SIZE,
+                (x + w) * self.CELL_SIZE - 1, (y + h) * self.CELL_SIZE - 1],
+                outline=(100, 90, 70, 255), width=2
+            )
+            
+    def _place_equipment_item(self, preview: Image.Image, item: ItemInfo) -> None:
+        """Special placement for equipment items based on slotId"""
+        img_path, w, h, matched_name = self.item_manager.get_item_image_path(item.name)
+        if not img_path or not os.path.exists(img_path):
+            logging.warning(f"Item not found or missing image: {item.name}")
+            return
+        
+        try:
+            item_img = Image.open(img_path).convert("RGBA")
+            
+            # Map slot IDs to positions based on the equipment layout from the screenshot
+            slot_positions = {
+                # Weapons (left and right columns)
+                0: (0, 0),  # Weapon slot 1 (left)
+                1: (8, 0),  # Weapon slot 2 (right)
+                
+                # Helmet and accessory slots (top row)
+                2: (3, 0),  # Helmet slot
+                7: (5, 0),  # Necklace/amulet slot
+                
+                # Body armor (center)
+                3: (3, 2),  # Body armor
+                
+                # Rings (middle row)
+                8: (2, 3),  # Left ring
+                9: (7, 3),  # Right ring
+                
+                # Accessories & armor (bottom half)
+                6: (2, 5),  # Gloves (left side)
+                4: (3, 5),  # Pants/leggings (center)
+                10: (6, 5), # Cape/cloak (right side)
+                5: (4, 8),  # Boots (center bottom)
+                
+                # Consumable slots - Left column
+                20: (0, 5),  # Top left
+                21: (1, 5),
+                22: (0, 6),
+                23: (1, 6),
+                24: (0, 7),
+                25: (1, 7),  # Bottom left
+                
+                # Consumable slots - Right column
+                26: (8, 5),  # Top right
+                27: (9, 5),
+                28: (8, 6),
+                29: (9, 6),
+                30: (8, 7),
+                31: (9, 7)   # Bottom right
+            }
+            
+            # Get position for this slot
+            if item.slotId in slot_positions:
+                x, y = slot_positions[item.slotId]
+                expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
+                
+                if item_img.size != expected_size:
+                    item_img = item_img.resize(expected_size, Image.LANCZOS)
+                
+                # Paste the item
+                preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+                logging.info(f"Placed equipment '{matched_name}' at slot {item.slotId} ({x},{y})")
+                
+                # Record successful match
+                self.item_manager.matching_db[item.name] = matched_name
+                
+                # Draw item count if greater than 1
+                if item.itemCount > 1:
+                    draw = ImageDraw.Draw(preview)
+                    count_text = str(item.itemCount)
+                    bbox = draw.textbbox((0, 0), count_text, font=self.font)
+                    text_width = bbox[2] - bbox[0]
+                    text_height = bbox[3] - bbox[1]
+                    # Calculate position based on item size (width and height)
+                    text_x = (x + (w or 1)) * self.CELL_SIZE - text_width - 4
+                    text_y = (y + (h or 1)) * self.CELL_SIZE - text_height - 2
+                    # Draw text with shadow for better visibility
+                    draw.text((text_x+1, text_y+1), count_text, fill='black', font=self.font)
+                    draw.text((text_x, text_y), count_text, fill='white', font=self.font)
+            else:
+                logging.warning(f"Unknown equipment slot ID: {item.slotId} for item {item.name}")
+                
+        except Exception as e:
+            logging.error(f"Failed to process equipment item {item.name}: {e}")
 
-    def _draw_grid(self, img: Image.Image) -> None:
+    def _draw_grid(self, img: Image.Image, grid_width: int, grid_height: int) -> None:
         draw = ImageDraw.Draw(img)
         # Fill background
         draw.rectangle([0, 0, img.width, img.height], fill=(24, 20, 16, 255))
@@ -127,14 +307,14 @@ class StashPreviewGenerator:
                       outline=(212, 175, 55, 255), width=4)
         # Draw grid lines
         grid_color = (60, 50, 30, 180)
-        for x in range(1, self.GRID_WIDTH):
+        for x in range(1, grid_width):
             x_pos = x * self.CELL_SIZE
             draw.line([(x_pos, 0), (x_pos, img.height)], fill=grid_color)
-        for y in range(1, self.GRID_HEIGHT):
+        for y in range(1, grid_height):
             y_pos = y * self.CELL_SIZE
             draw.line([(0, y_pos), (img.width, y_pos)], fill=grid_color)
 
-    def _place_item(self, preview: Image.Image, item: ItemInfo) -> None:
+    def _place_item(self, preview: Image.Image, item: ItemInfo, grid_width: int, grid_height: int) -> None:
         img_path, w, h, matched_name = self.item_manager.get_item_image_path(item.name)
         if not img_path or not os.path.exists(img_path):
             logging.warning(f"Item not found or missing image: {item.name}")
@@ -146,7 +326,12 @@ class StashPreviewGenerator:
             if item_img.size != expected_size:
                 item_img = item_img.resize(expected_size, Image.LANCZOS)
             
-            x, y = item.slotId % self.GRID_WIDTH, item.slotId // self.GRID_WIDTH  # Updated to use slotId
+            # Check if the item fits within grid boundaries
+            x, y = item.slotId % grid_width, item.slotId // grid_width
+            if x + (w or 1) > grid_width or y + (h or 1) > grid_height:
+                logging.warning(f"Item {item.name} at position ({x},{y}) with size {w}x{h} doesn't fit in grid {grid_width}x{grid_height}")
+                return
+            
             preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
             logging.info(f"Placed '{matched_name}' at ({x},{y})")
             
@@ -160,8 +345,10 @@ class StashPreviewGenerator:
                 bbox = draw.textbbox((0, 0), count_text, font=self.font)
                 text_width = bbox[2] - bbox[0]
                 text_height = bbox[3] - bbox[1]
-                text_x = x * self.CELL_SIZE + self.CELL_SIZE - text_width - 4
-                text_y = y * self.CELL_SIZE + self.CELL_SIZE - text_height - 2
+                # Calculate position based on item size (width and height)
+                text_x = (x + (w or 1)) * self.CELL_SIZE - text_width - 4
+                text_y = (y + (h or 1)) * self.CELL_SIZE - text_height - 2
+                # Draw text with shadow for better visibility
                 draw.text((text_x+1, text_y+1), count_text, fill='black', font=self.font)
                 draw.text((text_x, text_y), count_text, fill='white', font=self.font)
             
