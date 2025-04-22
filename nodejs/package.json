@@ -22,6 +22,8 @@
   "dependencies": {
     "fs-extra": "^11.3.0",
     "path": "^0.12.7",
-    "sharp": "^0.34.1"
+    "sharp": "^0.34.1",
+    "cap": "^0.14.0",
+    "protobufjs": "^7.2.3"
   }
 }
