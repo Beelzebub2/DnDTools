@@ -54,7 +54,6 @@ class Api:
         return self.capture_settings
 
     def search_items(self, query):
-        # {'name': 'Arcane Hood', 'rarity': '3', 'properties': ['s_Agility', 's_ArmorPenetration', 's_Dexterity']}
         return self.stash_manager.search_items(query)
 
     def set_capture_settings(self, interface, port_low, port_high):

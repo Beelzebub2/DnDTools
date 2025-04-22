@@ -99,6 +99,18 @@ class StashManager:
             }
         return None
 
-    def search_items(self, query: str) -> List[Dict]:
+    def search_items(self, query: Dict) -> List[Dict]:
         """Search for items across all character stashes (empty for summary files)"""
+        # query {'name': 'Arcane Hood', 'rarity': '3', 'properties': ['s_Agility', 's_ArmorPenetration', 's_Dexterity']}
+        for character in self.get_characters():
+            stashes = self.get_character_stashes(character["id"])
+            for storage in stashes:
+                print(storage)
+
         return []
+
+
+if __name__ == "__main__":
+    stash_manager = StashManager("D:/Documents/Programming/Github/DnDTools/UI")
+    query = {'name': 'Arcane Hood', 'rarity': '3', 'properties': ['s_Agility', 's_ArmorPenetration', 's_Dexterity']}
+    stash_manager.search_items(query)
