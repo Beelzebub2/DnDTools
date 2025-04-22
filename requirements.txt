@@ -1,7 +1,7 @@
+# Updated dependencies based on code usage
 pyshark==0.6.0
 Pillow>=9.0.0
 protobuf==5.27.2
 psutil==5.9.5
-typing-extensions>=4.0.0
-python-dotenv>=0.19.0
-pathlib>=1.0.1
+pyautogui>=0.9.53
+keyboard>=0.13.5
