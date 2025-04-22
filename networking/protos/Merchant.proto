@@ -1,0 +1,552 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.merchant";
+option java_outer_classname = "merchant";
+option java_multiple_files = false;
+
+import "_Item.proto";
+import "Shop.proto";
+import "Inventory.proto";
+
+message SMERCHANT_INFO {
+  enum FLAG {
+    NONE = 0;
+    QUEST = 1;
+    SUCCESS = 2;
+    RECOVERY = 3;
+    EXPRESS = 4;
+    NOTIFY = 5;
+    PARCEL = 6;
+  }
+
+  string merchantId = 1;
+  uint64 remainTime = 2;
+  uint32 isUnidentified = 3;
+  uint32 merchantFlag = 4;
+  int32 affinity = 5;
+  string affinityId = 6;
+}
+
+message SMERCHANT_QUEST_CONTENT_INFO {
+  string contentId = 1;
+  int32 contentCurrentValue = 2;
+}
+
+message SMERCHANT_QUEST_INFO {
+  enum FLAG {
+    NONE = 0;
+    PROGRESS = 1;
+    SUCCESS = 2;
+    COMPLETE = 3;
+    LOCKED = 4;
+    AVAILABLE = 5;
+  }
+
+  uint32 questOrder = 1;
+  string questId = 2;
+  string chapterId = 3;
+  int32 questFlag = 4;
+  int32 alreadyGetAffinity = 5;
+  repeated .DC.Packet.SMERCHANT_QUEST_CONTENT_INFO missions = 6;
+}
+
+message SC2S_MERCHANT_LIST_REQ {
+}
+
+message SS2C_MERCHANT_LIST_RES {
+  repeated .DC.Packet.SMERCHANT_INFO merchantList = 1;
+}
+
+message SC2S_MERCHANT_STOCK_BUY_ITEM_LIST_REQ {
+  string merchantId = 1;
+}
+
+message SMERCHANT_STOCK_BUY_ITEM_INFO {
+  string stockBuyId = 1;
+  uint64 stockUniqueId = 2;
+  .DC.Packet.SItem itemInfo = 3;
+  int32 originPrice = 4;
+  int32 finalPrice = 5;
+  uint32 stockCount = 6;
+}
+
+message SMERCHANT_STOCK_CRAFT_ITEM_INFO {
+  string stockCraftId = 1;
+  uint64 stockUniqueId = 2;
+  .DC.Packet.SItem itemInfo = 3;
+}
+
+message SS2C_MERCHANT_STOCK_BUY_ITEM_LIST_RES {
+  uint32 result = 1;
+  uint32 loopMessageFlag = 2;
+  repeated .DC.Packet.SMERCHANT_STOCK_BUY_ITEM_INFO stockList = 3;
+}
+
+message SC2S_MERCHANT_STOCK_SELL_BACK_ITEM_LIST_REQ {
+  string merchantId = 1;
+}
+
+message SMERCHANT_STOCK_SELL_BACK_ITEM_INFO {
+  string stockSellBackId = 1;
+  uint64 stockUniqueId = 2;
+}
+
+message SS2C_MERCHANT_STOCK_SELL_BACK_ITEM_LIST_RES {
+  uint32 result = 1;
+  uint32 loopMessageFlag = 2;
+  repeated .DC.Packet.SMERCHANT_STOCK_SELL_BACK_ITEM_INFO stockList = 3;
+}
+
+message MERCHANT_TRADE_ITEM_INFO {
+  uint64 itemUniqueId = 1;
+  uint32 itemCount = 2;
+  uint32 itemContentsCount = 3;
+}
+
+message SMERCHANT_TRADE_SLOT_INFO {
+  uint32 inventoryId = 1;
+  uint32 slotId = 2;
+  string itemId = 3;
+  uint64 itemUniqueId = 4;
+  uint32 itemCount = 5;
+  uint32 itemContentsCount = 6;
+}
+
+message SMERCHANT_RESULT_INFO {
+  repeated .DC.Packet.SItem insertItems = 1;
+  repeated .DC.Packet.SItem updateItems = 2;
+  repeated int64 deleteUniqueIds = 3;
+}
+
+message SC2S_MERCHANT_STOCK_BUY_REQ {
+  string tradeId = 1;
+  uint64 stockUniqueId = 2;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO dealItemList = 3;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO merchantSlotInfo = 4;
+  uint32 bulkCount = 5;
+}
+
+message SS2C_MERCHANT_STOCK_BUY_RES {
+  uint32 result = 1;
+  string givenItemId = 2;
+  .DC.Packet.SMERCHANT_RESULT_INFO merchantResult = 3;
+}
+
+message SMERCHANT_STOCK_SELL_BACK_INFO {
+  string tradeId = 1;
+  uint64 stockUniqueId = 2;
+  uint64 itemUniqueId = 3;
+}
+
+message SC2S_MERCHANT_STOCK_SELL_BACK_REQ {
+  repeated .DC.Packet.SMERCHANT_STOCK_SELL_BACK_INFO sellBackInfos = 1;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO receivedInfos = 2;
+}
+
+message SS2C_MERCHANT_STOCK_SELL_BACK_RES {
+  uint32 result = 1;
+  repeated string givenItemIds = 2;
+  .DC.Packet.SMERCHANT_RESULT_INFO merchantResult = 3;
+}
+
+message SC2S_MERCHANT_SERVICE_CRAFT_LIST_REQ {
+  string merchantId = 1;
+}
+
+message SS2C_MERCHANT_SERVICE_CRAFT_LIST_RES {
+  uint32 result = 1;
+  uint32 loopMessageFlag = 2;
+  repeated .DC.Packet.SMERCHANT_STOCK_CRAFT_ITEM_INFO stockCraftList = 3;
+}
+
+message SC2S_MERCHANT_SERVICE_CRAFT_REQ {
+  string tradeId = 1;
+  uint64 stockUniqueId = 2;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO stockCraftList = 3;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO merchantSlotInfo = 4;
+}
+
+message SS2C_MERCHANT_SERVICE_CRAFT_RES {
+  uint32 result = 1;
+  string givenItemId = 2;
+  .DC.Packet.SMERCHANT_RESULT_INFO merchantResult = 3;
+}
+
+message SC2S_MERCHANT_QUEST_LIST_INFO_REQ {
+  string merchantId = 1;
+}
+
+message SS2C_MERCHANT_QUEST_LIST_INFO_RES {
+  uint32 result = 1;
+  repeated .DC.Packet.SMERCHANT_QUEST_INFO quests = 2;
+}
+
+message SC2S_MERCHANT_QUEST_SELECT_REQ {
+  string merchantId = 1;
+  string questId = 2;
+  string chapterId = 3;
+}
+
+message SS2C_MERCHANT_QUEST_SELECT_RES {
+  uint32 result = 1;
+}
+
+message SC2S_MERCHANT_QUEST_COMPLETE_REQ {
+  string merchantId = 1;
+  string questId = 2;
+  string chapterId = 3;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO questItemList = 4;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO merchantSlotInfo = 5;
+}
+
+message SS2C_MERCHANT_QUEST_COMPLETE_RES {
+  uint32 result = 1;
+  string givenMerchantId = 2;
+  string givenQuestId = 3;
+  string givenChapterId = 4;
+  repeated .DC.Packet.SREWARD_INFO rewards = 5;
+}
+
+message SC2S_MERCHANT_QUEST_CONTENT_VALUE_STACK_REQ {
+  string merchantId = 1;
+  string questId = 2;
+  string chapterId = 3;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO questItemList = 4;
+}
+
+message SS2C_MERCHANT_QUEST_CONTENT_VALUE_STACK_RES {
+  uint32 result = 1;
+}
+
+message SMERCHANT_BASE_GEAR_INFO {
+  uint64 dataUniqueId = 1;
+  .DC.Packet.SItem itemInfo = 2;
+}
+
+message SMERCHANT_BASE_GEAR_SAVE_SLOT_INFO {
+  uint64 uniqueId = 1;
+  int32 slotId = 2;
+}
+
+message SC2S_MERCHANT_BASE_GEAR_LIST_REQ {
+  string merchantId = 1;
+}
+
+message SS2C_MERCHANT_BASE_GEAR_LIST_RES {
+  uint32 result = 1;
+  uint32 loopMessageFlag = 2;
+  repeated .DC.Packet.SMERCHANT_BASE_GEAR_INFO baseGears = 3;
+}
+
+message SC2S_MERCHANT_BASE_GEAR_SET_REQ {
+}
+
+message SS2C_MERCHANT_BASE_GEAR_SET_RES {
+  repeated .DC.Packet.SItem equipBaseGears = 1;
+}
+
+message SC2S_MERCHANT_SAVE_BASE_GEAR_SET_REQ {
+  string merchantId = 1;
+  repeated .DC.Packet.SMERCHANT_BASE_GEAR_SAVE_SLOT_INFO saveInfos = 2;
+}
+
+message SS2C_MERCHANT_SAVE_BASE_GEAR_SET_RES {
+  int32 result = 1;
+}
+
+message SC2S_MERCHANT_EQUIP_BASE_GEAR_SET_REQ {
+}
+
+message SS2C_MERCHANT_EQUIP_BASE_GEAR_SET_RES {
+  int32 result = 1;
+}
+
+message SC2S_MERCHANT_SERVICE_MINDWIPE_INFO_REQ {
+}
+
+message SS2C_MERCHANT_SERVICE_MINDWIPE_INFO_RES {
+  int64 remainResetTimeMS = 1;
+  int32 canReRoll = 2;
+  int64 resetTermMS = 3;
+}
+
+message SC2S_MERCHANT_SERVICE_MINDWIPE_REQ {
+}
+
+message SS2C_MERCHANT_SERVICE_MINDWIPE_RES {
+  int32 result = 1;
+}
+
+message SC2S_MERCHANT_RECOVERY_LIST_REQ {
+}
+
+message SRECOVERY_ITEM_PRICE {
+  string itemId = 1;
+  uint32 amount = 2;
+}
+
+message SEXPRESS_ITEM_PRICE {
+  string itemId = 1;
+  uint32 amount = 2;
+}
+
+message SMERCHANT_RECOVERY_ITEM_INFO {
+  uint64 recoveryUniqueId = 1;
+  .DC.Packet.SItem itemInfo = 2;
+  repeated .DC.Packet.SRECOVERY_ITEM_PRICE originPriceList = 3;
+  repeated .DC.Packet.SRECOVERY_ITEM_PRICE salePriceList = 4;
+  uint64 remainExpiredTimeMS = 5;
+}
+
+message SS2C_MERCHANT_RECOVERY_LIST_RES {
+  repeated .DC.Packet.SMERCHANT_RECOVERY_ITEM_INFO infos = 1;
+}
+
+message SC2S_MERCHANT_RECOVERY_BUY_REQ {
+  repeated uint64 recoveryUniqueId = 1;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO dealItemList = 2;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO merchantSlotInfo = 3;
+}
+
+message SS2C_MERCHANT_RECOVERY_BUY_RES {
+  int32 result = 1;
+  string givenItemId = 2;
+  .DC.Packet.SMERCHANT_RESULT_INFO merchantResult = 3;
+}
+
+message SMERCHANT_QUEST_LOG_INFO {
+  string merchantId = 1;
+  repeated .DC.Packet.SMERCHANT_QUEST_INFO quests = 2;
+}
+
+message SC2S_MERCHANT_QUEST_LOG_LIST_REQ {
+}
+
+message SS2C_MERCHANT_QUEST_LOG_LIST_RES {
+  uint32 result = 1;
+  repeated .DC.Packet.SMERCHANT_QUEST_LOG_INFO questList = 2;
+}
+
+message SC2S_MERCHANT_QUEST_LOG_ACCEPT_ALL_REQ {
+}
+
+message SS2C_MERCHANT_QUEST_LOG_ACCEPT_ALL_RES {
+  uint32 result = 1;
+}
+
+message SS2C_MERCHANT_RECOVERY_ITEM_CHECK_NOT {
+  enum FLAG {
+    NONE = 0;
+    RECOVERY = 1;
+  }
+
+  uint32 recoveryFlag = 1;
+}
+
+message SC2S_MERCHANT_RECOVERY_CHECK_REQ {
+}
+
+message SS2C_MERCHANT_RECOVERY_CHECK_RES {
+  uint32 recoveryFlag = 1;
+}
+
+message SC2S_MERCHANT_EXPRESS_LIST_REQ {
+}
+
+message SS2C_MERCHANT_EXPRESS_LIST_RES {
+  repeated .DC.Packet.SMERCHANT_EXPRESS_ITEM_INFO infos = 1;
+}
+
+message SC2S_MERCHANT_EXPRESS_BUY_REQ {
+  repeated uint64 expressUniqueIds = 1;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO dealItemList = 2;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO merchantSlotInfo = 3;
+}
+
+message SS2C_MERCHANT_EXPRESS_BUY_RES {
+  int32 result = 1;
+  string givenItemId = 2;
+}
+
+message SMERCHANT_EXPRESS_ITEM_INFO {
+  uint64 expressUniqueId = 1;
+  .DC.Packet.SItem itemInfo = 2;
+  repeated .DC.Packet.SEXPRESS_ITEM_PRICE originPriceList = 3;
+  repeated .DC.Packet.SEXPRESS_ITEM_PRICE salePriceList = 4;
+  uint64 remainExpiredTimeMS = 5;
+}
+
+message SS2C_MERCHANT_EXPRESS_ITEM_CHECK_NOT {
+  uint32 expressFlag = 1;
+}
+
+message SC2S_MERCHANT_ITEM_SOCKET_ENCHANT_REQ {
+  uint64 targetItemId = 1;
+  string targetPropertyTypeId = 2;
+  string replacePropertyTypeId = 3;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO materialItemList = 4;
+}
+
+message SS2C_MERCHANT_ITEM_SOCKET_ENCHANT_RES {
+  uint32 result = 1;
+  .DC.Packet.SItem enchantedItem = 2;
+  .DC.Packet.SMERCHANT_RESULT_INFO merchantResult = 3;
+}
+
+message SMERCHANT_STOCK_BUY_INFO {
+  uint64 stockUniqueId = 1;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO merchantSlotInfo = 2;
+}
+
+message SC2S_MERCHANT_COCKATRICE_REWARD_ACCEPT_REQ {
+  repeated .DC.Packet.SMERCHANT_STOCK_BUY_INFO merchantSlotInfo = 1;
+}
+
+message SS2C_MERCHANT_COCKATRICE_REWARD_ACCEPT_RES {
+  int32 result = 1;
+  .DC.Packet.SMERCHANT_RESULT_INFO merchantResult = 2;
+  string givenItemId = 3;
+}
+
+message SS2C_MERCHANT_REWARD_ITEM_LIST_RES {
+  uint32 result = 1;
+  uint32 loopMessageFlag = 2;
+  repeated .DC.Packet.SMERCHANT_STOCK_BUY_ITEM_INFO stockList = 3;
+}
+
+message SC2S_MERCHANT_REWARD_ITEM_LIST_REQ {
+  string merchantId = 1;
+}
+
+message SS2C_MERCHANT_COCKATRICE_ITEM_CHECK_NOT {
+  enum Status {
+    NONE = 0;
+    REWARD = 1;
+  }
+
+  uint32 itemCheckNotStatus = 1;
+}
+
+message SMERCHANT_GEAR_SET_INVENTORY_STASH_MOVE_INFO {
+  .DC.Packet.SINVENTORY_ITEM_REQ_INFO gearSetSrcInfo = 1;
+  .DC.Packet.SINVENTORY_ITEM_REQ_INFO gearSetMergeDstInfo = 2;
+  uint32 mergeCount = 3;
+  uint32 dstInventoryId = 4;
+  uint32 dstSlotId = 5;
+}
+
+message SMERCHANT_GEAR_SET_EQUIPMENT_MOVE_INFO {
+  .DC.Packet.SINVENTORY_ITEM_REQ_INFO moveSrcInfo = 1;
+  uint32 moveDstInventoryId = 2;
+  uint32 moveDstSlotId = 3;
+}
+
+message SMERCHANT_GEAR_SET_EQUIPMENT_SWAP_INFO {
+  .DC.Packet.SINVENTORY_ITEM_REQ_INFO srcInfo = 1;
+  .DC.Packet.SINVENTORY_ITEM_REQ_INFO dstInfo = 2;
+  repeated .DC.Packet.INVENTORY_SWAP_DST_INFO targetInfos = 3;
+}
+
+message SC2S_MERCHANT_GEAR_SET_SWAP_REQ {
+  uint32 gearSetInventoryId = 1;
+}
+
+message SS2C_MERCHANT_GEAR_SET_SWAP_RES {
+  uint32 gearSetInventoryId = 1;
+  repeated .DC.Packet.SItem gearSetItems = 2;
+  repeated .DC.Packet.SItem equipmentItems = 3;
+  repeated .DC.Packet.SItem inventoryAndStashItems = 4;
+  int32 result = 5;
+}
+
+message SC2S_MERCHANT_GEAR_SET_INITIALIZE_REQ {
+  uint32 gearSetInventoryId = 1;
+  repeated .DC.Packet.SMERCHANT_GEAR_SET_INVENTORY_STASH_MOVE_INFO gearSetMoveInfos = 2;
+}
+
+message SS2C_MERCHANT_GEAR_SET_INITIALIZE_RES {
+  uint32 gearSetInventoryId = 1;
+  repeated .DC.Packet.SItem inventoryAndStashItems = 2;
+  int32 result = 3;
+}
+
+message SC2S_MERCHANT_GEAR_SET_SAVE_REQ {
+}
+
+message SS2C_MERCHANT_GEAR_SET_SAVE_RES {
+  int32 result = 1;
+}
+
+message SMERCHANT_GEAR_SET_INFO {
+  uint32 gearSetInventoryId = 1;
+  repeated .DC.Packet.SItem items = 2;
+}
+
+message SC2S_MERCHANT_GEAR_SET_LIST_REQ {
+}
+
+message SS2C_MERCHANT_GEAR_SET_LIST_RES {
+  repeated .DC.Packet.SMERCHANT_GEAR_SET_INFO gearSets = 1;
+}
+
+message SPARCEL_REWARD_INFO {
+  int32 rewardType = 1;
+  string rewardId = 2;
+  int32 rewardCount = 3;
+  .DC.Packet.SItem item = 4;
+}
+
+message SMERCHANT_DELIVERY_PARCEL_INFO {
+  uint32 parcelIndex = 1;
+  repeated .DC.Packet.SPARCEL_REWARD_INFO rewardInfos = 2;
+  int64 expireTimeMs = 3;
+  string designDataId = 4;
+  string title = 5;
+  int32 isNew = 6;
+  int32 isExpired = 7;
+}
+
+message SC2S_MERCHANT_DELIVERY_PARCEL_LIST_REQ {
+  int32 pageIndex = 1;
+  int32 parcelsPerPage = 2;
+}
+
+message SS2C_MERCHANT_DELIVERY_PARCEL_LIST_RES {
+  repeated .DC.Packet.SMERCHANT_DELIVERY_PARCEL_INFO infos = 1;
+  int32 pageIndex = 2;
+  int32 pageMax = 3;
+}
+
+message SC2S_MERCHANT_DELIVERY_CHECK_PARCEL_REQ {
+  uint32 parcelIndex = 1;
+}
+
+message SS2C_MERCHANT_DELIVERY_CHECK_PARCEL_RES {
+  int32 result = 1;
+}
+
+message SC2S_MERCHANT_DELIVERY_RECEIVE_PARCEL_REQ {
+  uint32 parcelIndex = 1;
+  int32 parcelsPerPage = 2;
+}
+
+message SS2C_MERCHANT_DELIVERY_RECEIVE_PARCEL_RES {
+  int32 result = 1;
+  repeated .DC.Packet.SPARCEL_REWARD_INFO rewardInfos = 2;
+}
+
+message SS2C_MERCHANT_DELIVERY_NEW_PARCEL_NOT {
+  int32 parcelFlag = 1;
+}
+
+message SC2S_MERCHANT_DELIVERY_PARCEL_EXPIRED_REMOVE_REQ {
+  uint32 parcelIndex = 1;
+  int32 parcelsPerPage = 2;
+}
+
+message SS2C_MERCHANT_DELIVERY_PARCEL_EXPIRED_REMOVE_RES {
+  int32 result = 1;
+}
+

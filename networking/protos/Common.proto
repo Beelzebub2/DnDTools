@@ -1,0 +1,319 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.common";
+option java_outer_classname = "common";
+option java_multiple_files = false;
+
+import "_Character.proto";
+import "_Chat.proto";
+
+message SC2S_META_LOCATION_REQ {
+  uint32 location = 1;
+}
+
+message SS2C_META_LOCATION_RES {
+  uint32 location = 1;
+}
+
+message SC2S_BLOCK_CHARACTER_REQ {
+  string targetAccountId = 1;
+  string targetCharacterId = 2;
+}
+
+message SS2C_BLOCK_CHARACTER_RES {
+  uint32 result = 1;
+  .DC.Packet.SBLOCK_CHARACTER targetCharacterInfo = 2;
+}
+
+message SC2S_UNBLOCK_CHARACTER_REQ {
+  string targetAccountId = 1;
+  string targetCharacterId = 2;
+}
+
+message SS2C_UNBLOCK_CHARACTER_RES {
+  uint32 result = 1;
+  string targetCharacterId = 2;
+}
+
+message SC2S_BLOCK_CHARACTER_LIST_REQ {
+}
+
+message SS2C_BLOCK_CHARACTER_LIST_RES {
+  repeated .DC.Packet.SBLOCK_CHARACTER blockCharacters = 1;
+}
+
+message SC2S_HACK_LOG_REQ {
+  string logMessage = 1;
+}
+
+message SS2C_HACK_LOG_RES {
+}
+
+message SANNOUNCE_MESSAGE {
+  string designDataId = 1;
+  repeated string params = 2;
+  string announceMessage = 3;
+}
+
+message SS2C_OPERATE_ANNOUNCE_NOT {
+  repeated .DC.Packet.SANNOUNCE_MESSAGE announceList = 1;
+}
+
+message FSERVICE_POLICY {
+  int32 policyType = 1;
+  int32 policyValue = 2;
+}
+
+message SS2C_SERVICE_POLICY_NOT {
+  repeated .DC.Packet.FSERVICE_POLICY policyList = 1;
+}
+
+message SC2S_RE_LOGIN_REQ {
+  string eulaHash = 1;
+}
+
+message SS2C_RE_LOGIN_RES {
+  uint32 isReconnect = 1;
+  string address = 2;
+  string sessionId = 3;
+  string accountId = 4;
+  int32 gameType = 5;
+  int32 eulaAgreementStatus = 6;
+}
+
+message SS2C_CLOSED_GAME_NOT {
+  uint32 cyzz = 1;
+}
+
+message SC2S_USER_CHARACTER_INFO_REQ {
+  uint32 callbackType = 1;
+  string reportId = 2;
+  repeated string hIds = 3;
+  repeated uint32 blob = 4;
+  string accountId = 5;
+  string characterId = 6;
+  string originNickname = 7;
+  string blobTagName = 8;
+}
+
+message SS2C_USER_CHARACTER_INFO_RES {
+}
+
+message SC2S_GM_ENTER_GAME_SPECTATOR_REQ {
+  string nickname = 1;
+  string accountId = 2;
+}
+
+message SS2C_GM_ENTER_GAME_SPECTATOR_RES {
+  uint32 result = 1;
+  string ip = 2;
+  uint32 port = 3;
+  string token = 4;
+  string serviceUrl = 5;
+}
+
+message SALLMAP_ROTATION_INFO {
+  uint32 gameType = 1;
+  string mapTag = 2;
+}
+
+message SS2C_ALL_MAP_MATCHMAKING_NOT {
+  repeated .DC.Packet.SALLMAP_ROTATION_INFO infos = 1;
+  string nextRotationDate = 3;
+  string nextRotationTime = 4;
+}
+
+message SLATENCY_CHECK_INFO {
+  string path = 1;
+}
+
+message SS2C_LATENCY_CHECK_NOT {
+  int32 checkCount = 1;
+  int32 checkTermMS = 2;
+  repeated .DC.Packet.SLATENCY_CHECK_INFO latencyInfos = 3;
+}
+
+message SS2C_LOBBY_COMPLETE_NOT {
+  int32 type = 1;
+}
+
+message SC2S_CHAT_HACK_REPORT_REQ {
+  uint32 reportIndex = 1;
+  uint64 chatIndex = 2;
+  uint32 chatType = 3;
+  uint32 reportType = 4;
+}
+
+message SS2C_CHAT_HACK_REPORT_RES {
+  int32 result = 1;
+}
+
+message SC2S_JOIN_LAST_GAME_REQ {
+}
+
+message SS2C_JOIN_LAST_GAME_RES {
+  uint32 canJoin = 1;
+  string address = 2;
+  string sessionId = 3;
+  string accountId = 4;
+  string serviceUrl = 5;
+}
+
+message SC2S_WHISPER_CHAT_REQ {
+  .DC.Packet.SCHATDATA chatData = 1;
+  string targetNickname = 2;
+}
+
+message SS2C_WHISPER_CHAT_RES {
+  uint32 result = 1;
+  uint64 chatIdx = 2;
+  int32 banDurationMin = 3;
+}
+
+message SS2C_WHISPER_CHAT_NOT {
+  .DC.Packet.SCHATDATA chatData = 1;
+  uint64 time = 2;
+  uint64 chatIdx = 3;
+}
+
+message SACCOUNT_OWNED_DLC_INFO {
+  string dlcId = 1;
+  int64 expireSec = 2;
+}
+
+message SS2C_ACCOUNT_STATUS_NOT {
+  uint32 accountStatus = 1;
+  repeated .DC.Packet.SACCOUNT_OWNED_DLC_INFO ownedDlcInfos = 2;
+}
+
+message SDLC_INFO {
+  string dlcId = 1;
+  int32 saleStatus = 2;
+  int64 beginDateMS = 3;
+  int64 endDateMS = 4;
+}
+
+message SS2C_DLC_INFO_NOT {
+  repeated .DC.Packet.SDLC_INFO dlcInfos = 1;
+  int64 currentDateMS = 2;
+}
+
+message SC2S_PLATFORM_LINK_CODE_GEN_REQ {
+}
+
+message SS2C_PLATFORM_LINK_CODE_GEN_RES {
+  uint32 result = 1;
+  string genCode = 2;
+  int64 remainTimeMS = 3;
+}
+
+message SC2S_PLATFORM_LINK_CODE_ACTIVE_REQ {
+  string code = 1;
+}
+
+message SS2C_PLATFORM_LINK_CODE_ACTIVE_RES {
+  uint32 result = 1;
+}
+
+message SPLATFORM_LINK_INFO {
+  uint32 loginType = 1;
+  string platformId = 2;
+}
+
+message SC2S_PLATFORM_LINK_INFO_LIST_REQ {
+}
+
+message SS2C_PLATFORM_LINK_INFO_LIST_RES {
+  repeated .DC.Packet.SPLATFORM_LINK_INFO infos = 1;
+}
+
+message SC2S_PLATFORM_LINK_FAQ_URL_REQ {
+}
+
+message SS2C_PLATFORM_LINK_FAQ_URL_RES {
+  string faqUrl = 1;
+}
+
+message SC2S_PLATFORM_LINK_SELECT_FAQ_URL_REQ {
+}
+
+message SS2C_PLATFORM_LINK_SELECT_FAQ_URL_RES {
+  string faqUrl = 1;
+}
+
+message SS2C_CLIENT_POPUP_MESSAGE_NOT {
+  string message = 1;
+}
+
+message SC2S_TWITCH_DROPS_CONNECT_REQ {
+  uint32 status = 1;
+}
+
+message SS2C_TWITCH_DROPS_CONNECT_RES {
+  uint32 result = 1;
+  string clientLink = 2;
+}
+
+message SS2C_TWITCH_DROPS_CONNECT_NOT {
+  uint32 result = 1;
+  uint32 isChanged = 2;
+  uint32 isLinked = 3;
+}
+
+message SS2C_TWITCH_DROPS_LINKED_NOT {
+  uint32 result = 1;
+}
+
+message SS2C_TERMINATE_NOT {
+}
+
+message ArenaSchedule {
+  uint32 gameType = 1;
+  int64 beginUnixTime = 2;
+  int64 endUnixTime = 3;
+}
+
+message SS2C_ARENA_SCHEDULE_NOT {
+  repeated .DC.Packet.ArenaSchedule schedules = 1;
+}
+
+message SC2S_DLC_INSTALLED_CHECK_REQ {
+  int32 dlcType = 1;
+}
+
+message SS2C_DLC_INSTALLED_CHECK_RES {
+  int32 result = 1;
+  int32 dlcType = 2;
+}
+
+message SC2S_REPORT_CHAT_REQ {
+  uint32 chatType = 1;
+  uint64 chatIdx = 2;
+  uint32 hackType = 3;
+  string targetAccountId = 4;
+  string message = 5;
+  string targetNickname = 6;
+}
+
+message SS2C_REPORT_CHAT_RES {
+  uint32 result = 1;
+}
+
+message SDUNGEON_GEAR_POOL_INFO {
+  uint32 gearPoolIndex = 1;
+  int32 minIncludingValue = 2;
+  int32 maxIncludingValue = 3;
+}
+
+message SOPEN_DUNGEON_INFO {
+  uint32 dungeonIndex = 1;
+  uint32 gameType = 2;
+  repeated .DC.Packet.SDUNGEON_GEAR_POOL_INFO gearPoolInfos = 3;
+}
+
+message SS2C_OPEN_DUNGEON_INFO_NOT {
+  repeated .DC.Packet.SOPEN_DUNGEON_INFO infos = 1;
+}
+

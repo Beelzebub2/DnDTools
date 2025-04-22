@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.achievement";
+option java_outer_classname = "achievement";
+option java_multiple_files = false;
+
+message SCOMPLETED_ACHIEVEMENT_INFO {
+  string achievementID = 1;
+  uint64 completedTime = 2;
+}
+
+message SACHIEVEMENT_OBJECTIVE_INFO {
+  string objectiveId = 1;
+  uint32 value = 2;
+}
+
+message SUNCOMPLETED_ACHIEVEMENT_INFO {
+  string achievementID = 1;
+  repeated .DC.Packet.SACHIEVEMENT_OBJECTIVE_INFO objectives = 3;
+}
+
+message SACHIEVEMENT_PROGRESS_INFO {
+  int32 all = 1;
+  int32 completed = 2;
+}
+
+message SS2C_ACHIEVEMENTS_NOT {
+  uint32 result = 1;
+  repeated .DC.Packet.SCOMPLETED_ACHIEVEMENT_INFO completedAchievements = 2;
+  repeated .DC.Packet.SUNCOMPLETED_ACHIEVEMENT_INFO uncompletedUpdatedAchievements = 3;
+}
+
+message SC2S_ACHIEVEMENTS_LIST_REQ {
+  uint32 result = 1;
+  repeated string achievementIds = 2;
+}
+
+message SS2C_ACHIEVEMENTS_LIST_RES {
+  uint32 result = 1;
+  repeated .DC.Packet.SCOMPLETED_ACHIEVEMENT_INFO completedAchievements = 2;
+  repeated .DC.Packet.SUNCOMPLETED_ACHIEVEMENT_INFO uncompletedUpdatedAchievements = 3;
+  repeated string invalidAchievementIds = 4;
+  .DC.Packet.SACHIEVEMENT_PROGRESS_INFO progressInfo = 5;
+}
+

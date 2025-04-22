@@ -1,0 +1,155 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.shop";
+option java_outer_classname = "shop";
+option java_multiple_files = false;
+
+message SSHOP_ITEM_BASE_INFO {
+  uint32 shopType = 1;
+  string shopItemId = 2;
+  uint32 isHave = 3;
+  uint64 remainDiscountTimeMS = 4;
+}
+
+message SC2S_SHOP_ITEM_LIST_REQ {
+}
+
+message SS2C_SHOP_ITEM_LIST_RES {
+  int32 loopFlag = 1;
+  repeated .DC.Packet.SSHOP_ITEM_BASE_INFO infos = 2;
+  int32 currentTriumphLevel = 3;
+  int32 nextTriumphExp = 4;
+  int32 currentTriumphExp = 5;
+}
+
+message SC2S_SHOP_ITEM_BUY_REQ {
+  uint32 shopType = 1;
+  string buyShopItemId = 2;
+  uint32 paymentMethod = 3;
+  uint32 price = 4;
+}
+
+message SS2C_SHOP_ITEM_BUY_RES {
+  uint32 result = 1;
+  uint32 shopType = 2;
+  string buyShopItemId = 3;
+  uint32 paymentMethod = 4;
+}
+
+message SREWARD_INFO {
+  string rewardType = 1;
+  string stockId = 2;
+  uint32 rewardCount = 3;
+}
+
+message STWITCH_REWARD_INFO {
+  string rewardType = 1;
+  string stockId = 2;
+  uint32 rewardCount = 3;
+}
+
+message SC2S_SHOP_ENTER_GIFT_CODE_REQ {
+  string giftCode = 1;
+}
+
+message SS2C_SHOP_ENTER_GIFT_CODE_RES {
+  uint32 result = 1;
+  repeated .DC.Packet.SREWARD_INFO rewards = 2;
+}
+
+message SC2S_SHOP_RED_STONE_SHARD_INFO_REQ {
+}
+
+message SSHOP_RED_STONE_SHARD_INFO {
+  uint32 productIndex = 1;
+  float productPrice = 2;
+  uint32 productCount = 3;
+  string designDataId = 4;
+  string redirectionUrl = 5;
+  string customData = 6;
+  string productName = 7;
+}
+
+message SS2C_SHOP_RED_STONE_SHARD_INFO_RES {
+  repeated .DC.Packet.SSHOP_RED_STONE_SHARD_INFO infos = 1;
+  uint32 loginType = 2;
+}
+
+message SC2S_SHOP_RED_STONE_SHARD_BUY_REQ {
+  int32 productIndex = 1;
+  int32 localPort = 2;
+}
+
+message SS2C_SHOP_RED_STONE_SHARD_BUY_RES {
+  int32 result = 1;
+  int64 trxId = 2;
+  string trxIdStr = 3;
+  string platformId = 4;
+  string offerItemId = 5;
+  string sandboxId = 6;
+}
+
+message SC2S_SHOP_RED_STONE_SHARD_BUY_CHECK_REQ {
+  uint32 appId = 1;
+  uint64 orderId = 2;
+  int32 authorized = 3;
+  string transactionId = 4;
+}
+
+message SS2C_SHOP_RED_STONE_SHARD_BUY_CHECK_RES {
+  int32 result = 1;
+}
+
+message SC2S_SHOP_LEGEND_UPGRADE_REQ {
+  string param = 1;
+}
+
+message SS2C_SHOP_LEGEND_UPGRADE_RES {
+  int32 result = 1;
+  string upgradeDate = 2;
+  string upgradeTime = 3;
+}
+
+message SC2S_REFRESH_RED_STONE_SHARD_REQ {
+  string accessId = 1;
+}
+
+message SS2C_REFRESH_RED_STONE_SHARD_RES {
+}
+
+message SC2S_SHOP_CHANGE_ACCOUNT_NAME_REQ {
+  string changeAccountName = 1;
+}
+
+message SS2C_SHOP_CHANGE_ACCOUNT_NAME_RES {
+  int32 result = 1;
+  string changeAccountName = 2;
+}
+
+message SSHOP_ITEM_CHECKED_INFO {
+  repeated string shopId = 1;
+}
+
+message SS2C_SHOP_ITEM_CHECK_NOT {
+  int32 shopNotifyStatus = 1;
+}
+
+message SC2S_SHOP_DLC_INSTALL_REQ {
+  int32 dlcType = 1;
+  string dlcId = 2;
+}
+
+message SS2C_SHOP_DLC_INSTALL_RES {
+  int32 result = 1;
+  string dlcId = 2;
+  int32 appId = 3;
+  string redirectUrl = 4;
+}
+
+message SS2C_SHOP_TWITCH_DROPS_REWARD_NOT {
+  uint32 result = 1;
+  repeated .DC.Packet.STWITCH_REWARD_INFO rewards = 2;
+}
+
