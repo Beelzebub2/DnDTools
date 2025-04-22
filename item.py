@@ -1,13 +1,14 @@
-from stash_preview import ItemDataManager
+from stash_preview import ItemDataManager, slotid_to_xy
 from point import Point
 
 class Item:
-    def __init__(self, name, rarity, position, width, height):
+    def __init__(self, name, rarity, position, width, height, stash):
         self.name = name
         self.rarity = rarity
         self.width = width
         self.height = height
         self.position = position
+        self.stash = stash
 
     def __lt__(self, other):
         if self.height != other.height:
@@ -64,5 +65,5 @@ class Item:
         manager = ItemDataManager()
         _, width, height, _ = manager.get_item_image_path(name) or (None, 1, 1, None)
 
-        return Item(name, rarity_id, position, width, height)
+        return Item(name, rarity_id, position, width, height, stash)
 

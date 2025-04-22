@@ -181,6 +181,7 @@ def get_item_name_from_id(item_id, item_data):
 
 def parse_stashes(packet_data, item_data):
     stashes = {}
+    # stashes
     storage_infos = packet_data.get("characterDataBase", {}).get("CharacterStorageInfos", [])
     for storage in storage_infos:
         inventory_id = storage.get("inventoryId")
@@ -221,6 +222,28 @@ def parse_stashes(packet_data, item_data):
                 
         if stash_items:
             stashes[inventory_id] = stash_items
+    
+    # inventory
+    item_list = packet_data.get("characterDataBase", {}).get("CharacterItemList", [])
+    for item in item_list:
+        inventory_id = item.get("inventoryId")
+        if inventory_id not in stashes:
+            stashes[inventory_id] = []
+
+        used_slots = set()  # Keep track of used slots
+        # First process items with defined slots
+        if "slotId" in item:
+            item_id = item.get("itemId", "")
+            slot_id = item["slotId"]
+            name = get_item_name_from_id(item_id, item_data)
+            stashes[inventory_id].append({
+                "name": name,
+                "slotId": slot_id,
+                "itemId": item_id,
+                "itemCount": item.get("itemCount", 1)
+            })
+            used_slots.add(slot_id)
+
     return stashes
 
 def slotid_to_xy(slot_id):
