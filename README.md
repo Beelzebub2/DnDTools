@@ -33,10 +33,7 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 ```bash
 pip install -r requirements.txt
 ```
-
-2. Install Npcap (required for packet capture)
-3. Place your item-data.json in the project root
-4. Configure your network interface in config.json (optional)
+2. Configure your network interface in config.json (optional)
 
 ## 📖 Usage
 

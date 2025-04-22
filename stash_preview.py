@@ -16,8 +16,12 @@ class ItemInfo:
 
 class ItemDataManager:
     def __init__(self):
-        self.ITEM_DATA_FILE = "item-data.json"
-        self.MATCHING_DB_FILE = "matchingdb.json"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        assets_dir = os.path.join(base_dir, "assets")
+        self.ITEM_DATA_FILE = os.path.join(assets_dir, "item-data.json")
+        self.MATCHING_DB_FILE = os.path.join(assets_dir, "matchingdb.json")
+        os.makedirs(assets_dir, exist_ok=True)
+        
         self.item_data = self.load_json(self.ITEM_DATA_FILE)
         self.matching_db = self.load_matching_db()
         self.image_cache = {}
@@ -170,27 +174,41 @@ def slotid_to_xy(slot_id):
     return slot_id % 12, slot_id // 12
 
 def main():
-    item_data = ItemDataManager().item_data
-    packet_data = ItemDataManager.load_json("packet_data.json")
-    matching_db = {}  # collect original → matched names
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    packet_data_path = os.path.join(base_dir, "packet_data.json")
+    output_dir = os.path.join(base_dir, "output")
+    os.makedirs(output_dir, exist_ok=True)
 
-    stashes = parse_stashes(packet_data, item_data)
-    if not stashes:
-        print("No stashes found in packet data.")
-        return
+    try:
+        item_data = ItemDataManager().item_data
+        if not os.path.exists(packet_data_path):
+            print(f"Error: {packet_data_path} not found. Please run packet capture first.")
+            return
+            
+        packet_data = ItemDataManager.load_json(packet_data_path)
+        matching_db = {}  # collect original → matched names
 
-    generator = StashPreviewGenerator()
+        stashes = parse_stashes(packet_data, item_data)
+        if not stashes:
+            print("No stashes found in packet data.")
+            return
 
-    for stash_id, items in stashes.items():
-        print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
-        preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
-        outname = f"stash_preview_{stash_id}.png"
-        preview.save(outname)
-        print(f"Preview saved as {outname}")
+        generator = StashPreviewGenerator()
 
-    # save the matching database
-    generator.item_manager.save_matching_db()
-    print("Matching DB saved as matchingdb.json")
+        for stash_id, items in stashes.items():
+            print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
+            preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
+            outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
+            preview.save(outname)
+            print(f"Preview saved as {outname}")
+
+        # save the matching database
+        generator.item_manager.save_matching_db()
+        print("Matching DB saved as matchingdb.json")
+        
+    except Exception as e:
+        print(f"Error generating previews: {e}")
+        logging.error(f"Failed to generate previews: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()

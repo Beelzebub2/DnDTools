@@ -1,8 +1,6 @@
 # Project specific
 previews/
 packet_data.json
-matchingdb.json
-item-data.json
 
 # Python
 __pycache__/
