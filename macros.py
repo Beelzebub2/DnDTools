@@ -3,7 +3,7 @@ from point import Point
 
 # all positions are for 1920x1080 resolution
 stash_screen_pos = Point(1394, 218)
-inv_screen_pos = Point(705, 644)
+inv_screen_pos = Point(705, 641)
 
 # distance between stash cells
 jump = 40
