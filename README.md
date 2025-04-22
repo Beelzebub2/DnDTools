@@ -1,11 +1,23 @@
-# Dark and Darker Stash Preview Generator
+# Dark and Darker Tools
 
-![Python](https://img.shields.io/badge/python-3.7+-blue.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
-![Status](https://img.shields.io/badge/status-beta-orange.svg)
-![Game Version](https://img.shields.io/badge/game_version-0.9.0-blue.svg)
+<p align="center">
+  <img src="assets/banner.jpg" alt="DnDTools Banner" width="640" height="320">
+</p>
 
-A tool to capture and generate visual previews of Dark and Darker stash contents.
+## 🎮 Demo
+
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/84e1ba79-fa67-420b-bb62-493fd7ed21fd" controls autoplay loop muted width="100%"></video>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.7+-blue.svg" alt="Python">
+  <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
+  <img src="https://img.shields.io/badge/status-beta-orange.svg" alt="Status">
+</p>
+
+
+A tool to capture and generate visual previews of Dark and Darker stash contents and organize them.
 
 ## ⚠️ Disclaimer
 

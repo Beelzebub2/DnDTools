@@ -17,8 +17,9 @@ class ItemInfo:
 
 class ItemDataManager:
     def __init__(self):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        assets_dir = os.path.join(base_dir, "assets")
+        # Project root directory for resolving asset paths
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
+        assets_dir = os.path.join(self.base_dir, "assets")
         self.ITEM_DATA_FILE = os.path.join(assets_dir, "item-data.json")
         self.MATCHING_DB_FILE = os.path.join(assets_dir, "matchingdb.json")
         os.makedirs(assets_dir, exist_ok=True)
@@ -60,7 +61,9 @@ class ItemDataManager:
             # Find the item data using the matched name
             for data in self.item_data.values():
                 if data.get("name") == matched_name:
-                    return (data["path"].replace("\\", os.sep),
+                    rel = data["path"].replace("\\", os.sep)
+                    full = os.path.join(self.base_dir, rel)
+                    return (full,
                             data["inventory_width"],
                             data["inventory_height"],
                             data["name"])
@@ -69,7 +72,9 @@ class ItemDataManager:
         norm_name = self.normalize_name(item_name)
         for data in self.item_data.values():
             if self.normalize_name(data.get("name", "")) == norm_name:
-                return (data["path"].replace("\\", os.sep),
+                rel = data["path"].replace("\\", os.sep)
+                full = os.path.join(self.base_dir, rel)
+                return (full,
                         data["inventory_width"],
                         data["inventory_height"],
                         data["name"])
