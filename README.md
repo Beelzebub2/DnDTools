@@ -63,6 +63,11 @@ This project:
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+## 🙏 Acknowledgments
+
+thanks to:
+- [Dark and Darker Wiki](https://darkanddarker.wiki.spellsandguns.com) for the item image assets used in this project
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

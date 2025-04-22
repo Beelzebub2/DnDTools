@@ -887,18 +887,6 @@
     "inventory_height": 2,
     "matched_darkerdb_name": "Crystal Ball"
   },
-  "Nothing.png": {
-    "name": "nothing",
-    "category": "weapons",
-    "path": "assets\\images\\weapons\\Nothing.png",
-    "width": 90,
-    "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
-  },
   "Magic_Staff_2.png": {
     "name": "WizardStaff",
     "category": "weapons",
@@ -4097,11 +4085,11 @@
     "path": "assets\\images\\misc\\Blue_Sapphire.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Blue_Sapphire"
   },
   "Diamond.png": {
     "name": "diamond",
@@ -4109,11 +4097,11 @@
     "path": "assets\\images\\misc\\Diamond.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Diamond"
   },
   "Emerald.png": {
     "name": "emerald",
@@ -4121,11 +4109,11 @@
     "path": "assets\\images\\misc\\Emerald.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Emerald"
   },
   "Ruby.png": {
     "name": "ruby",
@@ -4133,11 +4121,11 @@
     "path": "assets\\images\\misc\\Ruby.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Ruby"
   },
   "Ancient_Scroll.png": {
     "name": "ancient scroll",
@@ -4145,11 +4133,11 @@
     "path": "assets\\images\\misc\\Ancient_Scroll.png",
     "width": 90,
     "height": 135,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x3",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 3,
+    "matched_darkerdb_name": "Ancient_Scroll"
   },
   "Ceremonial_Dagger.png": {
     "name": "ceremonial dagger",
@@ -4157,11 +4145,11 @@
     "path": "assets\\images\\misc\\Ceremonial_Dagger.png",
     "width": 90,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x1",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Ceremonial_Dagger"
   },
   "Dotted_Gold_Bangle.png": {
     "name": "dotted gold bangle",
@@ -4169,11 +4157,11 @@
     "path": "assets\\images\\misc\\Dotted_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Dotted_Gold_Bangle"
   },
   "Gem_Necklace.png": {
     "name": "gem necklace",
@@ -4181,11 +4169,11 @@
     "path": "assets\\images\\misc\\Gem_Necklace.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gem_Necklace"
   },
   "Gem_Ring.png": {
     "name": "gem ring",
@@ -4193,11 +4181,11 @@
     "path": "assets\\images\\misc\\Gem_Ring.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gem_Ring"
   },
   "Glimmer_Bangle.png": {
     "name": "glimmer bangle",
@@ -4205,11 +4193,11 @@
     "path": "assets\\images\\misc\\Glimmer_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Glimmer_Bangle"
   },
   "Gold_Band.png": {
     "name": "gold band",
@@ -4217,11 +4205,11 @@
     "path": "assets\\images\\misc\\Gold_Band.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gold_Band"
   },
   "Gold_Bowl.png": {
     "name": "gold bowl",
@@ -4229,11 +4217,11 @@
     "path": "assets\\images\\misc\\Gold_Bowl.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Bowl"
   },
   "Gold_Candelabra.png": {
     "name": "gold candelabra",
@@ -4241,11 +4229,11 @@
     "path": "assets\\images\\misc\\Gold_Candelabra.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Candelabra"
   },
   "Gold_Candle_Holder.png": {
     "name": "gold candle holder",
@@ -4253,11 +4241,11 @@
     "path": "assets\\images\\misc\\Gold_Candle_Holder.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Candle_Holder"
   },
   "Gold_Candle_Platter.png": {
     "name": "gold candle platter",
@@ -4265,11 +4253,11 @@
     "path": "assets\\images\\misc\\Gold_Candle_Platter.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Gold_Candle_Platter"
   },
   "Gold_Chalice.png": {
     "name": "gold chalice",
@@ -4277,11 +4265,11 @@
     "path": "assets\\images\\misc\\Gold_Chalice.png",
     "width": 45,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x2",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Chalice"
   },
   "Gold_Crown.png": {
     "name": "gold crown",
@@ -4289,11 +4277,11 @@
     "path": "assets\\images\\misc\\Gold_Crown.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Crown"
   },
   "Gold_Goblet.png": {
     "name": "gold goblet",
@@ -4301,11 +4289,11 @@
     "path": "assets\\images\\misc\\Gold_Goblet.png",
     "width": 45,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x2",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Goblet"
   },
   "Gold_Waterpot.png": {
     "name": "gold waterpot",
@@ -4313,11 +4301,11 @@
     "path": "assets\\images\\misc\\Gold_Waterpot.png",
     "width": 90,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "2x2",
+    "type": "Misc",
+    "inventory_width": 2,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Gold_Waterpot"
   },
   "Leaf_Gold_Bangle.png": {
     "name": "leaf gold bangle",
@@ -4325,11 +4313,11 @@
     "path": "assets\\images\\misc\\Leaf_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Leaf_Gold_Bangle"
   },
   "Light_Gold_Bangle.png": {
     "name": "light gold bangle",
@@ -4337,11 +4325,11 @@
     "path": "assets\\images\\misc\\Light_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Light_Gold_Bangle"
   },
   "Patterned_Gold_Bangle.png": {
     "name": "patterned gold bangle",
@@ -4349,11 +4337,11 @@
     "path": "assets\\images\\misc\\Patterned_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Patterned_Gold_Bangle"
   },
   "Pearl_Necklace.png": {
     "name": "pearl necklace",
@@ -4361,11 +4349,11 @@
     "path": "assets\\images\\misc\\Pearl_Necklace.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Pearl_Necklace"
   },
   "Shine_Bangle.png": {
     "name": "shine bangle",
@@ -4373,11 +4361,11 @@
     "path": "assets\\images\\misc\\Shine_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Shine_Bangle"
   },
   "Silver_Chalice.png": {
     "name": "silver chalice",
@@ -4385,11 +4373,11 @@
     "path": "assets\\images\\misc\\Silver_Chalice.png",
     "width": 45,
     "height": 90,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x2",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 2,
+    "matched_darkerdb_name": "Silver_Chalice"
   },
   "Silver_Coin.png": {
     "name": "SilverCoin",
@@ -4409,11 +4397,11 @@
     "path": "assets\\images\\misc\\Simple_Gold_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Simple_Gold_Bangle"
   },
   "Slim_Bangle.png": {
     "name": "slim bangle",
@@ -4421,11 +4409,11 @@
     "path": "assets\\images\\misc\\Slim_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Slim_Bangle"
   },
   "Triple_Gem_Bangle.png": {
     "name": "triple gem bangle",
@@ -4433,11 +4421,11 @@
     "path": "assets\\images\\misc\\Triple_Gem_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Triple_Gem_Bangle"
   },
   "Turquoise_Gem_Bangle.png": {
     "name": "turquoise gem bangle",
@@ -4445,11 +4433,11 @@
     "path": "assets\\images\\misc\\Turquoise_Gem_Bangle.png",
     "width": 45,
     "height": 45,
-    "size": "unknown",
-    "type": "unknown",
-    "inventory_width": null,
-    "inventory_height": null,
-    "matched_darkerdb_name": null
+    "size": "1x1",
+    "type": "Misc",
+    "inventory_width": 1,
+    "inventory_height": 1,
+    "matched_darkerdb_name": "Turquoise_Gem_Bangle"
   },
   "Armor_Scrap.png": {
     "name": "ArmorScrap",
