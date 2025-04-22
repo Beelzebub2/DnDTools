@@ -1,6 +1,7 @@
 # Project specific
 previews/
 packet_data.json
+output/
 
 # Python
 __pycache__/

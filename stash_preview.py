@@ -6,6 +6,7 @@ from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass
 from PIL import Image, ImageDraw
 import logging
+from datetime import datetime
 
 @dataclass
 class ItemInfo:
@@ -25,6 +26,7 @@ class ItemDataManager:
         self.item_data = self.load_json(self.ITEM_DATA_FILE)
         self.matching_db = self.load_matching_db()
         self.image_cache = {}
+        self.unmatched_items = set()
 
     @staticmethod
     def load_json(filename: str) -> dict:
@@ -43,20 +45,28 @@ class ItemDataManager:
 
     @staticmethod
     def normalize_name(name: str) -> str:
+        """Normalize item name to match item-data.json names"""
         if not name:
             return ""
-        name = name.lower()
-        name = re.sub(r"designdataitem:|id_item_", "", name)
-        name = re.sub(r"[^a-z0-9]", "", name)
-        return name
+        # Remove prefix and convert to proper case format
+        name = name.replace("DesignDataItem:Id_Item_", "")
+        name = re.sub(r"[\s'-]", "", name)  # Remove spaces, hyphens and apostrophes
+        return name.lower()  # Convert to lowercase for case-insensitive matching
 
     def get_item_image_path(self, item_name: str) -> Tuple[Optional[str], Optional[int], Optional[int], Optional[str]]:
+        # First check if we have a known match in the matching DB
         if item_name in self.matching_db:
-            item_name = self.matching_db[item_name]
+            matched_name = self.matching_db[item_name]
+            # Find the item data using the matched name
+            for data in self.item_data.values():
+                if data.get("name") == matched_name:
+                    return (data["path"].replace("\\", os.sep),
+                            data["inventory_width"],
+                            data["inventory_height"],
+                            data["name"])
 
+        # If not in matching DB, try direct match
         norm_name = self.normalize_name(item_name)
-        
-        # Try exact match first
         for data in self.item_data.values():
             if self.normalize_name(data.get("name", "")) == norm_name:
                 return (data["path"].replace("\\", os.sep),
@@ -64,20 +74,21 @@ class ItemDataManager:
                         data["inventory_height"],
                         data["name"])
 
-        # Try fuzzy match as fallback
-        name_map = {self.normalize_name(data.get("name", "")): data 
-                   for data in self.item_data.values()}
-        close = difflib.get_close_matches(norm_name, list(name_map.keys()), n=1, cutoff=0.7)
-        
-        if close:
-            data = name_map[close[0]]
-            logging.info(f"Fuzzy matched '{item_name}' → '{data['name']}'")
-            return (data["path"].replace("\\", os.sep),
-                    data["inventory_width"],
-                    data["inventory_height"],
-                    data["name"])
-                    
+        # Only track as unmatched if we haven't seen it before
+        if item_name not in self.matching_db:
+            self.unmatched_items.add(item_name)
         return None, None, None, None
+
+    def save_unmatched_items(self) -> None:
+        """Save list of unmatched items to file"""
+        if self.unmatched_items:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            filename = os.path.join(os.path.dirname(self.MATCHING_DB_FILE), f"unmatched_items_{timestamp}.txt")
+            
+            with open(filename, "w", encoding="utf-8") as f:
+                for item in sorted(self.unmatched_items):
+                    f.write(f"{item}\n")
+            print(f"Saved {len(self.unmatched_items)} unmatched items to {filename}")
 
 class StashPreviewGenerator:
     def __init__(self, grid_width: int = 12, grid_height: int = 20, cell_size: int = 45):
@@ -154,18 +165,39 @@ def parse_stashes(packet_data, item_data):
         inventory_id = storage.get("inventoryId")
         items = storage.get("CharacterStorageItemList", [])
         stash_items = []
+        used_slots = set()  # Keep track of used slots
+        
+        # First process items with defined slots
         for item in items:
-            item_id = item.get("itemId", "")
-            slot_id = item.get("slotId")
-            if slot_id is None:
-                continue
-            name = get_item_name_from_id(item_id, item_data)
-            stash_items.append({
-                "name": name,
-                "slotId": slot_id,  # Already matches ItemInfo field name
-                "itemId": item_id,   # Already matches ItemInfo field name
-                "itemCount": item.get("itemCount", 1)  # Already matches ItemInfo field name
-            })
+            if "slotId" in item:
+                item_id = item.get("itemId", "")
+                slot_id = item["slotId"]
+                name = get_item_name_from_id(item_id, item_data)
+                stash_items.append({
+                    "name": name,
+                    "slotId": slot_id,
+                    "itemId": item_id,
+                    "itemCount": item.get("itemCount", 1)
+                })
+                used_slots.add(slot_id)
+        
+        # Then process items without slots, using first available slot
+        for item in items:
+            if "slotId" not in item:
+                item_id = item.get("itemId", "")
+                # Find first available slot
+                slot_id = 0
+                while slot_id in used_slots:
+                    slot_id += 1
+                name = get_item_name_from_id(item_id, item_data)
+                stash_items.append({
+                    "name": name,
+                    "slotId": slot_id,
+                    "itemId": item_id,
+                    "itemCount": item.get("itemCount", 1)
+                })
+                used_slots.add(slot_id)
+                
         if stash_items:
             stashes[inventory_id] = stash_items
     return stashes
@@ -202,7 +234,8 @@ def main():
             preview.save(outname)
             print(f"Preview saved as {outname}")
 
-        # save the matching database
+        # After processing all stashes, save unmatched items
+        generator.item_manager.save_unmatched_items()
         generator.item_manager.save_matching_db()
         print("Matching DB saved as matchingdb.json")
         

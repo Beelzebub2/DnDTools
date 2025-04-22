@@ -1,0 +1,3455 @@
+{
+  "result": 1,
+  "characterDataBase": {
+    "accountId": "4359281",
+    "accountNickname": "Beelzebub22",
+    "nickName": {
+      "originalNickName": "I2CDamage",
+      "streamingModeNickName": "Barbarian#11939459",
+      "fame": 2,
+      "rankIconType": 1
+    },
+    "characterClass": "DesignDataPlayerCharacter:Id_PlayerCharacter_Barbarian",
+    "characterId": "23093924",
+    "gender": 1,
+    "level": 2,
+    "CharacterItemList": [
+      {
+        "itemUniqueId": "3660252753170738",
+        "itemId": "DesignDataItem:Id_Item_LooseTrousers_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 4,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+            "propertyValue": 9
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+            "propertyValue": 2
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -2
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170736",
+        "itemId": "DesignDataItem:Id_Item_ReinforcedGloves_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 3,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+            "propertyValue": 10
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+            "propertyValue": 2
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170742",
+        "itemId": "DesignDataItem:Id_Item_Torch_1001",
+        "itemCount": 2,
+        "inventoryId": 3,
+        "slotId": 8,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+            "propertyValue": 9
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170740",
+        "itemId": "DesignDataItem:Id_Item_HeavyBoots_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 5,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+            "propertyValue": 15
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+            "propertyValue": 2
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": 4
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170746",
+        "itemId": "DesignDataItem:Id_Item_FellingAxe_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 10,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+            "propertyValue": 38
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -30
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170744",
+        "itemId": "DesignDataItem:Id_Item_FranciscaAxe_1001",
+        "itemCount": 2,
+        "inventoryId": 3,
+        "slotId": 9,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+            "propertyValue": 9
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -10
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170750",
+        "itemId": "DesignDataItem:Id_Item_Bandage_1001",
+        "itemCount": 2,
+        "inventoryId": 3,
+        "slotId": 14,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -10
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170748",
+        "itemId": "DesignDataItem:Id_Item_Hatchet_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 13,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+            "propertyValue": 27
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -20
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170754",
+        "itemId": "DesignDataItem:Id_Item_ProtectionPotion_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 16,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -10
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170752",
+        "itemId": "DesignDataItem:Id_Item_HealingPotion_1001",
+        "itemCount": 2,
+        "inventoryId": 3,
+        "slotId": 15,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -10
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170756",
+        "itemId": "DesignDataItem:Id_Item_Drum_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 17,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+            "propertyValue": 24
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -29
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170734",
+        "itemId": "DesignDataItem:Id_Item_AdventurerTunic_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 2,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+            "propertyValue": 17
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthAdd",
+            "propertyValue": 5
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -3
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      },
+      {
+        "itemUniqueId": "3660252753170732",
+        "itemId": "DesignDataItem:Id_Item_Gjermundbu_1001",
+        "itemCount": 1,
+        "inventoryId": 3,
+        "slotId": 1,
+        "primaryPropertyArray": [
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+            "propertyValue": 22
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+            "propertyValue": 12
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_HeadshotReductionMod",
+            "propertyValue": 150
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+            "propertyValue": 15
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+            "propertyValue": 2
+          },
+          {
+            "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+            "propertyValue": -6
+          }
+        ],
+        "lootState": 1,
+        "tradable": 1
+      }
+    ],
+    "CharacterStorageInfos": [
+      {
+        "inventoryId": 4,
+        "storageStatus": 1
+      },
+      {
+        "inventoryId": 20,
+        "CharacterStorageItemList": [
+          {
+            "itemUniqueId": "6193516033938930",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 34,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516033938929",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 58,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516033938928",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 47,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516033938935",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 48,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2252881997940930",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 95,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516033938934",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 29,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516033938932",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 51,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516033938937",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 59,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516033938936",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 42,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408165959047",
+            "itemId": "DesignDataItem:Id_Item_ButtonedBoots_6001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 216,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 22
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Resourcefulness",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": 6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MemoryCapacityAdd",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 22
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ActionSpeed",
+                "propertyValue": 17
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7318367514551321",
+            "itemId": "DesignDataItem:Id_Item_PhantomFlower_3001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 25,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786969652735",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 94,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3660252906610597",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 91,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2252881327572649",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 97,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844436628063835",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 8,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "844436628063837",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 2,
+            "itemContentsCount": 133,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "844436628063836",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 6,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "844436628063839",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 10,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "844436628063838",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 4,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "6193515975546478",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 104,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300253433289",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 88,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2252881916083849",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 96,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606256",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 33,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948941488529498",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 103,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606254",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 30,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942226084731",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 118,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606255",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 39,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606253",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 54,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2534353495659545",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 89,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606250",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 41,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606248",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 32,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606249",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 38,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626983606247",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 28,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300377564286",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 114,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3377716327091357",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 116,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2252882342802303",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 44,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2252882342802302",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 45,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2252882342802301",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 53,
+            "itemContentsCount": 37,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942064473464",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 86,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942064473465",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 87,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942064473463",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 85,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626636409651",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 60,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162797943343246",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 5,
+            "inventoryId": 20,
+            "slotId": 122,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8163862498930617",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 99,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796407910203",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 117,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408089909114",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 92,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881299893504246",
+            "itemId": "DesignDataItem:Id_Item_HeavyLeatherLeggings_5001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 210,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 36
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -8
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Primitive",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+                "propertyValue": 29
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844436674185073",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 173,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3377716327091368",
+            "itemId": "DesignDataItem:Id_Item_Lifeleaf_3001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796103165046",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 119,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036880413990411",
+            "itemId": "DesignDataItem:Id_Item_Longbow_4001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 194,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 39
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+                "propertyValue": 200
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -50
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamageAdd",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedBonus",
+                "propertyValue": 18
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "LeBougre",
+            "originSteamingModeNickName": "Fighter#4079665",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796407910187",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 106,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844437017620224",
+            "itemId": "DesignDataItem:Id_Item_PhantomFlower_2001",
+            "itemCount": 3,
+            "inventoryId": 20,
+            "slotId": 24,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067627332660375",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 90,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942056409643",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 120,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408089909123",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 93,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162795579587695",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 109,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332383",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 55,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3377715784782100",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 115,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "4786168976771325",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 107,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332390",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 31,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332389",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 49,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948941365659939",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 102,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332388",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 27,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332387",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 43,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3377716340204087",
+            "itemId": "DesignDataItem:Id_Item_PhantomFlower_3001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 1,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332386",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 46,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332385",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 52,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193516026332384",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 50,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3377716340204092",
+            "itemId": "DesignDataItem:Id_Item_VikingHelm_5001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 192,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 30
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+                "propertyValue": 20
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_HeadshotReductionMod",
+                "propertyValue": 150
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageReduction",
+                "propertyValue": 20
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+                "propertyValue": 20
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 8
+              }
+            ],
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050265",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 82,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050264",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 81,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050267",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 75,
+            "itemContentsCount": 47,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050266",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 83,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076608",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 224,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "3378786936050269",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 71,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8163863130742706",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 100,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050268",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 84,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "2252882342802305",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 40,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8163863452530249",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 101,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050261",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 80,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050260",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 79,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050263",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 77,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3378786936050262",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 78,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796958196680",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 105,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193515774217102",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 98,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7318367391667306",
+            "itemId": "DesignDataItem:Id_Item_SurvivalBow_5001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 207,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 27
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+                "propertyValue": 50
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -30
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 27
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_RegularInteractionSpeed",
+                "propertyValue": 39
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthAdd",
+                "propertyValue": 4
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162797474113802",
+            "itemId": "DesignDataItem:Id_Item_RustyBrokenSword",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 134,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844437139428985",
+            "itemId": "DesignDataItem:Id_Item_RustyBrokenSword",
+            "itemCount": 3,
+            "inventoryId": 20,
+            "slotId": 133,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076599",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 226,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "7318367252917924",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 108,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5066566603659645",
+            "itemId": "DesignDataItem:Id_Item_RustyBrokenSword",
+            "itemCount": 3,
+            "inventoryId": 20,
+            "slotId": 132,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076607",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 200,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "7036880900338096",
+            "itemId": "DesignDataItem:Id_Item_LargeScroll_4001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 208,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076606",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 202,
+            "itemContentsCount": 513,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "844437139428983",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 110,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162797474113799",
+            "itemId": "DesignDataItem:Id_Item_Spellbook_5001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 154,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 26
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamage",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+                "propertyValue": 50
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthBonus",
+                "propertyValue": 29
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalPower",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedBonus",
+                "propertyValue": 16
+              }
+            ],
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076605",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinBag",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 178,
+            "itemContentsCount": 1000,
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "6193515706911397",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 26,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5066567130500036",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 121,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019151",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 65,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019150",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 66,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300532668774",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 112,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193515706911389",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 35,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193515706911391",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 56,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "6193515706911390",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 57,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162797094985426",
+            "itemId": "DesignDataItem:Id_Item_VigilantCloak_5001",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 156,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_SpellCastingSpeed",
+                "propertyValue": 15
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300485763642",
+            "itemId": "DesignDataItem:Id_Item_SilverCoin",
+            "itemCount": 30,
+            "inventoryId": 20,
+            "slotId": 111,
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019157",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 70,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019156",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 67,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019159",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 68,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019158",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 69,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019153",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 62,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8163862582355499",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 74,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019152",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 64,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8163862582355498",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 73,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019155",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 63,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8163862582355497",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 72,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408030019154",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 61,
+            "itemContentsCount": 50,
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8163862582355496",
+            "itemId": "DesignDataItem:Id_Item_GoldCoinPurse",
+            "itemCount": 1,
+            "inventoryId": 20,
+            "slotId": 76,
+            "lootState": 3,
+            "tradable": 1
+          }
+        ],
+        "storageStatus": 1
+      },
+      {
+        "inventoryId": 30,
+        "CharacterStorageItemList": [
+          {
+            "itemUniqueId": "7881300532668800",
+            "itemId": "DesignDataItem:Id_Item_Lantern_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 182,
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 18
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalHealing",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ActionSpeed",
+                "propertyValue": 14
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "4503610319241329",
+            "itemId": "DesignDataItem:Id_Item_Falchion_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 57,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 39
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -25
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_BuffDurationBonus",
+                "propertyValue": 27
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthAdd",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "3377716120329637",
+            "itemId": "DesignDataItem:Id_Item_ArmingSword_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 56,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 34
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -20
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageBonus",
+                "propertyValue": 10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 19
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_SpellCastingSpeed",
+                "propertyValue": 13
+              }
+            ],
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300253433288",
+            "itemId": "DesignDataItem:Id_Item_StillmendBoots_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 6,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 21
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": 6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRatingAdd",
+                "propertyValue": 6
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 19
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300617203353",
+            "itemId": "DesignDataItem:Id_Item_OccultistBoots_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 222,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 16
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": 3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthBonus",
+                "propertyValue": 19
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageReduction",
+                "propertyValue": 12
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036880830424332",
+            "itemId": "DesignDataItem:Id_Item_RegalGambeson_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 76,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 52
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_RegularInteractionSpeed",
+                "propertyValue": 36
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+                "propertyValue": 24
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 3
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036881086477917",
+            "itemId": "DesignDataItem:Id_Item_AdventurerBoots_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 160,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 21
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": 6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 26
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageReduction",
+                "propertyValue": 12
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 1
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036881235547518",
+            "itemId": "DesignDataItem:Id_Item_Longsword_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 157,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 42
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -30
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_BuffDurationBonus",
+                "propertyValue": 31
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844436633374126",
+            "itemId": "DesignDataItem:Id_Item_AdventurerCloak_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 146,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 9
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+                "propertyValue": 2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 15
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+                "propertyValue": 1
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036881235547513",
+            "itemId": "DesignDataItem:Id_Item_PaddedLeggings_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 20,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 17
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -4
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_SpellCastingSpeed",
+                "propertyValue": 22
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalPower",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 1
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844436893483329",
+            "itemId": "DesignDataItem:Id_Item_Flute_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 28
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -13
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+                "propertyValue": 33
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844436893483328",
+            "itemId": "DesignDataItem:Id_Item_WizardStaff_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 156,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 36
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamage",
+                "propertyValue": 8
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -20
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+                "propertyValue": 150
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamageAdd",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 39
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalPower",
+                "propertyValue": 3
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162795472423363",
+            "itemId": "DesignDataItem:Id_Item_OccultistBoots_3001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 96,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 14
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": 3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Luck",
+                "propertyValue": 19
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796337724014",
+            "itemId": "DesignDataItem:Id_Item_VigilantCloak_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 36,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 11
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalPower",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageTrue",
+                "propertyValue": 1
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162795956298789",
+            "itemId": "DesignDataItem:Id_Item_MysticVestments_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 40,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 37
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 25
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageBonus",
+                "propertyValue": 22
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_RegularInteractionSpeed",
+                "propertyValue": 35
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7318367306281432",
+            "itemId": "DesignDataItem:Id_Item_OccultistHood_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 184,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 20
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_HeadshotReductionMod",
+                "propertyValue": 80
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalHealing",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageTrue",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedAdd",
+                "propertyValue": 1
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162795416792142",
+            "itemId": "DesignDataItem:Id_Item_LeatherLeggings_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 62,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 27
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -4
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+                "propertyValue": 39
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Luck",
+                "propertyValue": 48
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7318367306281433",
+            "itemId": "DesignDataItem:Id_Item_RadiantCloak_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 114,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 11
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+                "propertyValue": 2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalInteractionSpeed",
+                "propertyValue": 27
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 1
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300559219016",
+            "itemId": "DesignDataItem:Id_Item_Falchion_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 121,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 41
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -25
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthBonus",
+                "propertyValue": 12
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MemoryCapacityAdd",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+                "propertyValue": 24
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036881395201692",
+            "itemId": "DesignDataItem:Id_Item_Longsword_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 98,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 42
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -30
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 23
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthAdd",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796019668309",
+            "itemId": "DesignDataItem:Id_Item_LightAketon_6001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 82,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 43
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MaxHealthAdd",
+                "propertyValue": 8
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 15
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalHealing",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_BuffDurationBonus",
+                "propertyValue": 40
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+                "propertyValue": 31
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MemoryCapacityBonus",
+                "propertyValue": 59
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "844436987398111",
+            "itemId": "DesignDataItem:Id_Item_Frock_6001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 22,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 39
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 25
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageReduction",
+                "propertyValue": 29
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageReduction",
+                "propertyValue": 28
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ActionSpeed",
+                "propertyValue": 21
+              }
+            ],
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "5067626628148377",
+            "itemId": "DesignDataItem:Id_Item_Ale_6001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 11,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3
+          },
+          {
+            "itemUniqueId": "8162796103165055",
+            "itemId": "DesignDataItem:Id_Item_MysticVestments_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 78,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 38
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 25
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedAdd",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+                "propertyValue": 35
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076659",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 2,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076658",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 3,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076657",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 4,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076656",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 30,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076663",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 14,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076662",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 17,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076661",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 29,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076660",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 16,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796103165071",
+            "itemId": "DesignDataItem:Id_Item_MysticGloves_3001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 72,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 9
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalHealing",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalPower",
+                "propertyValue": 2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Luck",
+                "propertyValue": 20
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036881022301219",
+            "itemId": "DesignDataItem:Id_Item_ArcaneHood_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 92,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 19
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_HeadshotReductionMod",
+                "propertyValue": 80
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageBonus",
+                "propertyValue": 17
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 21
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036881022301218",
+            "itemId": "DesignDataItem:Id_Item_LowBoots_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 116,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 16
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": 5
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MemoryCapacityAdd",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 21
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedAdd",
+                "propertyValue": 1
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076655",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 25,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076654",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 15,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076653",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 28,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300332264464",
+            "itemId": "DesignDataItem:Id_Item_WizardStaff_3001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 99,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 33
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamage",
+                "propertyValue": 6
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -20
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+                "propertyValue": 150
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ActionSpeed",
+                "propertyValue": 20
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300332264465",
+            "itemId": "DesignDataItem:Id_Item_Pickaxe_3001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 140,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 29
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_RegularInteractionSpeed",
+                "propertyValue": 50
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -45
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300332264467",
+            "itemId": "DesignDataItem:Id_Item_RadiantCloak_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 206,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 12
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+                "propertyValue": 3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_SpellCastingSpeed",
+                "propertyValue": 18
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ProjectileReductionMod",
+                "propertyValue": 19
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicPenetration",
+                "propertyValue": 25
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "1971408202312140",
+            "itemId": "DesignDataItem:Id_Item_Lantern_3001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 58,
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 18
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300332264451",
+            "itemId": "DesignDataItem:Id_Item_LanternShield_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 204,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 27
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 24
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalHealing",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_BuffDurationBonus",
+                "propertyValue": 24
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7036881192510560",
+            "itemId": "DesignDataItem:Id_Item_RegalGambeson_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 42,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 51
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 5
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Primitive",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageReduction",
+                "propertyValue": 22
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300764019406",
+            "itemId": "DesignDataItem:Id_Item_RecurveBow_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 120,
+            "itemAmmoCount": 8,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 35
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorPenetration",
+                "propertyValue": 100
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -40
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedAdd",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300332264461",
+            "itemId": "DesignDataItem:Id_Item_OccultistRobe_3001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 214,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 34
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 50
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalPower",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300377564291",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 5,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "8162796337330641",
+            "itemId": "DesignDataItem:Id_Item_SplendidCloak_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 26,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_BuffDurationBonus",
+                "propertyValue": 28
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ActionSpeed",
+                "propertyValue": 14
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300418372379",
+            "itemId": "DesignDataItem:Id_Item_SleekHidePants_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 176,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 26
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Strength",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Resourcefulness",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300610057965",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 8,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300377564301",
+            "itemId": "DesignDataItem:Id_Item_LeatherGloves_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 154,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 12
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 15
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeedAdd",
+                "propertyValue": 3
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300418372381",
+            "itemId": "DesignDataItem:Id_Item_RadiantCloak_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 208,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Knowledge",
+                "propertyValue": 2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalDamageReduction",
+                "propertyValue": 10
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 8
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "12948942084076604",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 13,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300390118610",
+            "itemId": "DesignDataItem:Id_Item_MercurialCloak_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 178,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 8
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Dexterity",
+                "propertyValue": 2
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_CooldownReductionBonus",
+                "propertyValue": 12
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalDamageBonus",
+                "propertyValue": 10
+              }
+            ],
+            "lootState": 3,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300610057974",
+            "itemId": "DesignDataItem:Id_Item_Lockpick",
+            "itemCount": 3,
+            "inventoryId": 30,
+            "slotId": 1,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -10
+              }
+            ],
+            "lootState": 2,
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300610057970",
+            "itemId": "DesignDataItem:Id_Item_BloodwovenRobe_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 212,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 44
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Resourcefulness",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 36
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+                "propertyValue": 3
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300667355489",
+            "itemId": "DesignDataItem:Id_Item_SleekHidePants_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 150,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 25
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 4
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -3
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Agility",
+                "propertyValue": 2
+              }
+            ],
+            "lootState": 3,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300610057983",
+            "itemId": "DesignDataItem:Id_Item_Pickaxe_4001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 118,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 31
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_RegularInteractionSpeed",
+                "propertyValue": 100
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -45
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300667355485",
+            "itemId": "DesignDataItem:Id_Item_FellingAxe_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 112,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalWeaponDamage",
+                "propertyValue": 45
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -30
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_PhysicalPower",
+                "propertyValue": 1
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 38
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicalInteractionSpeed",
+                "propertyValue": 39
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          },
+          {
+            "itemUniqueId": "7881300532668776",
+            "itemId": "DesignDataItem:Id_Item_OccultistRobe_5001",
+            "itemCount": 1,
+            "inventoryId": 30,
+            "slotId": 186,
+            "primaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_ArmorRating",
+                "propertyValue": 38
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MagicRegistance",
+                "propertyValue": 50
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Vigor",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Will",
+                "propertyValue": 3
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_MoveSpeed",
+                "propertyValue": -6
+              }
+            ],
+            "secondaryPropertyArray": [
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Resourcefulness",
+                "propertyValue": 2
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_DebuffDurationBonus",
+                "propertyValue": 31
+              },
+              {
+                "propertyTypeId": "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_CooldownReductionBonus",
+                "propertyValue": 26
+              }
+            ],
+            "lootState": 2,
+            "originType": 1,
+            "originNickName": "BluetoothDamage",
+            "originSteamingModeNickName": "Warlock#11335909",
+            "tradable": 1
+          }
+        ],
+        "storageStatus": 1
+      }
+    ]
+  }
+}
