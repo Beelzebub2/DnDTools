@@ -38,3 +38,11 @@ ENV/
 .vscode/
 *.swp
 *.swo
+
+# Node.js
+nodejs/node_modules/
+nodejs/output/
+nodejs/npm-debug.log*
+nodejs/yarn-debug.log*
+nodejs/yarn-error.log*
+nodejs/.env
