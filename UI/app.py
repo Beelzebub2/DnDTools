@@ -2,6 +2,8 @@ import webview
 from flask import Flask, render_template, jsonify, request
 import os
 from src.models.stash_manager import StashManager
+from src.models.stash_preview import ItemDataManager
+
 from dotenv import load_dotenv
 import sys
 sys.path.append(os.path.dirname(__file__))
@@ -52,6 +54,7 @@ class Api:
         return self.capture_settings
 
     def search_items(self, query):
+        # {'name': 'Arcane Hood', 'rarity': '3', 'properties': ['s_Agility', 's_ArmorPenetration', 's_Dexterity']}
         return self.stash_manager.search_items(query)
 
     def set_capture_settings(self, interface, port_low, port_high):
@@ -133,7 +136,17 @@ def character(character_id):
 
 @server.route('/search')
 def search():
-    return render_template('search.html')
+    names = set()
+    # path error
+    # item_data = ItemDataManager().item_data
+    item_data = ItemDataManager.load_json("assets/item-data.json")
+    for name, data in item_data.items():
+        name = name.removesuffix(".png").replace("_", " ").replace("2", "")
+        names.add(name)
+
+    sorted_names = sorted(names)
+
+    return render_template('search.html', names=sorted_names)
 
 def main():
     api = Api()

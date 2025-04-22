@@ -4,13 +4,57 @@
 
 {% block content %}
 <div class="search-container">
+    <h2>Name</h2>
+
+    <select id="name-selection" class="name-dropdown">
+        <option value="">All Names</option>
+        {% for name in names %}
+            <option value="{{ name }}">{{ name }}</option>
+        {% endfor %}
+    </select>    
+
+    <h2>Rarity</h2>
+    <select id="rarity-selection" class="rarity-dropdown">
+        <option value="">All Rarities</option>
+        <option value="0">None</option>
+        <option value="0">Poor</option>
+        <option value="0">Common</option>
+        <option value="1">Uncommon</option>
+        <option value="2">Rare</option>
+        <option value="3">Epic</option>
+        <option value="4">Legend</option>
+        <option value="1">Unique</option>
+        <option value="5">Artifact</option>
+    </select>
+
+    <h2>Enchantments</h2>
+    <div id="sp-container">No rarity selected.</div>
+    <br><br>
+
     <input type="text" class="search-input" placeholder="Search for items across all characters..." id="searchInput">
+
     <div class="search-results" id="searchResults"></div>
 </div>
 {% endblock %}
 
+
 {% block scripts %}
 <script>
+    // temporary
+    const sp = [
+        's_ActionSpeed', 's_Agility', 's_ArmorPenetration', 's_ArmorRatingAdd',
+        's_BuffDurationBonus', 's_DebuffDurationBonus', 's_Dexterity', 's_Knowledge',
+        's_Luck', 's_MagicPenetration', 's_MagicRegistance', 's_MagicalDamageAdd',
+        's_MagicalDamageBonus', 's_MagicalDamageReduction', 's_MagicalDamageTrue',
+        's_MagicalHealing', 's_MagicalPower', 's_MaxHealthAdd', 's_MaxHealthBonus',
+        's_MemoryCapacityAdd', 's_MemoryCapacityBonus', 's_MoveSpeedAdd',
+        's_MoveSpeedBonus', 's_PhysicalDamageAdd', 's_PhysicalDamageBonus',
+        's_PhysicalDamageReduction', 's_PhysicalDamageTrue', 's_PhysicalHealing',
+        's_PhysicalPower', 's_PhysicalWeaponDamageAdd', 's_Primitive',
+        's_ProjectileReductionMod', 's_Resourcefulness', 's_SpellCastingSpeed',
+        's_Strength', 's_Vigor', 's_Will'
+    ];
+
     let searchTimeout;
 
     const debounce = (func, wait) => {
@@ -50,22 +94,58 @@
         const searchInput = document.getElementById('searchInput');
         const searchResults = document.getElementById('searchResults');
 
-        const performSearch = debounce(async (query) => {
-            if (!query || query.length < 2) {
-                searchResults.innerHTML = '';
-                return;
+        const raritySelection = document.getElementById('rarity-selection');
+        const spContainer = document.getElementById('sp-container');
+
+        raritySelection.addEventListener('change', function() {
+            updateEnchantments();
+        });
+
+        function updateEnchantments() {
+            let rarity = raritySelection.value || [];
+            spContainer.innerHTML = '';
+        
+            for (let i = 0; i < rarity; i++) {
+                let rarityElement = document.createElement('div');
+                let spOptions = sp.map(a => `<option value="${a}">${a}</option>`).join('');
+                rarityElement.innerHTML = `
+                    <select id="enchantment-selection-${i}" name="enchantment-selection-${i}">
+                        ${spOptions}
+                    </select>
+                `;
+        
+                spContainer.appendChild(rarityElement);
             }
+        }
+
+        const performSearch = async () => {
+            const name = document.getElementById('name-selection').value;
+            const rarity = document.getElementById('rarity-selection').value;
+
+            const enchantments = [];
+            const selects = spContainer.querySelectorAll('select');
+            selects.forEach(select => {
+                if (select.value) enchantments.push(select.value);
+            });
 
             searchResults.innerHTML = '<div class="loading">Searching...</div>';
+
             try {
-                const results = await pywebview.api.search_items(query);
+                const results = await pywebview.api.search_items({
+                    name: name,
+                    rarity: rarity,
+                    properties: enchantments
+                });
                 displayResults(results);
             } catch (error) {
                 searchResults.innerHTML = '<div class="loading">Error searching items. Please try again.</div>';
             }
-        }, 300);
+        };
 
         searchInput.addEventListener('input', (e) => performSearch(e.target.value));
+        document.getElementById('name-selection').addEventListener('change', performSearch);
+        document.getElementById('rarity-selection').addEventListener('change', performSearch);
+        spContainer.addEventListener('change', performSearch);
     });
 </script>
 {% endblock %}
