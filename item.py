@@ -1,4 +1,5 @@
 from stash_preview import ItemDataManager
+from point import Point
 
 class Item:
     def __init__(self, name, rarity, position, width, height):
@@ -37,7 +38,7 @@ class Item:
         }
 
     @staticmethod
-    def from_dict(data):
+    def from_dict(data, stash):
         # "itemId": "DesignDataItem:Id_Item_BloodsapBlade_5001",
         # "slotId": 211,
         item_id = data["itemId"]
@@ -54,8 +55,12 @@ class Item:
             # some items have no rarity apparently
             rarity_id = 0
 
-        position = data.get("slotId", -1)
-        # Retrieve dimensions using ItemDataManager (was this the intention?)
+        slot_id = data.get("slotId")
+        x = slot_id % stash.width
+        y = slot_id // stash.width
+
+        position = Point(x, y)
+
         manager = ItemDataManager()
         _, width, height, _ = manager.get_item_image_path(name) or (None, 1, 1, None)
 

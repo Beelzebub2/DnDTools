@@ -11,10 +11,10 @@ class Stash:
         if self.stash_type >= 4 and self.stash_type <= 30:
             self.width = 12
             self.height = 20
-            self.base_screen_pos = Point(1394, 218)
+            self.base_screen_pos = macros.stash_screen_pos
         else:
             # TODO implment for inv
-            self.base_screen_pos = Point(705, 644)
+            self.base_screen_pos = macros.inv_screen_pos
             self.width = 10
             self.height = 5
 
@@ -39,52 +39,62 @@ class Stash:
         # }
         
         self.size = self.height * self.width
-        self.grid = [0 for _ in range(self.size)]
+        self.grid = [[0 for _ in range(self.height)] for _ in range(self.width)]
         self.pq = []
         self.load()
 
-    def move(self, item, end_pos):
+    def move(self, item, end_pos, end_stash):
         print(f"Moving: {item} to {end_pos}")
 
-        # clear old space 
-        for dx in range(item.width):
-             for dy in range(item.height):
-                self.grid[item.position + (dy * self.width) + dx] = 0
-
-        # update new space
+        # Clear old location
         for dx in range(item.width):
             for dy in range(item.height):
-                self.grid[end_pos + (dy * self.width) + dx] = item
+                self.grid[item.position.x + dx][item.position.y + dy] = 0
+
+        # Place item in new location
+        for dx in range(item.width):
+            for dy in range(item.height):
+                self.grid[end_pos.x + dx][end_pos.y + dy] = item
         
-        macros.move_from_to(item.position, end_pos, self)
+        macros.move_from_to(self, item.position, end_stash, end_pos)
         item.position = end_pos
     
     # TODO make it find a slot in the player inventory
     def find_empty_slot(self, item):
-        for y in reversed(range(self.height - item.height + 1)):
-            for x in reversed(range(self.width - item.width + 1)):
+        for y in range(self.height - item.height, -1, -1):
+            for x in range(self.width - item.width, -1, -1):
                 go_next = False
                 for dx in range(item.width):
                     for dy in range(item.height):
-                        index = (y + dy) * self.width + (x + dx)
-                        if self.grid[index] != 0:
+                        if self.grid[x + dx][y + dy] != 0:
                             go_next = True
                             break
                     if go_next:
                         break
                 if not go_next:
-                    return y * self.width + x
-        return None
+                    return Point(x, y)
 
     def load(self):
         for obj in self.data:
-            item = Item.from_dict(obj)
-            self.grid[item.position] = item
+            item = Item.from_dict(obj, self)
             for dx in range(item.width):
                 for dy in range(item.height):
-                    self.grid[item.position + (dy * self.width) + dx] = item
+                    self.grid[item.position.x + dx][item.position.y + dy] = item
 
             heapq.heappush(self.pq, item)
 
     def __repr__(self):
-        return str(self.grid)
+        grid = [["." for _ in range(self.width)] for _ in range(self.height)]
+
+        for x in range(self.width):
+            for y in range(self.height):
+                item = self.grid[x][y]
+                if item != 0:
+                    # Just display the first letter of the item name or a hash of it
+                    grid[y][x] = item.name[0].upper() if item.name else "#"
+
+        # Create a string representation row by row
+        lines = []
+        for row in grid:
+            lines.append(" ".join(row))
+        return "\n".join(lines)
