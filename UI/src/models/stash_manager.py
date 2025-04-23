@@ -131,12 +131,19 @@ class StashManager:
         """Search for items across all character stashes (empty for summary files)"""
 
         # query {'name': 'Arcane Hood', 'rarity': '3', 'properties': ['s_Agility', 's_ArmorPenetration', 's_Dexterity']}
-        for character in self.get_characters():
-            stashes = self.get_character_stashes(character["id"])
-            for storage in stashes:
-                print(storage)
+        output = []
+        for char in self.get_characters():
+            for stash in char['stashes'].values():
+                for item in stash:
+                    result = {
+                        'nickname': char['nickname'], 
+                        'class': char['class'], 
+                        'level': char['level'],
+                        'item': item
+                    }
+                    output.append(result)
 
-        return []
+        return output
 
     def get_character_stash_previews(self, character_id):
         """Get preview images for all stashes of a character"""
