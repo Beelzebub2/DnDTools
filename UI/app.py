@@ -119,6 +119,22 @@ class Api:
             "initialRestartDone": self._initial_restart_done
         }
 
+    def sort_stash(self, character_id, stash_id):
+        """Sort a specific stash for a character"""
+        try:
+            result = self.stash_manager.sort_stash(character_id, stash_id)
+            if isinstance(result, tuple):
+                success, error_msg = result
+                return {"success": success, "error": error_msg}
+            if not result:
+                return {"success": False, "error": "Failed to sort stash - not enough space available"}
+            return {"success": True}
+        except Exception as e:
+            print(f"Error in sort_stash: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {"success": False, "error": str(e)}
+
 # Initialize API
 api = Api()
 
@@ -179,6 +195,11 @@ def api_capture_state():
 def api_network_interfaces():
     interfaces = list(psutil.net_if_addrs().keys())
     return jsonify({"interfaces": interfaces})
+
+@server.route('/api/character/<character_id>/stash/<stash_id>/sort', methods=['POST'])
+def api_sort_stash(character_id, stash_id):
+    result = api.sort_stash(character_id, stash_id)
+    return jsonify(result)
 
 @server.route('/')
 def index():

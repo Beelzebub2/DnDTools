@@ -2,18 +2,152 @@
 
 {% block header %}
 <style>
+    .stash-container {
+        margin-top: 20px;
+    }
+
     .stash-preview {
         display: flex;
-        justify-content: center;
+        flex-direction: column;
         align-items: center;
         margin-top: 20px;
+        background: rgba(0, 0, 0, 0.1);
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .stash-controls {
+        width: 100%;
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 15px;
+        gap: 10px;
     }
 
     .stash-preview-image {
         max-width: 100%;
         height: auto;
-        border: 1px solid #ccc;
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 4px;
+    }
+
+    .stash-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .stash-tab {
+        background: var(--bg-secondary);
+        padding: 8px 16px;
+        border-radius: 4px;
+        border: 1px solid var(--border-color);
+        color: var(--text-primary);
+        cursor: pointer;
+        will-change: transform, background-color, border-color;
+        transform: translateZ(0);
+    }
+
+    .stash-tab.active {
+        background: var(--hover-color);
+        border-color: var(--accent-gold);
+        color: var(--accent-gold);
+    }
+
+    .stash-tab:hover {
+        background: var(--hover-color);
+    }
+
+    .stash-action-button {
+        background: var(--bg-secondary);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 4px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 0.9em;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        will-change: transform, background-color, border-color;
+        transform: translateZ(0);
+    }
+
+    .stash-action-button:hover {
+        background: var(--hover-color);
+        border-color: var(--accent-gold);
+        color: var(--accent-gold);
+    }
+
+    .stash-action-button:active {
+        transform: translateY(1px);
+    }
+
+    .stash-action-button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .stash-action-button.sorting {
+        position: relative;
+        padding-left: 28px;
+    }
+
+    .stash-action-button.sorting:before {
+        content: '';
+        position: absolute;
+        left: 8px;
+        width: 12px;
+        height: 12px;
+        border: 2px solid var(--accent-gold);
+        border-top-color: transparent;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        will-change: transform;
+    }
+
+    .notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 4px 10px;
+        border-radius: 3px;
+        color: white;
+        font-size: 12px;
+        line-height: 1.2;
+        z-index: 1000;
+        opacity: 1;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+        max-width: 250px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        display: flex;
+        align-items: center;
+        height: 34px;
+        will-change: transform, opacity;
+        transform: translateZ(0);
+    }
+
+    .notification.error {
+        background: rgba(211, 47, 47, 0.9);
+        border-left: 2px solid #ff1744;
+    }
+
+    .notification.fade-out {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+
+    .hidden {
+        opacity: 0;
+        pointer-events: none;
     }
 </style>
 <span id="characterHeader">Character Details</span>
@@ -30,6 +164,15 @@
         <!-- stash parts hidden until loaded -->
         <div id="stashSelector" class="stash-tabs hidden"></div>
         <div id="stashPreview" class="stash-preview hidden">
+            <div class="stash-controls">
+                <button class="stash-action-button sort-button">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Sort Stash
+                </button>
+                <!-- Space for future options -->
+            </div>
             <img id="currentStashPreview" class="stash-preview-image" src="" alt="Stash Preview">
         </div>
     </div>
@@ -81,32 +224,71 @@
     const createStashTabs = (stashes) => {
         const selector = document.getElementById('stashSelector');
         const preview = document.getElementById('currentStashPreview');
+        const sortButton = document.querySelector('.sort-button');
         selector.innerHTML = '';
 
         // Ensure stashes is an object
         const stashesObj = stashes || {};
         const stashKeys = Object.keys(stashesObj);
         let firstStashUrl = null;
+        let currentStashId = null;
 
         stashKeys.forEach((stashId, index) => {
             const tab = document.createElement('div');
             tab.className = 'stash-tab';
             if (index === 0) {
                 tab.classList.add('active');
-                // Store the first URL but don't set it yet
                 firstStashUrl = stashes[stashId];
+                currentStashId = stashId;
             }
+
             tab.textContent = `Stash ${index + 1}`;
             tab.dataset.stashId = stashId;
-            tab.onclick = () => {
+            tab.onclick = (e) => {
                 document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                preview.src = stashes[stashId]; // Set src on click
+                preview.src = stashes[stashId];
+                currentStashId = stashId;
             };
             selector.appendChild(tab);
         });
 
-        // Return the URL of the first stash to be loaded initially
+        // Set up sort button click handler
+        sortButton.onclick = async () => {
+            if (!currentStashId) return;
+
+            sortButton.disabled = true;
+            sortButton.classList.add('sorting');
+            const originalText = sortButton.innerHTML;
+            sortButton.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Sorting...
+            `;
+
+            try {
+                const response = await fetch(`/api/character/${charId}/stash/${currentStashId}/sort`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    await loadStashes();
+                } else {
+                    const errorMessage = result.error || 'Failed to sort stash. The stash might be full.';
+                    showNotification(errorMessage, 'error');
+                }
+            } catch (error) {
+                console.error('Error sorting stash:', error);
+                showNotification('Network error while sorting stash', 'error');
+            } finally {
+                sortButton.disabled = false;
+                sortButton.classList.remove('sorting');
+                sortButton.innerHTML = originalText;
+            }
+        };
+
         return firstStashUrl;
     };
 
@@ -148,6 +330,20 @@
             spinner.classList.add('hidden');
         }
     };
+
+    // Add notification system
+    function showNotification(message, type = 'error') {
+        const notification = document.createElement('div');
+        notification.className = `notification ${type}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
 
     // Initialize page when DOM is loaded
     window.addEventListener('DOMContentLoaded', async () => {

@@ -36,7 +36,7 @@ class StashSorter:
 
             if self.cur_y + item.height > self.stash.height:
                 print("Out of space")
-                return
+                return False
 
             for x in range(item.width):
                 for y in range(item.height):
@@ -58,10 +58,12 @@ class StashSorter:
                         else:
                             print("Cannot find valid temp location")
                             print("Out of space")
-                            exit()
+                            return False
 
             item.stash.move(item, Point(self.cur_x, self.cur_y), self.stash)
             self.cur_x += item.width
+
+        return True
 
 def main():
     def force_exit():

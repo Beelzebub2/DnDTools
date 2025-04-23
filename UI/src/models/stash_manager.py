@@ -48,7 +48,9 @@ class StashManager:
                         continue
 
                     # Process stashes using existing parse_stashes function
-                    stashes = parse_stashes(packet_data, self.item_data)
+                    raw_stashes = parse_stashes(packet_data, self.item_data)
+                    # Convert stash keys to strings for consistent lookup
+                    stashes = {str(k): v for k, v in raw_stashes.items()}
                         
                     # Convert raw class name
                     raw_class = char_data.get("characterClass", "")
@@ -70,7 +72,6 @@ class StashManager:
                         }
                     }
                     print(f"Added character to cache: {char_id}")
-
             except Exception as e:
                 print(f"Error loading packet data file {file_path}: {str(e)}")
                 import traceback
@@ -157,15 +158,82 @@ class StashManager:
         preview_paths = {}
         
         for stash_id, items in stashes.items():
-            # Convert items to ItemInfo objects
-            item_infos = [ItemInfo(**item) for item in items]
-            # Generate preview
-            preview = self.preview_generator.generate_preview(stash_id, item_infos)
-            # Save preview
-            outname = f"stash_preview_{character_id}_{stash_id}.png"
-            outpath = os.path.join(self.output_dir, outname)
-            preview.save(outpath)
-            # Store relative path for the frontend
-            preview_paths[stash_id] = f"/output/{outname}"
+            try:
+                # Convert items to ItemInfo objects
+                item_infos = [ItemInfo(**item) for item in items]
+                # Generate preview
+                preview = self.preview_generator.generate_preview(stash_id, item_infos)
+                # Save preview
+                outname = f"stash_preview_{character_id}_{stash_id}.png"
+                outpath = os.path.join(self.output_dir, outname)
+                preview.save(outpath)
+                # Store relative path for the frontend
+                preview_paths[stash_id] = f"/output/{outname}"
+            except Exception as e:
+                print(f"Error generating preview for stash {stash_id}: {str(e)}")
+                preview_paths[stash_id] = "/static/img/error.png"  # Fallback image
         
         return preview_paths
+
+    def sort_stash(self, character_id, stash_id):
+        """Sort items in a specific stash for a character"""
+        print(f"sort_stash called with character_id={character_id}, stash_id={stash_id}")
+        char = self.characters_cache.get(character_id)
+        print(f"Available characters in cache: {list(self.characters_cache.keys())}")
+        if not char:
+            return False, "Character not found"
+
+        stashes = char.get('stashes', {})
+        print(f"Character's stashes keys: {list(stashes.keys())}")
+        stash_items = stashes.get(str(stash_id), [])
+        print(f"Retrieved stash_items length: {len(stash_items)} for key {stash_id}")
+        if not stash_items:
+            return False, "Stash not found or empty"
+            
+        try:
+            # Create storage objects for sorting
+            from .sort import Storage, StashSorter, StashType
+            
+            # Map inventory ID to StashType
+            stash_type = None
+            stash_id_int = int(stash_id)
+            
+            if stash_id_int == 2:
+                stash_type = StashType.BAG.value
+            elif stash_id_int == 3:
+                stash_type = StashType.EQUIPMENT.value
+            elif stash_id_int == 4:
+                stash_type = StashType.STORAGE.value
+            elif stash_id_int >= 5 and stash_id_int <= 9:
+                stash_type = StashType.PURCHASED_STORAGE_0.value + (stash_id_int - 5)
+            elif stash_id_int == 20:
+                stash_type = StashType.SHARED_STASH_0.value
+            elif stash_id_int == 30:
+                stash_type = StashType.SHARED_STASH_SEASONAL_0.value
+            else:
+                return False, f"Invalid stash ID: {stash_id}"
+            
+            # Create a storage object for the stash to be sorted
+            stash = Storage(stash_type, stash_items)
+            # Create a temporary inventory storage for overflow items
+            inv = Storage(StashType.BAG.value, [])
+            
+            # Create and run sorter
+            sorter = StashSorter(stash, inv)
+            success = sorter.sort()
+            
+            if not success:
+                return False, "Not enough space to sort items"
+
+            if len(inv.get_items()) > 0:
+                return False, "Some items could not be placed back in the stash"
+                
+            # Update the stash in our cache with the sorted items
+            stashes[str(stash_id)] = stash.get_items()
+            char['stashes'] = stashes
+            return True, None
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return False, f"Error while sorting: {str(e)}"
