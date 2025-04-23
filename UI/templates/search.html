@@ -4,14 +4,32 @@
 
 {% block content %}
 <div class="search-container">
-    <h2>Name</h2>
+    <div class="settings-form">
+        <div class="form-group">
+            <label for="name-selection">Name</label>
+            <select id="name-selection" class="name-dropdown">
+                <option value="">All Names</option>
+                {% for name in names %}
+                <option value="{{ name }}">{{ name }}</option>
+                {% endfor %}
+            </select>
+        </div>
 
-    <select id="name-selection" class="name-dropdown">
-        <option value="">All Names</option>
-        {% for name in names %}
-            <option value="{{ name }}">{{ name }}</option>
-        {% endfor %}
-    </select>    
+        <div class="form-group">
+            <label for="rarity-selection">Rarity</label>
+            <select id="rarity-selection" class="rarity-dropdown">
+                <option value="">All Rarities</option>
+                <option value="0">None</option>
+                <option value="0">Poor</option>
+                <option value="0">Common</option>
+                <option value="1">Uncommon</option>
+                <option value="2">Rare</option>
+                <option value="3">Epic</option>
+                <option value="4">Legend</option>
+                <option value="1">Unique</option>
+                <option value="5">Artifact</option>
+            </select>
+        </div>
 
     <!-- <h2>Rarity</h2>
     <select id="rarity-selection" class="rarity-dropdown">
@@ -33,10 +51,21 @@
 
     <input type="text" class="search-input" placeholder="Search for items across all characters..." id="searchInput"> -->
 
+        <div class="form-group">
+            <label for="sp-container">Enchantments</label>
+            <div id="sp-container">No rarity selected.</div>
+        </div>
+
+        <div class="form-group">
+            <label for="searchInput">Search</label>
+            <input type="text" class="settings-input" placeholder="Search for items across all characters..."
+                id="searchInput">
+        </div>
+    </div>
+
     <div class="search-results" id="searchResults"></div>
 </div>
 {% endblock %}
-
 
 {% block scripts %}
 <script>
@@ -119,6 +148,27 @@
         //         spContainer.appendChild(rarityElement);
         //     }
         // }
+
+        raritySelection.addEventListener('change', function () {
+            updateEnchantments();
+        });
+
+        function updateEnchantments() {
+            let rarity = raritySelection.value || [];
+            spContainer.innerHTML = '';
+
+            for (let i = 0; i < rarity; i++) {
+                let rarityElement = document.createElement('div');
+                let spOptions = sp.map(a => `<option value="${a}">${a}</option>`).join('');
+                rarityElement.innerHTML = `
+                    <select id="enchantment-selection-${i}" name="enchantment-selection-${i}">
+                        ${spOptions}
+                    </select>
+                `;
+
+                spContainer.appendChild(rarityElement);
+            }
+        }
 
         const performSearch = async () => {
             const name = document.getElementById('name-selection').value;

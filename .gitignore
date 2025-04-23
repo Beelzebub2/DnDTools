@@ -4,6 +4,7 @@ packet_data.json
 output/
 test-data/
 data/
+UI/capture_state.json
 
 # Python
 __pycache__/
