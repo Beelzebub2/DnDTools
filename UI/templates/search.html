@@ -96,8 +96,8 @@
         const searchInput = document.getElementById('searchInput');
         const searchResults = document.getElementById('searchResults');
 
-        const raritySelection = document.getElementById('rarity-selection');
-        const spContainer = document.getElementById('sp-container');
+        // const raritySelection = document.getElementById('rarity-selection');
+        // const spContainer = document.getElementById('sp-container');
 
         // raritySelection.addEventListener('change', function() {
         //     updateEnchantments();
@@ -122,21 +122,21 @@
 
         const performSearch = async () => {
             const name = document.getElementById('name-selection').value;
-            const rarity = document.getElementById('rarity-selection').value;
+            // const rarity = document.getElementById('rarity-selection').value;
 
-            const enchantments = [];
-            const selects = spContainer.querySelectorAll('select');
-            selects.forEach(select => {
-                if (select.value) enchantments.push(select.value);
-            });
+            // const enchantments = [];
+            // const selects = spContainer.querySelectorAll('select');
+            // selects.forEach(select => {
+            //     if (select.value) enchantments.push(select.value);
+            // });
 
             searchResults.innerHTML = '<div class="loading">Searching...</div>';
 
             try {
                 const results = await pywebview.api.search_items({
                     name: name,
-                    rarity: rarity,
-                    properties: enchantments
+                    // rarity: rarity,
+                    // properties: enchantments
                 });
                 displayResults(results);
             } catch (error) {
@@ -144,10 +144,10 @@
             }
         };
 
-        searchInput.addEventListener('input', (e) => performSearch(e.target.value));
+        // searchInput.addEventListener('input', (e) => performSearch(e.target.value));
         document.getElementById('name-selection').addEventListener('change', performSearch);
-        document.getElementById('rarity-selection').addEventListener('change', performSearch);
-        spContainer.addEventListener('change', performSearch);
+        // document.getElementById('rarity-selection').addEventListener('change', performSearch);
+        // spContainer.addEventListener('change', performSearch);
     });
 </script>
 {% endblock %}
