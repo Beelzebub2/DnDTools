@@ -51,6 +51,12 @@ class Storage:
         self.grid = [[0 for _ in range(self.height)] for _ in range(self.width)]
         self.pq = []
         self.load()
+    
+    def get_items(self):
+        # TODO
+        # need to identify unique items in grid then covert position to slotID and other necessary fields
+        # or we just recapture the stash packet
+        return []
 
     def move(self, item, end_pos, end_stash):
         print(f"Moving: {item} to {end_pos}")
