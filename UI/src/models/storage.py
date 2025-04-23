@@ -73,23 +73,24 @@ class Storage:
         
         # Update stash
         item.stash = end_stash
-        
         macros.move_from_to(self, item.position, end_stash, end_pos)
         item.position = end_pos
-    
+        
     def find_empty_slot(self, item):
-        for y in range(self.height - item.height, -1, -1):
-            for x in range(self.width - item.width, -1, -1):
-                go_next = False
+        for y in range(self.height - item.height, -1, -1):  # bottom to top
+            for x in range(self.width - item.width, -1, -1):  # right to left
+                fits = True
                 for dx in range(item.width):
                     for dy in range(item.height):
                         if self.grid[x + dx][y + dy] != 0:
-                            go_next = True
+                            fits = False
                             break
-                    if go_next:
+                    if not fits:
                         break
-                if not go_next:
+                if fits:
                     return Point(x, y)
+        return None  # no valid position found
+
 
     def load(self):
         for obj in self.data:
