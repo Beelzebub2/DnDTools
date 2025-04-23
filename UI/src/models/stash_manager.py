@@ -135,13 +135,18 @@ class StashManager:
         for char in self.get_characters():
             for stash in char['stashes'].values():
                 for item in stash:
-                    result = {
-                        'nickname': char['nickname'], 
-                        'class': char['class'], 
-                        'level': char['level'],
-                        'item': item
-                    }
-                    output.append(result)
+                    name = query.get("name")
+                    # TODO implement rarity and properties
+                    rarity = query.get("rarity")
+                    if name:
+                        if item["name"] == name.replace(" ", ""):
+                            result = {
+                                'nickname': char['nickname'], 
+                                'class': char['class'], 
+                                'level': char['level'],
+                                'item': item
+                            }
+                            output.append(result)
 
         return output
 
