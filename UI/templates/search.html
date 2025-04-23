@@ -86,7 +86,10 @@
             </div>
         `;
 
-            item.onclick = () => window.location.href = `/character/${result.characterId}`;
+            item.onclick = () => window.location.href = `/character/${result.id}`;
+            // TODO implement rarity and properties and make result include stash
+            // /api/character/<character_id>/stashes/<stash> ?
+
             container.appendChild(item);
         });
     };
