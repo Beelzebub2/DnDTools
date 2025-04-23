@@ -38,6 +38,7 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 - PIL/Pillow
 - pyshark
 - protobuf
+- **Wireshark must be installed on your system** (required for packet capture)
 
 ## 🔧 Installation
 
