@@ -52,7 +52,7 @@ class Storage:
         self.pq = []
         self.load()
     
-    def get_items():
+    def get_items(self):
         # TODO
         # need to identify unique items in grid then covert position to slotID and other necessary fields
         # or we just recapture the stash packet
