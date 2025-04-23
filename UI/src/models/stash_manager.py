@@ -207,6 +207,10 @@ class StashManager:
                 else:
                     return False, f"Invalid stash ID: {stash_id}"
             
+            # temp
+            import time
+            time.sleep(3)
+
             # Create a storage object for the stash to be sorted
             stash = Storage(stash_type, stash_items)
             

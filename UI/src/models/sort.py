@@ -42,7 +42,7 @@ class StashSorter:
                 for y in range(item.height):
                     occupying_item = self.stash.grid[self.cur_x + x][self.cur_y + y]
                     if occupying_item != 0 and occupying_item != item:
-                        new_pos = self.stash.find_empty_slot(item)
+                        new_pos = self.stash.find_empty_slot(occupying_item)
                         if new_pos:
                             if not intersects(new_pos, occupying_item.width, occupying_item.height,
                                               item.position, item.width, item.height):
@@ -62,6 +62,7 @@ class StashSorter:
 
             item.stash.move(item, Point(self.cur_x, self.cur_y), self.stash)
             self.cur_x += item.width
+            print(item.stash)
 
         return True
 
@@ -74,13 +75,17 @@ def main():
     time.sleep(2)
 
     item_data = ItemDataManager().item_data
-    packet_data = ItemDataManager.load_json("packet_data.json")
+    packet_data = ItemDataManager.load_json("data/4696745.json")
     stashes = parse_stashes(packet_data, item_data)
 
     stash = Storage(StashType.STORAGE.value, stashes[StashType.STORAGE.value])
     inv = Storage(StashType.BAG.value, stashes[StashType.BAG.value])
 
     sorter = StashSorter(stash, inv)
+
+    print(stash)
+    print(inv)
+    #exit()
     sorter.sort()
 
 if __name__ == "__main__":
