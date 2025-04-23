@@ -146,20 +146,23 @@ class StashPreviewGenerator:
                           (grid_width * self.CELL_SIZE, 
                            grid_height * self.CELL_SIZE))
                            
+        from src.models.storage import StashType
         try:
-            stash_type = int(stash_id)
-        except (ValueError, TypeError):
-            stash_type = -1
+            stash_id_int = int(stash_id)
+            stash_type = StashType(stash_id_int)
+        except ValueError:
+            # Handle purchased storage or invalid types
+            stash_type = None
         
-        # Special handling for equipment screen (type 3)
-        if stash_type == 3:
+        # Special handling for equipment screen
+        if stash_type == StashType.EQUIPMENT:
             self._draw_equipment_layout(preview)
         else:
             self._draw_grid(preview, grid_width, grid_height)
         
         for item in items:
-            # Special handling for equipment screen (type 3)
-            if stash_type == 3:
+            # Special handling for equipment screen
+            if stash_type == StashType.EQUIPMENT:
                 self._place_equipment_item(preview, item)
             else:
                 self._place_item(preview, item, grid_width, grid_height)

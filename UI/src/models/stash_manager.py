@@ -209,8 +209,11 @@ class StashManager:
             
             # Create a storage object for the stash to be sorted
             stash = Storage(stash_type, stash_items)
-            # Create a temporary inventory storage for overflow items
-            inv = Storage(StashType.BAG.value, [])
+            
+            # Get bag items for overflow handling - this matches your working example
+            bag_items = stashes.get(str(StashType.BAG.value), [])
+            # Create an inventory storage with the character's actual bag contents
+            inv = Storage(StashType.BAG.value, bag_items)
             
             # Create and run sorter
             sorter = StashSorter(stash, inv)
@@ -219,11 +222,15 @@ class StashManager:
             if not success:
                 return False, "Not enough space to sort items"
 
-            if len(inv.get_items()) > 0:
+            # Check if items were moved to the bag (overflow)
+            if len(inv.get_items()) > len(bag_items):
                 return False, "Some items could not be placed back in the stash"
                 
             # Update the stash in our cache with the sorted items
             stashes[str(stash_id)] = stash.get_items()
+            # Also update bag if items were moved there
+            stashes[str(StashType.BAG.value)] = inv.get_items()
+            
             char['stashes'] = stashes
             return True, None
             
