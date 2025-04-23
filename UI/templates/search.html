@@ -15,7 +15,7 @@
             </select>
         </div>
 
-        <div class="form-group">
+        <!-- <div class="form-group">
             <label for="rarity-selection">Rarity</label>
             <select id="rarity-selection" class="rarity-dropdown">
                 <option value="">All Rarities</option>
@@ -29,7 +29,7 @@
                 <option value="1">Unique</option>
                 <option value="5">Artifact</option>
             </select>
-        </div>
+        </div> -->
 
     <!-- <h2>Rarity</h2>
     <select id="rarity-selection" class="rarity-dropdown">
@@ -51,10 +51,10 @@
 
     <input type="text" class="search-input" placeholder="Search for items across all characters..." id="searchInput"> -->
 
-        <div class="form-group">
+        <!-- <div class="form-group">
             <label for="sp-container">Enchantments</label>
             <div id="sp-container">No rarity selected.</div>
-        </div>
+        </div> -->
 
         <div class="form-group">
             <label for="searchInput">Search</label>
@@ -149,27 +149,6 @@
         //     }
         // }
 
-        raritySelection.addEventListener('change', function () {
-            updateEnchantments();
-        });
-
-        function updateEnchantments() {
-            let rarity = raritySelection.value || [];
-            spContainer.innerHTML = '';
-
-            for (let i = 0; i < rarity; i++) {
-                let rarityElement = document.createElement('div');
-                let spOptions = sp.map(a => `<option value="${a}">${a}</option>`).join('');
-                rarityElement.innerHTML = `
-                    <select id="enchantment-selection-${i}" name="enchantment-selection-${i}">
-                        ${spOptions}
-                    </select>
-                `;
-
-                spContainer.appendChild(rarityElement);
-            }
-        }
-
         const performSearch = async () => {
             const name = document.getElementById('name-selection').value;
             // const rarity = document.getElementById('rarity-selection').value;
@@ -185,8 +164,8 @@
             try {
                 const results = await pywebview.api.search_items({
                     name: name,
-                    // rarity: rarity,
-                    // properties: enchantments
+                    rarity: 0,
+                    properties: []
                 });
                 displayResults(results);
             } catch (error) {
