@@ -1,0 +1,14 @@
+.status-text.stopping {
+    color: #ff9900;
+    font-weight: bold;
+}
+
+.status-text.running {
+    color: #00ff00;
+    font-weight: bold;
+}
+
+.status-text.error {
+    color: #ff0000;
+    font-weight: bold;
+}

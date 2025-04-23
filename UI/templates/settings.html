@@ -8,7 +8,7 @@
     <div class="settings-form">
         <div class="form-group">
             <label for="interface">Network Interface</label>
-            <input type="text" id="interface" class="settings-input" placeholder="e.g. Ethernet">
+            <select id="interface" class="settings-input"></select>
         </div>
         <button id="saveSettings" class="btn-primary">Save Settings</button>
     </div>
@@ -18,15 +18,35 @@
 {% block scripts %}
 <script>
     window.addEventListener('load', async () => {
-        const interfaceInput = document.getElementById('interface');
+        const interfaceSelect = document.getElementById('interface');
+
+        // Load available interfaces
+        let interfaces = [];
+        try {
+            const resp = await fetch('/api/network_interfaces');
+            interfaces = (await resp.json()).interfaces || [];
+        } catch (e) {
+            console.error('Failed to load network interfaces:', e);
+        }
 
         // Load current settings
+        let currentInterface = '';
         try {
             const settings = await fetch('/api/capture/settings').then(r => r.json());
-            interfaceInput.value = settings.interface;
+            currentInterface = settings.interface;
         } catch (error) {
             console.error('Failed to load settings:', error);
         }
+
+        // Populate select
+        interfaceSelect.innerHTML = '';
+        interfaces.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            if (name === currentInterface) opt.selected = true;
+            interfaceSelect.appendChild(opt);
+        });
 
         // Save settings
         document.getElementById('saveSettings').onclick = async () => {
@@ -34,7 +54,7 @@
                 const response = await fetch('/api/capture/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ interface: interfaceInput.value })
+                    body: JSON.stringify({ interface: interfaceSelect.value })
                 });
 
                 const result = await response.json();

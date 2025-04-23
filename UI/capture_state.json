@@ -1,1 +1,9 @@
-{"running": true}
+{
+  "running": true,
+  "timestamp": "2025-04-23T02:48:47.365365",
+  "interface": "Ethernet",
+  "port_range": [
+    20200,
+    20300
+  ]
+}

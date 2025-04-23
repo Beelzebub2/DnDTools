@@ -12,6 +12,7 @@ from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
 import threading
 import time
+import asyncio
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -45,13 +46,18 @@ class PacketCapture:
         self.logger = logging.getLogger(__name__)
         self.data_dir = "data"
         os.makedirs(self.data_dir, exist_ok=True)
-        self.MAX_BUFFER_SIZE = 1024 * 1024  # Increase to 1MB
+        self.MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
         self.expected_packet_length = None
         self.expected_proto_type = None
-        self.running = False
+        self.running = False  # Initialize as False first
         self.capture_thread = None
-        self.on_new_character = on_new_character  # callback for UI refresh
-        self._restore_state()
+        self.on_new_character = on_new_character
+        
+        # Restore state but don't start capture automatically
+        saved_state = self._restore_state()
+        if saved_state.get('running', False):
+            self.running = True  # Only set the flag, don't start capture
+            self.logger.info("Restored previous running state (capture will start when explicitly requested)")
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
@@ -187,20 +193,31 @@ class PacketCapture:
             raise
 
     def _save_state(self):
+        """Save capture state to persistent storage"""
         try:
+            state = {
+                "running": self.running,
+                "timestamp": datetime.now().isoformat(),
+                "interface": self.interface,
+                "port_range": self.port_range
+            }
             with open(self.STATE_FILE, "w") as f:
-                json.dump({"running": self.running}, f)
+                json.dump(state, f, indent=2)
+            self.logger.info(f"Saved capture state: running={self.running}")
         except Exception as e:
-            print(f"Failed to save capture state: {e}")
+            self.logger.error(f"Failed to save capture state: {e}")
 
-    def _restore_state(self):
+    def _restore_state(self) -> dict:
+        """Restore capture state from persistent storage"""
         try:
             if os.path.exists(self.STATE_FILE):
                 with open(self.STATE_FILE, "r") as f:
                     state = json.load(f)
-                    self.running = state.get("running", False)
+                    return state
+            return {"running": False}
         except Exception as e:
-            print(f"Failed to restore capture state: {e}")
+            self.logger.error(f"Failed to restore capture state: {e}")
+            return {"running": False}
 
     def capture(self) -> bool:
         found_flag = False
@@ -244,45 +261,82 @@ class PacketCapture:
         
         local_ip = self.get_local_ip()
         if not local_ip:
-            print(f"Could not find IP address for interface {self.interface}")
+            self.logger.error(f"Could not find IP address for interface {self.interface}")
             return
             
         display_filter = (f'ip.dst == {local_ip} and '
                           f'tcp.srcport >= {self.port_range[0]} and '
                           f'tcp.srcport <= {self.port_range[1]}')
-        capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        
+        # Store capture object as instance variable for cleanup
+        self._current_capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        self._current_loop = loop
         
         try:
-            for packet in capture.sniff_continuously():
+            for packet in self._current_capture.sniff_continuously():
                 if not self.running:
                     break
                 if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
                     self.process_packet(packet.tcp.payload.binary_value)
         except Exception as e:
-            print(f"Capture loop error: {e}")
+            self.logger.error(f"Capture loop error: {e}")
         finally:
-            try:
-                capture.close()
-            except:
-                pass
+            self._cleanup_capture()
+
+    def _cleanup_capture(self):
+        """Clean up capture resources properly"""
+        try:
+            if hasattr(self, '_current_capture'):
+                # Create a new event loop for cleanup if needed
+                if not hasattr(self, '_current_loop') or self._current_loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                else:
+                    loop = self._current_loop
+
+                # Run close_async in the event loop
+                if hasattr(self._current_capture, 'close_async'):
+                    loop.run_until_complete(self._current_capture.close_async())
+                else:
+                    self._current_capture.close()
+                
+                del self._current_capture
+                
+                # Clean up the event loop
+                if hasattr(self, '_current_loop'):
+                    if not self._current_loop.is_closed():
+                        self._current_loop.close()
+                    del self._current_loop
+        except Exception as e:
+            self.logger.error(f"Error during capture cleanup: {e}")
+        finally:
             self.reset_state()
-            loop.close()
 
     def start_capture_switch(self) -> None:
-        if not self.running:
-            self.running = True
-            self._save_state()
-            self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
-            self.capture_thread.start()
-            print("Capture switch turned ON, running in background.")
+        """Start packet capture in background thread if not already running."""
+        if self.capture_thread is not None and self.capture_thread.is_alive():
+            self.logger.info("Capture already running, ignoring start request")
+            return
+        self.running = True
+        self._save_state()
+        self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
+        self.capture_thread.start()
+        self.logger.info("Capture thread started")
 
     def stop_capture_switch(self) -> None:
-        if self.running:
-            self.running = False
-            self._save_state()
-            if self.capture_thread is not None:
-                self.capture_thread.join()
-            print("Capture switch turned OFF, capture stopped.")
+        """Stop packet capture gracefully."""
+        if not self.running:
+            self.logger.info("Capture already stopped, ignoring stop request")
+            return
+        self.running = False
+        self._save_state()
+        if self.capture_thread is not None:
+            self.capture_thread.join(timeout=10.0)
+            if self.capture_thread.is_alive():
+                self.logger.warning("Capture thread still running after timeout, forcing cleanup")
+                self._cleanup_capture()
+        self.capture_thread = None
+        self.logger.info("Capture switch turned OFF")
 
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):

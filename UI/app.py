@@ -3,6 +3,8 @@ from flask import Flask, render_template, jsonify, request, send_from_directory
 import os
 from src.models.stash_manager import StashManager
 from src.models.stash_preview import ItemDataManager
+import psutil
+import json
 
 from dotenv import load_dotenv
 import sys
@@ -18,6 +20,7 @@ server = Flask(__name__,
     static_folder=os.path.join(app_dir, 'static'),
     template_folder=os.path.join(app_dir, 'templates')
 )
+server.config['JSON_AS_ASCII'] = False
 
 # Initialize StashManager with explicit path
 stash_manager = StashManager(app_dir)
@@ -44,7 +47,8 @@ class Api:
             on_new_character=on_new_character_callback
         )
         self.capture_thread = None
-        self.capture_running = False
+        self.capture_running = self.packet_capture.running
+        self._initial_restart_done = False  # Track if we've done the initial restart
 
     def get_characters(self):
         return self.stash_manager.get_characters()
@@ -64,8 +68,16 @@ class Api:
         return self.stash_manager.search_items(query)
 
     def set_capture_settings(self, interface, port_low, port_high):
+        # Stop current capture if running
+        if self.packet_capture.running:
+            self.packet_capture.stop_capture_switch()
+        # Create new PacketCapture with updated settings and callback
         self.capture_settings = {'interface': interface, 'port_range': (port_low, port_high)}
-        self.packet_capture = PacketCapture(interface, (port_low, port_high))
+        self.packet_capture = PacketCapture(
+            interface,
+            (port_low, port_high),
+            on_new_character=on_new_character_callback
+        )
         return True
 
     def start_capture(self):
@@ -90,8 +102,23 @@ class Api:
         self.packet_capture.stop_capture_switch()
         return True
 
+    def restart_capture_switch(self):
+        """Stop capture if running and start it again"""
+        if self.packet_capture.running:
+            self.packet_capture.stop_capture_switch()
+        # Small delay to ensure cleanup
+        import time
+        time.sleep(0.5)
+        self.packet_capture.start_capture_switch()
+        self._initial_restart_done = True
+        return True
+
     def get_capture_state(self):
-        return {"running": self.packet_capture.running}
+        """Get current capture state including if initial restart was done"""
+        return {
+            "running": self.packet_capture.running,
+            "initialRestartDone": self._initial_restart_done
+        }
 
 # Initialize API
 api = Api()
@@ -141,9 +168,18 @@ def capture_switch_start():
 def capture_switch_stop():
     return jsonify({'success': api.stop_capture_switch()})
 
+@server.route('/api/capture/switch/restart', methods=['POST'])
+def capture_switch_restart():
+    return jsonify({'success': api.restart_capture_switch()})
+
 @server.route('/api/capture/state', methods=['GET'])
 def api_capture_state():
     return jsonify(api.get_capture_state())
+
+@server.route('/api/network_interfaces', methods=['GET'])
+def api_network_interfaces():
+    interfaces = list(psutil.net_if_addrs().keys())
+    return jsonify({"interfaces": interfaces})
 
 @server.route('/')
 def index():
@@ -175,14 +211,57 @@ def search():
 
     return render_template('search.html', names=sorted_names)
 
+@server.route('/api/characters')
+def list_characters():
+    """List all captured characters"""
+    characters = []
+    data_dir = "data"
+    
+    if not os.path.exists(data_dir):
+        return jsonify(characters)
+        
+    for filename in os.listdir(data_dir):
+        if filename.endswith('.json'):
+            try:
+                file_path = os.path.join(data_dir, filename)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    
+                char_data = None
+                # Handle different packet types
+                if 'characterDataBase' in data:
+                    char_data = data['characterDataBase']
+                elif 'characterDataList' in data:
+                    # Take first character from list for now
+                    char_data = data['characterDataList'][0] if data['characterDataList'] else None
+                    
+                if char_data:
+                    character = {
+                        'id': char_data.get('characterId', ''),
+                        'nickname': char_data.get('nickname', 'Unknown'),
+                        'class': char_data.get('className', 'Unknown'),
+                        'level': char_data.get('level', 0)
+                    }
+                    characters.append(character)
+            except Exception as e:
+                print(f"Error processing {filename}: {e}")
+                continue
+    
+    return jsonify(characters)
+
 def main():
-    api = Api()
-    window = webview.create_window('Dark and Darker Stash Organizer', 
+    # Use the global api instance
+    # Perform initial restart if needed (only once)
+    if api.packet_capture.running and not api._initial_restart_done:
+        api.restart_capture_switch()
+    
+    window = webview.create_window('Dark and Darker Stash Organizer',
                                  server,
                                  js_api=api,
                                  width=1200,
                                  height=800,
                                  min_size=(800, 600))
+    
     webview.start(debug=True)
 
 if __name__ == '__main__':
