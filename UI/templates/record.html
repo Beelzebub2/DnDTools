@@ -4,25 +4,28 @@
 
 {% block content %}
 <div class="record-container">
-    <h2>Record Character Data</h2>
+    <h2>Capture Character Data</h2>
 
     <div class="instructions-panel">
         <h3>Instructions</h3>
         <ol>
             <li>Start the game and go to the character select screen</li>
-            <li>Click "Start Capture" below</li>
-            <li>Select your character in-game</li>
-            <li>When the packet is captured, select your character from the list</li>
+            <li>Turn the capture switch ON below to start background capture</li>
+            <li>When new character data is captured, it will appear in the list</li>
         </ol>
     </div>
 
     <div class="capture-controls">
-        <button id="startCapture" class="btn-primary">Start Capture</button>
-        <div id="captureStatus" class="status-text">Ready to capture</div>
+        <label for="captureSwitch" class="btn-primary"
+            style="cursor: pointer; user-select: none; padding: 0.8rem 1.5rem;">
+            <input type="checkbox" id="captureSwitch" style="display: none;">
+            <span id="switchLabel">Start Capture</span>
+        </label>
+        <div id="captureStatus" class="status-text">Capture Off</div>
     </div>
 
     <div class="character-select" style="display: none;">
-        <h3>Select Character to Record</h3>
+        <h3>Captured Characters</h3>
         <div class="character-grid" id="characterGrid">
             <!-- Characters will be loaded here -->
         </div>
@@ -33,89 +36,114 @@
 {% block scripts %}
 <script>
     window.addEventListener('load', () => {
-        const startButton = document.getElementById('startCapture');
+        const captureSwitch = document.getElementById('captureSwitch');
+        const switchLabel = document.getElementById('switchLabel');
         const status = document.getElementById('captureStatus');
         const characterSelect = document.querySelector('.character-select');
         const characterGrid = document.getElementById('characterGrid');
-
-        let characters = [];
+        let pollingInterval = null;
 
         async function loadCharacters() {
             try {
-                characters = await fetch('/api/characters').then(r => r.json());
+                const response = await fetch('/api/characters');
+                const characters = await response.json();
                 characterGrid.innerHTML = '';
                 characters.forEach(char => {
                     const card = document.createElement('div');
                     card.className = 'character-card';
                     card.innerHTML = `
-                    <div class="character-name">${char.nickname}</div>
-                    <div class="character-info">
-                        <div>Class: ${char.class}</div>
-                        <div>Level: ${char.level}</div>
-                    </div>
-                `;
-                    card.onclick = () => recordCharacter(char.id);
+                        <div class="character-name">${char.nickname}</div>
+                        <div class="character-info">
+                            <div>Class: ${char.class}</div>
+                            <div>Level: ${char.level}</div>
+                        </div>
+                    `;
+                    card.onclick = () => window.location.href = `/character/${char.id}`;
                     characterGrid.appendChild(card);
                 });
+                if (characters.length > 0) {
+                    characterSelect.style.display = 'block';
+                }
             } catch (error) {
                 console.error('Failed to load characters:', error);
             }
         }
 
-        async function startCapture() {
+        async function startCaptureSwitch() {
             try {
-                startButton.disabled = true;
                 status.textContent = 'Capturing...';
                 status.className = 'status-text capturing';
-
-                const response = await fetch('/api/capture/start', {
-                    method: 'POST'
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    status.textContent = 'Character data captured!';
-                    status.className = 'status-text success';
-                    characterSelect.style.display = 'block';
-                    await loadCharacters();
-                } else {
-                    status.textContent = 'Failed to start capture';
-                    status.className = 'status-text error';
-                    startButton.disabled = false;
-                }
+                await fetch('/api/capture/switch/start', { method: 'POST' });
+                switchLabel.textContent = 'Stop Capture';
+                startPolling();
             } catch (error) {
-                console.error('Capture failed:', error);
-                status.textContent = 'Capture failed';
+                console.error('Failed to start capture:', error);
+                status.textContent = 'Capture error';
                 status.className = 'status-text error';
-                startButton.disabled = false;
             }
         }
 
-        async function recordCharacter(characterId) {
+        async function stopCaptureSwitch() {
             try {
-                const response = await fetch(`/api/record_character/${characterId}`, {
-                    method: 'POST'
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    status.textContent = 'Character recorded successfully!';
-                    status.className = 'status-text success';
-                    setTimeout(() => {
-                        window.location.href = `/character/${characterId}`;
-                    }, 1500);
-                } else {
-                    status.textContent = 'Failed to record character';
-                    status.className = 'status-text error';
-                }
+                await fetch('/api/capture/switch/stop', { method: 'POST' });
+                status.textContent = 'Capture Off';
+                status.className = 'status-text';
+                switchLabel.textContent = 'Start Capture';
+                stopPolling();
             } catch (error) {
-                console.error('Failed to record character:', error);
-                status.textContent = 'Failed to record character';
-                status.className = 'status-text error';
+                console.error('Failed to stop capture:', error);
             }
         }
 
-        startButton.onclick = startCapture;
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(async () => {
+                await loadCharacters();
+            }, 2000);
+        }
+
+        function stopPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+
+        captureSwitch.addEventListener('change', () => {
+            if (captureSwitch.checked) {
+                startCaptureSwitch();
+            } else {
+                stopCaptureSwitch();
+            }
+        });
+
+        // On page load, restore capture state and load characters
+        async function init() {
+            await loadCharacters();
+            try {
+                const resp = await fetch('/api/capture/state');
+                const state = await resp.json();
+                captureSwitch.checked = !!state.running;
+                if (state.running) {
+                    switchLabel.textContent = 'Stop Capture';
+                    status.textContent = 'Capturing...';
+                    status.className = 'status-text capturing';
+                    startPolling();
+                } else {
+                    switchLabel.textContent = 'Start Capture';
+                    status.textContent = 'Capture Off';
+                    status.className = 'status-text';
+                    stopPolling();
+                }
+            } catch (e) {
+                // fallback: default to off
+                captureSwitch.checked = false;
+                switchLabel.textContent = 'Start Capture';
+                status.textContent = 'Capture Off';
+                status.className = 'status-text';
+                stopPolling();
+            }
+        }
+
+        init();
     });
 </script>
 {% endblock %}

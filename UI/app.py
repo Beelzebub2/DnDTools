@@ -22,6 +22,11 @@ server = Flask(__name__,
 # Initialize StashManager with explicit path
 stash_manager = StashManager(app_dir)
 
+def on_new_character_callback(character_id):
+    # Called from PacketCapture when a new character is saved
+    stash_manager.characters_cache = {}
+    stash_manager._load_data()
+
 class Api:
     def __init__(self):
         self.stash_manager = stash_manager
@@ -35,7 +40,8 @@ class Api:
         }
         self.packet_capture = PacketCapture(
             interface=self.capture_settings['interface'],
-            port_range=self.capture_settings['port_range']
+            port_range=self.capture_settings['port_range'],
+            on_new_character=on_new_character_callback
         )
         self.capture_thread = None
         self.capture_running = False
@@ -74,6 +80,17 @@ class Api:
 
     def get_character_stash_previews(self, character_id):
         return self.stash_manager.get_character_stash_previews(character_id)
+
+    def start_capture_switch(self):
+        self.packet_capture.start_capture_switch()
+        return True
+
+    def stop_capture_switch(self):
+        self.packet_capture.stop_capture_switch()
+        return True
+
+    def get_capture_state(self):
+        return {"running": self.packet_capture.running}
 
 # Initialize API
 api = Api()
@@ -114,6 +131,18 @@ def api_capture_start():
 @server.route('/api/record_character/<character_id>', methods=['POST'])
 def api_record_character(character_id):
     return jsonify({'success': False, 'error': 'Recording individual characters is no longer supported'})
+
+@server.route('/api/capture/switch/start', methods=['POST'])
+def capture_switch_start():
+    return jsonify({'success': api.start_capture_switch()})
+
+@server.route('/api/capture/switch/stop', methods=['POST'])
+def capture_switch_stop():
+    return jsonify({'success': api.stop_capture_switch()})
+
+@server.route('/api/capture/state', methods=['GET'])
+def api_capture_state():
+    return jsonify(api.get_capture_state())
 
 @server.route('/')
 def index():
