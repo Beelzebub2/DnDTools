@@ -1,5 +1,5 @@
 # Updated dependencies based on code usage
-pyshark==0.6.0
+scapy>=2.4.5
 Pillow>=9.0.0
 protobuf==5.27.2
 psutil==5.9.5
