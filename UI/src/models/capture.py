@@ -10,6 +10,8 @@ import sys
 import shutil
 from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
+import threading
+import time
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +35,9 @@ class PacketProtocol:
         ]
 
 class PacketCapture:
-    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300)):
+    STATE_FILE = "capture_state.json"
+
+    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), on_new_character=None):
         self.interface = interface
         self.port_range = port_range
         self.packet_data = b""
@@ -44,6 +48,10 @@ class PacketCapture:
         self.MAX_BUFFER_SIZE = 1024 * 1024  # Increase to 1MB
         self.expected_packet_length = None
         self.expected_proto_type = None
+        self.running = False
+        self.capture_thread = None
+        self.on_new_character = on_new_character  # callback for UI refresh
+        self._restore_state()
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
@@ -102,9 +110,7 @@ class PacketCapture:
                 # Complete packet
                 if current_size == self.expected_packet_length:
                     if self.verify_packet():
-                        found = self.save_packet_data()
-                        if found:
-                            return True
+                        self.save_packet_data()
                     self.reset_state()
                 # Progress update
                 elif current_size % 8192 == 0:
@@ -140,9 +146,7 @@ class PacketCapture:
         try:
             if len(self.packet_data) != self.expected_packet_length:
                 raise ValueError("Packet length mismatch")
-                
             data = self.packet_data[8:]
-            # Select protobuf message based on packet type
             try:
                 if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
                     info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
@@ -155,36 +159,48 @@ class PacketCapture:
             except Exception as e:
                 print(f"Failed to parse packet data for proto type {self.expected_proto_type}: {e}")
                 return False
-             
-            # Check for target JSON content
+
+            # Overwrite file if characterId matches (no date in filename)
             if '"result": 1' in json_data and '"characterDataBase": {' in json_data:
-                # Get character ID for filename
                 char_data = info.characterDataBase
                 char_id = str(char_data.characterId)
-                
-                # Save to data directory with character ID and timestamp
-                timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-                data_file = os.path.join(self.data_dir, f"{char_id}_{timestamp}.json")
-                
+                data_file = os.path.join(self.data_dir, f"{char_id}.json")
                 with open(data_file, "w", encoding='utf-8') as f:
                     f.write(json_data)
-                print(f"Saved target packet data to {data_file}")
-                print("Target JSON found, stopping capture.")
+                print(f"Saved/updated target packet data to {data_file}")
+
+                # Notify app/UI if callback is set
+                if self.on_new_character:
+                    self.on_new_character(char_id)
                 return True
-            
-            # Save other packets to timestamped files
+
+            # Save other packets to timestamped files as before
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
             data_file = os.path.join(self.data_dir, f"{timestamp}.json")
-            
             with open(data_file, "w", encoding='utf-8') as f:
                 f.write(json_data)
-            
             print(f"Successfully saved packet data to {data_file}")
             return False
-            
+
         except Exception as e:
             print(f"Failed to save packet data: {str(e)}")
             raise
+
+    def _save_state(self):
+        try:
+            with open(self.STATE_FILE, "w") as f:
+                json.dump({"running": self.running}, f)
+        except Exception as e:
+            print(f"Failed to save capture state: {e}")
+
+    def _restore_state(self):
+        try:
+            if os.path.exists(self.STATE_FILE):
+                with open(self.STATE_FILE, "r") as f:
+                    state = json.load(f)
+                    self.running = state.get("running", False)
+        except Exception as e:
+            print(f"Failed to restore capture state: {e}")
 
     def capture(self) -> bool:
         found_flag = False
@@ -203,6 +219,7 @@ class PacketCapture:
             for packet in capture.sniff_continuously():
                 if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
                     found = self.process_packet(packet.tcp.payload.binary_value)
+                    # In original capture, stop on finding a target packet.
                     if found:
                         print("Desired packet found, stopping capture.")
                         found_flag = True
@@ -219,13 +236,67 @@ class PacketCapture:
             self.packet_data = b""
         return found_flag
 
+    def capture_loop(self) -> None:
+        # Set up event loop for this thread
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        local_ip = self.get_local_ip()
+        if not local_ip:
+            print(f"Could not find IP address for interface {self.interface}")
+            return
+            
+        display_filter = (f'ip.dst == {local_ip} and '
+                          f'tcp.srcport >= {self.port_range[0]} and '
+                          f'tcp.srcport <= {self.port_range[1]}')
+        capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        
+        try:
+            for packet in capture.sniff_continuously():
+                if not self.running:
+                    break
+                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                    self.process_packet(packet.tcp.payload.binary_value)
+        except Exception as e:
+            print(f"Capture loop error: {e}")
+        finally:
+            try:
+                capture.close()
+            except:
+                pass
+            self.reset_state()
+            loop.close()
+
+    def start_capture_switch(self) -> None:
+        if not self.running:
+            self.running = True
+            self._save_state()
+            self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
+            self.capture_thread.start()
+            print("Capture switch turned ON, running in background.")
+
+    def stop_capture_switch(self) -> None:
+        if self.running:
+            self.running = False
+            self._save_state()
+            if self.capture_thread is not None:
+                self.capture_thread.join()
+            print("Capture switch turned OFF, capture stopped.")
+
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
             self.process_packet(packet.tcp.payload.binary_value)
 
 def main():
     capture = PacketCapture()
-    capture.capture()
+    # Simulate switch: start background capture
+    capture.start_capture_switch()
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        capture.stop_capture_switch()
 
 if __name__ == "__main__":
     main()
