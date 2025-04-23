@@ -93,12 +93,16 @@ class PacketCapture:
                 try:
                     packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
                     
+                    # Get packet type name from _PacketCommand_pb2 before validation
+                    packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name if proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number else "Unknown"
+                    
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
-                        print(f"Invalid header: Length={packet_length}, Type={proto_type}, Padding={random_padding}")
+                        print(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
                         self.reset_state()
                         return False
 
-                    print(f"New packet header: Length={packet_length}, Type={proto_type}, Padding={random_padding}")
+                    print(f"New packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
+                    
                     self.expected_packet_length = packet_length
                     self.expected_proto_type = proto_type
                 except struct.error:
