@@ -182,6 +182,7 @@
 {% block scripts %}
 <script>
     const charId = window.location.pathname.split('/').pop();
+    let abortController = null;
 
     // Fetch character details via pywebview API or HTTP fallback
     const updateCharacterInfo = async (characterId) => {
@@ -249,6 +250,11 @@
                 tab.classList.add('active');
                 preview.src = stashes[stashId];
                 currentStashId = stashId;
+
+                // Update current stash in backend
+                fetch(`/api/character/${charId}/current-stash/${stashId}`, {
+                    method: 'POST'
+                }).catch(console.error);
             };
             selector.appendChild(tab);
         });
@@ -257,6 +263,9 @@
         sortButton.onclick = async () => {
             if (!currentStashId) return;
 
+            // prepare abort controller
+            if (abortController) abortController.abort();
+            abortController = new AbortController();
             sortButton.disabled = true;
             sortButton.classList.add('sorting');
             const originalText = sortButton.innerHTML;
@@ -269,7 +278,8 @@
 
             try {
                 const response = await fetch(`/api/character/${charId}/stash/${currentStashId}/sort`, {
-                    method: 'POST'
+                    method: 'POST',
+                    signal: abortController.signal
                 });
                 const result = await response.json();
 
@@ -280,9 +290,14 @@
                     showNotification(errorMessage, 'error');
                 }
             } catch (error) {
-                console.error('Error sorting stash:', error);
-                showNotification('Network error while sorting stash', 'error');
+                if (error.name === 'AbortError') {
+                    showNotification('Sorting aborted', 'error');
+                } else {
+                    console.error('Error sorting stash:', error);
+                    showNotification('Network error while sorting stash', 'error');
+                }
             } finally {
+                abortController = null;
                 sortButton.disabled = false;
                 sortButton.classList.remove('sorting');
                 sortButton.innerHTML = originalText;
@@ -344,6 +359,19 @@
             setTimeout(() => notification.remove(), 300);
         }, 3000);
     }
+
+    // Add keyboard shortcuts: Ctrl+S to sort, Ctrl+X to cancel
+    document.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            const sortButton = document.querySelector('.sort-button');
+            sortButton && sortButton.click();
+        }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
+            e.preventDefault();
+            if (abortController) abortController.abort();
+        }
+    });
 
     // Initialize page when DOM is loaded
     window.addEventListener('DOMContentLoaded', async () => {

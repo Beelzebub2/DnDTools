@@ -106,22 +106,36 @@ class StashPreviewGenerator:
 
     def _get_stash_dimensions(self, stash_id: str) -> Tuple[int, int]:
         """Return appropriate grid dimensions based on stash type"""
+        from src.models.storage import StashType
+        
         # Convert stash_id to int if it's a string of digits
         try:
-            stash_type = int(stash_id)
+            stash_id_int = int(stash_id)
+            # Try to get StashType directly
+            try:
+                stash_type = StashType(stash_id_int)
+            except ValueError:
+                # Handle purchased storage special case
+                if stash_id_int >= StashType.PURCHASED_STORAGE_0.value and stash_id_int <= StashType.PURCHASED_STORAGE_4.value:
+                    # All purchased storage uses standard stash dimensions
+                    return 12, 20
+                # Default to standard stash size if we can't match the type
+                return 12, 20
+            
+            # Return dimensions based on stash type
+            if stash_type == StashType.BAG:
+                return 10, 5
+            elif stash_type == StashType.EQUIPMENT:
+                # Equipment has a special layout that's not a simple grid
+                # We use a larger canvas to accommodate the specific positions
+                return 10, 10
+            elif stash_type in (StashType.STORAGE, StashType.SHARED_STASH_0, StashType.SHARED_STASH_SEASONAL_0):
+                return 12, 20
+            else:
+                return 12, 20  # Default to standard stash size
+                
         except (ValueError, TypeError):
             # Default to standard stash size if we can't parse the ID
-            return 12, 20
-            
-        # BAG inventory (type 2)
-        if stash_type == 2:
-            return 10, 5
-        # Equipment (type 3) - Special layout for equipped items
-        elif stash_type == 3:
-            # Equipment has a special layout that's not a simple grid
-            # We use a larger canvas to accommodate the specific positions
-            return 10, 10  # Width and height to accommodate the equipment layout
-        else:
             return 12, 20
 
     def generate_preview(self, stash_id: str, items: List[ItemInfo]) -> Image.Image:

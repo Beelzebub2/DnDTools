@@ -33,9 +33,12 @@ def on_new_character_callback(character_id):
 class Api:
     def __init__(self):
         self.stash_manager = stash_manager
+        # Settings
+        self.settings_file = os.path.join(app_dir, 'settings.json')
+        self.settings = self._load_settings()
         # Capture setup
         self.capture_settings = {
-            'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
+            'interface': self.settings.get('interface', os.getenv('CAPTURE_INTERFACE', 'Ethernet')),
             'port_range': (
                 int(os.getenv('CAPTURE_PORT_LOW', 20200)),
                 int(os.getenv('CAPTURE_PORT_HIGH', 20300))
@@ -48,7 +51,52 @@ class Api:
         )
         self.capture_thread = None
         self.capture_running = self.packet_capture.running
-        self._initial_restart_done = False  # Track if we've done the initial restart
+        self._initial_restart_done = False
+        self._setup_global_hotkeys()
+
+    def _load_settings(self):
+        if os.path.exists(self.settings_file):
+            try:
+                with open(self.settings_file, 'r') as f:
+                    return json.load(f)
+            except:
+                pass
+        return {
+            'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
+            'sortHotkey': 'Ctrl+Alt+S',
+            'cancelHotkey': 'Ctrl+Alt+X'
+        }
+
+    def _save_settings(self, settings):
+        with open(self.settings_file, 'w') as f:
+            json.dump(settings, f, indent=2)
+        self.settings = settings
+        self._setup_global_hotkeys()
+        return True
+
+    def _setup_global_hotkeys(self):
+        import keyboard
+        # Remove any existing hotkeys
+        keyboard.unhook_all()
+        
+        # Setup sort hotkey
+        sort_hotkey = self.settings.get('sortHotkey', 'Ctrl+Alt+S')
+        keyboard.add_hotkey(sort_hotkey.lower(), self._trigger_sort_current)
+        
+        # Setup cancel hotkey
+        cancel_hotkey = self.settings.get('cancelHotkey', 'Ctrl+Alt+X')
+        keyboard.add_hotkey(cancel_hotkey.lower(), self._trigger_cancel_sort)
+        
+    def _trigger_sort_current(self):
+        """Triggered by global hotkey to sort current stash"""
+        if not hasattr(self, '_current_char_id') or not hasattr(self, '_current_stash_id'):
+            return
+        self.sort_stash(self._current_char_id, self._current_stash_id)
+        
+    def _trigger_cancel_sort(self):
+        """Triggered by global hotkey to cancel current sort operation"""
+        # TODO: Implement sort cancellation
+        pass
 
     def get_characters(self):
         return self.stash_manager.get_characters()
@@ -201,6 +249,12 @@ def api_sort_stash(character_id, stash_id):
     result = api.sort_stash(character_id, stash_id)
     return jsonify(result)
 
+@server.route('/api/character/<character_id>/current-stash/<stash_id>', methods=['POST'])
+def api_set_current_stash(character_id, stash_id):
+    api._current_char_id = character_id
+    api._current_stash_id = stash_id
+    return jsonify({'success': True})
+
 @server.route('/')
 def index():
     return render_template('index.html')
@@ -268,6 +322,14 @@ def list_characters():
                 continue
     
     return jsonify(characters)
+
+# Add these routes after the other API routes
+@server.route('/api/settings', methods=['GET', 'POST'])
+def api_settings():
+    if request.method == 'GET':
+        return jsonify(api.settings)
+    data = request.get_json()
+    return jsonify({'success': api._save_settings(data)})
 
 def main():
     # Use the global api instance

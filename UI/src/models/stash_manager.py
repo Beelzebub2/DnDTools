@@ -194,24 +194,18 @@ class StashManager:
             # Create storage objects for sorting
             from .sort import Storage, StashSorter, StashType
             
-            # Map inventory ID to StashType
-            stash_type = None
+            # Convert stash_id to int and get corresponding StashType
             stash_id_int = int(stash_id)
             
-            if stash_id_int == 2:
-                stash_type = StashType.BAG.value
-            elif stash_id_int == 3:
-                stash_type = StashType.EQUIPMENT.value
-            elif stash_id_int == 4:
-                stash_type = StashType.STORAGE.value
-            elif stash_id_int >= 5 and stash_id_int <= 9:
-                stash_type = StashType.PURCHASED_STORAGE_0.value + (stash_id_int - 5)
-            elif stash_id_int == 20:
-                stash_type = StashType.SHARED_STASH_0.value
-            elif stash_id_int == 30:
-                stash_type = StashType.SHARED_STASH_SEASONAL_0.value
-            else:
-                return False, f"Invalid stash ID: {stash_id}"
+            # Try to get the StashType directly by value
+            try:
+                stash_type = StashType(stash_id_int).value
+            except ValueError:
+                # Handle purchased storage special case
+                if stash_id_int >= StashType.PURCHASED_STORAGE_0.value and stash_id_int <= StashType.PURCHASED_STORAGE_4.value:
+                    stash_type = stash_id_int  # Use the ID directly since it matches the enum values
+                else:
+                    return False, f"Invalid stash ID: {stash_id}"
             
             # Create a storage object for the stash to be sorted
             stash = Storage(stash_type, stash_items)

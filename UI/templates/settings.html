@@ -1,15 +1,28 @@
 {% extends "base.html" %}
 
-{% block header %}Capture Settings{% endblock %}
+{% block header %}Settings{% endblock %}
 
 {% block content %}
 <div class="settings-container">
-    <h2>Capture Settings</h2>
     <div class="settings-form">
+        <h2>Network Settings</h2>
         <div class="form-group">
             <label for="interface">Network Interface</label>
             <select id="interface" class="settings-input"></select>
         </div>
+
+        <h2>Hotkey Settings</h2>
+        <div class="form-group">
+            <label for="sortHotkey">Sort Stash Hotkey</label>
+            <input type="text" id="sortHotkey" class="settings-input" placeholder="Click to set hotkey..." readonly>
+            <small class="help-text">Default: Ctrl+Alt+S</small>
+        </div>
+        <div class="form-group">
+            <label for="cancelHotkey">Cancel Sort Hotkey</label>
+            <input type="text" id="cancelHotkey" class="settings-input" placeholder="Click to set hotkey..." readonly>
+            <small class="help-text">Default: Ctrl+Alt+X</small>
+        </div>
+
         <button id="saveSettings" class="btn-primary">Save Settings</button>
     </div>
 </div>
@@ -19,6 +32,8 @@
 <script>
     window.addEventListener('load', async () => {
         const interfaceSelect = document.getElementById('interface');
+        const sortHotkeyInput = document.getElementById('sortHotkey');
+        const cancelHotkeyInput = document.getElementById('cancelHotkey');
 
         // Load available interfaces
         let interfaces = [];
@@ -30,31 +45,89 @@
         }
 
         // Load current settings
-        let currentInterface = '';
+        let currentSettings = {};
         try {
-            const settings = await fetch('/api/capture/settings').then(r => r.json());
-            currentInterface = settings.interface;
+            const settings = await fetch('/api/settings').then(r => r.json());
+            currentSettings = settings;
+
+            // Set current values
+            if (settings.interface) {
+                interfaceSelect.value = settings.interface;
+            }
+            if (settings.sortHotkey) {
+                sortHotkeyInput.value = settings.sortHotkey;
+            }
+            if (settings.cancelHotkey) {
+                cancelHotkeyInput.value = settings.cancelHotkey;
+            }
         } catch (error) {
             console.error('Failed to load settings:', error);
         }
 
-        // Populate select
+        // Populate interface select
         interfaceSelect.innerHTML = '';
         interfaces.forEach(name => {
             const opt = document.createElement('option');
             opt.value = name;
             opt.textContent = name;
-            if (name === currentInterface) opt.selected = true;
+            if (name === currentSettings.interface) opt.selected = true;
             interfaceSelect.appendChild(opt);
         });
+
+        // Hotkey recording logic
+        function setupHotkeyInput(input) {
+            let keys = new Set();
+
+            input.addEventListener('focus', () => {
+                input.value = '';
+                keys.clear();
+            });
+
+            input.addEventListener('keydown', (e) => {
+                e.preventDefault();
+
+                if (e.key === 'Escape') {
+                    input.blur();
+                    return;
+                }
+
+                if (e.key === 'Backspace') {
+                    input.value = '';
+                    keys.clear();
+                    return;
+                }
+
+                // Don't record modifier keys alone
+                if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) {
+                    return;
+                }
+
+                keys.clear();
+                if (e.ctrlKey) keys.add('Ctrl');
+                if (e.altKey) keys.add('Alt');
+                if (e.shiftKey) keys.add('Shift');
+                if (e.metaKey) keys.add('Meta');
+                keys.add(e.key.length === 1 ? e.key.toUpperCase() : e.key);
+
+                input.value = Array.from(keys).join('+');
+                input.blur();
+            });
+        }
+
+        setupHotkeyInput(sortHotkeyInput);
+        setupHotkeyInput(cancelHotkeyInput);
 
         // Save settings
         document.getElementById('saveSettings').onclick = async () => {
             try {
-                const response = await fetch('/api/capture/settings', {
+                const response = await fetch('/api/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ interface: interfaceSelect.value })
+                    body: JSON.stringify({
+                        interface: interfaceSelect.value,
+                        sortHotkey: sortHotkeyInput.value || 'Ctrl+Alt+S',
+                        cancelHotkey: cancelHotkeyInput.value || 'Ctrl+Alt+X'
+                    })
                 });
 
                 const result = await response.json();
@@ -74,8 +147,12 @@
         const notification = document.createElement('div');
         notification.className = `notification ${type}`;
         notification.textContent = message;
-        document.querySelector('.settings-container').appendChild(notification);
-        setTimeout(() => notification.remove(), 3000);
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.classList.add('fade-out');
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
     }
 </script>
 {% endblock %}
