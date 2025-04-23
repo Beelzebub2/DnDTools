@@ -45,11 +45,11 @@ class StashSorter:
                         new_pos = self.stash.find_empty_slot(occupying_item)
                         if new_pos:
                             if not intersects(new_pos, occupying_item.width, occupying_item.height,
-                                              item.position, item.width, item.height):
+                                              Point(self.cur_x, self.cur_y), item.width, item.height):
                                 print("Moving Stash")
                                 self.stash.move(occupying_item, new_pos, self.stash)
                                 continue
-
+                            
                         print("Cannot find valid temp location checking inv")
                         new_pos = self.inv.find_empty_slot(occupying_item)
                         if new_pos:
@@ -79,7 +79,8 @@ def main():
     stashes = parse_stashes(packet_data, item_data)
 
     stash = Storage(StashType.STORAGE.value, stashes[StashType.STORAGE.value])
-    inv = Storage(StashType.BAG.value, stashes[StashType.BAG.value])
+    bag = stashes.get(StashType.BAG.value, [])
+    inv = Storage(StashType.BAG.value, bag)
 
     sorter = StashSorter(stash, inv)
 
