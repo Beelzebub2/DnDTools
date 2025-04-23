@@ -1,5 +1,4 @@
-from scapy.all import sniff, AsyncSniffer
-from scapy.layers.inet import IP, TCP
+import pyshark
 import socket
 import psutil
 import struct
@@ -231,78 +230,62 @@ class PacketCapture:
             print(f"Could not find IP address for interface {self.interface}")
             return False
 
-        bpf_filter = (
-            f"tcp and dst host {local_ip} and "
-            f"src portrange {self.port_range[0]}-{self.port_range[1]}"
-        )
-        # Stop filter when target packet is found
-        def stop_filter(pkt):
-            nonlocal found_flag
-            if pkt.haslayer(TCP) and pkt[TCP].payload:
-                found_flag = self.process_packet(bytes(pkt[TCP].payload))
-            return found_flag
+        display_filter = (f'ip.dst == {local_ip} and '
+                         f'tcp.srcport >= {self.port_range[0]} and '
+                         f'tcp.srcport <= {self.port_range[1]}')
+        
+        capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
 
-        # Try BPF filter first, fallback to manual filtering on failure
         try:
-            sniff(
-                iface=self.interface,
-                filter=bpf_filter,
-                prn=lambda pkt: None,
-                stop_filter=stop_filter,
-                store=False
-            )
+            for packet in capture.sniff_continuously():
+                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                    found = self.process_packet(packet.tcp.payload.binary_value)
+                    # In original capture, stop on finding a target packet.
+                    if found:
+                        print("Desired packet found, stopping capture.")
+                        found_flag = True
+                        break
+        except KeyboardInterrupt:
+            print("Capture stopped by user")
         except Exception as e:
-            print(f"Warning: BPF filter failed ({e}), falling back to manual filtering.")
-            def stop_filter_manual(pkt):
-                nonlocal found_flag
-                if pkt.haslayer(IP) and pkt.haslayer(TCP):
-                    if pkt[IP].dst == local_ip and self.port_range[0] <= pkt[TCP].sport <= self.port_range[1]:
-                        found_flag = self.process_packet(bytes(pkt[TCP].payload))
-                return found_flag
-            sniff(
-                iface=self.interface,
-                prn=lambda pkt: None,
-                stop_filter=stop_filter_manual,
-                store=False
-            )
+            print(f"Capture error: {e}")
+        finally:
+            try:
+                capture.close()
+            except:
+                pass
+            self.packet_data = b""
         return found_flag
 
     def capture_loop(self) -> None:
+        # Set up event loop for this thread
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
         local_ip = self.get_local_ip()
         if not local_ip:
             self.logger.error(f"Could not find IP address for interface {self.interface}")
             return
-        bpf_filter = (
-            f"tcp and dst host {local_ip} and "
-            f"src portrange {self.port_range[0]}-{self.port_range[1]}"
-        )
-        # Use AsyncSniffer with BPF, fallback to manual filtering on failure
+            
+        display_filter = (f'ip.dst == {local_ip} and '
+                          f'tcp.srcport >= {self.port_range[0]} and '
+                          f'tcp.srcport <= {self.port_range[1]}')
+        
+        # Store capture object as instance variable for cleanup
+        self._current_capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        self._current_loop = loop
+        
         try:
-            sniffer = AsyncSniffer(
-                iface=self.interface,
-                filter=bpf_filter,
-                prn=lambda pkt: self._process_packet_wrapper(pkt),
-                store=False
-            )
-            self._current_sniffer = sniffer
-            sniffer.start()
-        except Exception as e:
-            self.logger.warning(f"BPF filter failed ({e}), falling back to manual filtering.")
-            sniffer = AsyncSniffer(
-                iface=self.interface,
-                prn=lambda pkt: self._process_packet_wrapper(pkt) if pkt.haslayer(IP) and pkt.haslayer(TCP) and pkt[IP].dst == local_ip and self.port_range[0] <= pkt[TCP].sport <= self.port_range[1] else None,
-                store=False
-            )
-            self._current_sniffer = sniffer
-            sniffer.start()
-        try:
-            while self.running:
-                time.sleep(0.1)
+            for packet in self._current_capture.sniff_continuously():
+                if not self.running:
+                    break
+                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                    self.process_packet(packet.tcp.payload.binary_value)
         except Exception as e:
             self.logger.error(f"Capture loop error: {e}")
         finally:
-            sniffer.stop()
-            self.reset_state()
+            self._cleanup_capture()
 
     def _cleanup_capture(self):
         """Clean up capture resources properly"""
@@ -360,10 +343,8 @@ class PacketCapture:
         self.logger.info("Capture switch turned OFF")
 
     def _process_packet_wrapper(self, packet):
-        """Process a scapy packet wrapper callback."""
-        # Only process TCP packets with payload
-        if packet.haslayer(TCP) and packet[TCP].payload:
-            self.process_packet(bytes(packet[TCP].payload))
+        if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+            self.process_packet(packet.tcp.payload.binary_value)
 
 def main():
     capture = PacketCapture()
@@ -377,4 +358,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
