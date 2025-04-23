@@ -127,9 +127,29 @@ class StashManager:
             }
         return None
 
-    def search_items(self, query: str) -> List[Dict]:
+    def search_items(self, query: Dict) -> List[Dict]:
         """Search for items across all character stashes (empty for summary files)"""
-        return []
+
+        # query {'name': 'Arcane Hood', 'rarity': '3', 'properties': ['s_Agility', 's_ArmorPenetration', 's_Dexterity']}
+        output = []
+        for char in self.get_characters():
+            for stash in char['stashes'].values():
+                for item in stash:
+                    name = query.get("name")
+                    # TODO implement rarity and properties and make result include stash
+                    rarity = query.get("rarity")
+                    if name:
+                        if item["name"] == name.replace(" ", ""):
+                            result = {
+                                'nickname': char['nickname'],
+                                'id': char['id'],
+                                'class': char['class'], 
+                                'level': char['level'],
+                                'item': item
+                            }
+                            output.append(result)
+
+        return output
 
     def get_character_stash_previews(self, character_id):
         """Get preview images for all stashes of a character"""

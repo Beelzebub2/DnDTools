@@ -72,20 +72,24 @@
             container.innerHTML = '<div class="loading">No items found</div>';
             return;
         }
-
+        // {'name': 'CastillonDagger', 'slotId': 11, 'itemId': 'DesignDataItem:Id_Item_CastillonDagger_4001', 'itemCount': 1}
         results.forEach(result => {
+            console.log(result)
             const item = document.createElement('div');
             item.className = 'result-item';
             item.innerHTML = `
-            <div class="character-name">${result.characterName}</div>
+            <div class="character-name">${result.nickname} ${result.class} Lv${result.level}</div>
             <div class="character-info">
                 <div>Item: ${result.item.name}</div>
-                <div>Count: ${result.item.count}</div>
+                <div>Count: ${result.item.itemCount}</div>
                 <div>Slot: ${result.item.slotId}</div>
             </div>
         `;
 
-            item.onclick = () => window.location.href = `/character/${result.characterId}`;
+            item.onclick = () => window.location.href = `/character/${result.id}`;
+            // TODO implement rarity and properties and make result include stash
+            // /api/character/<character_id>/stashes/<stash> ?
+
             container.appendChild(item);
         });
     };
