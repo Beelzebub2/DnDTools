@@ -3,7 +3,7 @@ import os
 from typing import Dict, List, Optional
 import glob
 from datetime import datetime
-from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo, get_item_rarity_from_id
+from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo, get_item_rarity_from_id, get_item_name_from_id
 
 class StashManager:
     def __init__(self, base_dir: str):
@@ -137,17 +137,29 @@ class StashManager:
             for stash_id, stash in char.get('stashes', []).items():
                 for item in stash:
                     rarity = get_item_rarity_from_id(item.get("itemId", ""))
-                    keys_to_remove = ["itemUniqueId", "itemCount", "inventoryId", "slotId"]
-                    for key in keys_to_remove:
-                        item.get("data", {}).pop(key, None)  # avoids KeyError if key isn't present
+                    name = get_item_name_from_id(item.get("itemId", ""))
 
-                    search_str = (str(item.get("data", "")) + rarity).lower()
+                    data = item.get("data", {})
+                    effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
+                    pp = [(p["propertyTypeId"].replace(effect_str, ""), p["propertyValue"]) for p in data.get("primaryPropertyArray", [])]
+                    sp = [(p["propertyTypeId"].replace(effect_str, ""), p["propertyValue"]) for p in data.get("secondaryPropertyArray", [])]
+
+                    search_str = (str(pp) + str(sp) + rarity + name).lower().replace(" ", "")
 
                     hit = True
                     for keyword in keywords:
                         if keyword not in search_str:
                             hit = False
-                    item["rarity"] = rarity
+
+                    itemCount = item.get("itemCount", 1)
+                    slotId = item.get("slotId", 0)
+
+                    item = {
+                        "name": name,
+                        "rarity": rarity,
+                        "pp": pp,
+                        "sp": sp
+                    }
 
                     if hit:
                         result = {
@@ -155,6 +167,8 @@ class StashManager:
                             'id': char['id'],
                             'class': char['class'], 
                             'level': char['level'],
+                            "itemCount": itemCount,
+                            "slotId": slotId,
                             'item': item,
                             'stash_id': stash_id
                         }

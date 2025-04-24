@@ -15,7 +15,6 @@ class ItemInfo:
     itemId: str  # Changed from item_id to match incoming JSON
     itemCount: int  # Changed from item_count to match incoming JSON
     data: Dict 
-    rarity: str
 
 class ItemDataManager:
     def __init__(self):
@@ -374,7 +373,7 @@ class StashPreviewGenerator:
         except Exception as e:
             logging.error(f"Failed to process image {img_path}: {e}")
 
-def get_item_name_from_id(item_id, item_data):
+def get_item_name_from_id(item_id):
     # Extract base name from item_id
     if not item_id.startswith("DesignDataItem:Id_Item_"):
         return None
@@ -424,7 +423,7 @@ def parse_stashes(packet_data, item_data):
             if "slotId" in item:
                 item_id = item.get("itemId", "")
                 slot_id = item["slotId"]
-                name = get_item_name_from_id(item_id, item_data)
+                name = get_item_name_from_id(item_id)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
@@ -442,7 +441,7 @@ def parse_stashes(packet_data, item_data):
                 slot_id = 0
                 while slot_id in used_slots:
                     slot_id += 1
-                name = get_item_name_from_id(item_id, item_data)
+                name = get_item_name_from_id(item_id)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
@@ -467,7 +466,7 @@ def parse_stashes(packet_data, item_data):
         if "slotId" in item:
             item_id = item.get("itemId", "")
             slot_id = item["slotId"]
-            name = get_item_name_from_id(item_id, item_data)
+            name = get_item_name_from_id(item_id)
             stashes[inventory_id].append({
                 "name": name,
                 "slotId": slot_id,

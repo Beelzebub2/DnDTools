@@ -92,28 +92,27 @@
         };
     };
 
-    function formatDataAsHTML(data, indent = 0) {
-        const spacer = '&nbsp;'.repeat(indent * 4); // indentation
-        let html = '';
-
-        if (Array.isArray(data)) {
-            html += '[<br>';
-            html += data.map(item => `${spacer}&nbsp;&nbsp;${formatDataAsHTML(item, indent + 1)}`).join(',<br>');
-            html += `<br>${spacer}]`;
-        } else if (typeof data === 'object' && data !== null) {
-            html += '{<br>';
-            const entries = Object.entries(data);
-            html += entries.map(([key, val]) => {
-                return `${spacer}&nbsp;&nbsp;<strong>${key}</strong>: ${formatDataAsHTML(val, indent + 1)}`;
-            }).join(',<br>');
-            html += `<br>${spacer}}`;
-        } else {
-            html += String(data); // handles numbers, booleans, strings, null, undefined
-        }
-
-        return html;
+    function formatPrimaryProps(ppArray) {
+        return ppArray.map(([name, value]) => `<div>${name} ${value}</div>`).join('');
     }
 
+    function formatSecondaryProps(spArray) {
+        return spArray.map(([name, value]) => {
+            const sign = value >= 0 ? '+' : '';
+            return `<div>${sign}${value} ${name}</div>`;
+        }).join('');
+    }
+
+    const rarityColors = {
+        Poor: '#555555',       // Dark grey
+        Common: '#ffffff',     // White
+        Uncommon: '#1eff00',   // Green
+        Rare: '#0070dd',       // Blue
+        Epic: '#a335ee',       // Purple
+        Legend: '#ff8000',     // Orange
+        Unique: '#ffff99',     // Yellow-white
+        Artifact: '#ff2020'    // Red
+    };
 
     const displayResults = (results) => {
         const container = document.getElementById('searchResults');
@@ -123,25 +122,44 @@
             container.innerHTML = '<div class="loading">No items found</div>';
             return;
         }
-        // {'name': 'CastillonDagger', 'slotId': 11, 'itemId': 'DesignDataItem:Id_Item_CastillonDagger_4001', 'itemCount': 1}
+
         results.forEach(result => {
-            console.log(result)
             const item = document.createElement('div');
             item.className = 'result-item';
-            item.innerHTML = `
-            <div class="character-name">${result.nickname} ${result.class} LvL ${result.level} Slot: ${result.item.slotId}</div>
-            <div class="character-info">
-                <div>${result.item.name}</div>
-                <div>${result.item.rarity}</div>
-                <div>${result.item.itemCount}</div>
-            </div>
-            <div class="item-popup">
-                <div>${formatDataAsHTML(result.item.data)}</div>
-            </div>
-        `;
+            const rarityColor = rarityColors[result.item.rarity] || '#ffffff';
 
-            item.onclick = () => window.location.href = `/character/${result.id}`;
-            // TODO /api/character/<character_id>/stashes/<stash> ?
+            item.innerHTML = `
+                <div class="character-name">${result.nickname} ${result.class} LvL ${result.level} Slot: ${result.slotId}</div>
+                <div class="character-info">
+                    <div>${result.item.name}</div>
+                    <div>${result.item.rarity}</div>
+                    <div>${result.itemCount}</div>
+                </div>
+                <div class="item-popup">
+                    <div class="item-header" style="background-color: ${rarityColor}; color: #000;">${result.item.name}</div>
+                    <div class="item-properties">
+                        <div class="primary-props">${formatPrimaryProps(result.item.pp)}</div>
+                        <div class="secondary-props">${formatSecondaryProps(result.item.sp)}</div>
+                    </div>
+                    <div class="item-meta">
+                        <div>Rarity: ${result.item.rarity}</div>
+                        <div>Count: ${result.itemCount}</div>
+                    </div>
+                </div>
+            `;
+            item.onclick = () => {
+                fetch(`/api/character/${result.id}/current-stash/${result.stash_id}`, {
+                    method: 'POST',
+                    headers: {
+                    'Content-Type': 'application/json'
+                    },
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+                // TODO not working as intended
+                window.location.href = `/character/${result.id}`;
+            };
 
             container.appendChild(item);
         });
