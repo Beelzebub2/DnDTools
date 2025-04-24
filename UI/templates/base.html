@@ -7,9 +7,76 @@
     <title>Dark and Darker Stash Organizer</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .titlebar {
+            -webkit-user-select: none;
+            -webkit-app-region: drag;
+            height: 32px;
+            background: #1a1a1a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+
+        .titlebar-title {
+            color: #ffffff;
+            margin-left: 12px;
+            font-size: 14px;
+        }
+
+        .titlebar-buttons {
+            -webkit-app-region: no-drag;
+            display: flex;
+            height: 100%;
+        }
+
+        .titlebar-button {
+            height: 32px;
+            width: 45px;
+            border: none;
+            background: transparent;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+
+        .titlebar-button:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .titlebar-button.close:hover {
+            background: #e81123;
+        }
+
+        /* Adjust main content to account for titlebar */
+        body {
+            margin-top: 32px;
+        }
+    </style>
 </head>
 
 <body>
+    <div class="titlebar">
+        <div class="titlebar-title">Dark and Darker Stash Organizer</div>
+        <div class="titlebar-buttons">
+            <button class="titlebar-button minimize" onclick="pywebview.api.minimize()">
+                <span class="material-icons" style="font-size: 18px;">remove</span>
+            </button>
+            <button class="titlebar-button maximize" onclick="pywebview.api.toggle_maximize()">
+                <span class="material-icons" style="font-size: 18px;">crop_square</span>
+            </button>
+            <button class="titlebar-button close" onclick="pywebview.api.close_window()">
+                <span class="material-icons" style="font-size: 18px;">close</span>
+            </button>
+        </div>
+    </div>
     <nav class="sidebar">
         <div class="nav-header">
             <h1>Stash Organizer</h1>

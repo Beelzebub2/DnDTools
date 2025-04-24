@@ -11,6 +11,7 @@ from dotenv import load_dotenv
 import sys
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
+from screeninfo import get_monitors  # Add this import
 
 # Load environment variables
 load_dotenv()
@@ -64,6 +65,9 @@ class Api:
         self._initial_restart_done = False
         self.window = None  # Will store window reference
         self._setup_global_hotkeys()
+        self.is_maximized = False
+        self.original_size = None
+        self.original_position = None
 
     def _load_settings(self):
         if os.path.exists(self.settings_file):
@@ -108,6 +112,14 @@ class Api:
     def set_window(self, window):
         """Set the window reference for JavaScript evaluation"""
         self.window = window
+        # Do NOT access window.width/height/x/y here!
+        # These will be set after the window is loaded
+
+    def set_initial_window_state(self):
+        # Called after window is loaded and GUI is ready
+        if self.window:
+            self.original_size = (self.window.width, self.window.height)
+            self.original_position = (self.window.x, self.window.y)
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
@@ -225,6 +237,39 @@ class Api:
             return {"success": False, "error": str(e)}
         finally:
             self.current_sort_event = None
+
+    def minimize(self):
+        self.window.minimize()
+        
+    def toggle_maximize(self):
+        if self.is_maximized:
+            # Restore to previous size and position
+            if self.original_size and self.original_position:
+                width, height = self.original_size
+                x, y = self.original_position
+                self.window.resize(width, height)
+                self.window.move(x, y)
+            self.is_maximized = False
+        else:
+            # Store current size and position before maximizing
+            self.original_size = (self.window.width, self.window.height)
+            self.original_position = (self.window.x, self.window.y)
+            # Use screeninfo to find the monitor where the window currently is
+            win_x, win_y = self.window.x, self.window.y
+            for m in get_monitors():
+                if m.x <= win_x < m.x + m.width and m.y <= win_y < m.y + m.height:
+                    self.window.move(m.x, m.y)
+                    self.window.resize(m.width, m.height)
+                    break
+            else:
+                # fallback to primary monitor
+                m = get_monitors()[0]
+                self.window.move(m.x, m.y)
+                self.window.resize(m.width, m.height)
+            self.is_maximized = True
+                
+    def close_window(self):
+        self.window.destroy()
 
 # Initialize API
 api = Api()
@@ -385,11 +430,15 @@ def main():
                                  js_api=api,
                                  width=1200,
                                  height=800,
-                                 min_size=(800, 600))
+                                 min_size=(800, 600),
+                                 frameless=True)  # Add frameless=True here
     
     api.set_window(window)  # Set the window reference in the API instance
     
-    webview.start(debug=True)
+    # Register a function to run after the window is loaded
+    def on_loaded():
+        api.set_initial_window_state()
+    webview.start(on_loaded, debug=True)
 
 # temp
 import keyboard
