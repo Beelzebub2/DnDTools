@@ -93,13 +93,36 @@ class Storage:
 
     def load(self):
         for obj in self.data:
-            item = Item.from_dict(obj, self)
+            # Skip items without slotId
+            slot_id = obj.get("slotId")
+            if slot_id is None:
+                print(f"Skipping item without slotId: {obj}")
+                continue
+            try:
+                item = Item.from_dict(obj, self)
+            except Exception as e:
+                print(f"Error creating item from data: {e}")
+                continue
+            # Verify placement within bounds
+            out_of_bounds = False
+            for dx in range(item.width):
+                for dy in range(item.height):
+                    x = item.position.x + dx
+                    y = item.position.y + dy
+                    if not (0 <= x < self.width and 0 <= y < self.height):
+                        print(f"Warning: item {item} position out of bounds at ({x}, {y}), skipping")
+                        out_of_bounds = True
+                        break
+                if out_of_bounds:
+                    break
+            if out_of_bounds:
+                continue
+            # Place item and enqueue for sorting
             for dx in range(item.width):
                 for dy in range(item.height):
                     self.grid[item.position.x + dx][item.position.y + dy] = item
-
             heapq.heappush(self.pq, item)
-
+    
     def __repr__(self):
         import os
         import json

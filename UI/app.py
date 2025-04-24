@@ -113,14 +113,19 @@ class Api:
         """Triggered by global hotkey to sort current stash"""
         print(f"Sort hotkey activated: {self.settings.get('sortHotkey')}")
         if hasattr(self, '_current_char_id') and hasattr(self, '_current_stash_id'):
-            print(f"Sorting stash for character {self._current_char_id}, stash {self._current_stash_id}")
-            if self.window:
-                self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
-                result = self.sort_stash(self._current_char_id, self._current_stash_id)
-                self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
-                return result
+            print(f"Scheduling sort for character {self._current_char_id}, stash {self._current_stash_id}")
+            threading.Thread(target=self._sort_worker, daemon=True).start()
         else:
             print("No current stash selected")
+
+    def _sort_worker(self):
+        """Background worker for sorting current stash"""
+        if self.window:
+            self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
+        result = self.sort_stash(self._current_char_id, self._current_stash_id)
+        if self.window:
+            self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
+        # Optionally, communicate result back to UI
         
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""

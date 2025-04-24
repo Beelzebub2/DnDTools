@@ -26,13 +26,13 @@ class StashSorter:
         self.cancel_event = cancel_event
         
         while self.stash.pq:
-            # Check for cancellation
+            # Check for cancellation at the start of each item
             if self.cancel_event and self.cancel_event.is_set():
                 print("Sort operation cancelled")
                 return False
                 
             item = heapq.heappop(self.stash.pq)
-            print("1. ", item)
+            print("Processing item: ", item)
 
             if self.cur_height == 0:
                 self.cur_height = item.height
@@ -46,36 +46,50 @@ class StashSorter:
                 print("Out of space")
                 return False
             
-            print(Point(self.cur_x, self.cur_y), item.position)
+            print(f"Target position: {Point(self.cur_x, self.cur_y)}, Current position: {item.position}")
             if Point(self.cur_x, self.cur_y) != item.position:
                 for x in range(item.width):
                     for y in range(item.height):
+                        # Check for cancellation during item placement
+                        if self.cancel_event and self.cancel_event.is_set():
+                            print("Sort operation cancelled during item placement")
+                            return False
+                            
                         occupying_item = self.stash.grid[self.cur_x + x][self.cur_y + y]
                         if occupying_item != 0 and occupying_item != item:
                             new_pos = self.stash.find_empty_slot(occupying_item)
                             if new_pos:
                                 if not intersects(new_pos, occupying_item.width, occupying_item.height,
-                                                Point(self.cur_x, self.cur_y), item.width, item.height):
-                                    print("Moving Stash")
+                                              item.position, item.width, item.height):
+                                    print(f"Moving {occupying_item} to empty slot in stash")
                                     self.stash.move(occupying_item, new_pos, self.stash)
                                     continue
 
-                            print("Cannot find valid temp location checking inv")
+                            print(f"Checking inventory for {occupying_item}")
                             new_pos = self.inv.find_empty_slot(occupying_item)
                             if new_pos:
-                                print("Moving Inv")
+                                print(f"Moving {occupying_item} to inventory")
                                 self.stash.move(occupying_item, new_pos, self.inv)
                             else:
-                                print("Cannot find valid temp location")
-                                print("Out of space")
+                                print("No valid positions found")
                                 return False
 
+                # Check for cancellation before final item placement
+                if self.cancel_event and self.cancel_event.is_set():
+                    print("Sort operation cancelled before final placement")
+                    return False
+                    
                 item.stash.move(item, Point(self.cur_x, self.cur_y), self.stash)
             else:
-                print("No need to Move")
+                print("Item already in correct position")
 
             self.cur_x += item.width
-            print(item.stash)
+            print(f"Current stash state:\n{self.stash}")
+            
+            # Check for cancellation after item placement
+            if self.cancel_event and self.cancel_event.is_set():
+                print("Sort operation cancelled after item placement")
+                return False
 
         return True
     

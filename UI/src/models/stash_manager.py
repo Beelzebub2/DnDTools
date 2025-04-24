@@ -4,6 +4,8 @@ from typing import Dict, List, Optional
 import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo, get_item_rarity_from_id, get_item_name_from_id
+from .storage import Storage, StashType
+from .sort import StashSorter
 
 class StashManager:
     def __init__(self, resource_dir: str):
@@ -141,50 +143,70 @@ class StashManager:
         return None
 
     def search_items(self, query: str) -> List[Dict]:
-        """Search for items across all character stashes (empty for summary files)"""
-        keywords = query.lower().replace(" ", "").split(",")
-        priority = 0
+        """Search for items across all character stashes"""
+        if not query:
+            return []
+            
+        keywords = [k.strip().lower() for k in query.split(",")]
         output = []
+        
         for char in self.get_characters():
-            for stash_id, stash in char.get('stashes', []).items():
+            for stash_id, stash in char.get('stashes', {}).items():
+                if not isinstance(stash, list):
+                    continue
+                    
                 for item in stash:
-                    rarity = get_item_rarity_from_id(item.get("itemId", ""))
-                    name = get_item_name_from_id(item.get("itemId", ""))
+                    try:
+                        item_id = item.get("itemId", "")
+                        rarity = get_item_rarity_from_id(item_id)
+                        name = get_item_name_from_id(item_id)
+                        
+                        # Extract properties safely
+                        data = item.get("data", {})
+                        effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
+                        
+                        pp = []
+                        for p in data.get("primaryPropertyArray", []):
+                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
+                                prop_name = p["propertyTypeId"].replace(effect_str, "")
+                                pp.append((prop_name, p["propertyValue"]))
+                                
+                        sp = []
+                        for p in data.get("secondaryPropertyArray", []):
+                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
+                                prop_name = p["propertyTypeId"].replace(effect_str, "")
+                                sp.append((prop_name, p["propertyValue"]))
 
-                    data = item.get("data", {})
-                    effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
-                    pp = [(p["propertyTypeId"].replace(effect_str, ""), p["propertyValue"]) for p in data.get("primaryPropertyArray", [])]
-                    sp = [(p["propertyTypeId"].replace(effect_str, ""), p["propertyValue"]) for p in data.get("secondaryPropertyArray", [])]
+                        # Build search string including all item data
+                        search_parts = [
+                            name.lower(),
+                            rarity.lower(),
+                            *[p[0].lower() for p in pp],
+                            *[p[0].lower() for p in sp]
+                        ]
+                        search_str = " ".join(search_parts)
 
-                    search_str = (str(pp) + str(sp) + rarity + name).lower().replace(" ", "")
-
-                    hit = True
-                    for keyword in keywords:
-                        if keyword not in search_str:
-                            hit = False
-
-                    itemCount = item.get("itemCount", 1)
-                    slotId = item.get("slotId", 0)
-
-                    item = {
-                        "name": name,
-                        "rarity": rarity,
-                        "pp": pp,
-                        "sp": sp
-                    }
-
-                    if hit:
-                        result = {
-                            'nickname': char['nickname'],
-                            'id': char['id'],
-                            'class': char['class'], 
-                            'level': char['level'],
-                            "itemCount": itemCount,
-                            "slotId": slotId,
-                            'item': item,
-                            'stash_id': stash_id
-                        }
-                        output.append(result)
+                        # Check if all keywords match
+                        if all(k in search_str for k in keywords):
+                            result = {
+                                'nickname': char['nickname'],
+                                'id': char['id'],
+                                'class': char['class'],
+                                'level': char['level'],
+                                'itemCount': item.get("itemCount", 1),
+                                'slotId': item.get("slotId", 0),
+                                'item': {
+                                    'name': name,
+                                    'rarity': rarity,
+                                    'pp': pp,
+                                    'sp': sp
+                                },
+                                'stash_id': stash_id
+                            }
+                            output.append(result)
+                    except Exception as e:
+                        print(f"Error processing item in search: {str(e)}")
+                        continue
 
         return output
 
