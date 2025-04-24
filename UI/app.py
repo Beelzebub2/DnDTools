@@ -332,15 +332,6 @@ def api_settings():
     return jsonify({'success': api._save_settings(data)})
 
 def main():
-    # from src.models.capture import main
-    # main()
-    # exit()
-
-    from src.models.sort import main
-    main()
-    exit()
-
-
     # Use the global api instance
     # Perform initial restart if needed (only once)
     if api.packet_capture.running and not api._initial_restart_done:
@@ -354,6 +345,13 @@ def main():
                                  min_size=(800, 600))
     
     webview.start(debug=True)
+
+# temp
+import keyboard
+def force_exit():
+    print("F7 pressed. Exiting...")
+    os._exit(0)
+keyboard.add_hotkey('F7', force_exit)
 
 if __name__ == '__main__':
     main()
