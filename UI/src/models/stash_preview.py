@@ -14,6 +14,8 @@ class ItemInfo:
     slotId: int  # Changed from slot_id to match incoming JSON
     itemId: str  # Changed from item_id to match incoming JSON
     itemCount: int  # Changed from item_count to match incoming JSON
+    data: Dict 
+    rarity: str
 
 class ItemDataManager:
     def __init__(self):
