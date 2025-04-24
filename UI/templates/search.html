@@ -5,7 +5,7 @@
 {% block content %}
 <div class="search-container">
     <div class="settings-form">
-        <div class="form-group">
+        <!-- <div class="form-group">
             <label for="name-selection">Name</label>
             <select id="name-selection" class="name-dropdown">
                 <option value="">All Names</option>
@@ -13,7 +13,7 @@
                 <option value="{{ name }}">{{ name }}</option>
                 {% endfor %}
             </select>
-        </div>
+        </div> -->
 
         <!-- <div class="form-group">
             <label for="rarity-selection">Rarity</label>
@@ -30,7 +30,7 @@
                 <option value="5">Artifact</option>
             </select>
         </div> -->
-
+        
     <!-- <h2>Rarity</h2>
     <select id="rarity-selection" class="rarity-dropdown">
         <option value="">All Rarities</option>
@@ -55,9 +55,23 @@
             <label for="sp-container">Enchantments</label>
             <div id="sp-container">No rarity selected.</div>
         </div> -->
+        <h2>Search</h2>
+        <div class="instructions-panel">
+            <h3>Instructions</h3>
+            <ol>
+                <li>Capture the characters whose stashes you want to search, you can check captured characters in the Characters section.</li>
+                <li>Enter keywords separated by commas.</li>
+                <li>When a similar item is found, it will appear in the list.</li>                
+            </ol>
+            <h3>Example</h3>
+            <div class="form-group">
+                <input type="text" class="settings-input" 
+                       value="barbuta helm, rare, agility" 
+                       readonly>
+            </div>            
+        </div>
 
         <div class="form-group">
-            <label for="searchInput">Search</label>
             <input type="text" class="settings-input" placeholder="Search for items across all characters..."
                 id="searchInput">
         </div>
@@ -69,20 +83,6 @@
 
 {% block scripts %}
 <script>
-    // const sp = [
-    //     's_ActionSpeed', 's_Agility', 's_ArmorPenetration', 's_ArmorRatingAdd',
-    //     's_BuffDurationBonus', 's_DebuffDurationBonus', 's_Dexterity', 's_Knowledge',
-    //     's_Luck', 's_MagicPenetration', 's_MagicRegistance', 's_MagicalDamageAdd',
-    //     's_MagicalDamageBonus', 's_MagicalDamageReduction', 's_MagicalDamageTrue',
-    //     's_MagicalHealing', 's_MagicalPower', 's_MaxHealthAdd', 's_MaxHealthBonus',
-    //     's_MemoryCapacityAdd', 's_MemoryCapacityBonus', 's_MoveSpeedAdd',
-    //     's_MoveSpeedBonus', 's_PhysicalDamageAdd', 's_PhysicalDamageBonus',
-    //     's_PhysicalDamageReduction', 's_PhysicalDamageTrue', 's_PhysicalHealing',
-    //     's_PhysicalPower', 's_PhysicalWeaponDamageAdd', 's_Primitive',
-    //     's_ProjectileReductionMod', 's_Resourcefulness', 's_SpellCastingSpeed',
-    //     's_Strength', 's_Vigor', 's_Will'
-    // ];
-
     let searchTimeout;
 
     const debounce = (func, wait) => {
@@ -106,11 +106,11 @@
             const item = document.createElement('div');
             item.className = 'result-item';
             item.innerHTML = `
-            <div class="character-name">${result.nickname} ${result.class} Lv${result.level}</div>
+            <div class="character-name">${result.nickname} ${result.class} LvL ${result.level} Slot: ${result.item.slotId}</div>
             <div class="character-info">
-                <div>Item: ${result.item.name}</div>
-                <div>Count: ${result.item.itemCount}</div>
-                <div>Slot: ${result.item.slotId}</div>
+                <div>${result.item.name}</div>
+                <div>${result.item.rarity}</div>
+                <div>${result.item.itemCount}</div>
             </div>
         `;
 
@@ -125,58 +125,30 @@
         const searchInput = document.getElementById('searchInput');
         const searchResults = document.getElementById('searchResults');
 
-        // const raritySelection = document.getElementById('rarity-selection');
-        // const spContainer = document.getElementById('sp-container');
-
-        // raritySelection.addEventListener('change', function() {
-        //     updateEnchantments();
-        // });
-
-        // function updateEnchantments() {
-        //     let rarity = raritySelection.value || [];
-        //     spContainer.innerHTML = '';
-        
-        //     for (let i = 0; i < rarity; i++) {
-        //         let rarityElement = document.createElement('div');
-        //         let spOptions = sp.map(a => `<option value="${a}">${a}</option>`).join('');
-        //         rarityElement.innerHTML = `
-        //             <select id="enchantment-selection-${i}" name="enchantment-selection-${i}">
-        //                 ${spOptions}
-        //             </select>
-        //         `;
-        
-        //         spContainer.appendChild(rarityElement);
-        //     }
-        // }
-
-        const performSearch = async () => {
-            const name = document.getElementById('name-selection').value;
-            // const rarity = document.getElementById('rarity-selection').value;
-
-            // const enchantments = [];
-            // const selects = spContainer.querySelectorAll('select');
-            // selects.forEach(select => {
-            //     if (select.value) enchantments.push(select.value);
-            // });
-
+        const performSearch = async (query) => {
             searchResults.innerHTML = '<div class="loading">Searching...</div>';
 
             try {
-                const results = await pywebview.api.search_items({
-                    name: name,
-                    rarity: 0,
-                    properties: []
-                });
-                displayResults(results);
+                if (window.pywebview && window.pywebview.api) {
+                    details = await window.pywebview.api.search_items(query);
+                } else {
+                    const res = await fetch(`/api/search_items?query=${encodeURIComponent(query)}`);
+                    details = await res.json();
+                }
+
+                displayResults(details);
+
             } catch (error) {
                 searchResults.innerHTML = '<div class="loading">Error searching items. Please try again.</div>';
+                console.log(error)
             }
         };
 
-        // searchInput.addEventListener('input', (e) => performSearch(e.target.value));
-        document.getElementById('name-selection').addEventListener('change', performSearch);
+        searchInput.addEventListener('input', (e) => performSearch(e.target.value));
+        //document.getElementById('name-selection').addEventListener('change', performSearch);
         // document.getElementById('rarity-selection').addEventListener('change', performSearch);
         // spContainer.addEventListener('change', performSearch);
+        performSearch('')
     });
 </script>
 {% endblock %}

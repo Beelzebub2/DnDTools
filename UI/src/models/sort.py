@@ -70,6 +70,11 @@ class StashSorter:
             print(item.stash)
 
         return True
+    
+    def pack(self):
+        # TODO
+        pass
+
 
 def main():
     def force_exit():

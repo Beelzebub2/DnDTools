@@ -273,17 +273,7 @@ def character(character_id):
 
 @server.route('/search')
 def search():
-    names = set()
-    # path error
-    # item_data = ItemDataManager().item_data
-    item_data = ItemDataManager.load_json("assets/item-data.json")
-    for name, data in item_data.items():
-        name = name.removesuffix(".png").replace("_", " ").replace("2", "")
-        names.add(name)
-
-    sorted_names = sorted(names)
-
-    return render_template('search.html', names=sorted_names)
+    return render_template('search.html')
 
 @server.route('/api/characters')
 def list_characters():

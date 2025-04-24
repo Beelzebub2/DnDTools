@@ -383,6 +383,30 @@ def get_item_name_from_id(item_id, item_data):
     base = base.replace("_", " ")
     return base
 
+def get_item_rarity_from_id(item_id):
+    rarity_dict = {
+            '1': "Poor",
+            '2': "Common",
+            '3': "Uncommon",
+            '4': "Rare",
+            '5': "Epic",
+            '6': "Legend",
+            '7': "Unique",
+            '8': "Artifact"
+    }
+
+    # Extract base name from item_id
+    if not item_id.startswith("DesignDataItem:Id_Item_"):
+        return None
+    base = item_id[len("DesignDataItem:Id_Item_"):]
+
+    parts = base.split("_")
+
+    rarity_id = parts[-1][0]
+    rarity = rarity_dict.get(rarity_id, "")
+
+    return rarity
+
 def parse_stashes(packet_data, item_data):
     stashes = {}
     # stashes
@@ -403,7 +427,8 @@ def parse_stashes(packet_data, item_data):
                     "name": name,
                     "slotId": slot_id,
                     "itemId": item_id,
-                    "itemCount": item.get("itemCount", 1)
+                    "itemCount": item.get("itemCount", 1),
+                    "data": item
                 })
                 used_slots.add(slot_id)
         
@@ -420,7 +445,8 @@ def parse_stashes(packet_data, item_data):
                     "name": name,
                     "slotId": slot_id,
                     "itemId": item_id,
-                    "itemCount": item.get("itemCount", 1)
+                    "itemCount": item.get("itemCount", 1),
+                    "data": item
                 })
                 used_slots.add(slot_id)
                 
@@ -444,7 +470,8 @@ def parse_stashes(packet_data, item_data):
                 "name": name,
                 "slotId": slot_id,
                 "itemId": item_id,
-                "itemCount": item.get("itemCount", 1)
+                "itemCount": item.get("itemCount", 1),
+                "data": item
             })
             used_slots.add(slot_id)
 
