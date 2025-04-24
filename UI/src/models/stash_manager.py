@@ -4,13 +4,27 @@ from typing import Dict, List, Optional
 import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo
+from .storage import Storage, StashType
+from .sort import StashSorter
 
 class StashManager:
-    def __init__(self, base_dir: str):
-        print(f"Initializing StashManager with base_dir: {base_dir}")
-        self.data_dir = os.path.join(base_dir, "data")
-        self.output_dir = os.path.join(base_dir, "output")
-        self.item_data = ItemDataManager().item_data
+    def __init__(self, resource_dir: str):
+        import sys
+        
+        # For frozen EXE, use the EXE's directory for dynamic data (data/output)
+        # but use _MEIPASS (resource_dir) for static resources
+        if getattr(sys, 'frozen', False):
+            # Get EXE directory for data/output
+            exe_dir = os.path.dirname(sys.executable)
+            self.data_dir = os.path.join(exe_dir, "data")
+            self.output_dir = os.path.join(exe_dir, "output")
+        else:
+            # In development, everything lives under resource_dir
+            self.data_dir = os.path.join(resource_dir, "data")
+            self.output_dir = os.path.join(resource_dir, "output")
+            
+        # Initialize item data from the resource directory
+        self.item_data = ItemDataManager(resource_dir).item_data
         print(f"Data dir: {self.data_dir}")
         
         # Ensure directories exist
@@ -19,7 +33,7 @@ class StashManager:
         
         self.characters_cache = {}
         self._load_data()
-        self.preview_generator = StashPreviewGenerator()
+        self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
 
     def _load_data(self):
         """Load character data from packet data files"""
@@ -88,7 +102,7 @@ class StashManager:
     def get_character_stashes(self, character_id: str) -> Dict:
         """Get all stashes for a specific character, ensuring each stash is a list."""
         char = self.characters_cache.get(character_id)
-        if char:
+        if (char):
             stashes = char.get('stashes', {})
             # Ensure all stash values are lists
             fixed_stashes = {}
@@ -175,70 +189,60 @@ class StashManager:
         
         return preview_paths
 
-    def sort_stash(self, character_id, stash_id):
-        """Sort items in a specific stash for a character"""
-        print(f"sort_stash called with character_id={character_id}, stash_id={stash_id}")
-        char = self.characters_cache.get(character_id)
-        print(f"Available characters in cache: {list(self.characters_cache.keys())}")
+    def sort_stash(self, character_id, stash_id, cancel_event=None):
+        """Sort a stash with optional cancellation support"""
+        # Use cache for stash items
+        print(f"Sorting stash {stash_id} for character {character_id}")
+        char = self.characters_cache.get(str(character_id))
         if not char:
             return False, "Character not found"
-
-        stashes = char.get('stashes', {})
-        print(f"Character's stashes keys: {list(stashes.keys())}")
-        stash_items = stashes.get(str(stash_id), [])
-        print(f"Retrieved stash_items length: {len(stash_items)} for key {stash_id}")
+        stash_items = char.get('stashes', {}).get(str(stash_id))
         if not stash_items:
-            return False, "Stash not found or empty"
-            
+            return False, "Stash not found"
+        # Load inventory items from raw packet data
+        file_path = os.path.join(self.data_dir, f"{character_id}.json")
         try:
-            # Create storage objects for sorting
-            from .sort import Storage, StashSorter, StashType
-            
-            # Convert stash_id to int and get corresponding StashType
-            stash_id_int = int(stash_id)
-            
-            # Try to get the StashType directly by value
-            try:
-                stash_type = StashType(stash_id_int).value
-            except ValueError:
-                # Handle purchased storage special case
-                if stash_id_int >= StashType.PURCHASED_STORAGE_0.value and stash_id_int <= StashType.PURCHASED_STORAGE_4.value:
-                    stash_type = stash_id_int  # Use the ID directly since it matches the enum values
-                else:
-                    return False, f"Invalid stash ID: {stash_id}"
-            
-            # temp
-            import time
-            time.sleep(3)
+            with open(file_path, 'r', encoding='utf-8') as f:
+                raw = json.load(f)
+            char_base = raw.get('characterDataBase', {})
+            inv_items = char_base.get('CharacterItemList', []) or []
+        except:
+            inv_items = []
+        # Create Storage instances
+        stash = Storage(StashType.STORAGE.value, stash_items)
+        inventory = Storage(StashType.BAG.value, inv_items)
+        # Perform sorting
+        sorter = StashSorter(stash, inventory)
+        if cancel_event and cancel_event.is_set():
+            return False, "Sort cancelled"
+        success = sorter.sort(cancel_event)
+        if cancel_event and cancel_event.is_set():
+            return False, "Sort cancelled"
+        # On success, generate previews
+        if success:
+            self._generate_previews(character_id)
+        return success, None
 
-            # Create a storage object for the stash to be sorted
-            stash = Storage(stash_type, stash_items)
-            
-            # Get bag items for overflow handling - this matches your working example
-            bag_items = stashes.get(str(StashType.BAG.value), [])
-            # Create an inventory storage with the character's actual bag contents
-            inv = Storage(StashType.BAG.value, bag_items)
-            
-            # Create and run sorter
-            sorter = StashSorter(stash, inv)
-            success = sorter.sort()
-            
-            if not success:
-                return False, "Not enough space to sort items"
-
-            # Check if items were moved to the bag (overflow)
-            if len(inv.get_items()) > len(bag_items):
-                return False, "Some items could not be placed back in the stash"
-                
-            # Update the stash in our cache with the sorted items
-            stashes[str(stash_id)] = stash.get_items()
-            # Also update bag if items were moved there
-            stashes[str(StashType.BAG.value)] = inv.get_items()
-            
-            char['stashes'] = stashes
-            return True, None
-            
+    def _get_character(self, character_id):
+        """Get character data from data file"""
+        try:
+            file_path = os.path.join(self.data_dir, f"{character_id}.json")
+            if os.path.exists(file_path):
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    packet_data = json.load(f)
+                    return packet_data.get("characterDataBase", {})
+            return None
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            return False, f"Error while sorting: {str(e)}"
+            print(f"Error reading character data: {str(e)}")
+            return None
+            
+    def _save_character(self, character_id, char_data):
+        """Save character data back to file"""
+        try:
+            file_path = os.path.join(self.data_dir, f"{character_id}.json")
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump({"characterDataBase": char_data}, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"Error saving character data: {str(e)}")
+            return False

@@ -1,6 +1,7 @@
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory
 import os
+import threading
 from src.models.stash_manager import StashManager
 from src.models.stash_preview import ItemDataManager
 import psutil
@@ -14,8 +15,17 @@ from src.models.capture import PacketCapture  # Add capture import
 # Load environment variables
 load_dotenv()
 
+# Determine base directory for resources, support PyInstaller onefile
+if getattr(sys, 'frozen', False):
+    # Running as PyInstaller bundle: set resource dir to temp and switch cwd to EXE location
+    app_dir = sys._MEIPASS
+    # Make sure we access dynamic data from the original EXE folder
+    os.chdir(os.path.dirname(sys.executable))
+else:
+    # Running in normal Python
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+
 # Initialize Flask with explicit path handling
-app_dir = os.path.dirname(os.path.abspath(__file__))
 server = Flask(__name__, 
     static_folder=os.path.join(app_dir, 'static'),
     template_folder=os.path.join(app_dir, 'templates')
@@ -52,6 +62,7 @@ class Api:
         self.capture_thread = None
         self.capture_running = self.packet_capture.running
         self._initial_restart_done = False
+        self.window = None  # Will store window reference
         self._setup_global_hotkeys()
 
     def _load_settings(self):
@@ -63,13 +74,18 @@ class Api:
                 pass
         return {
             'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
-            'sortHotkey': 'Ctrl+Alt+S',
-            'cancelHotkey': 'Ctrl+Alt+X'
+            'sortHotkey': 'ctrl+alt+s',
+            'cancelHotkey': 'ctrl+alt+x'
         }
 
     def _save_settings(self, settings):
+        # Ensure hotkeys are lowercase for keyboard library
+        settings['sortHotkey'] = settings['sortHotkey'].lower()
+        settings['cancelHotkey'] = settings['cancelHotkey'].lower()
+        
         with open(self.settings_file, 'w') as f:
             json.dump(settings, f, indent=2)
+        
         self.settings = settings
         self._setup_global_hotkeys()
         return True
@@ -80,23 +96,40 @@ class Api:
         keyboard.unhook_all()
         
         # Setup sort hotkey
-        sort_hotkey = self.settings.get('sortHotkey', 'Ctrl+Alt+S')
-        keyboard.add_hotkey(sort_hotkey.lower(), self._trigger_sort_current)
+        sort_hotkey = self.settings.get('sortHotkey', 'ctrl+alt+s')
+        print(f"Registering sort hotkey: {sort_hotkey}")
+        keyboard.add_hotkey(sort_hotkey, self._trigger_sort_current, suppress=True)
         
         # Setup cancel hotkey
-        cancel_hotkey = self.settings.get('cancelHotkey', 'Ctrl+Alt+X')
-        keyboard.add_hotkey(cancel_hotkey.lower(), self._trigger_cancel_sort)
+        cancel_hotkey = self.settings.get('cancelHotkey', 'ctrl+alt+x')
+        print(f"Registering cancel hotkey: {cancel_hotkey}")
+        keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
         
+    def set_window(self, window):
+        """Set the window reference for JavaScript evaluation"""
+        self.window = window
+
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
-        if not hasattr(self, '_current_char_id') or not hasattr(self, '_current_stash_id'):
-            return
-        self.sort_stash(self._current_char_id, self._current_stash_id)
+        print(f"Sort hotkey activated: {self.settings.get('sortHotkey')}")
+        if hasattr(self, '_current_char_id') and hasattr(self, '_current_stash_id'):
+            print(f"Sorting stash for character {self._current_char_id}, stash {self._current_stash_id}")
+            if self.window:
+                self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
+                result = self.sort_stash(self._current_char_id, self._current_stash_id)
+                self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
+                return result
+        else:
+            print("No current stash selected")
         
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""
-        # TODO: Implement sort cancellation
-        pass
+        print(f"Cancel hotkey activated: {self.settings.get('cancelHotkey')}")
+        if self.current_sort_event and not self.current_sort_event.is_set():
+            self.current_sort_event.set()
+            print("Sort operation cancelled")
+            if self.window:
+                self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
 
     def get_characters(self):
         return self.stash_manager.get_characters()
@@ -170,7 +203,10 @@ class Api:
     def sort_stash(self, character_id, stash_id):
         """Sort a specific stash for a character"""
         try:
-            result = self.stash_manager.sort_stash(character_id, stash_id)
+            # Create new event for this sort operation
+            self.current_sort_event = threading.Event()
+            
+            result = self.stash_manager.sort_stash(character_id, stash_id, cancel_event=self.current_sort_event)
             if isinstance(result, tuple):
                 success, error_msg = result
                 return {"success": success, "error": error_msg}
@@ -182,6 +218,8 @@ class Api:
             import traceback
             traceback.print_exc()
             return {"success": False, "error": str(e)}
+        finally:
+            self.current_sort_event = None
 
 # Initialize API
 api = Api()
@@ -201,7 +239,12 @@ def api_character_details(character_id):
 
 @server.route('/output/<path:filename>')
 def serve_preview(filename):
-    return send_from_directory(os.path.join(app_dir, 'output'), filename)
+    # When frozen, serve from output dir next to EXE
+    if getattr(sys, 'frozen', False):
+        output_dir = os.path.join(os.path.dirname(sys.executable), 'output')
+    else:
+        output_dir = os.path.join(app_dir, 'output')
+    return send_from_directory(output_dir, filename)
 
 @server.route('/api/search_items')
 def api_search_items():
@@ -274,22 +317,30 @@ def character(character_id):
 @server.route('/search')
 def search():
     names = set()
-    # path error
-    # item_data = ItemDataManager().item_data
-    item_data = ItemDataManager.load_json("assets/item-data.json")
+    # Use ItemDataManager with the correct resource directory
+    if getattr(sys, 'frozen', False):
+        item_manager = ItemDataManager(app_dir)
+    else: 
+        item_manager = ItemDataManager(os.path.dirname(os.path.abspath(__file__)))
+        
+    item_data = item_manager.item_data
     for name, data in item_data.items():
         name = name.removesuffix(".png").replace("_", " ").replace("2", "")
         names.add(name)
 
     sorted_names = sorted(names)
-
     return render_template('search.html', names=sorted_names)
 
 @server.route('/api/characters')
 def list_characters():
     """List all captured characters"""
     characters = []
-    data_dir = "data"
+    
+    # Use persistent data dir next to EXE when frozen
+    if getattr(sys, 'frozen', False):
+        data_dir = os.path.join(os.path.dirname(sys.executable), "data")
+    else:
+        data_dir = "data"
     
     if not os.path.exists(data_dir):
         return jsonify(characters)
@@ -343,6 +394,8 @@ def main():
                                  width=1200,
                                  height=800,
                                  min_size=(800, 600))
+    
+    api.set_window(window)  # Set the window reference in the API instance
     
     webview.start(debug=True)
 

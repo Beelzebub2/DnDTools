@@ -183,6 +183,7 @@
 <script>
     const charId = window.location.pathname.split('/').pop();
     let abortController = null;
+    let currentStashId = null;  // Track current stash ID
 
     // Fetch character details via pywebview API or HTTP fallback
     const updateCharacterInfo = async (characterId) => {
@@ -232,7 +233,6 @@
         const stashesObj = stashes || {};
         const stashKeys = Object.keys(stashesObj);
         let firstStashUrl = null;
-        let currentStashId = null;
 
         stashKeys.forEach((stashId, index) => {
             const tab = document.createElement('div');
@@ -241,6 +241,8 @@
                 tab.classList.add('active');
                 firstStashUrl = stashes[stashId];
                 currentStashId = stashId;
+                // Set initial stash
+                updateCurrentStash(stashId);
             }
 
             tab.textContent = `Stash ${index + 1}`;
@@ -250,62 +252,88 @@
                 tab.classList.add('active');
                 preview.src = stashes[stashId];
                 currentStashId = stashId;
-
-                // Update current stash in backend
-                fetch(`/api/character/${charId}/current-stash/${stashId}`, {
-                    method: 'POST'
-                }).catch(console.error);
+                updateCurrentStash(stashId);
             };
             selector.appendChild(tab);
         });
 
         // Set up sort button click handler
-        sortButton.onclick = async () => {
-            if (!currentStashId) return;
+        sortButton.onclick = () => triggerSort();
 
-            // prepare abort controller
-            if (abortController) abortController.abort();
-            abortController = new AbortController();
-            sortButton.disabled = true;
+        return firstStashUrl;
+    };
+
+    const updateCurrentStash = async (stashId) => {
+        try {
+            await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
+                method: 'POST'
+            });
+            console.log(`Current stash updated to: ${stashId}`);
+        } catch (error) {
+            console.error('Error updating current stash:', error);
+        }
+    };
+
+    const triggerSort = async () => {
+        if (!currentStashId) return;
+
+        // prepare abort controller
+        if (abortController) abortController.abort();
+        abortController = new AbortController();
+
+        const sortButton = document.querySelector('.sort-button');
+        setSortingState(true);
+
+        try {
+            const response = await fetch(`/api/character/${charId}/stash/${currentStashId}/sort`, {
+                method: 'POST',
+                signal: abortController.signal
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                await loadStashes();
+                showNotification('Stash sorted successfully', 'success');
+            } else {
+                const errorMessage = result.error || 'Failed to sort stash. The stash might be full.';
+                showNotification(errorMessage, 'error');
+            }
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                showNotification('Sorting cancelled', 'info');
+            } else {
+                console.error('Error sorting stash:', error);
+                showNotification('Network error while sorting stash', 'error');
+            }
+        } finally {
+            setSortingState(false);
+            abortController = null;
+        }
+    };
+
+    function setSortingState(isSorting) {
+        const sortButton = document.querySelector('.sort-button');
+        if (!sortButton) return;
+
+        sortButton.disabled = isSorting;
+        if (isSorting) {
             sortButton.classList.add('sorting');
-            const originalText = sortButton.innerHTML;
             sortButton.innerHTML = `
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
                 </svg>
                 Sorting...
             `;
-
-            try {
-                const response = await fetch(`/api/character/${charId}/stash/${currentStashId}/sort`, {
-                    method: 'POST',
-                    signal: abortController.signal
-                });
-                const result = await response.json();
-
-                if (result.success) {
-                    await loadStashes();
-                } else {
-                    const errorMessage = result.error || 'Failed to sort stash. The stash might be full.';
-                    showNotification(errorMessage, 'error');
-                }
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    showNotification('Sorting aborted', 'error');
-                } else {
-                    console.error('Error sorting stash:', error);
-                    showNotification('Network error while sorting stash', 'error');
-                }
-            } finally {
-                abortController = null;
-                sortButton.disabled = false;
-                sortButton.classList.remove('sorting');
-                sortButton.innerHTML = originalText;
-            }
-        };
-
-        return firstStashUrl;
-    };
+        } else {
+            sortButton.classList.remove('sorting');
+            sortButton.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                Sort Stash
+            `;
+        }
+    }
 
     const loadStashes = async () => {
         const spinner = document.getElementById('stashSpinner');
@@ -371,6 +399,15 @@
             e.preventDefault();
             if (abortController) abortController.abort();
         }
+    });
+
+    // Add an event listener for when sorting starts from a keybind
+    window.addEventListener('sortingStarted', () => {
+        setSortingState(true);
+    });
+
+    window.addEventListener('sortingEnded', () => {
+        setSortingState(false);
     });
 
     // Initialize page when DOM is loaded

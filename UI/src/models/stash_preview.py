@@ -16,16 +16,29 @@ class ItemInfo:
     itemCount: int  # Changed from item_count to match incoming JSON
 
 class ItemDataManager:
-    def __init__(self):
-        # Project root directory for resolving asset paths
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        self.ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
-        self.assets_dir = os.path.join(self.ui_root)  # Changed from "assets" subfolder to UI root
+    def __init__(self, resource_dir=None):
+        # Use provided resource_dir or fall back to calculating from __file__
+        if resource_dir:
+            self.ui_root = resource_dir
+        else:
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            self.ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
+            
+        self.assets_dir = self.ui_root  # Use root for resolving asset paths
         self.ITEM_DATA_FILE = os.path.join(self.assets_dir, "assets", "item-data.json")
         self.MATCHING_DB_FILE = os.path.join(self.assets_dir, "assets", "matchingdb.json")
         
         if not os.path.exists(self.ITEM_DATA_FILE):
-            raise FileNotFoundError(f"Could not find item-data.json at {self.ITEM_DATA_FILE}")
+            # Attempt to download item-data.json from GitHub if missing
+            try:
+                from urllib.request import urlretrieve
+                os.makedirs(os.path.dirname(self.ITEM_DATA_FILE), exist_ok=True)
+                urlretrieve(
+                    "https://raw.githubusercontent.com/Beelzebub2/DnDTools/main/UI/assets/item-data.json",
+                    self.ITEM_DATA_FILE
+                )
+            except Exception:
+                raise FileNotFoundError(f"Could not find or download item-data.json at {self.ITEM_DATA_FILE}")
             
         self.item_data = self.load_json(self.ITEM_DATA_FILE)
         self.matching_db = {}
@@ -95,9 +108,9 @@ class ItemDataManager:
             print(f"Saved {len(self.unmatched_items)} unmatched items to {filename}")
 
 class StashPreviewGenerator:
-    def __init__(self, cell_size: int = 45):
+    def __init__(self, cell_size: int = 45, resource_dir=None):
         self.CELL_SIZE = cell_size
-        self.item_manager = ItemDataManager()
+        self.item_manager = ItemDataManager(resource_dir)
         logging.basicConfig(level=logging.INFO)
         try:
             self.font = ImageFont.truetype("arial.ttf", 16)

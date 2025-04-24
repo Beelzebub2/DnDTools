@@ -1,1 +1,1 @@
-# (empty) package marker
+# (empty – makes networking a package)

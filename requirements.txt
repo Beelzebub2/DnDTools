@@ -10,3 +10,5 @@ pywebview==4.3.3
 pillow>=9.0.0
 python-dotenv==1.0.0
 requests==2.31.0
+nuitka>=1.8.0  # Added for building executable
+imageio>=2.31.1  # Added for icon conversion

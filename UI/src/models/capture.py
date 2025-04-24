@@ -13,6 +13,8 @@ from google.protobuf.json_format import MessageToJson
 import threading
 import time
 import asyncio
+import glob
+import tempfile
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +22,6 @@ ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
 protos_path = os.path.join(ui_root, "networking", "protos")
 sys.path.insert(0, protos_path)
 
-# Direct imports from that folder
 from networking.protos import Lobby_pb2
 from networking.protos import _PacketCommand_pb2
 
@@ -36,7 +37,6 @@ class PacketProtocol:
         ]
 
 class PacketCapture:
-    STATE_FILE = "capture_state.json"
 
     def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), on_new_character=None):
         self.interface = interface
@@ -44,7 +44,16 @@ class PacketCapture:
         self.packet_data = b""
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-        self.data_dir = "data"
+        
+        # Use persistent directories next to EXE when frozen
+        if getattr(sys, 'frozen', False):
+            exe_dir = os.path.dirname(sys.executable)
+            self.data_dir = os.path.join(exe_dir, "data")
+            self.STATE_FILE = os.path.join(exe_dir, "capture_state.json")
+        else:
+            self.data_dir = "data"
+            self.STATE_FILE = "capture_state.json"
+            
         os.makedirs(self.data_dir, exist_ok=True)
         self.MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
         self.expected_packet_length = None
@@ -52,6 +61,10 @@ class PacketCapture:
         self.running = False  # Initialize as False first
         self.capture_thread = None
         self.on_new_character = on_new_character
+        
+        # Initialize temp file tracking
+        self.temp_files = set()
+        self._setup_temp_cleanup()
         
         # Restore state but don't start capture automatically
         saved_state = self._restore_state()
@@ -287,6 +300,29 @@ class PacketCapture:
         finally:
             self._cleanup_capture()
 
+    def _setup_temp_cleanup(self):
+        """Setup cleanup of existing pyshark temp files"""
+        temp_dir = tempfile.gettempdir()
+        pattern = os.path.join(temp_dir, "wireshark_*")
+        for temp_file in glob.glob(pattern):
+            try:
+                os.remove(temp_file)
+                self.logger.info(f"Cleaned up existing temp file: {temp_file}")
+            except Exception as e:
+                self.logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
+
+    def _cleanup_temp_files(self):
+        """Clean up any temporary files created during capture"""
+        temp_dir = tempfile.gettempdir()
+        pattern = os.path.join(temp_dir, "wireshark_*")
+        for temp_file in glob.glob(pattern):
+            try:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
+                    self.logger.info(f"Cleaned up temp file: {temp_file}")
+            except Exception as e:
+                self.logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
+
     def _cleanup_capture(self):
         """Clean up capture resources properly"""
         try:
@@ -311,6 +347,9 @@ class PacketCapture:
                     if not self._current_loop.is_closed():
                         self._current_loop.close()
                     del self._current_loop
+                
+                # Clean up temp files
+                self._cleanup_temp_files()
         except Exception as e:
             self.logger.error(f"Error during capture cleanup: {e}")
         finally:
@@ -340,6 +379,7 @@ class PacketCapture:
                 self.logger.warning("Capture thread still running after timeout, forcing cleanup")
                 self._cleanup_capture()
         self.capture_thread = None
+        self._cleanup_temp_files()
         self.logger.info("Capture switch turned OFF")
 
     def _process_packet_wrapper(self, packet):

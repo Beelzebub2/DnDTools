@@ -20,9 +20,17 @@ class StashSorter:
         self.cur_x = 0
         self.cur_y = 0
         self.cur_height = 0
+        self.cancel_event = None
 
-    def sort(self):
+    def sort(self, cancel_event=None):
+        self.cancel_event = cancel_event
+        
         while self.stash.pq:
+            # Check for cancellation
+            if self.cancel_event and self.cancel_event.is_set():
+                print("Sort operation cancelled")
+                return False
+                
             item = heapq.heappop(self.stash.pq)
             print("1. ", item)
 
@@ -40,6 +48,11 @@ class StashSorter:
 
             for x in range(item.width):
                 for y in range(item.height):
+                    # Check for cancellation during item placement
+                    if self.cancel_event and self.cancel_event.is_set():
+                        print("Sort operation cancelled during item placement")
+                        return False
+                        
                     occupying_item = self.stash.grid[self.cur_x + x][self.cur_y + y]
                     if occupying_item != 0 and occupying_item != item:
                         new_pos = self.stash.find_empty_slot(occupying_item)
