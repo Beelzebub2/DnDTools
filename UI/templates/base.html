@@ -8,11 +8,35 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
+        /* Global scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #222222;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #444444;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555555;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: #222222;
+        }
+
         .titlebar {
             -webkit-user-select: none;
             -webkit-app-region: drag;
             height: 32px;
-            background: #1a1a1a;
+            background: #111111;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -21,6 +45,9 @@
             left: 0;
             right: 0;
             z-index: 1000;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
         }
 
         .titlebar-title {
@@ -55,14 +82,87 @@
             background: #e81123;
         }
 
-        /* Adjust main content to account for titlebar */
+        /* Adjust body and main content layout */
         body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            /* Prevent double scrollbars */
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #111111;
+            border-radius: 8px;
+        }
+
+        /* Fixed top space for titlebar */
+        .app-container {
+            display: flex;
+            height: calc(100vh - 32px);
             margin-top: 32px;
+            /* Same as titlebar height */
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 32px;
+            /* Start below titlebar */
+            width: 220px;
+            /* Increased from 200px */
+            height: calc(100vh - 32px);
+            overflow-y: auto;
+            background: #1a1a1a;
+            border-right: 1px solid #333333;
+        }
+
+        .nav-header h1 {
+            padding: 0 15px;
+            margin: 15px 0;
+            font-size: 1.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 8px 15px;
+            /* Increased horizontal padding */
+            text-decoration: none;
+            color: #ccc;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-height: 36px;
+        }
+
+        .nav-link span.material-icons {
+            margin-right: 12px;
+            /* Increased spacing between icon and text */
+            font-size: 20px;
+            min-width: 24px;
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            margin-left: 220px;
+            /* Match new sidebar width */
+            padding: 20px;
+            box-sizing: border-box;
+            height: 100%;
+            background: #1a1a1a;
         }
     </style>
 </head>
 
 <body>
+    <!-- Title bar -->
     <div class="titlebar">
         <div class="titlebar-title">Dark and Darker Stash Organizer</div>
         <div class="titlebar-buttons">
@@ -77,43 +177,46 @@
             </button>
         </div>
     </div>
-    <nav class="sidebar">
-        <div class="nav-header">
-            <h1>Stash Organizer</h1>
-        </div>
-        <ul class="nav-links">
-            <li>
-                <a href="{{ url_for('index') }}" class="nav-link">
-                    <span class="material-icons">inventory_2</span>
-                    Characters
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('record') }}" class="nav-link">
-                    <span class="material-icons">add_circle</span>
-                    Record Character
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('search') }}" class="nav-link">
-                    <span class="material-icons">search</span>
-                    Search Items
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('settings') }}" class="nav-link">
-                    <span class="material-icons">settings</span>
-                    Settings
-                </a>
-            </li>
-        </ul>
-    </nav>
-    <main class="content">
-        <div class="content-header">
-            <h2>{% block header %}{% endblock %}</h2>
-        </div>
-        {% block content %}{% endblock %}
-    </main>
+    <!-- Main app container -->
+    <div class="app-container">
+        <nav class="sidebar">
+            <div class="nav-header">
+                <h1>Stash Organizer</h1>
+            </div>
+            <ul class="nav-links">
+                <li>
+                    <a href="{{ url_for('index') }}" class="nav-link">
+                        <span class="material-icons">inventory_2</span>
+                        Characters
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('record') }}" class="nav-link">
+                        <span class="material-icons">add_circle</span>
+                        Record Character
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('search') }}" class="nav-link">
+                        <span class="material-icons">search</span>
+                        Search Items
+                    </a>
+                </li>
+                <li>
+                    <a href="{{ url_for('settings') }}" class="nav-link">
+                        <span class="material-icons">settings</span>
+                        Settings
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <main class="content">
+            <div class="content-header">
+                <h2>{% block header %}{% endblock %}</h2>
+            </div>
+            {% block content %}{% endblock %}
+        </main>
+    </div>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>

@@ -431,7 +431,8 @@ def main():
                                  width=1200,
                                  height=800,
                                  min_size=(800, 600),
-                                 frameless=True)  # Add frameless=True here
+                                 frameless=True,
+                                 draggable=True)
     
     api.set_window(window)  # Set the window reference in the API instance
     
