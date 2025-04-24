@@ -173,6 +173,17 @@
             background: #1a1412;
             border-bottom-right-radius: 12px;
         }
+
+        .window-border {
+            pointer-events: none;
+            border: 2px solid #e4c869;
+            border-radius: 14px;
+            box-sizing: border-box;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: none;
+        }
     </style>
 </head>
 
@@ -237,6 +248,7 @@
     </div>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% block scripts %}{% endblock %}
+    <div class="window-border"></div>
 </body>
 
 </html>
