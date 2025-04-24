@@ -419,6 +419,15 @@ def api_settings():
     data = request.get_json()
     return jsonify({'success': api._save_settings(data)})
 
+@server.route('/assets/<path:filename>')
+def serve_file(filename):
+    # When frozen, serve from assets dir next to EXE
+    if getattr(sys, 'frozen', False):
+        assets_dir = os.path.join(os.path.dirname(sys.executable), 'assets')
+    else:
+        assets_dir = os.path.join(app_dir, 'assets')
+    return send_from_directory(assets_dir, filename)
+
 def main():
     # Use the global api instance
     # Perform initial restart if needed (only once)

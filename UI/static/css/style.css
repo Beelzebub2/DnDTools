@@ -1,11 +1,18 @@
 :root {
-    --bg-primary: #111111;
-    --bg-secondary: #1a1a1a;
+    --bg-primary: #1a1412;
+    /* Dark brown background */
+    --bg-secondary: #241c17;
+    /* Slightly lighter brown */
     --text-primary: #e4c869;
+    /* Gold text */
     --text-secondary: #a89a6c;
+    /* Darker gold */
     --accent-gold: #e4c869;
-    --border-color: #333333;
-    --hover-color: #222222;
+    /* Gold accent */
+    --border-color: #392e24;
+    /* Brown border */
+    --hover-color: #2a2018;
+    /* Hover state */
 }
 
 * {

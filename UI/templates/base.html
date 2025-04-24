@@ -36,7 +36,7 @@
             -webkit-user-select: none;
             -webkit-app-region: drag;
             height: 32px;
-            background: #111111;
+            background: #1a1412;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -46,14 +46,27 @@
             right: 0;
             z-index: 1000;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
+            border-top-left-radius: 12px;
+            border-top-right-radius: 12px;
         }
 
         .titlebar-title {
-            color: #ffffff;
+            color: #e4c869;
             margin-left: 12px;
             font-size: 14px;
+            display: flex;
+            align-items: center;
+        }
+
+        .titlebar-logo {
+            font-size: 20px;
+            margin-right: 8px;
+            color: #e4c869;
+        }
+
+        .titlebar-logo-img {
+            height: 20px;
+            margin-right: 8px;
         }
 
         .titlebar-buttons {
@@ -91,8 +104,8 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: #111111;
-            border-radius: 8px;
+            background: #1a1412;
+            border-radius: 12px;
         }
 
         /* Fixed top space for titlebar */
@@ -101,8 +114,8 @@
             height: calc(100vh - 32px);
             margin-top: 32px;
             /* Same as titlebar height */
-            border-bottom-left-radius: 8px;
-            border-bottom-right-radius: 8px;
+            border-bottom-left-radius: 12px;
+            border-bottom-right-radius: 12px;
             overflow: hidden;
         }
 
@@ -114,8 +127,9 @@
             /* Increased from 200px */
             height: calc(100vh - 32px);
             overflow-y: auto;
-            background: #1a1a1a;
-            border-right: 1px solid #333333;
+            background: #241c17;
+            border-right: 1px solid #392e24;
+            border-bottom-left-radius: 12px;
         }
 
         .nav-header h1 {
@@ -133,7 +147,7 @@
             padding: 8px 15px;
             /* Increased horizontal padding */
             text-decoration: none;
-            color: #ccc;
+            color: #a89a6c;
             font-size: 0.95rem;
             white-space: nowrap;
             overflow: hidden;
@@ -156,7 +170,8 @@
             padding: 20px;
             box-sizing: border-box;
             height: 100%;
-            background: #1a1a1a;
+            background: #1a1412;
+            border-bottom-right-radius: 12px;
         }
     </style>
 </head>
@@ -164,7 +179,10 @@
 <body>
     <!-- Title bar -->
     <div class="titlebar">
-        <div class="titlebar-title">Dark and Darker Stash Organizer</div>
+        <div class="titlebar-title">
+            <img src="{{ url_for('serve_file', filename='logo.png') }}" class="titlebar-logo-img" alt="Logo">
+            Dark and Darker Stash Organizer
+        </div>
         <div class="titlebar-buttons">
             <button class="titlebar-button minimize" onclick="pywebview.api.minimize()">
                 <span class="material-icons" style="font-size: 18px;">remove</span>
