@@ -92,6 +92,29 @@
         };
     };
 
+    function formatDataAsHTML(data, indent = 0) {
+        const spacer = '&nbsp;'.repeat(indent * 4); // indentation
+        let html = '';
+
+        if (Array.isArray(data)) {
+            html += '[<br>';
+            html += data.map(item => `${spacer}&nbsp;&nbsp;${formatDataAsHTML(item, indent + 1)}`).join(',<br>');
+            html += `<br>${spacer}]`;
+        } else if (typeof data === 'object' && data !== null) {
+            html += '{<br>';
+            const entries = Object.entries(data);
+            html += entries.map(([key, val]) => {
+                return `${spacer}&nbsp;&nbsp;<strong>${key}</strong>: ${formatDataAsHTML(val, indent + 1)}`;
+            }).join(',<br>');
+            html += `<br>${spacer}}`;
+        } else {
+            html += String(data); // handles numbers, booleans, strings, null, undefined
+        }
+
+        return html;
+    }
+
+
     const displayResults = (results) => {
         const container = document.getElementById('searchResults');
         container.innerHTML = '';
@@ -111,6 +134,9 @@
                 <div>${result.item.name}</div>
                 <div>${result.item.rarity}</div>
                 <div>${result.item.itemCount}</div>
+            </div>
+            <div class="item-popup">
+                <div>${formatDataAsHTML(result.item.data)}</div>
             </div>
         `;
 
