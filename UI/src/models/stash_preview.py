@@ -14,6 +14,7 @@ class ItemInfo:
     slotId: int  # Changed from slot_id to match incoming JSON
     itemId: str  # Changed from item_id to match incoming JSON
     itemCount: int  # Changed from item_count to match incoming JSON
+    data: Dict 
 
 class ItemDataManager:
     def __init__(self, resource_dir=None):
@@ -385,7 +386,7 @@ class StashPreviewGenerator:
         except Exception as e:
             logging.error(f"Failed to process image {img_path}: {e}")
 
-def get_item_name_from_id(item_id, item_data):
+def get_item_name_from_id(item_id):
     # Extract base name from item_id
     if not item_id.startswith("DesignDataItem:Id_Item_"):
         return None
@@ -395,6 +396,30 @@ def get_item_name_from_id(item_id, item_data):
     # Replace underscores with spaces
     base = base.replace("_", " ")
     return base
+
+def get_item_rarity_from_id(item_id):
+    rarity_dict = {
+            '1': "Poor",
+            '2': "Common",
+            '3': "Uncommon",
+            '4': "Rare",
+            '5': "Epic",
+            '6': "Legend",
+            '7': "Unique",
+            '8': "Artifact"
+    }
+
+    # Extract base name from item_id
+    if not item_id.startswith("DesignDataItem:Id_Item_"):
+        return None
+    base = item_id[len("DesignDataItem:Id_Item_"):]
+
+    parts = base.split("_")
+
+    rarity_id = parts[-1][0]
+    rarity = rarity_dict.get(rarity_id, "")
+
+    return rarity
 
 def parse_stashes(packet_data, item_data):
     stashes = {}
@@ -411,12 +436,13 @@ def parse_stashes(packet_data, item_data):
             if "slotId" in item:
                 item_id = item.get("itemId", "")
                 slot_id = item["slotId"]
-                name = get_item_name_from_id(item_id, item_data)
+                name = get_item_name_from_id(item_id)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
                     "itemId": item_id,
-                    "itemCount": item.get("itemCount", 1)
+                    "itemCount": item.get("itemCount", 1),
+                    "data": item
                 })
                 used_slots.add(slot_id)
         
@@ -428,12 +454,13 @@ def parse_stashes(packet_data, item_data):
                 slot_id = 0
                 while slot_id in used_slots:
                     slot_id += 1
-                name = get_item_name_from_id(item_id, item_data)
+                name = get_item_name_from_id(item_id)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
                     "itemId": item_id,
-                    "itemCount": item.get("itemCount", 1)
+                    "itemCount": item.get("itemCount", 1),
+                    "data": item
                 })
                 used_slots.add(slot_id)
                 
@@ -452,12 +479,13 @@ def parse_stashes(packet_data, item_data):
         if "slotId" in item:
             item_id = item.get("itemId", "")
             slot_id = item["slotId"]
-            name = get_item_name_from_id(item_id, item_data)
+            name = get_item_name_from_id(item_id)
             stashes[inventory_id].append({
                 "name": name,
                 "slotId": slot_id,
                 "itemId": item_id,
-                "itemCount": item.get("itemCount", 1)
+                "itemCount": item.get("itemCount", 1),
+                "data": item
             })
             used_slots.add(slot_id)
 

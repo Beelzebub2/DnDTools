@@ -91,7 +91,6 @@ class Storage:
                     return Point(x, y)
         return None  # no valid position found
 
-
     def load(self):
         for obj in self.data:
             item = Item.from_dict(obj, self)

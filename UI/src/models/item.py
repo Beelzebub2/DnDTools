@@ -15,9 +15,11 @@ class Item:
             return self.height > other.height
         if self.width != other.width:
             return self.width > other.width
-        if self.rarity != other.rarity:
-            return self.rarity > other.rarity
-        return self.name < other.name
+        if self.name != other.name:
+            return self.name > other.name
+        #if self.rarity != other.rarity:
+        return self.rarity > other.rarity
+
     
     def __eq__(self, other):
         if self and other:

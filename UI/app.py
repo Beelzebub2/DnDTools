@@ -316,20 +316,7 @@ def character(character_id):
 
 @server.route('/search')
 def search():
-    names = set()
-    # Use ItemDataManager with the correct resource directory
-    if getattr(sys, 'frozen', False):
-        item_manager = ItemDataManager(app_dir)
-    else: 
-        item_manager = ItemDataManager(os.path.dirname(os.path.abspath(__file__)))
-        
-    item_data = item_manager.item_data
-    for name, data in item_data.items():
-        name = name.removesuffix(".png").replace("_", " ").replace("2", "")
-        names.add(name)
-
-    sorted_names = sorted(names)
-    return render_template('search.html', names=sorted_names)
+    return render_template('search.html')
 
 @server.route('/api/characters')
 def list_characters():
@@ -398,6 +385,13 @@ def main():
     api.set_window(window)  # Set the window reference in the API instance
     
     webview.start(debug=True)
+
+# temp
+import keyboard
+def force_exit():
+    print("F7 pressed. Exiting...")
+    os._exit(0)
+keyboard.add_hotkey('F7', force_exit)
 
 if __name__ == '__main__':
     main()

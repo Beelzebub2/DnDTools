@@ -3,9 +3,7 @@ import os
 from typing import Dict, List, Optional
 import glob
 from datetime import datetime
-from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo
-from .storage import Storage, StashType
-from .sort import StashSorter
+from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo, get_item_rarity_from_id, get_item_name_from_id
 
 class StashManager:
     def __init__(self, resource_dir: str):
@@ -142,27 +140,51 @@ class StashManager:
             }
         return None
 
-    def search_items(self, query: Dict) -> List[Dict]:
+    def search_items(self, query: str) -> List[Dict]:
         """Search for items across all character stashes (empty for summary files)"""
-
-        # query {'name': 'Arcane Hood', 'rarity': '3', 'properties': ['s_Agility', 's_ArmorPenetration', 's_Dexterity']}
+        keywords = query.lower().replace(" ", "").split(",")
+        priority = 0
         output = []
         for char in self.get_characters():
-            for stash in char['stashes'].values():
+            for stash_id, stash in char.get('stashes', []).items():
                 for item in stash:
-                    name = query.get("name")
-                    # TODO implement rarity and properties and make result include stash
-                    rarity = query.get("rarity")
-                    if name:
-                        if item["name"] == name.replace(" ", ""):
-                            result = {
-                                'nickname': char['nickname'],
-                                'id': char['id'],
-                                'class': char['class'], 
-                                'level': char['level'],
-                                'item': item
-                            }
-                            output.append(result)
+                    rarity = get_item_rarity_from_id(item.get("itemId", ""))
+                    name = get_item_name_from_id(item.get("itemId", ""))
+
+                    data = item.get("data", {})
+                    effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
+                    pp = [(p["propertyTypeId"].replace(effect_str, ""), p["propertyValue"]) for p in data.get("primaryPropertyArray", [])]
+                    sp = [(p["propertyTypeId"].replace(effect_str, ""), p["propertyValue"]) for p in data.get("secondaryPropertyArray", [])]
+
+                    search_str = (str(pp) + str(sp) + rarity + name).lower().replace(" ", "")
+
+                    hit = True
+                    for keyword in keywords:
+                        if keyword not in search_str:
+                            hit = False
+
+                    itemCount = item.get("itemCount", 1)
+                    slotId = item.get("slotId", 0)
+
+                    item = {
+                        "name": name,
+                        "rarity": rarity,
+                        "pp": pp,
+                        "sp": sp
+                    }
+
+                    if hit:
+                        result = {
+                            'nickname': char['nickname'],
+                            'id': char['id'],
+                            'class': char['class'], 
+                            'level': char['level'],
+                            "itemCount": itemCount,
+                            "slotId": slotId,
+                            'item': item,
+                            'stash_id': stash_id
+                        }
+                        output.append(result)
 
         return output
 

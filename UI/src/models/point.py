@@ -9,6 +9,11 @@ class Point:
 
     def __repr__(self):
         return f"Point({self.x}, {self.y})"
+    
+    def __eq__(self, other):
+        if not isinstance(other, Point):
+            return NotImplemented
+        return self.x == other.x and self.y == other.y
 
 if __name__ == "__main__":
     a = -1

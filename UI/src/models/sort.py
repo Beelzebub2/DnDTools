@@ -45,39 +45,44 @@ class StashSorter:
             if self.cur_y + item.height > self.stash.height:
                 print("Out of space")
                 return False
+            
+            print(Point(self.cur_x, self.cur_y), item.position)
+            if Point(self.cur_x, self.cur_y) != item.position:
+                for x in range(item.width):
+                    for y in range(item.height):
+                        occupying_item = self.stash.grid[self.cur_x + x][self.cur_y + y]
+                        if occupying_item != 0 and occupying_item != item:
+                            new_pos = self.stash.find_empty_slot(occupying_item)
+                            if new_pos:
+                                if not intersects(new_pos, occupying_item.width, occupying_item.height,
+                                                Point(self.cur_x, self.cur_y), item.width, item.height):
+                                    print("Moving Stash")
+                                    self.stash.move(occupying_item, new_pos, self.stash)
+                                    continue
 
-            for x in range(item.width):
-                for y in range(item.height):
-                    # Check for cancellation during item placement
-                    if self.cancel_event and self.cancel_event.is_set():
-                        print("Sort operation cancelled during item placement")
-                        return False
-                        
-                    occupying_item = self.stash.grid[self.cur_x + x][self.cur_y + y]
-                    if occupying_item != 0 and occupying_item != item:
-                        new_pos = self.stash.find_empty_slot(occupying_item)
-                        if new_pos:
-                            if not intersects(new_pos, occupying_item.width, occupying_item.height,
-                                              item.position, item.width, item.height):
-                                print("Moving Stash")
-                                self.stash.move(occupying_item, new_pos, self.stash)
-                                continue
+                            print("Cannot find valid temp location checking inv")
+                            new_pos = self.inv.find_empty_slot(occupying_item)
+                            if new_pos:
+                                print("Moving Inv")
+                                self.stash.move(occupying_item, new_pos, self.inv)
+                            else:
+                                print("Cannot find valid temp location")
+                                print("Out of space")
+                                return False
 
-                        print("Cannot find valid temp location checking inv")
-                        new_pos = self.inv.find_empty_slot(occupying_item)
-                        if new_pos:
-                            print("Moving Inv")
-                            self.stash.move(occupying_item, new_pos, self.inv)
-                        else:
-                            print("Cannot find valid temp location")
-                            print("Out of space")
-                            return False
+                item.stash.move(item, Point(self.cur_x, self.cur_y), self.stash)
+            else:
+                print("No need to Move")
 
-            item.stash.move(item, Point(self.cur_x, self.cur_y), self.stash)
             self.cur_x += item.width
             print(item.stash)
 
         return True
+    
+    def pack(self):
+        # TODO
+        pass
+
 
 def main():
     def force_exit():
@@ -92,7 +97,8 @@ def main():
     stashes = parse_stashes(packet_data, item_data)
 
     stash = Storage(StashType.STORAGE.value, stashes[StashType.STORAGE.value])
-    inv = Storage(StashType.BAG.value, stashes[StashType.BAG.value])
+    bag = stashes.get(StashType.BAG.value, [])
+    inv = Storage(StashType.BAG.value, bag)
 
     sorter = StashSorter(stash, inv)
 
