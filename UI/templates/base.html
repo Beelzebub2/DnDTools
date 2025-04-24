@@ -130,6 +130,18 @@
             background: #241c17;
             border-right: 1px solid #392e24;
             border-bottom-left-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .sidebar .nav-links {
+            flex: 0 0 auto;
+        }
+
+        .sidebar .nav-links.settings-links {
+            margin-top: auto;
+            margin-bottom: 1rem;
         }
 
         .nav-header h1 {
@@ -231,6 +243,8 @@
                         Search Items
                     </a>
                 </li>
+            </ul>
+            <ul class="nav-links settings-links">
                 <li>
                     <a href="{{ url_for('settings') }}" class="nav-link">
                         <span class="material-icons">settings</span>
