@@ -497,7 +497,7 @@ def slotid_to_xy(slot_id):
 def main():
     from pathlib import Path
 
-    folder = Path(r"D:\Documents\Programming\Github\DnDTools\UI\data")
+    folder = Path(r"data")
 
     for file in folder.iterdir():
         if file.is_file():
