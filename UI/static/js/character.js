@@ -233,6 +233,12 @@ window.addEventListener('sortingEnded', () => {
     setSortingState(false);
 });
 
+// Add update handler for character data
+window.updateCharacterData = async () => {
+    await updateCharacterInfo(charId);
+    await loadStashes();
+};
+
 // Initialize page when DOM is loaded
 window.addEventListener('DOMContentLoaded', async () => {
     try {

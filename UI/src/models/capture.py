@@ -7,7 +7,6 @@ from datetime import datetime
 import os
 import logging
 import sys
-import shutil
 from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
 import threading
