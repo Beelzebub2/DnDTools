@@ -3,7 +3,7 @@ import os
 from typing import Dict, List, Optional
 import glob
 from datetime import datetime
-from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo, get_item_rarity_from_id, get_item_name_from_id
+from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo
 from .storage import Storage, StashType
 from .sort import StashSorter
 
@@ -23,10 +23,6 @@ class StashManager:
             self.data_dir = os.path.join(resource_dir, "data")
             self.output_dir = os.path.join(resource_dir, "output")
             
-        # Initialize item data from the resource directory
-        self.item_data = ItemDataManager(resource_dir).item_data
-        print(f"Data dir: {self.data_dir}")
-        
         # Ensure directories exist
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.output_dir, exist_ok=True)
@@ -62,7 +58,7 @@ class StashManager:
                         continue
 
                     # Process stashes using existing parse_stashes function
-                    raw_stashes = parse_stashes(packet_data, self.item_data)
+                    raw_stashes = parse_stashes(packet_data)
                     # Convert stash keys to strings for consistent lookup
                     stashes = {str(k): v for k, v in raw_stashes.items()}
                         
@@ -144,6 +140,8 @@ class StashManager:
 
     def search_items(self, query: str) -> List[Dict]:
         """Search for items across all character stashes"""
+        item_data_manager = ItemDataManager()
+
         if not query:
             return []
             
@@ -157,10 +155,11 @@ class StashManager:
                     
                 for item in stash:
                     try:
-                        item_id = item.get("itemId", "")
-                        rarity = get_item_rarity_from_id(item_id)
-                        name = get_item_name_from_id(item_id)
-                        
+                        design_str = item.get("itemId", "")
+                        item_id = item_data_manager.get_item_id_from_design_str(design_str)
+                        name = item_data_manager.get_item_name_from_id(item_id)
+                        rarity = item_data_manager.get_item_rarity_from_id(item_id)
+
                         # Extract properties safely
                         data = item.get("data", {})
                         effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
@@ -290,3 +289,7 @@ class StashManager:
         except Exception as e:
             print(f"Error saving character data: {str(e)}")
             return False
+    
+    def _generate_previews(self, character_id):
+        # TODO ?
+        pass

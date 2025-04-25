@@ -1,4 +1,4 @@
-from src.models.stash_preview import ItemDataManager, slotid_to_xy
+from src.models.game_data import ItemDataManager
 from src.models.point import Point
 
 class Item:
@@ -65,7 +65,7 @@ class Item:
         position = Point(x, y)
 
         manager = ItemDataManager()
-        _, width, height, _ = manager.get_item_image_path(name) or (None, 1, 1, None)
+        width, height = manager.get_item_dimensions_from_id(name)
 
         return Item(name, rarity_id, position, width, height, stash)
 

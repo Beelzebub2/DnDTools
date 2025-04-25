@@ -3,7 +3,7 @@ from flask import Flask, render_template, jsonify, request, send_from_directory
 import os
 import threading
 from src.models.stash_manager import StashManager
-from src.models.stash_preview import ItemDataManager
+from src.models.game_data import ItemDataManager
 import psutil
 import json
 

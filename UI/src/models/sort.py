@@ -1,4 +1,5 @@
-from src.models.stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo
+from src.models.stash_preview import parse_stashes
+from src.models.game_data import ItemDataManager
 import time
 from src.models.storage import Storage, StashType
 import heapq
@@ -106,9 +107,7 @@ def main():
 
     time.sleep(2)
 
-    item_data = ItemDataManager().item_data
-    packet_data = ItemDataManager.load_json("data/4696745.json")
-    stashes = parse_stashes(packet_data, item_data)
+    stashes = parse_stashes(packet_data)
 
     stash = Storage(StashType.STORAGE.value, stashes[StashType.STORAGE.value])
     bag = stashes.get(StashType.BAG.value, [])
