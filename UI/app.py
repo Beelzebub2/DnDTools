@@ -241,7 +241,7 @@ class Api:
     def minimize(self):
         self.window.minimize()
         
-    def _animate_window(self, start_rect, end_rect, duration=0.06, steps=6):
+    def _animate_window(self, start_rect, end_rect, duration=0.06, steps=20):
         """Animate window from start_rect to end_rect over duration in given steps.
         Uses a smooth easing function and adds opacity changes for fade effect."""
         import time
