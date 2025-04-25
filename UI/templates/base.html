@@ -34,12 +34,43 @@
 
         /* Animation and transition styles */
         body {
-            transition: opacity 0.08s ease, filter 0.08s ease;
+            transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                filter 0.15s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body.animating {
-            transition: opacity 0.08s ease, filter 0.08s ease;
-            filter: blur(12px) brightness(0.6);
+            transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                filter 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: blur(16px) brightness(0.5);
+            opacity: 0.8;
+        }
+
+        /* Add smooth page transitions */
+        .content {
+            opacity: 0;
+            transform: translateY(10px);
+            animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Smooth nav link transitions */
+        .nav-link {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link:hover {
+            transform: translateX(5px);
         }
 
         /* Hide resolution notifications that appear in corner */
