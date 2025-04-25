@@ -3,7 +3,7 @@ import time
 from src.models.point import Point
 
 # all positions are for 1920x1080 resolution
-stash_screen_pos = Point(1390, 215)
+stash_screen_pos = Point(1399, 221)
 inv_screen_pos = Point(705, 641)
 
 # distance between stash cells

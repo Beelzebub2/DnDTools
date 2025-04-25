@@ -391,12 +391,5 @@ def main():
     
     webview.start(debug=True)
 
-# temp
-import keyboard
-def force_exit():
-    print("F7 pressed. Exiting...")
-    os._exit(0)
-keyboard.add_hotkey('F7', force_exit)
-
 if __name__ == '__main__':
     main()

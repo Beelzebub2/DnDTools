@@ -495,42 +495,48 @@ def slotid_to_xy(slot_id):
     return slot_id % 12, slot_id // 12
 
 def main():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    packet_data_path = os.path.join(base_dir, "packet_data.json")
-    output_dir = os.path.join(base_dir, "output")
-    os.makedirs(output_dir, exist_ok=True)
+    from pathlib import Path
 
-    try:
-        item_data = ItemDataManager().item_data
-        if not os.path.exists(packet_data_path):
-            print(f"Error: {packet_data_path} not found. Please run packet capture first.")
-            return
-            
-        packet_data = ItemDataManager.load_json(packet_data_path)
-        matching_db = {}  # collect original → matched names
+    folder = Path(r"D:\Documents\Programming\Github\DnDTools\UI\data")
 
-        stashes = parse_stashes(packet_data, item_data)
-        if not stashes:
-            print("No stashes found in packet data.")
-            return
+    for file in folder.iterdir():
+        if file.is_file():
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            packet_data_path = os.path.join(base_dir, file)
+            output_dir = os.path.join(base_dir, "output")
+            os.makedirs(output_dir, exist_ok=True)
 
-        generator = StashPreviewGenerator()
+            try:
+                item_data = ItemDataManager().item_data
+                if not os.path.exists(packet_data_path):
+                    print(f"Error: {packet_data_path} not found. Please run packet capture first.")
+                    return
+                    
+                packet_data = ItemDataManager.load_json(packet_data_path)
+                matching_db = {}  # collect original → matched names
 
-        for stash_id, items in stashes.items():
-            print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
-            preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
-            outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
-            preview.save(outname)
-            print(f"Preview saved as {outname}")
+                stashes = parse_stashes(packet_data, item_data)
+                if not stashes:
+                    print("No stashes found in packet data.")
+                    return
 
-        # After processing all stashes, save unmatched items
-        generator.item_manager.save_unmatched_items()
-        generator.item_manager.save_matching_db()
-        print("Matching DB saved as matchingdb.json")
-        
-    except Exception as e:
-        print(f"Error generating previews: {e}")
-        logging.error(f"Failed to generate previews: {e}", exc_info=True)
+                generator = StashPreviewGenerator()
+
+                for stash_id, items in stashes.items():
+                    print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
+                    preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
+                    outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
+                    preview.save(outname)
+                    print(f"Preview saved as {outname}")
+
+                # After processing all stashes, save unmatched items
+                generator.item_manager.save_unmatched_items()
+                generator.item_manager.save_matching_db()
+                print("Matching DB saved as matchingdb.json")
+                
+            except Exception as e:
+                print(f"Error generating previews: {e}")
+                logging.error(f"Failed to generate previews: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()

@@ -103,6 +103,7 @@ class Storage:
             except Exception as e:
                 print(f"Error creating item from data: {e}")
                 continue
+
             # Verify placement within bounds
             out_of_bounds = False
             for dx in range(item.width):
