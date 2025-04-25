@@ -1,0 +1,29 @@
+.search-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.result-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    border-radius: 4px;
+    background: var(--bg-secondary);
+    margin-bottom: 1rem;
+}
+
+.item-popup {
+    position: absolute;
+    z-index: 100;
+    background: rgba(0, 0, 0, 0.95);
+    padding: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.instructions-panel {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+}

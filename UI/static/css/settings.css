@@ -1,0 +1,23 @@
+.settings-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.settings-form {
+    background: var(--bg-secondary);
+    padding: 2rem;
+    border-radius: 8px;
+    margin-top: 1.5rem;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.help-text {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.9em;
+    margin-top: 0.5rem;
+}
