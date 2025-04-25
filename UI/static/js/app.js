@@ -22,12 +22,16 @@ function handleApiError(error, element) {
 }
 
 // Global notification function
-function showNotification(message, type) {
+function showNotification(message, type = 'error') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
     document.body.appendChild(notification);
-    setTimeout(() => notification.remove(), 3000);
+
+    setTimeout(() => {
+        notification.classList.add('fade-out');
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
 // Format number values consistently across the app
@@ -57,5 +61,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (link.getAttribute('href') === currentPath) {
             link.classList.add('active');
         }
+    });
+
+    // Handle navigation transitions
+    const links = document.querySelectorAll('.nav-link');
+    links.forEach(link => {
+        link.addEventListener('click', (e) => {
+            e.preventDefault();
+            const content = document.querySelector('.content');
+            content.style.opacity = '0';
+            content.style.transform = 'translateY(10px)';
+            setTimeout(() => {
+                window.location.href = link.href;
+            }, 300);
+        });
     });
 });

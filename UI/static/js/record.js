@@ -73,8 +73,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (isRunning) {
                 startPolling();
+                showNotification('Capture started', 'success');
             } else {
                 stopPolling();
+                showNotification('Capture stopped', 'info');
             }
         } catch (error) {
             console.error('Failed to update capture state:', error);

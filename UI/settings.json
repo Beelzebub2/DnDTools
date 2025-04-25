@@ -1,5 +1,5 @@
 {
   "interface": "Ethernet",
   "sortHotkey": "1",
-  "cancelHotkey": "2"
+  "cancelHotkey": "9"
 }

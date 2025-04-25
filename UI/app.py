@@ -68,6 +68,9 @@ class Api:
         self.is_maximized = False
         self.original_size = None
         self.original_position = None
+        self.current_sort_event = None  # Add this line
+        self._current_char_id = None    # Add this line
+        self._current_stash_id = None   # Add this line
 
     def _load_settings(self):
         if os.path.exists(self.settings_file):
@@ -223,13 +226,20 @@ class Api:
             # Create new event for this sort operation
             self.current_sort_event = threading.Event()
             
-            result = self.stash_manager.sort_stash(character_id, stash_id, cancel_event=self.current_sort_event)
+            result = self.stash_manager.sort_stash(
+                character_id, 
+                stash_id, 
+                cancel_event=self.current_sort_event
+            )
+            
+            # Handle tuple result with error message
             if isinstance(result, tuple):
                 success, error_msg = result
                 return {"success": success, "error": error_msg}
-            if not result:
-                return {"success": False, "error": "Failed to sort stash - not enough space available"}
-            return {"success": True}
+            
+            # Handle boolean result
+            return {"success": bool(result)}
+            
         except Exception as e:
             print(f"Error in sort_stash: {str(e)}")
             import traceback
