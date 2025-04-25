@@ -1,11 +1,18 @@
 :root {
     --bg-primary: #1a1412;
+    /* Dark brown background */
     --bg-secondary: #241c17;
-    --text-primary: #d4c4a8;
-    --text-secondary: #8b7355;
-    --accent-gold: #d4af37;
+    /* Slightly lighter brown */
+    --text-primary: #e4c869;
+    /* Gold text */
+    --text-secondary: #a89a6c;
+    /* Darker gold */
+    --accent-gold: #e4c869;
+    /* Gold accent */
     --border-color: #392e24;
+    /* Brown border */
     --hover-color: #2a2018;
+    /* Hover state */
 }
 
 * {
@@ -45,7 +52,7 @@ body {
     align-items: center;
     gap: 0.8rem;
     padding: 0.8rem 1rem;
-    color: var(--text-primary);
+    color: #a89a6c;
     text-decoration: none;
     border-radius: 4px;
     transition: all 0.3s ease;
@@ -53,24 +60,24 @@ body {
 
 .nav-link .material-icons {
     font-size: 1.2rem;
-    color: var(--text-secondary);
+    color: #a89a6c;
     transition: color 0.3s ease;
 }
 
 .nav-link:hover .material-icons,
 .nav-link.active .material-icons {
-    color: var(--accent-gold);
+    color: #e4c869;
 }
 
 .nav-link:hover {
     background-color: var(--hover-color);
-    color: var(--accent-gold);
+    color: #e4c869;
 }
 
 .nav-link.active {
     background-color: var(--hover-color);
-    color: var(--accent-gold);
-    border-left: 3px solid var(--accent-gold);
+    color: #e4c869;
+    border-left: 3px solid #e4c869;
 }
 
 .content {
@@ -440,8 +447,8 @@ label {
 
 /* Button Styles */
 .btn-primary {
-    background-color: var(--accent-gold);
-    color: var(--bg-primary);
+    background-color: #e4c869;
+    color: #111111;
     border: none;
     padding: 0.8rem 1.5rem;
     border-radius: 4px;
@@ -451,7 +458,7 @@ label {
 }
 
 .btn-primary:hover {
-    filter: brightness(1.1);
+    background-color: #c9b05d;
 }
 
 .btn-primary:disabled {
@@ -624,7 +631,7 @@ img:not([src]) {
     display: flex;
     align-items: center;
     gap: 1rem;
-    position: relative; 
+    position: relative;
 }
 
 .item-popup {
@@ -644,9 +651,6 @@ img:not([src]) {
     min-width: 220px;
     text-align: center;
 }
-
-
-
 
 .item-popup .item-header {
     font-weight: bold;
