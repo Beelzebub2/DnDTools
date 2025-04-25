@@ -2,6 +2,7 @@ import heapq
 from src.models import macros
 from src.models.item import Item
 from src.models.point import Point
+from src.models.game_data import item_data_manager
 from enum import Enum
 
 class StashType(Enum):
@@ -37,6 +38,7 @@ class Storage:
     def __init__(self, stash_type, data):
         self.stash_type = stash_type
         self.data = data
+
         # stardard or shared stash size 12x20
         if self.stash_type >= 4 and self.stash_type <= 30:
             self.width = 12
@@ -99,7 +101,22 @@ class Storage:
                 print(f"Skipping item without slotId: {obj}")
                 continue
             try:
-                item = Item.from_dict(obj, self)
+                design_str = obj.get("itemId", "")
+                item_id = item_data_manager.get_item_id_from_design_str(design_str)
+                width, height = item_data_manager.get_item_dimensions_from_id(item_id)
+                rarity = item_data_manager.get_item_rarity_from_id(item_id)
+                name = item_data_manager.get_item_rarity_from_id(item_id)
+
+                slot_id = obj.get("slotId")
+                x = slot_id % self.width
+                y = slot_id // self.width
+
+                position = Point(x, y)
+
+                rarity_id = item_data_manager.rarity_to_id(rarity)
+
+                item = Item(name, rarity_id, position, width, height, self)
+
             except Exception as e:
                 print(f"Error creating item from data: {e}")
                 continue

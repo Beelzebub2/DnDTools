@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 import logging
 from datetime import datetime
+from src.models.game_data import item_data_manager
 
 @dataclass
 class ItemInfo:
@@ -16,102 +17,9 @@ class ItemInfo:
     itemCount: int  # Changed from item_count to match incoming JSON
     data: Dict 
 
-class ItemDataManager:
-    def __init__(self, resource_dir=None):
-        # Use provided resource_dir or fall back to calculating from __file__
-        if resource_dir:
-            self.ui_root = resource_dir
-        else:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            self.ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
-            
-        self.assets_dir = self.ui_root  # Use root for resolving asset paths
-        self.ITEM_DATA_FILE = os.path.join(self.assets_dir, "assets", "item-data.json")
-        self.MATCHING_DB_FILE = os.path.join(self.assets_dir, "assets", "matchingdb.json")
-        
-        if not os.path.exists(self.ITEM_DATA_FILE):
-            # Attempt to download item-data.json from GitHub if missing
-            try:
-                from urllib.request import urlretrieve
-                os.makedirs(os.path.dirname(self.ITEM_DATA_FILE), exist_ok=True)
-                urlretrieve(
-                    "https://raw.githubusercontent.com/Beelzebub2/DnDTools/main/UI/assets/item-data.json",
-                    self.ITEM_DATA_FILE
-                )
-            except Exception:
-                raise FileNotFoundError(f"Could not find or download item-data.json at {self.ITEM_DATA_FILE}")
-            
-        self.item_data = self.load_json(self.ITEM_DATA_FILE)
-        self.matching_db = {}
-        self.unmatched_items = set()
-        
-        if os.path.exists(self.MATCHING_DB_FILE):
-            self.matching_db = self.load_json(self.MATCHING_DB_FILE)
-
-    @staticmethod
-    def load_json(filename: str) -> dict:
-        with open(filename, "r", encoding="utf-8") as f:
-            return json.load(f)
-
-    def save_matching_db(self) -> None:
-        with open(self.MATCHING_DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(self.matching_db, f, indent=2)
-
-    @staticmethod
-    def normalize_name(name: str) -> str:
-        """Normalize item name to match item-data.json names"""
-        if not name:
-            return ""
-        # Remove prefix and convert to proper case format
-        name = name.replace("DesignDataItem:Id_Item_", "")
-        name = re.sub(r"[\s'-]", "", name)  # Remove spaces, hyphens and apostrophes
-        return name.lower()  # Convert to lowercase for case-insensitive matching
-
-    def get_item_image_path(self, item_name: str) -> Tuple[Optional[str], Optional[int], Optional[int], Optional[str]]:
-        # First check if we have a known match in the matching DB
-        if item_name in self.matching_db:
-            matched_name = self.matching_db[item_name]
-            # Find the item data using the matched name
-            for data in self.item_data.values():
-                if data.get("name") == matched_name:
-                    rel_path = data["path"]
-                    full_path = os.path.join(self.assets_dir, rel_path)
-                    return (full_path,
-                            data["inventory_width"],
-                            data["inventory_height"],
-                            data["name"])
-                            
-        # If not in matching DB, try direct match
-        norm_name = self.normalize_name(item_name)
-        for data in self.item_data.values():
-            if self.normalize_name(data.get("name", "")) == norm_name:
-                rel_path = data["path"]
-                full_path = os.path.join(self.assets_dir, rel_path)
-                return (full_path,
-                        data["inventory_width"],
-                        data["inventory_height"],
-                        data["name"])
-                        
-        # Only track as unmatched if we haven't seen it before
-        if item_name not in self.matching_db:
-            self.unmatched_items.add(item_name)
-        return None, None, None, None
-
-    def save_unmatched_items(self) -> None:
-        """Save list of unmatched items to file"""
-        if self.unmatched_items:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            filename = os.path.join(os.path.dirname(self.MATCHING_DB_FILE), f"unmatched_items_{timestamp}.txt")
-            
-            with open(filename, "w", encoding="utf-8") as f:
-                for item in sorted(self.unmatched_items):
-                    f.write(f"{item}\n")
-            print(f"Saved {len(self.unmatched_items)} unmatched items to {filename}")
-
 class StashPreviewGenerator:
     def __init__(self, cell_size: int = 45, resource_dir=None):
         self.CELL_SIZE = cell_size
-        self.item_manager = ItemDataManager(resource_dir)
         logging.basicConfig(level=logging.INFO)
         try:
             self.font = ImageFont.truetype("arial.ttf", 16)
@@ -247,9 +155,12 @@ class StashPreviewGenerator:
             
     def _place_equipment_item(self, preview: Image.Image, item: ItemInfo) -> None:
         """Special placement for equipment items based on slotId"""
-        img_path, w, h, matched_name = self.item_manager.get_item_image_path(item.name)
+        img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+        w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
+        name = item_data_manager.get_item_name_from_id(item.itemId)
+
         if not img_path or not os.path.exists(img_path):
-            logging.warning(f"Item not found or missing image: {item.name}")
+            logging.warning(f"Item not found or missing image: {item.itemId}")
             return
         
         try:
@@ -305,10 +216,7 @@ class StashPreviewGenerator:
                 
                 # Paste the item
                 preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
-                logging.info(f"Placed equipment '{matched_name}' at slot {item.slotId} ({x},{y})")
-                
-                # Record successful match
-                self.item_manager.matching_db[item.name] = matched_name
+                logging.info(f"Placed equipment '{name}' at slot {item.slotId} ({x},{y})")
                 
                 # Draw item count if greater than 1
                 if item.itemCount > 1:
@@ -324,10 +232,10 @@ class StashPreviewGenerator:
                     draw.text((text_x+1, text_y+1), count_text, fill='black', font=self.font)
                     draw.text((text_x, text_y), count_text, fill='white', font=self.font)
             else:
-                logging.warning(f"Unknown equipment slot ID: {item.slotId} for item {item.name}")
+                logging.warning(f"Unknown equipment slot ID: {item.slotId} for item {item.itemId}")
                 
         except Exception as e:
-            logging.error(f"Failed to process equipment item {item.name}: {e}")
+            logging.error(f"Failed to process equipment item {item.itemId}: {e}")
 
     def _draw_grid(self, img: Image.Image, grid_width: int, grid_height: int) -> None:
         draw = ImageDraw.Draw(img)
@@ -346,9 +254,12 @@ class StashPreviewGenerator:
             draw.line([(0, y_pos), (img.width, y_pos)], fill=grid_color)
 
     def _place_item(self, preview: Image.Image, item: ItemInfo, grid_width: int, grid_height: int) -> None:
-        img_path, w, h, matched_name = self.item_manager.get_item_image_path(item.name)
+        img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+        w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
+        name = item_data_manager.get_item_name_from_id(item.itemId)
+
         if not img_path or not os.path.exists(img_path):
-            logging.warning(f"Item not found or missing image: {item.name}")
+            logging.warning(f"Item not found or missing image: {item.itemId}")
             return
 
         try:
@@ -360,14 +271,11 @@ class StashPreviewGenerator:
             # Check if the item fits within grid boundaries
             x, y = item.slotId % grid_width, item.slotId // grid_width
             if x + (w or 1) > grid_width or y + (h or 1) > grid_height:
-                logging.warning(f"Item {item.name} at position ({x},{y}) with size {w}x{h} doesn't fit in grid {grid_width}x{grid_height}")
+                logging.warning(f"Item {item.itemId} at position ({x},{y}) with size {w}x{h} doesn't fit in grid {grid_width}x{grid_height}")
                 return
             
             preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
-            logging.info(f"Placed '{matched_name}' at ({x},{y})")
-            
-            # Record successful match
-            self.item_manager.matching_db[item.name] = matched_name
+            logging.info(f"Placed '{name}' at ({x},{y})")
             
             # Draw item count if greater than 1
             if item.itemCount > 1:
@@ -386,42 +294,9 @@ class StashPreviewGenerator:
         except Exception as e:
             logging.error(f"Failed to process image {img_path}: {e}")
 
-def get_item_name_from_id(item_id):
-    # Extract base name from item_id
-    if not item_id.startswith("DesignDataItem:Id_Item_"):
-        return None
-    base = item_id[len("DesignDataItem:Id_Item_"):]
-    # Remove trailing _xxxx numbers
-    base = re.sub(r'_\d+$', '', base)
-    # Replace underscores with spaces
-    base = base.replace("_", " ")
-    return base
 
-def get_item_rarity_from_id(item_id):
-    rarity_dict = {
-            '1': "Poor",
-            '2': "Common",
-            '3': "Uncommon",
-            '4': "Rare",
-            '5': "Epic",
-            '6': "Legend",
-            '7': "Unique",
-            '8': "Artifact"
-    }
-
-    # Extract base name from item_id
-    if not item_id.startswith("DesignDataItem:Id_Item_"):
-        return None
-    base = item_id[len("DesignDataItem:Id_Item_"):]
-
-    parts = base.split("_")
-
-    rarity_id = parts[-1][0]
-    rarity = rarity_dict.get(rarity_id, "")
-
-    return rarity
-
-def parse_stashes(packet_data, item_data):
+def parse_stashes(packet_data):
+    
     stashes = {}
     # stashes
     storage_infos = packet_data.get("characterDataBase", {}).get("CharacterStorageInfos", [])
@@ -434,9 +309,10 @@ def parse_stashes(packet_data, item_data):
         # First process items with defined slots
         for item in items:
             if "slotId" in item:
-                item_id = item.get("itemId", "")
+                design_str = item.get("itemId", "")
+                item_id = item_data_manager.get_item_id_from_design_str(design_str)
+                name = item_data_manager.get_item_name_from_id(item_id)
                 slot_id = item["slotId"]
-                name = get_item_name_from_id(item_id)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
@@ -449,12 +325,13 @@ def parse_stashes(packet_data, item_data):
         # Then process items without slots, using first available slot
         for item in items:
             if "slotId" not in item:
-                item_id = item.get("itemId", "")
                 # Find first available slot
                 slot_id = 0
                 while slot_id in used_slots:
                     slot_id += 1
-                name = get_item_name_from_id(item_id)
+                design_str = item.get("itemId", "")
+                item_id = item_data_manager.get_item_id_from_design_str(design_str)
+                name = item_data_manager.get_item_name_from_id(item_id)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
@@ -477,9 +354,10 @@ def parse_stashes(packet_data, item_data):
         used_slots = set()  # Keep track of used slots
         # First process items with defined slots
         if "slotId" in item:
-            item_id = item.get("itemId", "")
             slot_id = item["slotId"]
-            name = get_item_name_from_id(item_id)
+            design_str = item.get("itemId", "")
+            item_id = item_data_manager.get_item_id_from_design_str(design_str)
+            name = item_data_manager.get_item_name_from_id(item_id)
             stashes[inventory_id].append({
                 "name": name,
                 "slotId": slot_id,
@@ -491,52 +369,44 @@ def parse_stashes(packet_data, item_data):
 
     return stashes
 
-def slotid_to_xy(slot_id):
-    return slot_id % 12, slot_id // 12
-
 def main():
     from pathlib import Path
 
     folder = Path(r"data")
 
-    for file in folder.iterdir():
-        if file.is_file():
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            packet_data_path = os.path.join(base_dir, file)
-            output_dir = os.path.join(base_dir, "output")
-            os.makedirs(output_dir, exist_ok=True)
+    # TODO
+    # for file in folder.iterdir():
+    #     if file.is_file():
+    #         base_dir = os.path.dirname(os.path.abspath(__file__))
+    #         packet_data_path = os.path.join(base_dir, file)
+    #         output_dir = os.path.join(base_dir, "output")
+    #         os.makedirs(output_dir, exist_ok=True)
 
-            try:
-                item_data = ItemDataManager().item_data
-                if not os.path.exists(packet_data_path):
-                    print(f"Error: {packet_data_path} not found. Please run packet capture first.")
-                    return
+    #         try:
+    #             if not os.path.exists(packet_data_path):
+    #                 print(f"Error: {packet_data_path} not found. Please run packet capture first.")
+    #                 return
                     
-                packet_data = ItemDataManager.load_json(packet_data_path)
-                matching_db = {}  # collect original → matched names
+    #             packet_data = ItemDataManager.load_json(packet_data_path)
+    #             matching_db = {}  # collect original → matched names
 
-                stashes = parse_stashes(packet_data, item_data)
-                if not stashes:
-                    print("No stashes found in packet data.")
-                    return
+    #             stashes = parse_stashes(packet_data)
+    #             if not stashes:
+    #                 print("No stashes found in packet data.")
+    #                 return
 
-                generator = StashPreviewGenerator()
+    #             generator = StashPreviewGenerator()
 
-                for stash_id, items in stashes.items():
-                    print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
-                    preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
-                    outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
-                    preview.save(outname)
-                    print(f"Preview saved as {outname}")
-
-                # After processing all stashes, save unmatched items
-                generator.item_manager.save_unmatched_items()
-                generator.item_manager.save_matching_db()
-                print("Matching DB saved as matchingdb.json")
+    #             for stash_id, items in stashes.items():
+    #                 print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
+    #                 preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
+    #                 outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
+    #                 preview.save(outname)
+    #                 print(f"Preview saved as {outname}")
                 
-            except Exception as e:
-                print(f"Error generating previews: {e}")
-                logging.error(f"Failed to generate previews: {e}", exc_info=True)
+    #         except Exception as e:
+    #             print(f"Error generating previews: {e}")
+    #             logging.error(f"Failed to generate previews: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()
