@@ -62,6 +62,7 @@ class ItemDataManager:
         }
         return mapping.get(rarity_id, None)
 
+item_data_manager = ItemDataManager()
 
 def main():
     manager = ItemDataManager()

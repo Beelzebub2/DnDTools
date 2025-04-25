@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
 import logging
 from datetime import datetime
-from src.models.game_data import ItemDataManager
+from src.models.game_data import item_data_manager
 
 @dataclass
 class ItemInfo:
@@ -20,7 +20,6 @@ class ItemInfo:
 class StashPreviewGenerator:
     def __init__(self, cell_size: int = 45, resource_dir=None):
         self.CELL_SIZE = cell_size
-        self.item_manager = ItemDataManager()
         logging.basicConfig(level=logging.INFO)
         try:
             self.font = ImageFont.truetype("arial.ttf", 16)
@@ -156,9 +155,9 @@ class StashPreviewGenerator:
             
     def _place_equipment_item(self, preview: Image.Image, item: ItemInfo) -> None:
         """Special placement for equipment items based on slotId"""
-        img_path = self.item_manager.get_item_image_path_from_id(item.itemId)
-        w, h = self.item_manager.get_item_dimensions_from_id(item.itemId)
-        name = self.item_manager.get_item_name_from_id(item.itemId)
+        img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+        w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
+        name = item_data_manager.get_item_name_from_id(item.itemId)
 
         if not img_path or not os.path.exists(img_path):
             logging.warning(f"Item not found or missing image: {item.itemId}")
@@ -255,9 +254,9 @@ class StashPreviewGenerator:
             draw.line([(0, y_pos), (img.width, y_pos)], fill=grid_color)
 
     def _place_item(self, preview: Image.Image, item: ItemInfo, grid_width: int, grid_height: int) -> None:
-        img_path = self.item_manager.get_item_image_path_from_id(item.itemId)
-        w, h = self.item_manager.get_item_dimensions_from_id(item.itemId)
-        name = self.item_manager.get_item_name_from_id(item.itemId)
+        img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+        w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
+        name = item_data_manager.get_item_name_from_id(item.itemId)
 
         if not img_path or not os.path.exists(img_path):
             logging.warning(f"Item not found or missing image: {item.itemId}")
@@ -297,7 +296,7 @@ class StashPreviewGenerator:
 
 
 def parse_stashes(packet_data):
-    item_data_manager = ItemDataManager()
+    
     stashes = {}
     # stashes
     storage_infos = packet_data.get("characterDataBase", {}).get("CharacterStorageInfos", [])
@@ -375,38 +374,39 @@ def main():
 
     folder = Path(r"data")
 
-    for file in folder.iterdir():
-        if file.is_file():
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            packet_data_path = os.path.join(base_dir, file)
-            output_dir = os.path.join(base_dir, "output")
-            os.makedirs(output_dir, exist_ok=True)
+    # TODO
+    # for file in folder.iterdir():
+    #     if file.is_file():
+    #         base_dir = os.path.dirname(os.path.abspath(__file__))
+    #         packet_data_path = os.path.join(base_dir, file)
+    #         output_dir = os.path.join(base_dir, "output")
+    #         os.makedirs(output_dir, exist_ok=True)
 
-            try:
-                if not os.path.exists(packet_data_path):
-                    print(f"Error: {packet_data_path} not found. Please run packet capture first.")
-                    return
+    #         try:
+    #             if not os.path.exists(packet_data_path):
+    #                 print(f"Error: {packet_data_path} not found. Please run packet capture first.")
+    #                 return
                     
-                packet_data = ItemDataManager.load_json(packet_data_path)
-                matching_db = {}  # collect original → matched names
+    #             packet_data = ItemDataManager.load_json(packet_data_path)
+    #             matching_db = {}  # collect original → matched names
 
-                stashes = parse_stashes(packet_data)
-                if not stashes:
-                    print("No stashes found in packet data.")
-                    return
+    #             stashes = parse_stashes(packet_data)
+    #             if not stashes:
+    #                 print("No stashes found in packet data.")
+    #                 return
 
-                generator = StashPreviewGenerator()
+    #             generator = StashPreviewGenerator()
 
-                for stash_id, items in stashes.items():
-                    print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
-                    preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
-                    outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
-                    preview.save(outname)
-                    print(f"Preview saved as {outname}")
+    #             for stash_id, items in stashes.items():
+    #                 print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
+    #                 preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
+    #                 outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
+    #                 preview.save(outname)
+    #                 print(f"Preview saved as {outname}")
                 
-            except Exception as e:
-                print(f"Error generating previews: {e}")
-                logging.error(f"Failed to generate previews: {e}", exc_info=True)
+    #         except Exception as e:
+    #             print(f"Error generating previews: {e}")
+    #             logging.error(f"Failed to generate previews: {e}", exc_info=True)
 
 if __name__ == "__main__":
     main()

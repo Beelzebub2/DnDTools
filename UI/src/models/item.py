@@ -1,4 +1,4 @@
-from src.models.game_data import ItemDataManager
+from src.models.game_data import item_data_manager
 from src.models.point import Point
 
 class Item:
@@ -64,8 +64,7 @@ class Item:
 
         position = Point(x, y)
 
-        manager = ItemDataManager()
-        width, height = manager.get_item_dimensions_from_id(name)
+        width, height = item_data_manager.get_item_dimensions_from_id(name)
 
         return Item(name, rarity_id, position, width, height, stash)
 

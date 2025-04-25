@@ -1,9 +1,9 @@
+from src.models.game_data import item_data_manager
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory
 import os
 import threading
 from src.models.stash_manager import StashManager
-from src.models.game_data import ItemDataManager
 import psutil
 import json
 

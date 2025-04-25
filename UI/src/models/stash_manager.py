@@ -3,9 +3,10 @@ import os
 from typing import Dict, List, Optional
 import glob
 from datetime import datetime
-from .stash_preview import parse_stashes, ItemDataManager, StashPreviewGenerator, ItemInfo
+from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
 from .storage import Storage, StashType
 from .sort import StashSorter
+from src.models.game_data import item_data_manager
 
 class StashManager:
     def __init__(self, resource_dir: str):
@@ -140,7 +141,7 @@ class StashManager:
 
     def search_items(self, query: str) -> List[Dict]:
         """Search for items across all character stashes"""
-        item_data_manager = ItemDataManager()
+        
 
         if not query:
             return []
