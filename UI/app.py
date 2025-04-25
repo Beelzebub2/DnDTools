@@ -241,31 +241,71 @@ class Api:
     def minimize(self):
         self.window.minimize()
         
+    def _animate_window(self, start_rect, end_rect, duration=0.06, steps=6):
+        """Animate window from start_rect to end_rect over duration in given steps.
+        Uses a smooth easing function and adds opacity changes for fade effect."""
+        import time
+        
+        # First, let the window content know animation is starting - apply blur
+        self.window.evaluate_js('document.body.classList.add("animating");')
+        
+        # Ensure we give a moment for the blur to apply before moving
+        time.sleep(0.02)
+        
+        sx, sy, sw, sh = start_rect
+        ex, ey, ew, eh = end_rect
+        
+        for i in range(1, steps + 1):
+            # Use easeInOutQuad easing function for smoother animation
+            t = i / steps
+            # Easing: t^2 * (3-2t) - acceleration then deceleration
+            progress = t * t * (3 - 2 * t)
+            
+            x = int(sx + (ex - sx) * progress)
+            y = int(sy + (ey - sy) * progress)
+            w = int(sw + (ew - sw) * progress)
+            h = int(sh + (eh - sh) * progress)
+            
+            # Apply size and position
+            self.window.move(x, y)
+            self.window.resize(w, h)
+            
+            # Set reduced opacity for fade effect
+            opacity = 0.6
+            self.window.evaluate_js(f'document.body.style.opacity = {opacity};')
+            
+            time.sleep(duration / steps)
+        
+        # Animation complete, keep blur a moment then restore
+        time.sleep(0.03)
+        self.window.evaluate_js('document.body.style.opacity = 1; setTimeout(() => document.body.classList.remove("animating"), 70);')
+    
     def toggle_maximize(self):
+        # Animated toggle maximize/restore
+        # Determine current and target rectangles
+        current_rect = (self.window.x, self.window.y, self.window.width, self.window.height)
         if self.is_maximized:
             # Restore to previous size and position
-            if self.original_size and self.original_position:
-                width, height = self.original_size
-                x, y = self.original_position
-                self.window.resize(width, height)
-                self.window.move(x, y)
+            target_rect = (self.original_position[0], self.original_position[1],
+                           self.original_size[0], self.original_size[1])
+            self._animate_window(current_rect, target_rect)
             self.is_maximized = False
         else:
             # Store current size and position before maximizing
             self.original_size = (self.window.width, self.window.height)
             self.original_position = (self.window.x, self.window.y)
-            # Use screeninfo to find the monitor where the window currently is
+            # Calculate full screen dimensions
             win_x, win_y = self.window.x, self.window.y
+            full_rect = None
             for m in get_monitors():
                 if m.x <= win_x < m.x + m.width and m.y <= win_y < m.y + m.height:
-                    self.window.move(m.x, m.y)
-                    self.window.resize(m.width, m.height)
+                    full_rect = (m.x, m.y, m.width, m.height)
                     break
-            else:
-                # fallback to primary monitor
+            if full_rect is None:
+                # Fallback to primary monitor
                 m = get_monitors()[0]
-                self.window.move(m.x, m.y)
-                self.window.resize(m.width, m.height)
+                full_rect = (m.x, m.y, m.width, m.height)
+            self._animate_window(current_rect, full_rect)
             self.is_maximized = True
                 
     def close_window(self):

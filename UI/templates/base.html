@@ -32,6 +32,26 @@
             background: #222222;
         }
 
+        /* Animation and transition styles */
+        body {
+            transition: opacity 0.08s ease, filter 0.08s ease;
+        }
+
+        body.animating {
+            transition: opacity 0.08s ease, filter 0.08s ease;
+            filter: blur(12px) brightness(0.6);
+        }
+
+        /* Hide resolution notifications that appear in corner */
+        .resolution-notification,
+        div[role="status"],
+        div[aria-live="polite"] {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+        }
+
         .titlebar {
             -webkit-user-select: none;
             -webkit-app-region: drag;
