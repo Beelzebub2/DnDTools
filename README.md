@@ -79,7 +79,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 🙏 Acknowledgments
 
 thanks to:
-- [Dark and Darker Wiki](https://darkanddarker.wiki.spellsandguns.com) for the item image assets used in this project
 - [Darkerdb](https://darkerdb.com/) for the amazing api
 
 ## 📄 License

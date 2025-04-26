@@ -1,0 +1,33 @@
+# This workflow builds DnDTools with Nuitka when a release is created
+name: Build DnDTools with Nuitka on Release
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Nuitka and dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install nuitka
+          pip install -r UI/requirements.txt
+
+      - name: Build executable with Nuitka
+        run: build_app.bat
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DnDTools-executable
+          path: dist/app.exe

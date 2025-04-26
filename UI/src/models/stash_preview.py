@@ -8,6 +8,15 @@ from PIL import Image, ImageDraw, ImageFont
 import logging
 from datetime import datetime
 from src.models.game_data import item_data_manager
+import sys
+
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 @dataclass
 class ItemInfo:
@@ -167,8 +176,9 @@ class StashPreviewGenerator:
             )
             
     def _place_equipment_item(self, preview: Image.Image, item: ItemInfo) -> None:
-        """Special placement for equipment items based on slotId"""
         img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+        if img_path:
+            img_path = resource_path(img_path)
         w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
         name = item_data_manager.get_item_name_from_id(item.itemId)
 
@@ -268,6 +278,8 @@ class StashPreviewGenerator:
 
     def _place_item(self, preview: Image.Image, item: ItemInfo, grid_width: int, grid_height: int) -> None:
         img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+        if img_path:
+            img_path = resource_path(img_path)
         w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
         name = item_data_manager.get_item_name_from_id(item.itemId)
 
