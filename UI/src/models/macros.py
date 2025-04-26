@@ -1,4 +1,3 @@
-import pyautogui
 import time
 from src.models.point import Point
 import os
@@ -77,7 +76,9 @@ def get_sort_delay():
     except Exception:
         return 0.2
 
-def move_from_to(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
+
+import pyautogui
+def move_from_to1(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
     DELAY = get_sort_delay()
     # Calculate center of the item at start
     start_x = start_stash.base_screen_pos.x + (jump * start_pos.x) + (jump * start_width) / 2
@@ -87,6 +88,68 @@ def move_from_to(start_stash, start_pos, end_stash, end_pos, start_width=1, star
     end_y = end_stash.base_screen_pos.y + (jump * end_pos.y) + (jump * end_height) / 2
 
     pyautogui.moveTo(start_x, start_y, duration=DELAY)
+    pyautogui.mouseDown(button='left')
     time.sleep(DELAY)
-    pyautogui.dragTo(end_x, end_y, duration=DELAY, button='left')
+
+    pyautogui.moveTo(end_x, end_y, duration=DELAY)
+    pyautogui.mouseUp(button='left')
+    time.sleep(DELAY)
+
+
+from pywinauto import mouse
+from pywinauto.mouse import move, click
+def move_from_to2(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
+    DELAY = get_sort_delay()
+
+    # Calculate center of the item at start
+    start_x = start_stash.base_screen_pos.x + (jump * start_pos.x) + (jump * start_width) / 2
+    start_y = start_stash.base_screen_pos.y + (jump * start_pos.y) + (jump * start_height) / 2
+
+    # Calculate center of the item at end
+    end_x = end_stash.base_screen_pos.x + (jump * end_pos.x) + (jump * end_width) / 2
+    end_y = end_stash.base_screen_pos.y + (jump * end_pos.y) + (jump * end_height) / 2
+
+    # Move to start position
+    move(start_x, start_y)
+    time.sleep(DELAY)
+
+    # Mouse down (simulate holding the mouse)
+    mouse.press(button='left')
+    time.sleep(DELAY)
+
+    # Move to end position
+    move(end_x, end_y)
+    time.sleep(DELAY)
+
+    # Mouse up (release the mouse)
+    mouse.release(button='left')
+    time.sleep(DELAY)
+
+
+import autopy
+def move_from_to(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
+    DELAY = get_sort_delay()
+
+    # Calculate center of the item at start
+    start_x = start_stash.base_screen_pos.x + (jump * start_pos.x) + (jump * start_width) / 2
+    start_y = start_stash.base_screen_pos.y + (jump * start_pos.y) + (jump * start_height) / 2
+
+    # Calculate center of the item at end
+    end_x = end_stash.base_screen_pos.x + (jump * end_pos.x) + (jump * end_width) / 2
+    end_y = end_stash.base_screen_pos.y + (jump * end_pos.y) + (jump * end_height) / 2
+
+    # Move to start position
+    autopy.mouse.move(start_x, start_y)
+    time.sleep(DELAY)
+
+    # Mouse down (simulate holding the mouse)
+    autopy.mouse.toggle(button=autopy.mouse.Button.LEFT, down=True)
+    time.sleep(DELAY)
+
+    # Move to end position
+    autopy.mouse.move(end_x, end_y)
+    time.sleep(DELAY)
+
+    # Mouse up (release the mouse)
+    autopy.mouse.toggle(button=autopy.mouse.Button.LEFT, down=False)
     time.sleep(DELAY)
