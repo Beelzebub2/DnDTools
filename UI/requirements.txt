@@ -9,4 +9,3 @@ keyboard
 psutil
 pyshark
 protobuf
-screeninfo

@@ -12,7 +12,6 @@ import traceback
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
-from screeninfo import get_monitors  # Add this import
 
 # Load environment variables
 load_dotenv()
@@ -388,7 +387,7 @@ def main():
                                  height=800,
                                  min_size=(800, 600),
                                  frameless=True,
-                                 easy_drag=False)  # Add this line
+                                 easy_drag=False)
     
     # Then expose the API methods we need
     window.expose(api.minimize)
@@ -400,6 +399,7 @@ def main():
     window.expose(api.start_capture_switch)
     window.expose(api.stop_capture_switch)
     window.expose(api.restart_capture_switch)
+    window.expose(api.search_items)  # Add this line
     
     api.set_window(window)  # Set the window reference in the API instance
     
