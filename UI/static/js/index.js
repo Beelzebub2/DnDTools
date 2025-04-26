@@ -84,3 +84,12 @@ function getClassIcon(className) {
     };
     return icons[className] || 'person';
 }
+
+// Add global function to refresh character list
+window.updateCharacterList = async function () {
+    const grid = document.querySelector('.character-grid');
+    if (grid) {
+        grid.innerHTML = '<div class="loading" id="loading">Loading characters...</div>';
+        await loadCharacters();
+    }
+};

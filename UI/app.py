@@ -42,7 +42,9 @@ def on_new_character_callback(character_id):
     stash_manager._load_data()
     # Notify UI of data update
     if api.window:
-        api.window.evaluate_js('showNotification("New character data received", "success"); if(window.updateCharacterData) window.updateCharacterData();')
+        api.window.evaluate_js('showNotification("New character data received", "success");'
+                              'if(window.updateCharacterData) window.updateCharacterData();'
+                              'if(window.updateCharacterList) window.updateCharacterList();')
     return True
 
 class Api:
