@@ -6,9 +6,10 @@ import threading
 from src.models.stash_manager import StashManager
 import psutil
 import json
+import sys
+import traceback
 
 from dotenv import load_dotenv
-import sys
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 from screeninfo import get_monitors  # Add this import
@@ -16,15 +17,18 @@ from screeninfo import get_monitors  # Add this import
 # Load environment variables
 load_dotenv()
 
-# Determine base directory for resources, support PyInstaller onefile
+# Determine base directory for resources, support PyInstaller/Nuitka onefile
 if getattr(sys, 'frozen', False):
-    # Running as PyInstaller bundle: set resource dir to temp and switch cwd to EXE location
-    app_dir = sys._MEIPASS
-    # Make sure we access dynamic data from the original EXE folder
-    os.chdir(os.path.dirname(sys.executable))
+    # Running as packaged executable
+    if hasattr(sys, '_MEIPASS'):
+        app_dir = sys._MEIPASS
+    else:
+        app_dir = os.path.dirname(sys.executable)
+    print(f"Running as frozen application. Base directory: {app_dir}")
+    os.chdir(app_dir)
 else:
-    # Running in normal Python
     app_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f"Running in development mode. Base directory: {app_dir}")
 
 # Initialize Flask with explicit path handling
 server = Flask(__name__, 
@@ -346,11 +350,7 @@ def api_character_details(character_id):
 
 @server.route('/output/<path:filename>')
 def serve_preview(filename):
-    # When frozen, serve from output dir next to EXE
-    if getattr(sys, 'frozen', False):
-        output_dir = os.path.join(os.path.dirname(sys.executable), 'output')
-    else:
-        output_dir = os.path.join(app_dir, 'output')
+    output_dir = os.path.join(app_dir, 'output')
     return send_from_directory(output_dir, filename)
 
 @server.route('/api/search_items')
@@ -425,49 +425,6 @@ def character(character_id):
 def search():
     return render_template('search.html')
 
-@server.route('/api/characters')
-def list_characters():
-    """List all captured characters"""
-    characters = []
-    
-    # Use persistent data dir next to EXE when frozen
-    if getattr(sys, 'frozen', False):
-        data_dir = os.path.join(os.path.dirname(sys.executable), "data")
-    else:
-        data_dir = "data"
-    
-    if not os.path.exists(data_dir):
-        return jsonify(characters)
-        
-    for filename in os.listdir(data_dir):
-        if filename.endswith('.json'):
-            try:
-                file_path = os.path.join(data_dir, filename)
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    
-                char_data = None
-                # Handle different packet types
-                if 'characterDataBase' in data:
-                    char_data = data['characterDataBase']
-                elif 'characterDataList' in data:
-                    # Take first character from list for now
-                    char_data = data['characterDataList'][0] if data['characterDataList'] else None
-                    
-                if char_data:
-                    character = {
-                        'id': char_data.get('characterId', ''),
-                        'nickname': char_data.get('nickname', 'Unknown'),
-                        'class': char_data.get('className', 'Unknown'),
-                        'level': char_data.get('level', 0)
-                    }
-                    characters.append(character)
-            except Exception as e:
-                print(f"Error processing {filename}: {e}")
-                continue
-    
-    return jsonify(characters)
-
 # Add these routes after the other API routes
 @server.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
@@ -478,11 +435,7 @@ def api_settings():
 
 @server.route('/assets/<path:filename>')
 def serve_file(filename):
-    # When frozen, serve from assets dir next to EXE
-    if getattr(sys, 'frozen', False):
-        assets_dir = os.path.join(os.path.dirname(sys.executable), 'assets')
-    else:
-        assets_dir = os.path.join(app_dir, 'assets')
+    assets_dir = os.path.join(app_dir, 'assets')
     return send_from_directory(assets_dir, filename)
 
 def main():
