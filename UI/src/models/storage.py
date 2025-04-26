@@ -149,7 +149,7 @@ class Storage:
 
         # Determine the correct data directory (same logic as StashManager)
         if globals().get('__compiled__', False):
-            base_dir = os.path.dirname(sys.executable)
+            base_dir = os.getcwd()
         else:
             base_dir = Path(__file__).parent.parent.parent
         data_dir = os.path.join(base_dir, 'data')

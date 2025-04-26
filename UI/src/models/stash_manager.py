@@ -11,9 +11,9 @@ from src.models.game_data import item_data_manager
 class StashManager:
     def __init__(self, resource_dir: str):
         import sys
-        # For frozen EXE (Nuitka), use the EXE's directory for dynamic data (data/output)
+        # For frozen EXE (Nuitka), use the launch directory for dynamic data (data/output)
         if globals().get('__compiled__', False):
-            exe_dir = os.path.dirname(sys.executable)
+            exe_dir = os.getcwd()
             self.data_dir = os.path.join(exe_dir, "data")
             self.output_dir = os.path.join(exe_dir, "output")
         else:

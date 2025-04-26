@@ -87,7 +87,6 @@
         .titlebar {
             -webkit-user-select: none;
             user-select: none;
-            -webkit-app-region: drag;
             height: 32px;
             background: #1a1412;
             display: flex;
@@ -103,16 +102,23 @@
             border-top-right-radius: 12px;
         }
 
-        .titlebar>* {
-            -webkit-app-region: no-drag;
-        }
-
         .titlebar-title {
             color: #e4c869;
             margin-left: 12px;
             font-size: 14px;
             display: flex;
             align-items: center;
+            flex: 1;
+            height: 100%;
+            -webkit-app-region: drag;
+            app-region: drag;
+        }
+
+        /* Add the pywebview drag region class directly */
+        .titlebar-title.pywebview-drag-region,
+        .pywebview-drag-region {
+            -webkit-app-region: drag;
+            app-region: drag;
         }
 
         .titlebar-logo {
@@ -268,7 +274,7 @@
 <body>
     <!-- Title bar -->
     <div class="titlebar">
-        <div class="titlebar-title">
+        <div class="titlebar-title pywebview-drag-region">
             <img src="{{ url_for('serve_file', filename='logo.png') }}" class="titlebar-logo-img" alt="Logo">
             Dark and Darker Stash Organizer
         </div>

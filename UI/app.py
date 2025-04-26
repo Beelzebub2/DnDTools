@@ -19,7 +19,7 @@ load_dotenv()
 
 # Determine base directory for resources, support Nuitka onefile
 if globals().get('__compiled__', False):
-    app_dir = os.path.dirname(sys.executable)
+    app_dir = os.getcwd()
     print(f"Running as Nuitka EXE. Base directory: {app_dir}")
     os.chdir(app_dir)
 else:
@@ -258,73 +258,14 @@ class Api:
     def minimize(self):
         self.window.minimize()
         
-    def _animate_window(self, start_rect, end_rect, duration=0.06, steps=20):
-        """Animate window from start_rect to end_rect over duration in given steps.
-        Uses a smooth easing function and adds opacity changes for fade effect."""
-        import time
-        
-        # First, let the window content know animation is starting - apply blur
-        self.window.evaluate_js('document.body.classList.add("animating");')
-        
-        # Ensure we give a moment for the blur to apply before moving
-        time.sleep(0.02)
-        
-        sx, sy, sw, sh = start_rect
-        ex, ey, ew, eh = end_rect
-        
-        for i in range(1, steps + 1):
-            # Use easeInOutQuad easing function for smoother animation
-            t = i / steps
-            # Easing: t^2 * (3-2t) - acceleration then deceleration
-            progress = t * t * (3 - 2 * t)
-            
-            x = int(sx + (ex - sx) * progress)
-            y = int(sy + (ey - sy) * progress)
-            w = int(sw + (ew - sw) * progress)
-            h = int(sh + (eh - sh) * progress)
-            
-            # Apply size and position
-            self.window.move(x, y)
-            self.window.resize(w, h)
-            
-            # Set reduced opacity for fade effect
-            opacity = 0.6
-            self.window.evaluate_js(f'document.body.style.opacity = {opacity};')
-            
-            time.sleep(duration / steps)
-        
-        # Animation complete, keep blur a moment then restore
-        time.sleep(0.03)
-        self.window.evaluate_js('document.body.style.opacity = 1; setTimeout(() => document.body.classList.remove("animating"), 70);')
-    
     def toggle_maximize(self):
-        # Animated toggle maximize/restore
-        # Determine current and target rectangles
-        current_rect = (self.window.x, self.window.y, self.window.width, self.window.height)
         if self.is_maximized:
-            # Restore to previous size and position
-            target_rect = (self.original_position[0], self.original_position[1],
-                           self.original_size[0], self.original_size[1])
-            self._animate_window(current_rect, target_rect)
+            self.window.restore()
             self.is_maximized = False
         else:
-            # Store current size and position before maximizing
-            self.original_size = (self.window.width, self.window.height)
-            self.original_position = (self.window.x, self.window.y)
-            # Calculate full screen dimensions
-            win_x, win_y = self.window.x, self.window.y
-            full_rect = None
-            for m in get_monitors():
-                if m.x <= win_x < m.x + m.width and m.y <= win_y < m.y + m.height:
-                    full_rect = (m.x, m.y, m.width, m.height)
-                    break
-            if full_rect is None:
-                # Fallback to primary monitor
-                m = get_monitors()[0]
-                full_rect = (m.x, m.y, m.width, m.height)
-            self._animate_window(current_rect, full_rect)
+            self.window.maximize()
             self.is_maximized = True
-                
+
     def close_window(self):
         self.window.destroy()
 
@@ -440,14 +381,25 @@ def main():
     if api.packet_capture.running and not api._initial_restart_done:
         api.restart_capture_switch()
     
+    # Create window with minimal JS API exposure first
     window = webview.create_window('Dark and Darker Stash Organizer',
                                  server,
-                                 js_api=api,
                                  width=1200,
                                  height=800,
                                  min_size=(800, 600),
                                  frameless=True,
-                                 draggable=True)
+                                 easy_drag=False)  # Add this line
+    
+    # Then expose the API methods we need
+    window.expose(api.minimize)
+    window.expose(api.toggle_maximize)
+    window.expose(api.close_window)
+    window.expose(api.sort_stash)
+    window.expose(api._save_settings)
+    window.expose(api.start_capture)
+    window.expose(api.start_capture_switch)
+    window.expose(api.stop_capture_switch)
+    window.expose(api.restart_capture_switch)
     
     api.set_window(window)  # Set the window reference in the API instance
     
