@@ -1,5 +1,4 @@
 # Dark and Darker Tools
-
 <p align="center">
   <img src="UI/assets/banner.jpg" alt="DnDTools Banner" width="640" height="320">
 </p>

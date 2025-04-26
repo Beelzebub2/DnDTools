@@ -443,23 +443,32 @@ def main():
                                  frameless=True,
                                  easy_drag=False)
     
-    # Then expose the API methods we need
+    # Expose all API methods
     window.expose(api.minimize)
     window.expose(api.toggle_maximize)
     window.expose(api.close_window)
+    window.expose(api.restore_to_original)
     window.expose(api.sort_stash)
     window.expose(api._save_settings)
     window.expose(api.start_capture)
     window.expose(api.start_capture_switch)
     window.expose(api.stop_capture_switch)
     window.expose(api.restart_capture_switch)
-    window.expose(api.search_items)  # Add this line
+    window.expose(api.search_items)
+    window.expose(api.get_characters)
+    window.expose(api.get_character_stashes)
+    window.expose(api.get_character_details)
+    window.expose(api.get_capture_settings)
+    window.expose(api.set_capture_settings)
+    window.expose(api.get_character_stash_previews)
+    window.expose(api.get_capture_state)
     
-    api.set_window(window)  # Set the window reference in the API instance
+    api.set_window(window)
     
-    # Register a function to run after the window is loaded
+    # Set initial window state after window is loaded
     def on_loaded():
         api.set_initial_window_state()
+    
     webview.start(on_loaded, debug=True)
 
 if __name__ == '__main__':
