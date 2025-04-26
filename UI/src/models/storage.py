@@ -105,7 +105,7 @@ class Storage:
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
                 width, height = item_data_manager.get_item_dimensions_from_id(item_id)
                 rarity = item_data_manager.get_item_rarity_from_id(item_id)
-                name = item_data_manager.get_item_rarity_from_id(item_id)
+                name = item_data_manager.get_item_name_from_id(item_id)
 
                 slot_id = obj.get("slotId")
                 x = slot_id % self.width

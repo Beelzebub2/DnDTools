@@ -40,31 +40,3 @@ class Item:
             "height": self.height,
         }
 
-    @staticmethod
-    def from_dict(data, stash):
-        # "itemId": "DesignDataItem:Id_Item_BloodsapBlade_5001",
-        # "slotId": 211,
-        item_id = data["itemId"]
-        design_str = "DesignDataItem:Id_Item_"
-        parts = item_id.replace(design_str, "").split("_")
-        name = parts[0]
-
-        # parts
-        # ['BloodsapBlade', '5001']
-        # ['GoldCoinPurse']
-        if len(parts) == 2:
-            rarity_id = int(parts[1][0])
-        elif len(parts) == 1:
-            # some items have no rarity apparently
-            rarity_id = 0
-
-        slot_id = data.get("slotId")
-        x = slot_id % stash.width
-        y = slot_id // stash.width
-
-        position = Point(x, y)
-
-        width, height = item_data_manager.get_item_dimensions_from_id(name)
-
-        return Item(name, rarity_id, position, width, height, stash)
-

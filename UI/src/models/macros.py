@@ -79,7 +79,7 @@ def get_sort_delay():
 
 def move_from_to(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
     DELAY = get_sort_delay()
-    # Calculate center of the item at start (use float division for accuracy)
+    # Calculate center of the item at start
     start_x = start_stash.base_screen_pos.x + (jump * start_pos.x) + (jump * start_width) / 2
     start_y = start_stash.base_screen_pos.y + (jump * start_pos.y) + (jump * start_height) / 2
     # Calculate center of the item at end
@@ -87,8 +87,6 @@ def move_from_to(start_stash, start_pos, end_stash, end_pos, start_width=1, star
     end_y = end_stash.base_screen_pos.y + (jump * end_pos.y) + (jump * end_height) / 2
 
     pyautogui.moveTo(start_x, start_y, duration=DELAY)
-    pyautogui.mouseDown()
     time.sleep(DELAY)
-    pyautogui.moveTo(end_x, end_y, duration=DELAY)
-    pyautogui.mouseUp()
+    pyautogui.dragTo(end_x, end_y, duration=DELAY, button='left')
     time.sleep(DELAY)
