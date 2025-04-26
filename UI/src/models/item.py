@@ -17,8 +17,8 @@ class Item:
             return self.width > other.width
         if self.name != other.name:
             return self.name > other.name
-        #if self.rarity != other.rarity:
-        return self.rarity > other.rarity
+        # Safely compare rarity, treating None as 0
+        return (self.rarity or 0) > (other.rarity or 0)
 
     
     def __eq__(self, other):

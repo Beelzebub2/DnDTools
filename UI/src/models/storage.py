@@ -75,7 +75,7 @@ class Storage:
         
         # Update stash
         item.stash = end_stash
-        macros.move_from_to(self, item.position, end_stash, end_pos)
+        macros.move_from_to(self, item.position, end_stash, end_pos, item.width, item.height, item.width, item.height)
         item.position = end_pos
         
     def find_empty_slot(self, item):

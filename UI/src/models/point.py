@@ -16,15 +16,22 @@ class Point:
         return self.x == other.x and self.y == other.y
 
 if __name__ == "__main__":
-    a = -1
-    print("Press F7 to get mouse position (x, y)")
+    from PIL import ImageGrab, ImageDraw
 
-    while True:
-        x = 0
-        y = 0
-        x, y = pyautogui.position()
-        a = win32api.GetKeyState(0x76)
-        if a < 0:
-            print(Point(x, y))
-        time.sleep(0.1)
+    # Screenshot the screen
+    img = ImageGrab.grab()
+    draw = ImageDraw.Draw(img)
+
+    # Box parameters
+    box_size = 80  # Size of the box (adjust as needed)
+    boxes = [
+        (1378, 199),  # stash_screen_pos
+        (690, 626)    # inv_screen_pos
+    ]
+
+    for x, y in boxes:
+        draw.rectangle([x, y, x + box_size, y + box_size], outline="red", width=4)
+
+    img.save("screenshot_with_boxes.png")
+    print("Screenshot saved as screenshot_with_boxes.png")
 
