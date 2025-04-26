@@ -22,7 +22,7 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-import _Character_pb2 as __Character__pb2
+from . import _Character_pb2 as __Character__pb2
 import _Chat_pb2 as __Chat__pb2
 
 

@@ -1,5 +1,5 @@
 @echo off
-REM Build the app into a single-file executable using PyInstaller
+REM Build the app into a single-file executable using Nuitka
 
 REM Ensure we're in the project root
 cd /d "%~dp0"
@@ -16,23 +16,24 @@ mkdir dist
 mkdir dist\data
 mkdir dist\output
 
-REM to reduce .exe size, you can add the following line install UPX and move the line below
-REM --upx-dir "C:\Users\USERNAME\upx-5.0.0-win64" ^
+REM to reduce .exe size, you can add the following line if you install UPX and move the line below
+REM --onefile --windows-icon-from-ico=UI\assets\logo.ico --standalone --enable-plugin=tk-inter --include-data-dir=UI\networking\protos=networking/protos --include-data-dir=UI\templates=templates --include-data-dir=UI\static=static --include-data-dir=UI\assets=assets --include-data-dir=UI\data=data --output-dir=dist
 
-REM Run PyInstaller to compile the application into a directory
-pyinstaller ^
+REM Run Nuitka to compile the application into a single-file executable
+python -m nuitka ^
 --onefile ^
---paths "UI" ^
---hidden-import networking.protos ^
---add-data "UI\networking\protos;networking/protos" ^
---add-data "UI\templates;templates" ^
---add-data "UI\static;static" ^
---add-data "UI\assets;assets" ^
---add-data "UI\data;data" ^
---icon "UI\assets\logo.ico" ^
---name DnDTools ^
---distpath dist ^
---workpath build ^
+--standalone ^
+--windows-icon-from-ico=UI\assets\logo.ico ^
+--include-data-dir=UI\networking\protos=networking/protos ^
+--include-data-dir=UI\templates=templates ^
+--include-data-dir=UI\static=static ^
+--include-data-dir=UI\assets=assets ^
+--output-dir=dist ^
+--enable-plugin=tk-inter ^
+--remove-output ^
+--assume-yes-for-downloads ^
+--nofollow-import-to=tkinter ^
+--output-filename=DnDTools.exe ^
 UI\app.py
 
 echo Build complete. Executable is in the dist folder.

@@ -17,14 +17,10 @@ from screeninfo import get_monitors  # Add this import
 # Load environment variables
 load_dotenv()
 
-# Determine base directory for resources, support PyInstaller/Nuitka onefile
-if getattr(sys, 'frozen', False):
-    # Running as packaged executable
-    if hasattr(sys, '_MEIPASS'):
-        app_dir = sys._MEIPASS
-    else:
-        app_dir = os.path.dirname(sys.executable)
-    print(f"Running as frozen application. Base directory: {app_dir}")
+# Determine base directory for resources, support Nuitka onefile
+if globals().get('__compiled__', False):
+    app_dir = os.path.dirname(sys.executable)
+    print(f"Running as Nuitka EXE. Base directory: {app_dir}")
     os.chdir(app_dir)
 else:
     app_dir = os.path.dirname(os.path.abspath(__file__))

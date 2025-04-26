@@ -45,7 +45,7 @@ class PacketCapture:
         self.logger = logging.getLogger(__name__)
         
         # Use persistent directories next to EXE when frozen
-        if getattr(sys, 'frozen', False):
+        if globals().get('__compiled__', False):
             exe_dir = os.path.dirname(sys.executable)
             self.data_dir = os.path.join(exe_dir, "data")
             self.STATE_FILE = os.path.join(exe_dir, "capture_state.json")

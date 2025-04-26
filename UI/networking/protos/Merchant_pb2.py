@@ -22,7 +22,7 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
-import _Item_pb2 as __Item__pb2
+from . import _Item_pb2  as _Item_pb2
 import Shop_pb2 as Shop__pb2
 import Inventory_pb2 as Inventory__pb2
 

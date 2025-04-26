@@ -143,17 +143,22 @@ class Storage:
     
     def __repr__(self):
         import os
+        import sys
         import json
         from pathlib import Path
 
-        # Try to load character data
-        char_dir = Path(__file__).parent.parent.parent / 'data' / 'characters'
+        # Determine the correct data directory (same logic as StashManager)
+        if globals().get('__compiled__', False):
+            base_dir = os.path.dirname(sys.executable)
+        else:
+            base_dir = Path(__file__).parent.parent.parent
+        data_dir = os.path.join(base_dir, 'data')
         characters = []
-        
-        if os.path.exists(char_dir):
-            for char_file in os.listdir(char_dir):
+
+        if os.path.exists(data_dir):
+            for char_file in os.listdir(data_dir):
                 if char_file.endswith('.json'):
-                    with open(char_dir / char_file, 'r') as f:
+                    with open(os.path.join(data_dir, char_file), 'r', encoding='utf-8') as f:
                         char_data = json.load(f)
                         characters.append(char_data)
 
@@ -171,13 +176,13 @@ class Storage:
 
         # Create the display string
         lines = []
-        
         # Add character information
         for char in characters:
-            lines.append(f"\nCharacter: {char['characterName']}")
-            lines.append(f"Class: {char['characterClass']}")
-            lines.append(f"Level: {char['level']}")
-            lines.append(f"Rank: {char['rank']['name']}")
+            lines.append(f"\nCharacter: {char.get('characterName', 'Unknown')}")
+            lines.append(f"Class: {char.get('characterClass', 'Unknown')}")
+            lines.append(f"Level: {char.get('level', 'Unknown')}")
+            rank = char.get('rank', {}).get('name', 'Unknown') if isinstance(char.get('rank'), dict) else char.get('rank', 'Unknown')
+            lines.append(f"Rank: {rank}")
             lines.append("-" * 40)
 
         # Add inventory grid
