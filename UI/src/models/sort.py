@@ -6,6 +6,7 @@ import heapq
 import keyboard
 import os
 from src.models.point import Point
+import pygetwindow as gw
 
 def intersects(pos1, width1, height1, pos2, width2, height2):
     if pos1.x + width1 <= pos2.x or pos2.x + width2 <= pos1.x:
@@ -104,6 +105,17 @@ def main():
         print("F7 pressed. Exiting...")
         os._exit(0)
     keyboard.add_hotkey('F7', force_exit)
+
+    # Focus the 'Dark and Darker' window before sorting
+    windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker"]
+    if windows:
+        try:
+            windows[0].activate()
+            print("Focused window: Dark and Darker")
+        except Exception as e:
+            print(f"Error focusing window: {e}")
+    else:
+        print("No window with exact title 'Dark and Darker' found.")
 
     time.sleep(2)
 

@@ -7,6 +7,7 @@ from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
 from .storage import Storage, StashType
 from .sort import StashSorter
 from src.models.game_data import item_data_manager
+import pygetwindow as gw
 
 class StashManager:
     def __init__(self, resource_dir: str):
@@ -33,50 +34,48 @@ class StashManager:
         """Load character data from packet data files"""
         self.characters_cache.clear()
         print(f"\nLoading characters from: {self.data_dir}")
-        
         # Load all JSON files (packet data) from the data directory
         json_files = glob.glob(os.path.join(self.data_dir, "*.json"))
         print(f"Found {len(json_files)} packet data files")
-
         for file_path in json_files:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     print(f"\nReading file: {file_path}")
                     packet_data = json.load(f)
-                    
                     # Check if we have valid character data
                     char_data = packet_data.get("characterDataBase", {})
                     if not char_data:
                         continue
-
                     # Extract basic character info
                     char_id = str(char_data.get("characterId"))
                     if not char_id:
                         print(f"Warning: No characterId in {file_path}")
                         continue
-
                     # Process stashes using existing parse_stashes function
                     raw_stashes = parse_stashes(packet_data)
                     # Convert stash keys to strings for consistent lookup
                     stashes = {str(k): v for k, v in raw_stashes.items()}
-                        
                     # Convert raw class name
                     raw_class = char_data.get("characterClass", "")
                     class_name = raw_class.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
-
-                    # Map to the expected API format
+                    # Map to the expected API format (fix key names here)
+                    nickname = char_data.get("nickName", {}).get("originalNickName", "Unknown")
+                    streaming_mode_name = char_data.get("nickName", {}).get("streamingModeNickName", "")
+                    rank_id = char_data.get("nickName", {}).get("rankId", "Unknown")
+                    fame = char_data.get("nickName", {}).get("fame", 0)
+                    rank_icon_type = char_data.get("nickName", {}).get("rankIconType", 1)
                     self.characters_cache[char_id] = {
                         'id': char_id,
-                        'nickname': char_data.get("nickName", {}).get("originalNickName", "Unknown"),
+                        'nickname': nickname,
                         'class': class_name,
                         'level': char_data.get("level", 1),
                         'lastUpdate': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
                         'stashes': stashes,
-                        'streamingModeName': char_data.get("nickName", {}).get("streamingModeNickName", ""),
+                        'streamingModeName': streaming_mode_name,
                         'rank': {
-                            'name': char_data.get("nickName", {}).get("rankId", "").replace("LeaderboardRankData:Id_LeaderboardRank_", "").replace("_", " "),
-                            'fame': char_data.get("nickName", {}).get("fame", 0),
-                            'iconType': char_data.get("nickName", {}).get("rankIconType", 1)
+                            'name': rank_id.replace("LeaderboardRankData:Id_LeaderboardRank_", "").replace("_", " "),
+                            'fame': fame,
+                            'iconType': rank_icon_type
                         }
                     }
                     print(f"Added character to cache: {char_id}")
@@ -84,10 +83,13 @@ class StashManager:
                 print(f"Error loading packet data file {file_path}: {str(e)}")
                 import traceback
                 traceback.print_exc()
-
         print(f"\nLoaded {len(self.characters_cache)} characters")
         for char_id, char_data in self.characters_cache.items():
-            print(f"Character: {char_id}, Name: {char_data['nickname']}, Class: {char_data['class']}")
+            print(f"Character: {char_data['nickname']}")
+            print(f"Class: {char_data['class']}")
+            print(f"Level: {char_data['level']}")
+            print(f"Rank: {char_data['rank']['name']}")
+            print("----------------------------------------")
 
     def get_characters(self) -> List[Dict]:
         """Get list of all characters"""
@@ -252,6 +254,16 @@ class StashManager:
         # Create Storage instances
         stash = Storage(StashType.STORAGE.value, stash_items)
         inventory = Storage(StashType.BAG.value, inv_items)
+        # Focus the 'Dark and Darker' window before sorting
+        windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker  "]
+        if windows:
+            try:
+                windows[0].activate()
+                print("Focused window: Dark and Darker")
+            except Exception as e:
+                print(f"Error focusing window: {e}")
+        else:
+            print("No window with exact title 'Dark and Darker' found.")
         # Perform sorting
         sorter = StashSorter(stash, inventory)
         if cancel_event and cancel_event.is_set():

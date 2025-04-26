@@ -7,7 +7,6 @@ from src.models.stash_manager import StashManager
 import psutil
 import json
 import sys
-import traceback
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
