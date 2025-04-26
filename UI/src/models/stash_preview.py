@@ -348,7 +348,6 @@ class StashPreviewGenerator:
 
 
 def parse_stashes(packet_data):
-    
     stashes = {}
     # stashes
     storage_infos = packet_data.get("characterDataBase", {}).get("CharacterStorageInfos", [])
@@ -356,8 +355,7 @@ def parse_stashes(packet_data):
         inventory_id = storage.get("inventoryId")
         items = storage.get("CharacterStorageItemList", [])
         stash_items = []
-        used_slots = set()  # Keep track of used slots
-        
+        used_slots = set()
         # First process items with defined slots
         for item in items:
             if "slotId" in item:
@@ -373,14 +371,14 @@ def parse_stashes(packet_data):
                     "data": item
                 })
                 used_slots.add(slot_id)
-        
-        # Then process items without slots, using first available slot
+        # Then process items without slots, assign to next free slot
+        next_slot = 0
         for item in items:
             if "slotId" not in item:
-                # Find first available slot
-                slot_id = 0
-                while slot_id in used_slots:
-                    slot_id += 1
+                while next_slot in used_slots:
+                    next_slot += 1
+                slot_id = next_slot
+                used_slots.add(slot_id)
                 design_str = item.get("itemId", "")
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
                 name = item_data_manager.get_item_name_from_id(item_id)
@@ -391,34 +389,26 @@ def parse_stashes(packet_data):
                     "itemCount": item.get("itemCount", 1),
                     "data": item
                 })
-                used_slots.add(slot_id)
-                
         if stash_items:
             stashes[inventory_id] = stash_items
-    
     # inventory
     item_list = packet_data.get("characterDataBase", {}).get("CharacterItemList", [])
     for item in item_list:
         inventory_id = item.get("inventoryId")
         if inventory_id not in stashes:
             stashes[inventory_id] = []
-
-        used_slots = set()  # Keep track of used slots
-        # First process items with defined slots
-        if "slotId" in item:
-            slot_id = item["slotId"]
-            design_str = item.get("itemId", "")
-            item_id = item_data_manager.get_item_id_from_design_str(design_str)
-            name = item_data_manager.get_item_name_from_id(item_id)
-            stashes[inventory_id].append({
-                "name": name,
-                "slotId": slot_id,
-                "itemId": item_id,
-                "itemCount": item.get("itemCount", 1),
-                "data": item
-            })
-            used_slots.add(slot_id)
-
+        # Assign slotId = 0 if missing, otherwise use the provided slotId
+        slot_id = item.get("slotId", 0)
+        design_str = item.get("itemId", "")
+        item_id = item_data_manager.get_item_id_from_design_str(design_str)
+        name = item_data_manager.get_item_name_from_id(item_id)
+        stashes[inventory_id].append({
+            "name": name,
+            "slotId": slot_id,
+            "itemId": item_id,
+            "itemCount": item.get("itemCount", 1),
+            "data": item
+        })
     return stashes
 
 def main():
