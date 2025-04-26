@@ -16,9 +16,7 @@ mkdir dist
 mkdir dist\data
 mkdir dist\output
 
-REM Copy any existing sample/initial data
-xcopy /Y /I /E "UI\data\*.*" "dist\data\"
-
+REM to reduce .exe size, you can add the following line install UPX and move the line below
 REM --upx-dir "C:\Users\USERNAME\upx-5.0.0-win64" ^
 
 REM Run PyInstaller to compile the application into a directory
