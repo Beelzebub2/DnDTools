@@ -14,9 +14,6 @@ rmdir /s /q dist 2>nul
 REM Create dist directory and copy initial data
 mkdir dist
 
-REM to reduce .exe size, you can add the following line if you install UPX and move the line below
-REM --onefile --windows-icon-from-ico=UI\assets\logo.ico --standalone --enable-plugin=tk-inter --include-data-dir=UI\networking\protos=networking/protos --include-data-dir=UI\templates=templates --include-data-dir=UI\static=static --include-data-dir=UI\assets=assets --include-data-dir=UI\data=data --output-dir=dist
-
 REM Run Nuitka to compile the application into a single-file executable
 python -m nuitka ^
 --onefile ^

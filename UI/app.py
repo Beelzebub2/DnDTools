@@ -13,22 +13,37 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for Nuitka onefile """
+    if getattr(sys, 'frozen', False):
+        # Nuitka onefile or PyInstaller
+        base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(sys.executable)
+    else:
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
 # Load environment variables
 load_dotenv()
 
-# Determine base directory for resources, support Nuitka onefile
-if globals().get('__compiled__', False):
-    app_dir = os.getcwd()
-    print(f"Running as Nuitka EXE. Base directory: {app_dir}")
-    os.chdir(app_dir)
+# Determine base directory for resources
+app_dir = resource_path('')
+print(f"Base directory: {app_dir}")
+
+# Debug: Print and check template folder
+template_folder_path = resource_path('templates')
+print(f"Template folder resolved to: {template_folder_path}")
+if not os.path.exists(template_folder_path):
+    print(f"[ERROR] Template folder does not exist: {template_folder_path}")
 else:
-    app_dir = os.path.dirname(os.path.abspath(__file__))
-    print(f"Running in development mode. Base directory: {app_dir}")
+    if not os.path.exists(os.path.join(template_folder_path, 'index.html')):
+        print(f"[ERROR] index.html not found in template folder: {template_folder_path}")
+    else:
+        print(f"index.html found in template folder: {template_folder_path}")
 
 # Initialize Flask with explicit path handling
 server = Flask(__name__, 
-    static_folder=os.path.join(app_dir, 'static'),
-    template_folder=os.path.join(app_dir, 'templates')
+    static_folder=resource_path('static'),
+    template_folder=template_folder_path
 )
 server.config['JSON_AS_ASCII'] = False
 
@@ -50,7 +65,7 @@ class Api:
     def __init__(self):
         self.stash_manager = stash_manager
         # Settings
-        self.settings_file = os.path.join(app_dir, 'settings.json')
+        self.settings_file = resource_path('settings.json')
         self.settings = self._load_settings()
         # Capture setup
         self.capture_settings = {
@@ -286,7 +301,7 @@ def api_character_details(character_id):
 
 @server.route('/output/<path:filename>')
 def serve_preview(filename):
-    output_dir = os.path.join(app_dir, 'output')
+    output_dir = resource_path('output')
     return send_from_directory(output_dir, filename)
 
 @server.route('/api/search_items')
@@ -371,7 +386,7 @@ def api_settings():
 
 @server.route('/assets/<path:filename>')
 def serve_file(filename):
-    assets_dir = os.path.join(app_dir, 'assets')
+    assets_dir = resource_path('assets')
     return send_from_directory(assets_dir, filename)
 
 def main():
