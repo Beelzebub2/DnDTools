@@ -25,6 +25,19 @@ class StashPreviewGenerator:
             self.font = ImageFont.truetype("arial.ttf", 16)
         except:
             self.font = ImageFont.load_default()
+            
+        # Define rarity colors with alpha (RGBA)
+        self.rarity_colors = {
+            0: (128, 128, 128, 60),  # None - Gray
+            1: (150, 150, 150, 60),  # Poor - Light Gray
+            2: (255, 255, 255, 60),  # Common - White
+            3: (0, 255, 0, 60),      # Uncommon - Green
+            4: (0, 112, 221, 60),    # Rare - Blue
+            5: (163, 53, 238, 60),   # Epic - Purple
+            6: (255, 128, 0, 60),    # Legend - Orange
+            7: (255, 215, 0, 60),    # Unique - Gold
+            8: (255, 0, 0, 60),      # Artifact - Red
+        }
 
     def _get_stash_dimensions(self, stash_id: str) -> Tuple[int, int]:
         """Return appropriate grid dimensions based on stash type"""
@@ -258,24 +271,53 @@ class StashPreviewGenerator:
         w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
         name = item_data_manager.get_item_name_from_id(item.itemId)
 
+        # Get rarity from the item data
+        parts = item.itemId.split('_')
+        if len(parts) > 1 and parts[-1].isdigit():
+            # Items with rarity in ID (Name_XXXX where first X is rarity)
+            rarity = int(parts[-1][0])
+        else:
+            # Check if it's a unique item in the data
+            item_data = item_data_manager.data.get(item.itemId, {})
+            rarity_str = item_data.get("rarity", "None")
+            # Convert rarity string to number
+            rarity_map = {
+                "None": 0,
+                "Poor": 1,
+                "Common": 2,
+                "Uncommon": 3,
+                "Rare": 4, 
+                "Epic": 5,
+                "Legendary": 6,
+                "Unique": 7,
+                "Artifact": 8
+            }
+            rarity = rarity_map.get(rarity_str, 0)
+
         if not img_path or not os.path.exists(img_path):
             logging.warning(f"Item not found or missing image: {item.itemId}")
             return
 
         try:
-            item_img = Image.open(img_path).convert("RGBA")
-            expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
-            if item_img.size != expected_size:
-                item_img = item_img.resize(expected_size, Image.LANCZOS)
-            
-            # Check if the item fits within grid boundaries
+            # Calculate item position
             x, y = item.slotId % grid_width, item.slotId // grid_width
             if x + (w or 1) > grid_width or y + (h or 1) > grid_height:
                 logging.warning(f"Item {item.itemId} at position ({x},{y}) with size {w}x{h} doesn't fit in grid {grid_width}x{grid_height}")
                 return
             
+            # Create background color for rarity
+            bg_color = self.rarity_colors.get(rarity, self.rarity_colors[0])
+            bg_rect = Image.new('RGBA', ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE), bg_color)
+            preview.paste(bg_rect, (x * self.CELL_SIZE, y * self.CELL_SIZE), bg_rect)
+            
+            # Place the item image
+            item_img = Image.open(img_path).convert("RGBA")
+            expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
+            if item_img.size != expected_size:
+                item_img = item_img.resize(expected_size, Image.LANCZOS)
+            
             preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
-            logging.info(f"Placed '{name}' at ({x},{y})")
+            logging.info(f"Placed '{name}' (rarity {rarity}) at ({x},{y})")
             
             # Draw item count if greater than 1
             if item.itemCount > 1:
@@ -284,10 +326,8 @@ class StashPreviewGenerator:
                 bbox = draw.textbbox((0, 0), count_text, font=self.font)
                 text_width = bbox[2] - bbox[0]
                 text_height = bbox[3] - bbox[1]
-                # Calculate position based on item size (width and height)
                 text_x = (x + (w or 1)) * self.CELL_SIZE - text_width - 4
                 text_y = (y + (h or 1)) * self.CELL_SIZE - text_height - 2
-                # Draw text with shadow for better visibility
                 draw.text((text_x+1, text_y+1), count_text, fill='black', font=self.font)
                 draw.text((text_x, text_y), count_text, fill='white', font=self.font)
             

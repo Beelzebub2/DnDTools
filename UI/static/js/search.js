@@ -1,14 +1,16 @@
 let searchTimeout;
 
 const rarityColors = {
-    Poor: '#555555',
-    Common: '#ffffff',
-    Uncommon: '#1eff00',
-    Rare: '#0070dd',
-    Epic: '#a335ee',
-    Legend: '#ff8000',
-    Unique: '#ffff99',
-    Artifact: '#ff2020'
+    'None': '#808080',      // Gray
+    'Poor': '#969696',      // Light Gray
+    'Common': '#FFFFFF',    // White
+    'Uncommon': '#00FF00',  // Green
+    'Rare': '#0070DD',      // Blue
+    'Epic': '#A335EE',      // Purple
+    'Legend': '#FF8000',    // Orange
+    'Legendary': '#FF8000', // Orange (alternate name)
+    'Unique': '#FFD700',    // Gold
+    'Artifact': '#FF0000'   // Red
 };
 
 function formatPrimaryProps(ppArray) {
