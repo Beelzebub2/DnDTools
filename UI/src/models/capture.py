@@ -93,10 +93,11 @@ class PacketCapture:
             # Add incoming data to buffer
             self.packet_data += data
             current_size = len(self.packet_data)
+            self.logger.debug(f"Received {len(data)} bytes, buffer size now {current_size}")
             
             # Reset if buffer gets too large
             if current_size > self.MAX_BUFFER_SIZE:
-                print(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
+                self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes), resetting state.")
                 self.reset_state()
                 return False
 
@@ -104,20 +105,17 @@ class PacketCapture:
             if self.expected_packet_length is None and current_size >= 8:
                 try:
                     packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
-                    
-                    # Get packet type name from _PacketCommand_pb2 before validation
                     packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name if proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number else "Unknown"
-                    
+                    self.logger.info(f"Header: Type={proto_type} ({packet_type_name}), Length={packet_length}, Padding={random_padding}")
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
-                        print(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
+                        self.logger.warning(f"Invalid packet header: Type={proto_type} ({packet_type_name}), Length={packet_length}, Padding={random_padding}")
                         self.reset_state()
                         return False
-
-                    print(f"New packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
-                    
+                    self.logger.info(f"Started new packet: {packet_type_name} (Type={proto_type}, Length={packet_length})")
                     self.expected_packet_length = packet_length
                     self.expected_proto_type = proto_type
-                except struct.error:
+                except struct.error as e:
+                    self.logger.error(f"Header unpack error: {e}")
                     self.reset_state()
                     return False
 
@@ -125,18 +123,22 @@ class PacketCapture:
             if self.expected_packet_length and self.expected_proto_type:
                 # Handle overflow by trimming
                 if current_size > self.expected_packet_length:
-                    print(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
+                    self.logger.warning(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
                     self.packet_data = self.packet_data[:self.expected_packet_length]
                     current_size = self.expected_packet_length
 
                 # Complete packet
                 if current_size == self.expected_packet_length:
+                    self.logger.info(f"Full packet received: {current_size} bytes (Type={self.expected_proto_type})")
                     if self.verify_packet():
+                        self.logger.info(f"Packet verified successfully (Type={self.expected_proto_type})")
                         self.save_packet_data()
+                    else:
+                        self.logger.warning(f"Packet verification failed (Type={self.expected_proto_type})")
                     self.reset_state()
                 # Progress update
-                elif current_size % 8192 == 0:
-                    print(f"Accumulating: {current_size}/{self.expected_packet_length}")
+                elif current_size % 8192 == 0 or current_size == self.expected_packet_length - 1:
+                    self.logger.debug(f"Accumulating: {current_size}/{self.expected_packet_length}")
         return False
 
     def verify_packet(self) -> bool:
@@ -175,11 +177,12 @@ class PacketCapture:
                 elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
                     info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
                 else:
+                    self.logger.info(f"Skipping unsupported proto type: {self.expected_proto_type}")
                     return False
                 info.ParseFromString(data)
                 json_data = MessageToJson(info)
             except Exception as e:
-                print(f"Failed to parse packet data for proto type {self.expected_proto_type}: {e}")
+                self.logger.error(f"Failed to parse packet data for proto type {self.expected_proto_type}: {e}")
                 return False
 
             # Overwrite file if characterId matches (no date in filename)
@@ -189,9 +192,7 @@ class PacketCapture:
                 data_file = os.path.join(self.data_dir, f"{char_id}.json")
                 with open(data_file, "w", encoding='utf-8') as f:
                     f.write(json_data)
-                print(f"Saved/updated target packet data to {data_file}")
-
-                # Notify app/UI if callback is set
+                self.logger.info(f"Saved/updated target packet data to {data_file} (characterId={char_id})")
                 if self.on_new_character:
                     self.on_new_character(char_id)
                 return True
@@ -201,11 +202,11 @@ class PacketCapture:
             data_file = os.path.join(self.data_dir, f"{timestamp}.json")
             with open(data_file, "w", encoding='utf-8') as f:
                 f.write(json_data)
-            print(f"Successfully saved packet data to {data_file}")
+            self.logger.info(f"Successfully saved packet data to {data_file}")
             return False
 
         except Exception as e:
-            print(f"Failed to save packet data: {str(e)}")
+            self.logger.error(f"Failed to save packet data: {str(e)}")
             raise
 
     def _save_state(self):
