@@ -1,5 +1,6 @@
 {
   "interface": "Ethernet",
   "sortHotkey": "1",
-  "cancelHotkey": "9"
+  "cancelHotkey": "9",
+  "sortSpeed": 0.05
 }

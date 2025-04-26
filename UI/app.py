@@ -88,17 +88,18 @@ class Api:
         return {
             'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
             'sortHotkey': 'ctrl+alt+s',
-            'cancelHotkey': 'ctrl+alt+x'
+            'cancelHotkey': 'ctrl+alt+x',
+            'sortSpeed': 0.2
         }
 
     def _save_settings(self, settings):
         # Ensure hotkeys are lowercase for keyboard library
         settings['sortHotkey'] = settings['sortHotkey'].lower()
         settings['cancelHotkey'] = settings['cancelHotkey'].lower()
-        
+        if 'sortSpeed' not in settings:
+            settings['sortSpeed'] = 0.2
         with open(self.settings_file, 'w') as f:
             json.dump(settings, f, indent=2)
-        
         self.settings = settings
         self._setup_global_hotkeys()
         return True

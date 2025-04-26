@@ -2,6 +2,8 @@ window.addEventListener('load', async () => {
     const interfaceSelect = document.getElementById('interface');
     const sortHotkeyInput = document.getElementById('sortHotkey');
     const cancelHotkeyInput = document.getElementById('cancelHotkey');
+    const sortSpeedInput = document.getElementById('sortSpeed');
+    const sortSpeedValue = document.getElementById('sortSpeedValue');
 
     // Load available interfaces
     let interfaces = [];
@@ -28,9 +30,21 @@ window.addEventListener('load', async () => {
         if (settings.cancelHotkey) {
             cancelHotkeyInput.value = settings.cancelHotkey;
         }
+        if (settings.sortSpeed) {
+            sortSpeedInput.value = settings.sortSpeed;
+            sortSpeedValue.textContent = settings.sortSpeed + 's';
+        } else {
+            sortSpeedInput.value = 0.2;
+            sortSpeedValue.textContent = '0.2s';
+        }
     } catch (error) {
         console.error('Failed to load settings:', error);
     }
+
+    // Update value display on number input change
+    sortSpeedInput.addEventListener('input', () => {
+        sortSpeedValue.textContent = sortSpeedInput.value + 's';
+    });
 
     // Populate interface select
     interfaceSelect.innerHTML = '';
@@ -94,7 +108,8 @@ window.addEventListener('load', async () => {
                 body: JSON.stringify({
                     interface: interfaceSelect.value,
                     sortHotkey: sortHotkeyInput.value || 'Ctrl+Alt+S',
-                    cancelHotkey: cancelHotkeyInput.value || 'Ctrl+Alt+X'
+                    cancelHotkey: cancelHotkeyInput.value || 'Ctrl+Alt+X',
+                    sortSpeed: parseFloat(sortSpeedInput.value)
                 })
             });
 

@@ -21,3 +21,20 @@
     font-size: 0.9em;
     margin-top: 0.5rem;
 }
+
+#sortSpeedValue {
+    color: var(--text-secondary);
+    margin-left: 0.5rem;
+    font-size: 0.9rem;
+}
+
+/* Remove spinner buttons from number input */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}

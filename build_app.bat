@@ -1,5 +1,5 @@
 @echo off
-REM Build the app into a single-file executable using Nuitka
+REM Build the app into a single-file executable using PyInstaller
 
 REM Ensure we're in the project root
 cd /d "%~dp0"
@@ -16,8 +16,24 @@ mkdir dist
 mkdir dist\data
 mkdir dist\output
 
-REM Run Nuitka to compile the application into a single-file executable
-python -m nuitka --onefile --standalone --follow-imports --enable-plugin=pylint-warnings --include-data-dir="UI/networking/protos=networking/protos" --include-data-dir="UI/templates=templates" --include-data-dir="UI/static=static" --include-data-dir="UI/assets=assets" --include-data-dir="UI/data=data" --windows-icon-from-ico="UI/assets/logo.ico" --output-dir=dist --remove-output --assume-yes-for-downloads --output-filename=DnDTools.exe UI/app.py
+REM to reduce .exe size, you can add the following line install UPX and move the line below
+REM --upx-dir "C:\Users\USERNAME\upx-5.0.0-win64" ^
+
+REM Run PyInstaller to compile the application into a directory
+pyinstaller ^
+--onefile ^
+--paths "UI" ^
+--hidden-import networking.protos ^
+--add-data "UI\networking\protos;networking/protos" ^
+--add-data "UI\templates;templates" ^
+--add-data "UI\static;static" ^
+--add-data "UI\assets;assets" ^
+--add-data "UI\data;data" ^
+--icon "UI\assets\logo.ico" ^
+--name DnDTools ^
+--distpath dist ^
+--workpath build ^
+UI\app.py
 
 echo Build complete. Executable is in the dist folder.
 pause
