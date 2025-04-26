@@ -5,30 +5,65 @@
 {% block content %}
 <div class="settings-container">
     <div class="settings-form">
-        <h2>Network Settings</h2>
-        <div class="form-group">
-            <label for="interface">Network Interface</label>
-            <select id="interface" class="settings-input"></select>
+        <div class="settings-section">
+            <h2><span class="material-icons">dns</span>Network Settings</h2>
+            <div class="form-group">
+                <label for="interface">Network Interface</label>
+                <select id="interface" class="settings-input"></select>
+                <small class="help-text">Select the network interface used by Dark and Darker</small>
+            </div>
         </div>
 
-        <h2>Hotkey Settings</h2>
-        <div class="form-group">
-            <label for="sortHotkey">Sort Stash Hotkey</label>
-            <input type="text" id="sortHotkey" class="settings-input" placeholder="Click to set hotkey..." readonly>
-            <small class="help-text">Default: Ctrl+Alt+S</small>
-        </div>
-        <div class="form-group">
-            <label for="cancelHotkey">Cancel Sort Hotkey</label>
-            <input type="text" id="cancelHotkey" class="settings-input" placeholder="Click to set hotkey..." readonly>
-            <small class="help-text">Default: Ctrl+Alt+X</small>
+        <div class="settings-section">
+            <h2><span class="material-icons">keyboard</span>Hotkey Settings</h2>
+            <div class="form-group">
+                <label for="sortHotkey">Sort Stash Hotkey</label>
+                <input type="text" id="sortHotkey" class="settings-input" placeholder="Click to set hotkey..." readonly>
+                <small class="help-text">Default: Ctrl+Alt+S</small>
+            </div>
+            <div class="form-group">
+                <label for="cancelHotkey">Cancel Sort Hotkey</label>
+                <input type="text" id="cancelHotkey" class="settings-input" placeholder="Click to set hotkey..."
+                    readonly>
+                <small class="help-text">Default: Ctrl+Alt+X</small>
+            </div>
         </div>
 
-        <h2>Sort Speed</h2>
-        <div class="form-group">
-            <label for="sortSpeed">Sort Speed (seconds)</label>
-            <input type="number" id="sortSpeed" class="settings-input" min="0.05" max="0.5" step="0.01">
-            <span id="sortSpeedValue"></span>
-            <small class="help-text">Lower is faster. Default: 0.2 seconds per move.</small>
+        <div class="settings-section">
+            <h2><span class="material-icons">speed</span>Performance Settings</h2>
+            <div class="form-group">
+                <label for="sortSpeed">Sort Speed (seconds)</label>
+                <input type="number" id="sortSpeed" class="settings-input" min="0.05" max="0.5" step="0.01">
+                <span id="sortSpeedValue"></span>
+                <small class="help-text">Lower is faster. Default: 0.2 seconds per move.</small>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <h2><span class="material-icons">desktop_windows</span>Display Settings</h2>
+            <div class="form-group">
+                <div id="resolutionWarning" class="warning-banner" style="display:none;">
+                    <span class="material-icons">warning</span>
+                    <span>This resolution is not tested and might not work as intended.</span>
+                </div>
+                <label for="resolution">Resolution</label>
+                <select id="resolution" class="settings-input">
+                    <option value="Auto">Auto (Detect from game)</option>
+                    <option value="1920x1080">1920 x 1080</option>
+                    <option value="1680x1050">1680 x 1050</option>
+                    <option value="1440x900">1440 x 900</option>
+                    <option value="1366x768">1366 x 768</option>
+                    <option value="1360x768">1360 x 768</option>
+                    <option value="1280x800">1280 x 800</option>
+                    <option value="1280x768">1280 x 768</option>
+                    <option value="1280x720">1280 x 720</option>
+                </select>
+                <small class="help-text">Default: Auto. If unsure, leave on Auto.</small>
+                <div id="detectedResolution" class="detected-resolution">
+                    <span class="material-icons">search</span>
+                    <span>Detected: Loading...</span>
+                </div>
+            </div>
         </div>
 
         <button id="saveSettings" class="btn-primary">Save Settings</button>

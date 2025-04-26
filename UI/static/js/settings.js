@@ -4,6 +4,8 @@ window.addEventListener('load', async () => {
     const cancelHotkeyInput = document.getElementById('cancelHotkey');
     const sortSpeedInput = document.getElementById('sortSpeed');
     const sortSpeedValue = document.getElementById('sortSpeedValue');
+    const resolutionSelect = document.getElementById('resolution');
+    const detectedResolution = document.getElementById('detectedResolution');
 
     // Load available interfaces
     let interfaces = [];
@@ -37,8 +39,22 @@ window.addEventListener('load', async () => {
             sortSpeedInput.value = 0.2;
             sortSpeedValue.textContent = '0.2s';
         }
+        if (settings.resolution) {
+            resolutionSelect.value = settings.resolution;
+        } else {
+            resolutionSelect.value = 'Auto';
+        }
     } catch (error) {
         console.error('Failed to load settings:', error);
+    }
+
+    // Load and display auto-detected resolution
+    try {
+        const autoRes = await fetch('/api/auto_resolution').then(r => r.json());
+        detectedResolution.querySelector('span:last-child').textContent = `Detected: ${autoRes.resolution}`;
+    } catch (error) {
+        console.error('Failed to load auto-detected resolution:', error);
+        detectedResolution.querySelector('span:last-child').textContent = 'Detected: Error loading';
     }
 
     // Update value display on number input change
@@ -109,7 +125,8 @@ window.addEventListener('load', async () => {
                     interface: interfaceSelect.value,
                     sortHotkey: sortHotkeyInput.value || 'Ctrl+Alt+S',
                     cancelHotkey: cancelHotkeyInput.value || 'Ctrl+Alt+X',
-                    sortSpeed: parseFloat(sortSpeedInput.value)
+                    sortSpeed: parseFloat(sortSpeedInput.value),
+                    resolution: resolutionSelect.value
                 })
             });
 
@@ -124,7 +141,28 @@ window.addEventListener('load', async () => {
             showNotification('Failed to save settings', 'error');
         }
     };
-});
+    function showNotTestedWarning() {
+        const warningBanner = document.getElementById('resolutionWarning');
+        let resVal = resolutionSelect.value;
+        let detected = detectedResolution.querySelector('span:last-child').textContent.replace('Detected: ', '');
 
-// Remove this function as it's now in app.js
-// function showNotification(message, type) { ... }
+        if (
+            (resVal !== '1920x1080' && resVal !== 'Auto') ||
+            (resVal === 'Auto' && detected !== '1920x1080' && detected !== 'Not detected' && detected !== 'Error loading')
+        ) {
+            warningBanner.style.display = 'flex';
+        } else {
+            warningBanner.style.display = 'none';
+        }
+    }
+
+    resolutionSelect.addEventListener('change', showNotTestedWarning);
+
+    // Show on page load and after detected resolution loads
+    setTimeout(showNotTestedWarning, 600);
+
+    // Also update after detected resolution is loaded
+    setTimeout(() => {
+        showNotTestedWarning();
+    }, 1000);
+});

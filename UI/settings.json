@@ -2,5 +2,6 @@
   "interface": "Ethernet",
   "sortHotkey": "1",
   "cancelHotkey": "9",
-  "sortSpeed": 0.05
+  "sortSpeed": 0.05,
+  "resolution": "Auto"
 }

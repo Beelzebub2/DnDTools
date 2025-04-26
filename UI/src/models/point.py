@@ -16,22 +16,36 @@ class Point:
         return self.x == other.x and self.y == other.y
 
 if __name__ == "__main__":
-    from PIL import ImageGrab, ImageDraw
+    from PIL import ImageGrab, ImageDraw, ImageTk, Image
+    import tkinter as tk
 
     # Screenshot the screen
     img = ImageGrab.grab()
-    draw = ImageDraw.Draw(img)
+    img.save("screenshot_for_calibration.png")
 
-    # Box parameters
-    box_size = 80  # Size of the box (adjust as needed)
-    boxes = [
-        (1378, 199),  # stash_screen_pos
-        (690, 626)    # inv_screen_pos
-    ]
+    # Tkinter window for calibration
+    root = tk.Tk()
+    root.title("Click: 1) Stash top-left, 2) Inventory top-left")
+    tk_img = ImageTk.PhotoImage(img)
+    canvas = tk.Canvas(root, width=img.width, height=img.height)
+    canvas.pack()
+    canvas.create_image(0, 0, anchor=tk.NW, image=tk_img)
 
-    for x, y in boxes:
-        draw.rectangle([x, y, x + box_size, y + box_size], outline="red", width=4)
+    clicks = []
+    labels = ["Stash top-left", "Inventory top-left"]
 
-    img.save("screenshot_with_boxes.png")
-    print("Screenshot saved as screenshot_with_boxes.png")
+    def on_click(event):
+        if len(clicks) < 2:
+            x, y = event.x, event.y
+            clicks.append((x, y))
+            canvas.create_rectangle(x, y, x+80, y+80, outline="red", width=4)
+            canvas.create_text(x+40, y-10, text=labels[len(clicks)-1], fill="red", font=("Arial", 14, "bold"))
+            if len(clicks) == 2:
+                print(f"Stash: ({clicks[0][0]}, {clicks[0][1]})  Inventory: ({clicks[1][0]}, {clicks[1][1]})")
+                with open("calibrated_points.txt", "w") as f:
+                    f.write(f"stash: {clicks[0][0]}, {clicks[0][1]}\ninv: {clicks[1][0]}, {clicks[1][1]}\n")
+                print("Saved to calibrated_points.txt. You can now update your RESOLUTION_POSITIONS.")
+
+    canvas.bind("<Button-1>", on_click)
+    root.mainloop()
 

@@ -35,28 +35,28 @@
 
         /* Animation and transition styles */
         body {
-            transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body.animating {
-            transition: opacity 0.15s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-            filter: blur(16px) brightness(0.5);
-            opacity: 0.8;
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
+                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: blur(8px) brightness(0.7);
+            opacity: 0.9;
         }
 
         /* Add smooth page transitions */
         .content {
             opacity: 0;
-            transform: translateY(10px);
-            animation: fadeInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            transform: translateY(5px);
+            animation: fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
 
         @keyframes fadeInUp {
             from {
                 opacity: 0;
-                transform: translateY(10px);
+                transform: translateY(5px);
             }
 
             to {

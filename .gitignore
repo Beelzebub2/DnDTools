@@ -5,7 +5,7 @@ output/
 test-data/
 data/
 UI/capture_state.json
-settings.json
+UI/settings.json
 
 # Python
 __pycache__/

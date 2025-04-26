@@ -3,6 +3,70 @@ import time
 from src.models.point import Point
 import os
 import json
+import re
+
+# Supported resolutions and their corresponding positions
+RESOLUTION_POSITIONS = {
+    (1920, 1080): {'stash': Point(1378, 199), 'inv': Point(690, 626)},
+    (1680, 1050): {'stash': Point(1207, 193), 'inv': Point(605, 608)},
+    (1440, 900):  {'stash': Point(1035, 165), 'inv': Point(518, 520)},
+    (1366, 768):  {'stash': Point(982, 120),  'inv': Point(492, 445)},
+    (1360, 768):  {'stash': Point(978, 120),  'inv': Point(490, 445)},
+    (1280, 800):  {'stash': Point(917, 140),  'inv': Point(458, 462)},
+    (1280, 768):  {'stash': Point(917, 120),  'inv': Point(458, 445)},
+    (1280, 720):  {'stash': Point(917, 110),  'inv': Point(458, 420)},
+}
+
+def get_game_resolution():
+    """Get resolution from DungeonCrawler GameUserSettings.ini file"""
+    config_path = os.path.expandvars(r'%LOCALAPPDATA%/DungeonCrawler/Saved/Config/Windows/GameUserSettings.ini')
+    try:
+        with open(config_path, 'r') as f:
+            content = f.read()
+            x_match = re.search(r'ResolutionSizeX=(\d+)', content)
+            y_match = re.search(r'ResolutionSizeY=(\d+)', content)
+            if x_match and y_match:
+                return f"{x_match.group(1)}x{y_match.group(1)}"
+    except Exception:
+        pass
+    return None
+
+# Get user-selected or auto-detected resolution
+# settings.json should have 'resolution': 'Auto' or '1680x1050' etc.
+def get_current_resolution():
+    settings_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'settings.json')
+    user_res = 'Auto'
+    try:
+        with open(settings_path, 'r') as f:
+            settings = json.load(f)
+            user_res = settings.get('resolution', 'Auto')
+    except Exception:
+        pass
+    if user_res == 'Auto':
+        res = get_game_resolution()
+        if res in RESOLUTION_POSITIONS:
+            return res
+    else:
+        try:
+            x, y = map(int, user_res.split('x'))
+            if (x, y) in RESOLUTION_POSITIONS:
+                return (x, y)
+        except Exception:
+            pass
+    # fallback
+    return (1920, 1080)
+
+# Get correct positions for current resolution
+def get_screen_positions():
+    res = get_current_resolution()
+    return RESOLUTION_POSITIONS.get(res, RESOLUTION_POSITIONS[(1920, 1080)])
+
+# distance between stash cells
+jump = 40
+
+# Use these in your logic
+stash_screen_pos = get_screen_positions()['stash']
+inv_screen_pos = get_screen_positions()['inv']
 
 def get_sort_delay():
     settings_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'settings.json')
@@ -12,13 +76,6 @@ def get_sort_delay():
             return float(settings.get('sortSpeed', 0.2))
     except Exception:
         return 0.2
-
-# all positions are for 1920x1080 resolution
-stash_screen_pos = Point(1378, 199)
-inv_screen_pos = Point(690, 626)
-
-# distance between stash cells
-jump = 40
 
 def move_from_to(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
     DELAY = get_sort_delay()

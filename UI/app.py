@@ -388,6 +388,46 @@ def serve_file(filename):
     assets_dir = resource_path('assets')
     return send_from_directory(assets_dir, filename)
 
+@server.route('/api/auto_resolution', methods=['GET'])
+def api_auto_resolution():
+    from src.models.macros import get_game_resolution
+    return jsonify({"resolution": get_game_resolution() or "Not detected"})
+
+@server.route('/api/calibration_status', methods=['GET'])
+def api_calibration_status():
+    res = request.args.get('resolution')
+    if not res or res == 'Auto':
+        from src.models.macros import get_game_resolution
+        res = get_game_resolution() or '1920x1080'
+    # Parse resolution string
+    try:
+        x, y = map(int, res.split('x'))
+        res_tuple = (x, y)
+    except Exception:
+        res_tuple = (1920, 1080)
+    # Check for calibration file
+    cal_file = os.path.join(os.path.dirname(__file__), '..', 'calibrated_points.txt')
+    cal_points = None
+    if os.path.exists(cal_file):
+        with open(cal_file, 'r') as f:
+            lines = f.readlines()
+            if len(lines) >= 2:
+                try:
+                    stash = tuple(map(int, lines[0].split(':')[1].strip().split(',')))
+                    inv = tuple(map(int, lines[1].split(':')[1].strip().split(',')))
+                    cal_points = {'stash': stash, 'inv': inv}
+                except Exception:
+                    pass
+    # Default points from macros.py
+    from src.models.macros import RESOLUTION_POSITIONS
+    default_points = RESOLUTION_POSITIONS.get(res_tuple)
+    needs_calibration = (res_tuple != (1920, 1080)) and (cal_points is None)
+    return jsonify({
+        'needs_calibration': needs_calibration,
+        'current_points': cal_points if cal_points else default_points,
+        'is_default': res_tuple == (1920, 1080)
+    })
+
 def main():
     # Use the global api instance
     # Perform initial restart if needed (only once)
