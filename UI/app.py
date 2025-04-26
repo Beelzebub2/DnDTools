@@ -447,7 +447,7 @@ def main():
     window.expose(api.minimize)
     window.expose(api.toggle_maximize)
     window.expose(api.close_window)
-    window.expose(api.restore_to_original)
+
     window.expose(api.sort_stash)
     window.expose(api._save_settings)
     window.expose(api.start_capture)
