@@ -79,4 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     });
+
+    // Listen for background initialization completion
+    window.addEventListener('backgroundInitDone', () => {
+        showNotification('Data loaded!', 'success');
+        // Example: hide a loading spinner if you have one
+        const spinner = document.getElementById('loading-spinner');
+        if (spinner) spinner.style.display = 'none';
+        // You can also trigger data refresh or enable UI here
+    });
 });
