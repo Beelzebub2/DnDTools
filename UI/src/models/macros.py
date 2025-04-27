@@ -1,8 +1,10 @@
 import time
-from src.models.point import Point
 import os
 import json
 import re
+import ctypes
+import random
+from src.models.point import Point
 
 # Supported resolutions and their corresponding positions
 RESOLUTION_POSITIONS = {
@@ -16,8 +18,72 @@ RESOLUTION_POSITIONS = {
     (1280, 720):  {'stash': Point(917, 110),  'inv': Point(458, 420)},
 }
 
+# Windows API constants
+MOUSEEVENTF_MOVE = 0x0001
+MOUSEEVENTF_ABSOLUTE = 0x8000
+MOUSEEVENTF_LEFTDOWN = 0x0002
+MOUSEEVENTF_LEFTUP = 0x0004
+
+class POINT(ctypes.Structure):
+    _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
+
+class MOUSEINPUT(ctypes.Structure):
+    _fields_ = [("dx", ctypes.c_long),
+                ("dy", ctypes.c_long),
+                ("mouseData", ctypes.c_ulong),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+class INPUT(ctypes.Structure):
+    class _INPUT_UNION(ctypes.Union):
+        _fields_ = [("mi", MOUSEINPUT)]
+    _fields_ = [("type", ctypes.c_ulong),
+                ("union", _INPUT_UNION)]
+
+SendInput = ctypes.windll.user32.SendInput
+
+def move_mouse(x, y):
+    screen_width = ctypes.windll.user32.GetSystemMetrics(0)
+    screen_height = ctypes.windll.user32.GetSystemMetrics(1)
+
+    abs_x = int(x * 65535 / (screen_width - 1))
+    abs_y = int(y * 65535 / (screen_height - 1))
+
+    mouse_input = INPUT(type=0)
+    mouse_input.union.mi = MOUSEINPUT(
+        dx=abs_x,
+        dy=abs_y,
+        mouseData=0,
+        dwFlags=MOUSEEVENTF_MOVE | MOUSEEVENTF_ABSOLUTE,
+        time=0,
+        dwExtraInfo=None
+    )
+    SendInput(1, ctypes.byref(mouse_input), ctypes.sizeof(mouse_input))
+
+def mouse_down():
+    mouse_input = INPUT(type=0)
+    mouse_input.union.mi = MOUSEINPUT(
+        dx=0, dy=0,
+        mouseData=0,
+        dwFlags=MOUSEEVENTF_LEFTDOWN,
+        time=0,
+        dwExtraInfo=None
+    )
+    SendInput(1, ctypes.byref(mouse_input), ctypes.sizeof(mouse_input))
+
+def mouse_up():
+    mouse_input = INPUT(type=0)
+    mouse_input.union.mi = MOUSEINPUT(
+        dx=0, dy=0,
+        mouseData=0,
+        dwFlags=MOUSEEVENTF_LEFTUP,
+        time=0,
+        dwExtraInfo=None
+    )
+    SendInput(1, ctypes.byref(mouse_input), ctypes.sizeof(mouse_input))
+
 def get_game_resolution():
-    """Get resolution from DungeonCrawler GameUserSettings.ini file"""
     config_path = os.path.expandvars(r'%LOCALAPPDATA%/DungeonCrawler/Saved/Config/Windows/GameUserSettings.ini')
     try:
         with open(config_path, 'r') as f:
@@ -30,8 +96,6 @@ def get_game_resolution():
         pass
     return None
 
-# Get user-selected or auto-detected resolution
-# settings.json should have 'resolution': 'Auto' or '1680x1050' etc.
 def get_current_resolution():
     settings_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'settings.json')
     user_res = 'Auto'
@@ -52,18 +116,13 @@ def get_current_resolution():
                 return (x, y)
         except Exception:
             pass
-    # fallback
     return (1920, 1080)
 
-# Get correct positions for current resolution
 def get_screen_positions():
     res = get_current_resolution()
     return RESOLUTION_POSITIONS.get(res, RESOLUTION_POSITIONS[(1920, 1080)])
 
-# distance between stash cells
 jump = 40
-
-# Use these in your logic
 stash_screen_pos = get_screen_positions()['stash']
 inv_screen_pos = get_screen_positions()['inv']
 
@@ -76,10 +135,23 @@ def get_sort_delay():
     except Exception:
         return 0.2
 
+def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008):
+    """
+    Move the mouse smoothly from (x1, y1) to (x2, y2) in a number of small steps.
+    """
+    for i in range(1, steps + 1):
+        t = i / steps
+        # Linear interpolation
+        x = int(x1 + (x2 - x1) * t)
+        y = int(y1 + (y2 - y1) * t)
+        move_mouse(x, y)
+        time.sleep(random.uniform(min_delay, max_delay))
 
 def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
     """
-    Most reliable mouse move and click: uses both pyautogui and pywinauto, with delays and redundancy.
+    Most reliable mouse move and click: now uses raw Windows API SendInput.
+    Adds random jitter and delay to mimic human input.
+    Now uses smooth mouse movement.
     """
     DELAY = get_sort_delay()
     # Calculate center of the item at start
@@ -89,33 +161,34 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     end_x = end_stash.base_screen_pos.x + (jump * end_pos.x) + (jump * end_width) / 2
     end_y = end_stash.base_screen_pos.y + (jump * end_pos.y) + (jump * end_height) / 2
 
-    # Move to start position
-    import pyautogui
-    from pywinauto.mouse import move, press, release
-    sx, sy = int(start_x), int(start_y)
-    ex, ey = int(end_x), int(end_y)
-    pyautogui.moveTo(start_x, start_y, duration=DELAY)
-    move((sx, sy))
-    time.sleep(DELAY)
+    # Add random jitter (±3 pixels)
+    sx = int(start_x + random.uniform(-3, 3))
+    sy = int(start_y + random.uniform(-3, 3))
+    ex = int(end_x + random.uniform(-3, 3))
+    ey = int(end_y + random.uniform(-3, 3))
 
-    # Mouse down (redundant)
-    pyautogui.mouseDown(button='left')
-    press(button='left', coords=(sx, sy))
-    time.sleep(DELAY)
+    # Move to start position smoothly from current mouse position
+    pt = POINT()
+    ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+    move_mouse_smooth(pt.x, pt.y, sx, sy, steps=20)
+    time.sleep(DELAY + random.uniform(0, 0.07))
 
-    # Move to end position
-    pyautogui.moveTo(end_x, end_y, duration=DELAY)
-    move((ex, ey))
-    time.sleep(DELAY)
+    # Mouse down (hold item)
+    mouse_down()
+    time.sleep(DELAY + random.uniform(0, 0.07))
 
-    # Mouse up (redundant)
-    pyautogui.mouseUp(button='left')
-    release(button='left', coords=(ex, ey))
-    time.sleep(DELAY)
+    # Move to end position smoothly
+    move_mouse_smooth(sx, sy, ex, ey, steps=25)
+    time.sleep(DELAY + random.uniform(0, 0.07))
 
-    # Optional: repeat click at end position for extra reliability
-    pyautogui.click(x=end_x, y=end_y, button='left')
-    time.sleep(DELAY/2)
-    press(button='left', coords=(ex, ey))
-    release(button='left', coords=(ex, ey))
-    time.sleep(DELAY/2)
+    # Mouse up (drop item)
+    mouse_up()
+    time.sleep(DELAY + random.uniform(0, 0.07))
+
+    # Extra click at end for reliability
+    move_mouse_smooth(ex, ey, ex, ey, steps=5)
+    time.sleep((DELAY / 2) + random.uniform(0, 0.04))
+    mouse_down()
+    time.sleep((DELAY / 4) + random.uniform(0, 0.03))
+    mouse_up()
+    time.sleep((DELAY / 2) + random.uniform(0, 0.04))

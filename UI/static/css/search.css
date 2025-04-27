@@ -10,6 +10,27 @@
     border-radius: 4px;
     background: var(--bg-secondary);
     margin-bottom: 1rem;
+    cursor: pointer;
+}
+
+.result-item:hover {
+    background: var(--bg-hover);
+}
+
+.locations-container {
+    flex: 2;
+}
+
+.character-info {
+    flex: 1;
+    text-align: right;
+}
+
+.location-info {
+    margin-bottom: 0.5rem;
+    padding: 0.25rem;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 2px;
 }
 
 .item-popup {
@@ -19,6 +40,39 @@
     padding: 1rem;
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    min-width: 200px;
+}
+
+.item-header {
+    padding: 0.5rem;
+    margin: -1rem -1rem 1rem -1rem;
+    border-radius: 4px 4px 0 0;
+    font-weight: bold;
+}
+
+.item-properties {
+    margin-bottom: 1rem;
+}
+
+.primary-props {
+    color: #ffffff;
+    margin-bottom: 0.5rem;
+}
+
+.secondary-props {
+    color: #4a9eff;
+}
+
+.item-meta {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding-top: 1rem;
+    margin-top: 1rem;
+    font-size: 0.9em;
+    color: #999;
+}
+
+.item-locations {
+    margin-top: 0.5rem;
 }
 
 .instructions-panel {
