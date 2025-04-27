@@ -80,3 +80,9 @@ jobs:
           tag_name: ${{ github.event.inputs.tag }}
           name: Release ${{ github.event.inputs.tag }}
           files: dist/DnDTools.exe
+          fail_on_unmatched_files: false  # Add this to avoid errors if release does not exist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # If you need to use a PAT, add GH_PAT to your repo secrets and use:
+        # env:
+        #   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
