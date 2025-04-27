@@ -25,7 +25,8 @@ class ItemDataManager:
         item = self.data.get(item_id, {})
         icon_path = item.get("iconPath", None)
         if icon_path:
-            return Path("assets") / icon_path
+            # Return just the icon path without 'assets/' prefix
+            return Path(icon_path)
         return None
 
     def get_item_id_from_design_str(self, item_id):

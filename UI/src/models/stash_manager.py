@@ -8,20 +8,12 @@ from .storage import Storage, StashType
 from .sort import StashSorter
 from src.models.game_data import item_data_manager
 import pygetwindow as gw
+from .appdirs import get_data_dir, get_output_dir
 
 class StashManager:
     def __init__(self, resource_dir: str):
-        import sys
-        # For frozen EXE (Nuitka), use the launch directory for dynamic data (data/output)
-        if globals().get('__compiled__', False):
-            exe_dir = os.getcwd()
-            self.data_dir = os.path.join(exe_dir, "data")
-            self.output_dir = os.path.join(exe_dir, "output")
-        else:
-            # In development, everything lives under resource_dir
-            self.data_dir = os.path.join(resource_dir, "data")
-            self.output_dir = os.path.join(resource_dir, "output")
-            
+        self.data_dir = get_data_dir()
+        self.output_dir = get_output_dir()
         # Ensure directories exist
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.output_dir, exist_ok=True)

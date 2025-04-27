@@ -1,3 +1,4 @@
+from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
 from src.models.game_data import item_data_manager
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory
@@ -12,15 +13,6 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
-def resource_path(relative_path):
-    """ Get absolute path to resource, works for dev and for Nuitka onefile """
-    if getattr(sys, 'frozen', False):
-        # Nuitka onefile or PyInstaller
-        base_path = sys._MEIPASS if hasattr(sys, '_MEIPASS') else os.path.dirname(sys.executable)
-    else:
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, relative_path)
-
 # Load environment variables
 load_dotenv()
 
@@ -29,7 +21,7 @@ app_dir = resource_path('')
 print(f"Base directory: {app_dir}")
 
 # Debug: Print and check template folder
-template_folder_path = resource_path('templates')
+template_folder_path = get_templates_dir()
 print(f"Template folder resolved to: {template_folder_path}")
 if not os.path.exists(template_folder_path):
     print(f"[ERROR] Template folder does not exist: {template_folder_path}")
@@ -39,9 +31,9 @@ else:
     else:
         print(f"index.html found in template folder: {template_folder_path}")
 
-# Initialize Flask with explicit path handling
+# Use get_templates_dir and get_static_dir for Flask app
 server = Flask(__name__, 
-    static_folder=resource_path('static'),
+    static_folder=get_static_dir(),
     template_folder=template_folder_path
 )
 server.config['JSON_AS_ASCII'] = False
@@ -64,7 +56,8 @@ class Api:
     def __init__(self):
         self.stash_manager = stash_manager
         # Settings
-        self.settings_file = resource_path('settings.json')
+        from src.models.appdirs import get_settings_file
+        self.settings_file = get_settings_file()
         self.settings = self._load_settings()
         # Capture setup
         self.capture_settings = {
@@ -82,14 +75,14 @@ class Api:
         self.capture_thread = None
         self.capture_running = self.packet_capture.running
         self._initial_restart_done = False
-        self.window = None  # Will store window reference
+        self.window = None
         self._setup_global_hotkeys()
         self.is_maximized = False
         self.original_size = None
         self.original_position = None
-        self.current_sort_event = None  # Add this line
-        self._current_char_id = None    # Add this line
-        self._current_stash_id = None   # Add this line
+        self.current_sort_event = None
+        self._current_char_id = None
+        self._current_stash_id = None
 
     def _load_settings(self):
         if os.path.exists(self.settings_file):
@@ -102,7 +95,8 @@ class Api:
             'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
             'sortHotkey': 'ctrl+alt+s',
             'cancelHotkey': 'ctrl+alt+x',
-            'sortSpeed': 0.2
+            'sortSpeed': 0.2,
+            'resolution': 'Auto'
         }
 
     def _save_settings(self, settings):
@@ -300,7 +294,8 @@ def api_character_details(character_id):
 
 @server.route('/output/<path:filename>')
 def serve_preview(filename):
-    output_dir = resource_path('output')
+    from src.models.appdirs import get_output_dir
+    output_dir = get_output_dir()
     return send_from_directory(output_dir, filename)
 
 @server.route('/api/search_items')
@@ -385,7 +380,7 @@ def api_settings():
 
 @server.route('/assets/<path:filename>')
 def serve_file(filename):
-    assets_dir = resource_path('assets')
+    assets_dir = get_resource_dir()
     return send_from_directory(assets_dir, filename)
 
 @server.route('/api/auto_resolution', methods=['GET'])
@@ -393,42 +388,29 @@ def api_auto_resolution():
     from src.models.macros import get_game_resolution
     return jsonify({"resolution": get_game_resolution() or "Not detected"})
 
-@server.route('/api/calibration_status', methods=['GET'])
-def api_calibration_status():
-    res = request.args.get('resolution')
-    if not res or res == 'Auto':
-        from src.models.macros import get_game_resolution
-        res = get_game_resolution() or '1920x1080'
-    # Parse resolution string
-    try:
-        x, y = map(int, res.split('x'))
-        res_tuple = (x, y)
-    except Exception:
-        res_tuple = (1920, 1080)
-    # Check for calibration file
-    cal_file = os.path.join(os.path.dirname(__file__), '..', 'calibrated_points.txt')
-    cal_points = None
-    if os.path.exists(cal_file):
-        with open(cal_file, 'r') as f:
-            lines = f.readlines()
-            if len(lines) >= 2:
-                try:
-                    stash = tuple(map(int, lines[0].split(':')[1].strip().split(',')))
-                    inv = tuple(map(int, lines[1].split(':')[1].strip().split(',')))
-                    cal_points = {'stash': stash, 'inv': inv}
-                except Exception:
-                    pass
-    # Default points from macros.py
-    from src.models.macros import RESOLUTION_POSITIONS
-    default_points = RESOLUTION_POSITIONS.get(res_tuple)
-    needs_calibration = (res_tuple != (1920, 1080)) and (cal_points is None)
-    return jsonify({
-        'needs_calibration': needs_calibration,
-        'current_points': cal_points if cal_points else default_points,
-        'is_default': res_tuple == (1920, 1080)
-    })
+def migrate_settings():
+    """Migrate settings from old location to AppData if they exist"""
+    from src.models.appdirs import get_settings_file
+    old_settings = resource_path('settings.json')
+    new_settings = get_settings_file()
+    
+    if os.path.exists(old_settings) and not os.path.exists(new_settings):
+        try:
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(new_settings), exist_ok=True)
+            # Copy settings
+            with open(old_settings, 'r') as f:
+                settings = json.load(f)
+            with open(new_settings, 'w') as f:
+                json.dump(settings, f, indent=2)
+            print(f"Settings migrated to: {new_settings}")
+        except Exception as e:
+            print(f"Error migrating settings: {e}")
 
 def main():
+    # Migrate settings before initializing API
+    migrate_settings()
+    
     # Use the global api instance
     # Perform initial restart if needed (only once)
     if api.packet_capture.running and not api._initial_restart_done:

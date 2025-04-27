@@ -1,0 +1,7 @@
+{
+  "interface": "Ethernet",
+  "sortHotkey": "ctrl+alt+s",
+  "cancelHotkey": "ctrl+alt+x",
+  "sortSpeed": 0.2,
+  "resolution": "Auto"
+}

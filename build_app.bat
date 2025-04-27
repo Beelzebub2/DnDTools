@@ -29,7 +29,7 @@ python -m nuitka ^
 --assume-yes-for-downloads ^
 --nofollow-import-to=tkinter ^
 --output-filename=DnDTools.exe ^
---windows-disable-console ^
+--windows-console-mode=disable ^
 UI\app.py
 
 echo Build complete. Executable is in the dist folder.

@@ -14,6 +14,7 @@ import time
 import asyncio
 import glob
 import tempfile
+from .appdirs import get_data_dir, get_capture_state_file
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -43,16 +44,8 @@ class PacketCapture:
         self.packet_data = b""
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-        
-        # Use persistent directories next to EXE when frozen
-        if globals().get('__compiled__', False):
-            exe_dir = os.getcwd()
-            self.data_dir = os.path.join(exe_dir, "data")
-            self.STATE_FILE = os.path.join(exe_dir, "capture_state.json")
-        else:
-            self.data_dir = "data"
-            self.STATE_FILE = "capture_state.json"
-            
+        self.data_dir = get_data_dir()
+        self.STATE_FILE = get_capture_state_file()
         os.makedirs(self.data_dir, exist_ok=True)
         self.MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
         self.expected_packet_length = None

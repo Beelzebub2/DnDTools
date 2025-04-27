@@ -4,6 +4,7 @@ from src.models.item import Item
 from src.models.point import Point
 from src.models.game_data import item_data_manager
 from enum import Enum
+from src.models.appdirs import resource_path
 
 class StashType(Enum):
     NONE = 0

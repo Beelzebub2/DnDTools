@@ -1,114 +1,111 @@
 .settings-container {
     max-width: 800px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 20px;
 }
 
 .settings-form {
-    background: var(--bg-secondary);
-    padding: 2rem;
+    background: var(--color-card-bg);
     border-radius: 8px;
-    margin-top: 1.5rem;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .settings-section {
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
-    background: rgba(0, 0, 0, 0.2);
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--color-border);
 }
 
 .settings-section:last-child {
-    margin-bottom: 0;
+    border-bottom: none;
+    margin-bottom: 20px;
 }
 
 .settings-section h2 {
-    margin-top: 0;
-    margin-bottom: 1.5rem;
-    color: var(--accent-gold);
-    font-size: 1.2rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 10px;
+    margin-bottom: 20px;
+    color: var(--color-text);
+    font-size: 1.2em;
 }
 
 .settings-section h2 .material-icons {
-    font-size: 1.2rem;
-    flex-shrink: 0;
-    margin-top: -2px;
-    /* Better vertical alignment */
+    color: var(--color-primary);
 }
 
 .form-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: 20px;
 }
 
 .form-group:last-child {
     margin-bottom: 0;
 }
 
+.settings-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-input-bg);
+    color: var(--color-text);
+    font-size: 14px;
+    transition: border-color 0.3s;
+}
+
+.settings-input:focus {
+    border-color: var(--color-primary);
+    outline: none;
+}
+
+.settings-input:disabled {
+    background: var(--color-disabled-bg);
+    cursor: not-allowed;
+}
+
 .help-text {
     display: block;
-    color: var(--text-secondary);
-    font-size: 0.9em;
-    margin-top: 0.5rem;
+    margin-top: 5px;
+    color: var(--color-text-muted);
+    font-size: 12px;
+}
+
+input[type="number"].settings-input {
+    width: 120px;
 }
 
 #sortSpeedValue {
-    color: var(--text-secondary);
-    margin-left: 0.5rem;
-    font-size: 0.9rem;
-}
-
-.detected-resolution {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.3rem 0.8rem;
-    background: rgba(var(--accent-gold-rgb), 0.1);
-    border: 1px solid rgba(var(--accent-gold-rgb), 0.3);
-    border-radius: 4px;
-    font-size: 0.9rem;
-    color: var(--accent-gold);
-    margin-top: 0.5rem;
-}
-
-.detected-resolution .material-icons {
-    font-size: 1rem;
-    margin-top: -1px;
-    /* Better vertical alignment */
-    flex-shrink: 0;
+    margin-left: 10px;
+    color: var(--color-text-muted);
 }
 
 .warning-banner {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.8rem 1rem;
-    margin-bottom: 1rem;
-    background: rgba(230, 124, 60, 0.15);
-    border: 1px solid rgba(230, 124, 60, 0.4);
+    gap: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: var(--color-warning-bg);
+    border: 1px solid var(--color-warning-border);
     border-radius: 4px;
-    color: #e67c3c;
-    font-size: 0.9rem;
-    font-weight: 500;
+    color: var(--color-warning-text);
+    font-size: 14px;
 }
 
 .warning-banner .material-icons {
-    font-size: 1.1rem;
-    flex-shrink: 0;
-    margin-top: -1px;
-    /* Fine adjustment for icon vertical alignment */
+    color: var(--color-warning-icon);
 }
 
-/* Remove spinner buttons from number input */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
+.detected-resolution {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    color: var(--color-text-muted);
+    font-size: 13px;
 }
 
-input[type="number"] {
-    -moz-appearance: textfield;
+.detected-resolution .material-icons {
+    font-size: 16px;
 }

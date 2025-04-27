@@ -97,18 +97,24 @@ def get_game_resolution():
     return None
 
 def get_current_resolution():
-    settings_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'settings.json')
+    from src.models.appdirs import get_settings_file
+    settings_file = get_settings_file()
     user_res = 'Auto'
     try:
-        with open(settings_path, 'r') as f:
+        with open(settings_file, 'r') as f:
             settings = json.load(f)
             user_res = settings.get('resolution', 'Auto')
     except Exception:
         pass
     if user_res == 'Auto':
         res = get_game_resolution()
-        if res in RESOLUTION_POSITIONS:
-            return res
+        if res:
+            try:
+                x, y = map(int, res.split('x'))
+                if (x, y) in RESOLUTION_POSITIONS:
+                    return (x, y)
+            except Exception:
+                pass
     else:
         try:
             x, y = map(int, user_res.split('x'))
@@ -116,7 +122,7 @@ def get_current_resolution():
                 return (x, y)
         except Exception:
             pass
-    return (1920, 1080)
+    return (1920, 1080)  # Default resolution
 
 def get_screen_positions():
     res = get_current_resolution()
@@ -127,9 +133,11 @@ stash_screen_pos = get_screen_positions()['stash']
 inv_screen_pos = get_screen_positions()['inv']
 
 def get_sort_delay():
-    settings_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'settings.json')
+    """Get sort delay from settings"""
+    from src.models.appdirs import get_settings_file
+    settings_file = get_settings_file()
     try:
-        with open(settings_path, 'r') as f:
+        with open(settings_file, 'r') as f:
             settings = json.load(f)
             return float(settings.get('sortSpeed', 0.2))
     except Exception:
