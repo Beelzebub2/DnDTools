@@ -34,9 +34,6 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 ## 📋 Requirements
 
 - Python 3.7+
-- PIL/Pillow
-- pyshark
-- protobuf
 - **[Wireshark](https://www.wireshark.org/download.html) must be installed on your system** (required for packet capture)
 
 ## 🔧 Installation

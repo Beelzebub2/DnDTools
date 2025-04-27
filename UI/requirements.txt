@@ -1,10 +1,7 @@
 flask==2.3.3
 pywebview==5.4
-pillow>=9.0.0
-python-dotenv==1.0.0
-requests==2.31.0
+python-dotenv
 pyautogui
-pywin32
 keyboard
 psutil
 pyshark
