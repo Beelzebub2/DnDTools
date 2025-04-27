@@ -20,8 +20,7 @@ jobs:
       - name: Cache pip dependencies
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.cache/pip
+          path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('UI/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
@@ -33,7 +32,8 @@ jobs:
           pip install -r UI/requirements.txt
 
       - name: Build executable with Nuitka
-        run: cmd /c build_app.bat
+        shell: cmd
+        run: .\build_app.bat
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
