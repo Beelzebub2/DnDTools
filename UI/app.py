@@ -440,19 +440,25 @@ def migrate_settings():
         except Exception as e:
             logger.error(f"Error migrating settings: {e}")
 
+def background_init():
+    """Perform heavy or slow initialization in the background after UI loads."""
+    logger.info("Starting background initialization...")
+    try:
+        # Example: reload all data, caches, or anything slow
+        api.stash_manager.characters_cache = {}
+        api.stash_manager._load_data()
+        # Notify UI that background loading is done
+        if api.window:
+            api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
+        logger.info("Background initialization complete.")
+    except Exception as e:
+        logger.error(f"Background initialization failed: {e}")
+
 def main():
-    # Remove any print statements and use logging instead
     logger.info("Starting DnDTools application")
-    
-    # Migrate settings before initializing API
     migrate_settings()
-    
-    # Use the global api instance
-    # Perform initial restart if needed (only once)
     if api.packet_capture.running and not api._initial_restart_done:
         api.restart_capture_switch()
-    
-    # Create window with minimal JS API exposure first
     window = webview.create_window('Dark and Darker Stash Organizer',
                                  server,
                                  width=1200,
@@ -460,12 +466,9 @@ def main():
                                  min_size=(800, 600),
                                  frameless=True,
                                  easy_drag=False)
-    
-    # Expose all API methods
     window.expose(api.minimize)
     window.expose(api.toggle_maximize)
     window.expose(api.close_window)
-
     window.expose(api.sort_stash)
     window.expose(api._save_settings)
     window.expose(api.start_capture)
@@ -480,13 +483,11 @@ def main():
     window.expose(api.set_capture_settings)
     window.expose(api.get_character_stash_previews)
     window.expose(api.get_capture_state)
-    
     api.set_window(window)
-    
-    # Set initial window state after window is loaded
     def on_loaded():
         api.set_initial_window_state()
-    
+        # Start background initialization after UI is ready
+        threading.Thread(target=background_init, daemon=True).start()
     webview.start(on_loaded, debug=False)
 
 if __name__ == '__main__':
