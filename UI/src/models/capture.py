@@ -7,6 +7,7 @@ from datetime import datetime
 import os
 import logging
 import sys
+import subprocess
 from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
 import threading
@@ -14,7 +15,7 @@ import time
 import asyncio
 import glob
 import tempfile
-from .appdirs import get_data_dir, get_capture_state_file
+from .appdirs import get_data_dir, get_capture_state_file, is_frozen
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -24,6 +25,23 @@ sys.path.insert(0, protos_path)
 
 from networking.protos import Lobby_pb2
 from networking.protos import _PacketCommand_pb2
+
+# Configure subprocess to hide console windows when in executable mode
+if is_frozen():
+    # Replace subprocess.Popen with a version that hides console windows
+    original_popen = subprocess.Popen
+    
+    def hidden_popen(*args, **kwargs):
+        # Add startupinfo to hide console windows on Windows
+        if os.name == 'nt':
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0  # SW_HIDE
+            kwargs['startupinfo'] = startupinfo
+        return original_popen(*args, **kwargs)
+    
+    # Replace the subprocess.Popen with our modified version
+    subprocess.Popen = hidden_popen
 
 class PacketProtocol:
     S2C_LOBBY_CHARACTER_INFO_RES = 44
@@ -240,7 +258,13 @@ class PacketCapture:
                          f'tcp.srcport >= {self.port_range[0]} and '
                          f'tcp.srcport <= {self.port_range[1]}')
         
-        capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        capture = pyshark.LiveCapture(
+        interface=self.interface,
+        display_filter=display_filter,
+        override_popen_kwargs={
+            "creationflags": subprocess.CREATE_NO_WINDOW
+        }
+    )
 
         try:
             for packet in capture.sniff_continuously():
