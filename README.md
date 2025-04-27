@@ -58,10 +58,23 @@ python main.py
 4. Preview images will be generated in the `previews` folder
 
 ## ⚙️ Configuration
+### Updating Protobuf Files After a Game Update
 
-- `GRID_WIDTH`: Stash width (default: 12)
-- `GRID_HEIGHT`: Stash height (default: 20)
-- `CELL_SIZE`: Size of each grid cell in pixels (default: 45)
+After a **Dark and Darker** update, you will need to run:
+```
+UI\networking\extract.bat
+```
+to grab the fresh `.proto` files from the game binary.
+
+> **Important:**  
+> Before running, update the path inside `extract.bat` if your game is installed somewhere other than the default.  
+> The default path is:
+> ```
+> C:\Program Files\IRONMACE\Dark and Darker\DungeonCrawler\Binaries\Win64\DungeonCrawler.exe
+> ```
+
+We will try to keep the `.proto` files in the repository updated, but if they are outdated, you can use this script to generate the latest ones yourself.
+
 
 ## 🛡️ Legal
 
@@ -76,9 +89,10 @@ This project:
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 🙏 Acknowledgments
-
 thanks to:
-- [Darkerdb](https://darkerdb.com/) for the amazing api
+- **Kokkor** on Discord for their help with protobuf and packet capture.
+- **Anders** on Discord for their help with this project and for allowing me to use a custom YOLOv5 model.
+- [Darkerdb](https://darkerdb.com/) for the amazing api.
 
 ## 📄 License
 
