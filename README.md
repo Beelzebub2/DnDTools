@@ -6,7 +6,7 @@
 ## 🎮 Demo
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/84e1ba79-fa67-420b-bb62-493fd7ed21fd" controls autoplay loop muted width="100%"></video>
+  <video src="https://github.com/user-attachments/assets/ce137f5c-c787-480c-bdac-3c7ebd408979" controls autoplay loop muted width="100%"></video>
 </p>
 
 <p align="center">
