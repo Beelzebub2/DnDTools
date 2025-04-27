@@ -1,9 +1,13 @@
-# This workflow builds DnDTools with Nuitka when a release is created
-name: Build DnDTools with Nuitka on Release
+# This workflow builds DnDTools with Nuitka and uploads it to a GitHub Release manually
+name: Build and Release DnDTools
 
 on:
-  release:
-    types: [created]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (example: v1.0.0)'
+        required: true
+        default: 'v1.0.0'
 
 jobs:
   build:
@@ -44,7 +48,7 @@ jobs:
           rmdir /s /q build 2>nul
           rmdir /s /q dist 2>nul
 
-          REM Create dist directory and copy initial data
+          REM Create dist directory
           mkdir dist
 
           REM Run Nuitka to compile the application into a single-file executable
@@ -67,8 +71,9 @@ jobs:
 
           echo Build complete. Executable is in the dist folder.
 
-      - name: Upload executable to GitHub Release
+      - name: Create GitHub Release and Upload executable
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.event.inputs.tag }}
+          name: Release ${{ github.event.inputs.tag }}
           files: dist/DnDTools.exe
-
