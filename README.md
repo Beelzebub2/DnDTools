@@ -33,7 +33,7 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 
 ## 📋 Requirements
 
-- Python 3.7+
+- Python 3.7+ [Download Python](https://www.python.org/downloads/)
 
 ## 🔧 Installation
 
