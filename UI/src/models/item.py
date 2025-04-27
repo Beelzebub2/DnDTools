@@ -1,6 +1,3 @@
-from src.models.game_data import item_data_manager
-from src.models.point import Point
-
 class Item:
     def __init__(self, name, rarity, position, width, height, stash):
         self.name = name

@@ -1,9 +1,9 @@
 flask==2.3.3
 pywebview==5.4
+protobuf==5.27.2
 python-dotenv
 pyautogui
 keyboard
 psutil
-protobuf
 pygetwindow
 scapy
