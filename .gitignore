@@ -6,6 +6,7 @@ test-data/
 data/
 UI/capture_state.json
 UI/settings.json
+website/
 
 # Python
 __pycache__/
