@@ -36,9 +36,9 @@ class StashPreviewGenerator:
             3: (0, 255, 0, 100),      # Uncommon - Green
             4: (0, 112, 221, 100),    # Rare - Blue
             5: (163, 53, 238, 100),   # Epic - Purple
-            6: (255, 128, 0, 200),    # Legend - Orange
-            7: (233, 237, 154, 200),   # Unique - Gold
-            8: (255, 0, 0, 200),      # Artifact - Red
+            6: (255, 128, 0, 100),    # Legend - Orange
+            7: (233, 237, 154, 150),   # Unique - Gold
+            8: (255, 0, 0, 150),      # Artifact - Red
         }
 
     def _get_stash_dimensions(self, stash_id: str) -> Tuple[int, int]:
