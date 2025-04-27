@@ -469,7 +469,7 @@ def main():
     def on_loaded():
         api.set_initial_window_state()
     
-    webview.start(on_loaded, debug=True)
+    webview.start(on_loaded, debug=False)
 
 if __name__ == '__main__':
     main()
