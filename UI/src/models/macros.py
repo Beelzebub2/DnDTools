@@ -1,5 +1,6 @@
 import time
 from src.models.point import Point
+from src.models.image import get_tooltip, screenshot
 import os
 import json
 import re
@@ -119,3 +120,17 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     press(button='left', coords=(ex, ey))
     release(button='left', coords=(ex, ey))
     time.sleep(DELAY/2)
+
+    # Check the drag worked
+    image = screenshot()
+    tooltip = get_tooltip(image)
+
+    # Retry
+    # if tooltip == None:
+    #     move_from_to_reliable(
+    #         start_stash, start_pos,
+    #         end_stash, end_pos,
+    #         start_width, start_height,
+    #         end_width, end_height
+    #     )
+    #     time.sleep(1)
