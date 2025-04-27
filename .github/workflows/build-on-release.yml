@@ -33,7 +33,39 @@ jobs:
 
       - name: Build executable with Nuitka
         shell: cmd
-        run: .\build_app.bat
+        run: |
+          REM Ensure we're in the project root
+          cd /d %GITHUB_WORKSPACE%
+
+          REM Set PYTHONPATH to include UI so networking.protos is recognized
+          set PYTHONPATH=%GITHUB_WORKSPACE%\UI
+
+          REM Remove previous build/dist folders if they exist
+          rmdir /s /q build 2>nul
+          rmdir /s /q dist 2>nul
+
+          REM Create dist directory and copy initial data
+          mkdir dist
+
+          REM Run Nuitka to compile the application into a single-file executable
+          python -m nuitka ^
+          --onefile ^
+          --standalone ^
+          --windows-icon-from-ico=UI\assets\logo.ico ^
+          --include-data-dir=UI\networking\protos=networking/protos ^
+          --include-data-dir=UI\templates=templates ^
+          --include-data-dir=UI\static=static ^
+          --include-data-dir=UI\assets=assets ^
+          --output-dir=dist ^
+          --enable-plugin=tk-inter ^
+          --remove-output ^
+          --assume-yes-for-downloads ^
+          --nofollow-import-to=tkinter ^
+          --output-filename=DnDTools.exe ^
+          --windows-console-mode=disable ^
+          UI\app.py
+
+          echo Build complete. Executable is in the dist folder.
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
