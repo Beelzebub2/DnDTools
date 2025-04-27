@@ -41,7 +41,7 @@ class ItemDataManager:
             "Uncommon": 3,
             "Rare": 4,
             "Epic": 5,
-            "Legend": 6,
+            "Legendary": 6,
             "Unique": 7,
             "Artifact": 8
         }
@@ -56,7 +56,7 @@ class ItemDataManager:
             3: "Uncommon",
             4: "Rare",
             5: "Epic",
-            6: "Legend",
+            6: "Legendary",
             7: "Unique",
             8: "Artifact"
         }
@@ -67,13 +67,13 @@ item_data_manager = ItemDataManager()
 def main():
     manager = ItemDataManager()
 
-    width, height = manager.get_item_dimensions_from_id("Buckler_7001")
+    width, height = manager.get_item_dimensions_from_id("WizardShoes_6001")
     print("Dimensions:", width, height)
 
-    rarity = manager.get_item_rarity_from_id("Buckler_7001")
+    rarity = manager.get_item_rarity_from_id("WizardShoes_6001")
     print("Rarity:", rarity)
 
-    icon_path = manager.get_item_image_path_from_id("ReinforcedGloves_4001")
+    icon_path = manager.get_item_image_path_from_id("WizardShoes_6001")
     print(icon_path)
 
 

@@ -42,7 +42,7 @@ class Storage:
         # stardard or shared stash size 12x20
         if self.stash_type >= 4 and self.stash_type <= 30:
             self.width = 12
-            self.height = 20
+            self.height = 10
             self.base_screen_pos = macros.stash_screen_pos
         elif self.stash_type == StashType.BAG.value:
             self.base_screen_pos = macros.inv_screen_pos
@@ -115,6 +115,12 @@ class Storage:
 
                 rarity_id = item_data_manager.rarity_to_id(rarity)
 
+                if (rarity_id == None):
+                    print(item_id)
+                    print(rarity)
+                    print(rarity_id)
+                    exit()
+
                 item = Item(name, rarity_id, position, width, height, self)
 
             except Exception as e:
@@ -142,28 +148,28 @@ class Storage:
             heapq.heappush(self.pq, item)
     
     def __repr__(self):
-        import os
-        import sys
-        import json
-        from pathlib import Path
+        # import os
+        # import sys
+        # import json
+        # from pathlib import Path
 
-        # Determine the correct data directory (same logic as StashManager)
-        if globals().get('__compiled__', False):
-            base_dir = os.getcwd()
-        else:
-            base_dir = Path(__file__).parent.parent.parent
-        data_dir = os.path.join(base_dir, 'data')
-        characters = []
+        # # Determine the correct data directory (same logic as StashManager)
+        # if globals().get('__compiled__', False):
+        #     base_dir = os.getcwd()
+        # else:
+        #     base_dir = Path(__file__).parent.parent.parent
+        # data_dir = os.path.join(base_dir, 'data')
+        # characters = []
 
-        if os.path.exists(data_dir):
-            for char_file in os.listdir(data_dir):
-                if char_file.endswith('.json'):
-                    with open(os.path.join(data_dir, char_file), 'r', encoding='utf-8') as f:
-                        char_data = json.load(f)
-                        characters.append(char_data)
+        # if os.path.exists(data_dir):
+        #     for char_file in os.listdir(data_dir):
+        #         if char_file.endswith('.json'):
+        #             with open(os.path.join(data_dir, char_file), 'r', encoding='utf-8') as f:
+        #                 char_data = json.load(f)
+        #                 characters.append(char_data)
 
-        if not characters:
-            return "No character data found. Please capture character data first."
+        # if not characters:
+        #     return "No character data found. Please capture character data first."
 
         # Create the grid representation
         grid = [["." for _ in range(self.width)] for _ in range(self.height)]
@@ -177,16 +183,16 @@ class Storage:
         # Create the display string
         lines = []
         # Add character information
-        for char in characters:
-            lines.append(f"\nCharacter: {char.get('characterName', 'Unknown')}")
-            lines.append(f"Class: {char.get('characterClass', 'Unknown')}")
-            lines.append(f"Level: {char.get('level', 'Unknown')}")
-            rank = char.get('rank', {}).get('name', 'Unknown') if isinstance(char.get('rank'), dict) else char.get('rank', 'Unknown')
-            lines.append(f"Rank: {rank}")
-            lines.append("-" * 40)
+        # for char in characters:
+        #     lines.append(f"\nCharacter: {char.get('characterName', 'Unknown')}")
+        #     lines.append(f"Class: {char.get('characterClass', 'Unknown')}")
+        #     lines.append(f"Level: {char.get('level', 'Unknown')}")
+        #     rank = char.get('rank', {}).get('name', 'Unknown') if isinstance(char.get('rank'), dict) else char.get('rank', 'Unknown')
+        #     lines.append(f"Rank: {rank}")
+        #     lines.append("-" * 40)
 
         # Add inventory grid
-        lines.append("\nInventory:")
+        lines.append("\nStorage:")
         for row in grid:
             lines.append(" ".join(row))
 

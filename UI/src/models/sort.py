@@ -87,6 +87,8 @@ class StashSorter:
 
             self.cur_x += item.width
             print(f"Current stash state:\n{self.stash}")
+
+            print(f"Current inventory state:\n{self.inv}")
             
             # Check for cancellation after item placement
             if self.cancel_event and self.cancel_event.is_set():
@@ -119,7 +121,8 @@ def main():
 
     time.sleep(2)
 
-    stashes = parse_stashes(packet_data)
+    # not working
+    stashes = parse_stashes({})
 
     stash = Storage(StashType.STORAGE.value, stashes[StashType.STORAGE.value])
     bag = stashes.get(StashType.BAG.value, [])
