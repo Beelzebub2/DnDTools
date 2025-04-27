@@ -259,12 +259,9 @@ class PacketCapture:
                          f'tcp.srcport <= {self.port_range[1]}')
         
         capture = pyshark.LiveCapture(
-        interface=self.interface,
-        display_filter=display_filter,
-        override_popen_kwargs={
-            "creationflags": subprocess.CREATE_NO_WINDOW
-        }
-    )
+            interface=self.interface,
+            display_filter=display_filter
+        )
 
         try:
             for packet in capture.sniff_continuously():
@@ -310,8 +307,7 @@ class PacketCapture:
         # Store capture object as instance variable for cleanup
         self._current_capture = pyshark.LiveCapture(
             interface=self.interface,
-            display_filter=display_filter,
-            override_popen_kwargs=override_popen_kwargs
+            display_filter=display_filter
         )
         self._current_loop = loop
         

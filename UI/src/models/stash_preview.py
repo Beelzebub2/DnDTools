@@ -30,15 +30,15 @@ class StashPreviewGenerator:
             
         # Define rarity colors with alpha (RGBA)
         self.rarity_colors = {
-            0: (128, 128, 128, 60),  # None - Gray
-            1: (150, 150, 150, 60),  # Poor - Light Gray
-            2: (255, 255, 255, 60),  # Common - White
-            3: (0, 255, 0, 60),      # Uncommon - Green
-            4: (0, 112, 221, 60),    # Rare - Blue
-            5: (163, 53, 238, 60),   # Epic - Purple
-            6: (255, 128, 0, 60),    # Legend - Orange
-            7: (255, 215, 0, 60),    # Unique - Gold
-            8: (255, 0, 0, 60),      # Artifact - Red
+            0: (128, 128, 128, 100),  # None - Gray
+            1: (150, 150, 150, 100),  # Poor - Light Gray
+            2: (255, 255, 255, 100),  # Common - White
+            3: (0, 255, 0, 100),      # Uncommon - Green
+            4: (0, 112, 221, 100),    # Rare - Blue
+            5: (163, 53, 238, 100),   # Epic - Purple
+            6: (255, 128, 0, 200),    # Legend - Orange
+            7: (233, 237, 154, 200),   # Unique - Gold
+            8: (255, 0, 0, 200),      # Artifact - Red
         }
 
     def _get_stash_dimensions(self, stash_id: str) -> Tuple[int, int]:
@@ -173,7 +173,6 @@ class StashPreviewGenerator:
         if img_path:
             # Convert PathLib to string and use resource_path
             img_path = resource_path(str(img_path))
-            print(f"Looking for image at: {img_path}")
         w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
         name = item_data_manager.get_item_name_from_id(item.itemId)
 
@@ -276,32 +275,57 @@ class StashPreviewGenerator:
         if img_path:
             # Convert PathLib to string and use resource_path
             img_path = resource_path(str(img_path))
-            print(f"Looking for image at: {img_path}")
         w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
         name = item_data_manager.get_item_name_from_id(item.itemId)
 
         # Get rarity from the item data
         parts = item.itemId.split('_')
+        rarity = None
         if len(parts) > 1 and parts[-1].isdigit():
-            # Items with rarity in ID (Name_XXXX where first X is rarity)
             rarity = int(parts[-1][0])
         else:
             # Check if it's a unique item in the data
             item_data = item_data_manager.data.get(item.itemId, {})
-            rarity_str = item_data.get("rarity", "None")
-            # Convert rarity string to number
-            rarity_map = {
-                "None": 0,
-                "Poor": 1,
-                "Common": 2,
-                "Uncommon": 3,
-                "Rare": 4, 
-                "Epic": 5,
-                "Legendary": 6,
-                "Unique": 7,
-                "Artifact": 8
-            }
-            rarity = rarity_map.get(rarity_str, 0)
+            rarity_str = item_data.get("rarity", None)
+            if rarity_str is not None:
+                rarity_map = {
+                    "None": 0,
+                    "Poor": 1,
+                    "Common": 2,
+                    "Uncommon": 3,
+                    "Rare": 4, 
+                    "Epic": 5,
+                    "Legendary": 6,
+                    "Unique": 7,
+                    "Artifact": 8
+                }
+                rarity = rarity_map.get(rarity_str, 0)
+            else:
+                # Try to load from items_stripped JSON file
+                try:
+                    items_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), '..', 'items_stripped')
+                    json_path = os.path.join(items_dir, f"{item.itemId}.json")
+                    if os.path.exists(json_path):
+                        with open(json_path, 'r', encoding='utf-8') as f:
+                            json_data = json.load(f)
+                        rarity_str = json_data.get("rarity", None)
+                        if rarity_str is not None:
+                            rarity_map = {
+                                "None": 0,
+                                "Poor": 1,
+                                "Common": 2,
+                                "Uncommon": 3,
+                                "Rare": 4, 
+                                "Epic": 5,
+                                "Legendary": 6,
+                                "Unique": 7,
+                                "Artifact": 8
+                            }
+                            rarity = rarity_map.get(rarity_str, 0)
+                except Exception as e:
+                    logging.warning(f"Could not load rarity from items_stripped for {item.itemId}: {e}")
+        if rarity is None:
+            rarity = 0
 
         if not img_path or not os.path.exists(img_path):
             logging.warning(f"Item not found or missing image: {item.itemId}")
