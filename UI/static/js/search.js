@@ -24,6 +24,45 @@ function formatSecondaryProps(spArray) {
     }).join('');
 }
 
+// Helper function to generate a unique key for an item
+function getItemKey(item) {
+    return `${item.name}-${item.rarity}-${JSON.stringify(item.pp)}-${JSON.stringify(item.sp)}`;
+}
+
+// Helper function to group identical items
+function groupItems(results) {
+    const groupedItems = new Map();
+
+    results.forEach(result => {
+        const key = getItemKey(result.item);
+        if (!groupedItems.has(key)) {
+            groupedItems.set(key, {
+                ...result, locations: [{
+                    nickname: result.nickname,
+                    class: result.class,
+                    level: result.level,
+                    slotId: result.slotId,
+                    id: result.id,
+                    stash_id: result.stash_id
+                }]
+            });
+        } else {
+            const existingItem = groupedItems.get(key);
+            existingItem.itemCount += result.itemCount;
+            existingItem.locations.push({
+                nickname: result.nickname,
+                class: result.class,
+                level: result.level,
+                slotId: result.slotId,
+                id: result.id,
+                stash_id: result.stash_id
+            });
+        }
+    });
+
+    return Array.from(groupedItems.values());
+}
+
 const debounce = (func, wait) => {
     return (...args) => {
         clearTimeout(searchTimeout);
@@ -44,17 +83,23 @@ window.addEventListener('load', () => {
             return;
         }
 
-        results.forEach(result => {
+        const groupedResults = groupItems(results);
+
+        groupedResults.forEach(result => {
             const item = document.createElement('div');
             item.className = 'result-item';
             const rarityColor = rarityColors[result.item.rarity] || '#ffffff';
 
+            const locationsHtml = result.locations.map(loc =>
+                `<div class="location-info">${loc.nickname} ${loc.class} LvL ${loc.level} Slot: ${loc.slotId}</div>`
+            ).join('');
+
             item.innerHTML = `
-                <div class="character-name">${result.nickname} ${result.class} LvL ${result.level} Slot: ${result.slotId}</div>
+                <div class="locations-container">${locationsHtml}</div>
                 <div class="character-info">
                     <div>${result.item.name}</div>
                     <div>${result.item.rarity}</div>
-                    <div>${result.itemCount}</div>
+                    <div>Total Count: ${result.itemCount}</div>
                 </div>
                 <div class="item-popup" style="position: absolute; display: none; z-index: 100; pointer-events: none;">
                     <div class="item-header" style="background-color: ${rarityColor}; color: #000;">${result.item.name}</div>
@@ -64,7 +109,8 @@ window.addEventListener('load', () => {
                     </div>
                     <div class="item-meta">
                         <div>Rarity: ${result.item.rarity}</div>
-                        <div>Count: ${result.itemCount}</div>
+                        <div>Total Count: ${result.itemCount}</div>
+                        <div class="item-locations">Found in:${locationsHtml}</div>
                     </div>
                 </div>
             `;
@@ -119,7 +165,8 @@ window.addEventListener('load', () => {
             });
 
             item.onclick = () => {
-                fetch(`/api/character/${result.id}/current-stash/${result.stash_id}`, {
+                const firstLocation = result.locations[0];
+                fetch(`/api/character/${firstLocation.id}/current-stash/${firstLocation.stash_id}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -128,7 +175,7 @@ window.addEventListener('load', () => {
                     .catch(error => {
                         console.error('Error:', error);
                     });
-                window.location.href = `/character/${result.id}`;
+                window.location.href = `/character/${firstLocation.id}`;
             };
 
             // Set item to relative positioning so tooltip is positioned within it

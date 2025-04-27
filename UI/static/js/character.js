@@ -60,6 +60,23 @@ const updateCharacterInfo = async (characterId) => {
     }
 };
 
+const getStashName = (stashId) => {
+    // Map stash IDs to their proper names based on StashType enum
+    const stashTypes = {
+        2: 'Bag',
+        3: 'Equipment',
+        4: 'Storage',
+        5: 'Purchased Storage 1',
+        6: 'Purchased Storage 2',
+        7: 'Purchased Storage 3',
+        8: 'Purchased Storage 4',
+        9: 'Purchased Storage 5',
+        20: 'Shared Stash',
+        30: 'Shared Stash Seasonal'
+    };
+    return stashTypes[stashId] || `Stash ${stashId}`;
+};
+
 const createStashTabs = (stashes) => {
     const selector = document.getElementById('stashSelector');
     const preview = document.getElementById('currentStashPreview');
@@ -82,7 +99,7 @@ const createStashTabs = (stashes) => {
             updateCurrentStash(stashId);
         }
 
-        tab.textContent = `Stash ${index + 1}`;
+        tab.textContent = getStashName(parseInt(stashId));
         tab.dataset.stashId = stashId;
         tab.onclick = (e) => {
             document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
