@@ -98,5 +98,12 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For support or questions, please [open an issue](https://github.com/Beelzebub2/darkanddarker-stash-preview/issues) on GitHub.
 
+## 📝 TODO
+
+- Auto updater
+- Quest tracking
+- More sorting options
+- Support for other resolutions
+
 ---
 *Remember to always comply with Dark and Darker's Terms of Service while using this tool.*
