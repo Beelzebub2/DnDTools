@@ -302,8 +302,17 @@ class PacketCapture:
                           f'tcp.srcport >= {self.port_range[0]} and '
                           f'tcp.srcport <= {self.port_range[1]}')
         
+        # Hide tshark console windows on Windows
+        override_popen_kwargs = {}
+        if os.name == 'nt':
+            override_popen_kwargs['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
+        
         # Store capture object as instance variable for cleanup
-        self._current_capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        self._current_capture = pyshark.LiveCapture(
+            interface=self.interface,
+            display_filter=display_filter,
+            override_popen_kwargs=override_popen_kwargs
+        )
         self._current_loop = loop
         
         try:
