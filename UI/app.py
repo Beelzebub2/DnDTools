@@ -8,28 +8,34 @@ from src.models.stash_manager import StashManager
 import psutil
 import json
 import sys
+import logging
+from utils.logging_setup import setup_logging
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
+
+# Initialize logging first
+setup_logging()
+logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
 
 # Determine base directory for resources
 app_dir = resource_path('')
-print(f"Base directory: {app_dir}")
+logger.info(f"Base directory: {app_dir}")
 
 # Debug: Print and check template folder
 template_folder_path = get_templates_dir()
-print(f"Template folder resolved to: {template_folder_path}")
+logger.info(f"Template folder resolved to: {template_folder_path}")
 if not os.path.exists(template_folder_path):
-    print(f"[ERROR] Template folder does not exist: {template_folder_path}")
+    logger.error(f"Template folder does not exist: {template_folder_path}")
 else:
     if not os.path.exists(os.path.join(template_folder_path, 'index.html')):
-        print(f"[ERROR] index.html not found in template folder: {template_folder_path}")
+        logger.error(f"index.html not found in template folder: {template_folder_path}")
     else:
-        print(f"index.html found in template folder: {template_folder_path}")
+        logger.info(f"index.html found in template folder: {template_folder_path}")
 
 # Use get_templates_dir and get_static_dir for Flask app
 server = Flask(__name__, 
@@ -89,7 +95,8 @@ class Api:
             try:
                 with open(self.settings_file, 'r') as f:
                     return json.load(f)
-            except:
+            except Exception as e:
+                logger.error(f"Error loading settings: {e}")
                 pass
         return {
             'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
@@ -105,11 +112,16 @@ class Api:
         settings['cancelHotkey'] = settings['cancelHotkey'].lower()
         if 'sortSpeed' not in settings:
             settings['sortSpeed'] = 0.2
-        with open(self.settings_file, 'w') as f:
-            json.dump(settings, f, indent=2)
-        self.settings = settings
-        self._setup_global_hotkeys()
-        return True
+        try:
+            with open(self.settings_file, 'w') as f:
+                json.dump(settings, f, indent=2)
+            self.settings = settings
+            self._setup_global_hotkeys()
+            logger.info("Settings saved successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Error saving settings: {e}")
+            return False
 
     def _setup_global_hotkeys(self):
         import keyboard
@@ -118,12 +130,12 @@ class Api:
         
         # Setup sort hotkey
         sort_hotkey = self.settings.get('sortHotkey', 'ctrl+alt+s')
-        print(f"Registering sort hotkey: {sort_hotkey}")
+        logger.info(f"Registering sort hotkey: {sort_hotkey}")
         keyboard.add_hotkey(sort_hotkey, self._trigger_sort_current, suppress=True)
         
         # Setup cancel hotkey
         cancel_hotkey = self.settings.get('cancelHotkey', 'ctrl+alt+x')
-        print(f"Registering cancel hotkey: {cancel_hotkey}")
+        logger.info(f"Registering cancel hotkey: {cancel_hotkey}")
         keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
         
     def set_window(self, window):
@@ -140,12 +152,12 @@ class Api:
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
-        print(f"Sort hotkey activated: {self.settings.get('sortHotkey')}")
+        logger.info(f"Sort hotkey activated: {self.settings.get('sortHotkey')}")
         if hasattr(self, '_current_char_id') and hasattr(self, '_current_stash_id'):
-            print(f"Scheduling sort for character {self._current_char_id}, stash {self._current_stash_id}")
+            logger.info(f"Scheduling sort for character {self._current_char_id}, stash {self._current_stash_id}")
             threading.Thread(target=self._sort_worker, daemon=True).start()
         else:
-            print("No current stash selected")
+            logger.warning("No current stash selected")
 
     def _sort_worker(self):
         """Background worker for sorting current stash"""
@@ -158,10 +170,10 @@ class Api:
         
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""
-        print(f"Cancel hotkey activated: {self.settings.get('cancelHotkey')}")
+        logger.info(f"Cancel hotkey activated: {self.settings.get('cancelHotkey')}")
         if self.current_sort_event and not self.current_sort_event.is_set():
             self.current_sort_event.set()
-            print("Sort operation cancelled")
+            logger.info("Sort operation cancelled")
             if self.window:
                 self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
 
@@ -255,7 +267,7 @@ class Api:
             return {"success": bool(result)}
             
         except Exception as e:
-            print(f"Error in sort_stash: {str(e)}")
+            logger.error(f"Error in sort_stash: {str(e)}")
             import traceback
             traceback.print_exc()
             return {"success": False, "error": str(e)}
@@ -403,11 +415,14 @@ def migrate_settings():
                 settings = json.load(f)
             with open(new_settings, 'w') as f:
                 json.dump(settings, f, indent=2)
-            print(f"Settings migrated to: {new_settings}")
+            logger.info(f"Settings migrated to: {new_settings}")
         except Exception as e:
-            print(f"Error migrating settings: {e}")
+            logger.error(f"Error migrating settings: {e}")
 
 def main():
+    # Remove any print statements and use logging instead
+    logger.info("Starting DnDTools application")
+    
     # Migrate settings before initializing API
     migrate_settings()
     

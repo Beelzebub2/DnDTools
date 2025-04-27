@@ -39,6 +39,11 @@ def get_output_dir():
     os.makedirs(output_dir, exist_ok=True)
     return output_dir
 
+def get_logs_dir():
+    logs_dir = os.path.join(get_appdata_dir(), 'logs')
+    os.makedirs(logs_dir, exist_ok=True)
+    return logs_dir
+
 def get_settings_file():
     return os.path.join(get_appdata_dir(), 'settings.json')
 

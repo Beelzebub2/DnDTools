@@ -42,7 +42,7 @@ class PacketCapture:
         self.interface = interface
         self.port_range = port_range
         self.packet_data = b""
-        logging.basicConfig(level=logging.INFO)
+        # Use the centralized logging system instead of configuring logging here
         self.logger = logging.getLogger(__name__)
         self.data_dir = get_data_dir()
         self.STATE_FILE = get_capture_state_file()
