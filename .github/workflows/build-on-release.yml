@@ -67,8 +67,8 @@ jobs:
 
           echo Build complete. Executable is in the dist folder.
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+      - name: Upload executable to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: DnDTools-executable
-          path: dist/DnDTools.exe
+          files: dist/DnDTools.exe
+
