@@ -26,10 +26,10 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 
 ## 🚀 Features
 
-- Real-time data capture
-- Visual stash preview generation
-- Item name matching and caching
-- Grid-based inventory visualization
+- Captures Dark and Darker network data for stash and inventory
+- Visualizes your characters, stashs and inventory in a clean layout
+- Allows sorting of your stashes using inventory for temporary storage
+- Includes a search box to quickly find items across all characters
 
 ## 📋 Requirements
 
@@ -37,20 +37,26 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 
 ## 🔧 Installation
 
-1. Install required dependencies:
+1. Clone the repository:
 ```bash
-pip install -r requirements.txt
+git clone https://github.com/Beelzebub2/DnDTools.git
+cd DnDTools
 ```
-## 📖 Usage
+2. Navigate to the UI folder and install required dependencies:
+```bash
+pip install -r UI/requirements.txt
+```
 
+## 📖 Usage
 1. Start Dark and Darker
-2. Run the capture script:
+2. Navigate to the UI folder and run the application::
 ```bash
 cd UI
 python app.py
 ```
-1. Select the character you want to capture.
-2. Open your stash in-game.
+3. Make sure packet capture is enabled.
+4. From the character selection screen, select the character you want to capture.
+5. Open your stash in-game. Your character’s stash and inventory will appear in the Characters tab.
 
 ## ⚙️ Configuration
 ### Updating Protobuf Files After a Game Update
@@ -70,7 +76,6 @@ to grab the fresh `.proto` files from the game binary.
 
 We will try to keep the `.proto` files in the repository updated, but if they are outdated, you can use this script to generate the latest ones yourself.
 
-
 ## 🛡️ Legal
 
 This project:
@@ -86,7 +91,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 🙏 Acknowledgments
 thanks to:
 - **Kokkor** on Discord for their help with protobuf and packet capture.
-- **Anders** on Discord for their help with this project and for allowing me to use a custom YOLOv5 model.
+- **Anders** on Discord for their help with this project and for allowing me to use custom models.
 - [Darkerdb](https://darkerdb.com/) for the amazing api.
 
 ## 📄 License
