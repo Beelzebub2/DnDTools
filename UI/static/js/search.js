@@ -29,38 +29,96 @@ function getItemKey(item) {
     return `${item.name}-${item.rarity}-${JSON.stringify(item.pp)}-${JSON.stringify(item.sp)}`;
 }
 
+// Helper function to check if a stash is shared
+function isSharedStash(stashId) {
+    return stashId === "20" || stashId === "30";
+}
+
+// Get a friendly name for a stash type
+function getStashName(stashId) {
+    const stashTypes = {
+        "20": 'Shared Stash',
+        "30": 'Seasonal Stash'
+    };
+    return stashTypes[stashId] || `Stash ${stashId}`;
+}
+
 // Helper function to group identical items
 function groupItems(results) {
     const groupedItems = new Map();
+    const sharedStashItems = new Map();
 
+    // First pass: Process all items, but handle shared stashes separately
     results.forEach(result => {
         const key = getItemKey(result.item);
-        if (!groupedItems.has(key)) {
-            groupedItems.set(key, {
-                ...result, locations: [{
+        const isShared = isSharedStash(result.stash_id);
+
+        if (isShared) {
+            // For shared stash items, track them separately first
+            if (!sharedStashItems.has(key)) {
+                sharedStashItems.set(key, {
+                    stashType: getStashName(result.stash_id),
+                    stashId: result.stash_id,
+                    item: result.item,
+                    itemCount: result.itemCount,
+                    locations: [{
+                        nickname: result.nickname,
+                        class: result.class,
+                        level: result.level,
+                        slotId: result.slotId,
+                        id: result.id,
+                        stash_id: result.stash_id
+                    }]
+                });
+            } else {
+                // Don't count duplicate shared stash items from multiple characters
+                // Just ensure we have the location info
+                const existingItem = sharedStashItems.get(key);
+                if (!existingItem.locations.some(loc => loc.id === result.id)) {
+                    existingItem.locations.push({
+                        nickname: result.nickname,
+                        class: result.class,
+                        level: result.level,
+                        slotId: result.slotId,
+                        id: result.id,
+                        stash_id: result.stash_id
+                    });
+                }
+            }
+        } else {
+            // Regular character-specific stash item
+            if (!groupedItems.has(key)) {
+                groupedItems.set(key, {
+                    ...result,
+                    locations: [{
+                        nickname: result.nickname,
+                        class: result.class,
+                        level: result.level,
+                        slotId: result.slotId,
+                        id: result.id,
+                        stash_id: result.stash_id
+                    }]
+                });
+            } else {
+                const existingItem = groupedItems.get(key);
+                existingItem.itemCount += result.itemCount;
+                existingItem.locations.push({
                     nickname: result.nickname,
                     class: result.class,
                     level: result.level,
                     slotId: result.slotId,
                     id: result.id,
                     stash_id: result.stash_id
-                }]
-            });
-        } else {
-            const existingItem = groupedItems.get(key);
-            existingItem.itemCount += result.itemCount;
-            existingItem.locations.push({
-                nickname: result.nickname,
-                class: result.class,
-                level: result.level,
-                slotId: result.slotId,
-                id: result.id,
-                stash_id: result.stash_id
-            });
+                });
+            }
         }
     });
 
-    return Array.from(groupedItems.values());
+    // Convert to array and combine with shared stash items
+    return [
+        ...Array.from(groupedItems.values()),
+        ...Array.from(sharedStashItems.values())
+    ];
 }
 
 const debounce = (func, wait) => {
@@ -90,9 +148,17 @@ window.addEventListener('load', () => {
             item.className = 'result-item';
             const rarityColor = rarityColors[result.item.rarity] || '#ffffff';
 
-            const locationsHtml = result.locations.map(loc =>
-                `<div class="location-info">${loc.nickname} ${loc.class} LvL ${loc.level} Slot: ${loc.slotId}</div>`
-            ).join('');
+            // Create location info HTML based on whether it's a shared stash or not
+            let locationsHtml = '';
+            if (result.stashType) {
+                // This is a shared stash item
+                locationsHtml = `<div class="location-info">${result.stashType} Slot: ${result.locations[0].slotId}</div>`;
+            } else {
+                // Regular character stash items
+                locationsHtml = result.locations.map(loc =>
+                    `<div class="location-info">${loc.nickname} ${loc.class} LvL ${loc.level} Slot: ${loc.slotId}</div>`
+                ).join('');
+            }
 
             item.innerHTML = `
                 <div class="locations-container">${locationsHtml}</div>
