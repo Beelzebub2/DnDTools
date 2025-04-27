@@ -45,17 +45,16 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 ```bash
 pip install -r requirements.txt
 ```
-2. Configure your network interface in config.json (optional)
-
 ## 📖 Usage
 
 1. Start Dark and Darker
 2. Run the capture script:
 ```bash
-python main.py
+cd UI
+python app.py
 ```
-3. Open your stash in-game
-4. Preview images will be generated in the `previews` folder
+1. Select the character you want to capture.
+2. Open your stash in-game.
 
 ## ⚙️ Configuration
 ### Updating Protobuf Files After a Game Update
