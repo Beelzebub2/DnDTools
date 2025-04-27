@@ -332,9 +332,64 @@
             {% block content %}{% endblock %}
         </main>
     </div>
+    <div class="window-border"></div>
+    <!-- Global modals and notifications -->
+    <div id="notifications-container"></div>
+
+    <!-- Global scripts -->
+    <script>
+        // Global variables for unsaved changes tracking
+        window.hasUnsavedChanges = false;
+
+        // Create modal for unsaved changes prompt
+        window.createUnsavedChangesModal = function (onSave, onDiscard, onCancel) {
+            // Remove any existing modal
+            const existingModal = document.querySelector('.modal');
+            if (existingModal) {
+                document.body.removeChild(existingModal);
+            }
+
+            // Create custom modal for better UX
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Unsaved Changes</h2>
+                    </div>
+                    <div class="modal-body">
+                        <p>You have unsaved changes. What would you like to do?</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button id="modal-discard" class="btn-secondary">Discard Changes</button>
+                        <button id="modal-save" class="btn-primary">Save Changes</button>
+                        <button id="modal-cancel" class="btn">Cancel</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Add event listeners to modal buttons
+            document.getElementById('modal-discard').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                if (onDiscard) onDiscard();
+            });
+
+            document.getElementById('modal-save').addEventListener('click', async () => {
+                if (onSave) onSave();
+            });
+
+            document.getElementById('modal-cancel').addEventListener('click', () => {
+                document.body.removeChild(modal);
+                if (onCancel) onCancel();
+            });
+
+            return modal;
+        };
+    </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     {% block scripts %}{% endblock %}
-    <div class="window-border"></div>
 </body>
 
 </html>
