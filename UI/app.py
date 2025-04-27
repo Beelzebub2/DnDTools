@@ -453,8 +453,13 @@ def background_init():
         logger.info("Background initialization complete.")
     except Exception as e:
         logger.error(f"Background initialization failed: {e}")
+        # Escape error string for JS
+        error_str = str(e).replace('"', '\\"')
         if api.window:
-            api.window.evaluate_js(f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{str(e).replace("\"", "\\\"")}" }} }}));')
+            api.window.evaluate_js(
+                f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
+            )
+
 def main():
     logger.info("Starting DnDTools application")
     migrate_settings()
