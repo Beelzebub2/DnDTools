@@ -6,7 +6,7 @@
 ## 🎮 Demo
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/84e1ba79-fa67-420b-bb62-493fd7ed21fd" controls autoplay loop muted width="100%"></video>
+  <video src="https://github.com/user-attachments/assets/ce137f5c-c787-480c-bdac-3c7ebd408979" controls autoplay loop muted width="100%"></video>
 </p>
 
 <p align="center">
@@ -45,23 +45,35 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 ```bash
 pip install -r requirements.txt
 ```
-2. Configure your network interface in config.json (optional)
-
 ## 📖 Usage
 
 1. Start Dark and Darker
 2. Run the capture script:
 ```bash
-python main.py
+cd UI
+python app.py
 ```
-3. Open your stash in-game
-4. Preview images will be generated in the `previews` folder
+1. Select the character you want to capture.
+2. Open your stash in-game.
 
 ## ⚙️ Configuration
+### Updating Protobuf Files After a Game Update
 
-- `GRID_WIDTH`: Stash width (default: 12)
-- `GRID_HEIGHT`: Stash height (default: 20)
-- `CELL_SIZE`: Size of each grid cell in pixels (default: 45)
+After a **Dark and Darker** update, you will need to run:
+```
+UI\networking\extract.bat
+```
+to grab the fresh `.proto` files from the game binary.
+
+> **Important:**  
+> Before running, update the path inside `extract.bat` if your game is installed somewhere other than the default.  
+> The default path is:
+> ```
+> C:\Program Files\IRONMACE\Dark and Darker\DungeonCrawler\Binaries\Win64\DungeonCrawler.exe
+> ```
+
+We will try to keep the `.proto` files in the repository updated, but if they are outdated, you can use this script to generate the latest ones yourself.
+
 
 ## 🛡️ Legal
 
@@ -76,9 +88,10 @@ This project:
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 🙏 Acknowledgments
-
 thanks to:
-- [Darkerdb](https://darkerdb.com/) for the amazing api
+- **Kokkor** on Discord for their help with protobuf and packet capture.
+- **Anders** on Discord for their help with this project and for allowing me to use a custom YOLOv5 model.
+- [Darkerdb](https://darkerdb.com/) for the amazing api.
 
 ## 📄 License
 
