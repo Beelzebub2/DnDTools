@@ -26,7 +26,7 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 
 ## 🚀 Features
 
-- Real-time packet capture of stash data
+- Real-time data capture
 - Visual stash preview generation
 - Item name matching and caching
 - Grid-based inventory visualization
@@ -34,7 +34,6 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 ## 📋 Requirements
 
 - Python 3.7+
-- **[Wireshark](https://www.wireshark.org/download.html) must be installed on your system** (required for packet capture)
 
 ## 🔧 Installation
 

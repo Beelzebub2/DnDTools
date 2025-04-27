@@ -1,4 +1,3 @@
-import pyshark
 import socket
 import psutil
 import struct
@@ -12,10 +11,9 @@ from typing import Tuple, Optional
 from google.protobuf.json_format import MessageToJson
 import threading
 import time
-import asyncio
-import glob
-import tempfile
 from .appdirs import get_data_dir, get_capture_state_file, is_frozen
+from scapy.all import sniff, TCP, IP
+from collections import defaultdict
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -71,10 +69,7 @@ class PacketCapture:
         self.running = False  # Initialize as False first
         self.capture_thread = None
         self.on_new_character = on_new_character
-        
-        # Initialize temp file tracking
-        self.temp_files = set()
-        self._setup_temp_cleanup()
+        self.tcp_stream_buffers = defaultdict(bytes)  # key: (src_ip, src_port, dst_ip, dst_port)
         
         # Restore state but don't start capture automatically
         saved_state = self._restore_state()
@@ -101,18 +96,13 @@ class PacketCapture:
 
     def process_packet(self, data: bytes) -> Optional[bool]:
         if len(data) > 0:
-            # Add incoming data to buffer
             self.packet_data += data
             current_size = len(self.packet_data)
             self.logger.debug(f"Received {len(data)} bytes, buffer size now {current_size}")
-            
-            # Reset if buffer gets too large
             if current_size > self.MAX_BUFFER_SIZE:
                 self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes), resetting state.")
                 self.reset_state()
-                return False
-
-            # Try to parse/validate header
+                return
             if self.expected_packet_length is None and current_size >= 8:
                 try:
                     packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
@@ -121,54 +111,52 @@ class PacketCapture:
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
                         self.logger.warning(f"Invalid packet header: Type={proto_type} ({packet_type_name}), Length={packet_length}, Padding={random_padding}")
                         self.reset_state()
-                        return False
+                        return
                     self.logger.info(f"Started new packet: {packet_type_name} (Type={proto_type}, Length={packet_length})")
                     self.expected_packet_length = packet_length
                     self.expected_proto_type = proto_type
                 except struct.error as e:
                     self.logger.error(f"Header unpack error: {e}")
                     self.reset_state()
-                    return False
-
-            # Process packet data
+                    return
             if self.expected_packet_length and self.expected_proto_type:
-                # Handle overflow by trimming
                 if current_size > self.expected_packet_length:
                     self.logger.warning(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
                     self.packet_data = self.packet_data[:self.expected_packet_length]
                     current_size = self.expected_packet_length
-
-                # Complete packet
                 if current_size == self.expected_packet_length:
                     self.logger.info(f"Full packet received: {current_size} bytes (Type={self.expected_proto_type})")
                     if self.verify_packet():
                         self.logger.info(f"Packet verified successfully (Type={self.expected_proto_type})")
                         self.save_packet_data()
+                        self.reset_state()
+                        return True
                     else:
                         self.logger.warning(f"Packet verification failed (Type={self.expected_proto_type})")
-                    self.reset_state()
-                # Progress update
+                        self.reset_state()
                 elif current_size % 8192 == 0 or current_size == self.expected_packet_length - 1:
                     self.logger.debug(f"Accumulating: {current_size}/{self.expected_packet_length}")
-        return False
+        # No spammy return
+        return
 
     def verify_packet(self) -> bool:
         """Verify packet integrity before saving"""
         if len(self.packet_data) != self.expected_packet_length:
+            self.logger.error(f"verify_packet: Length mismatch: got {len(self.packet_data)}, expected {self.expected_packet_length}")
             return False
         data = self.packet_data[8:]
-        # Only verify supported packet types
         try:
             if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
                 info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
             elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
                 info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
             else:
+                self.logger.error(f"verify_packet: Unsupported proto type: {self.expected_proto_type}")
                 return False
             info.ParseFromString(data)
             return True
-        except Exception:
-            # Suppress parse errors during verification
+        except Exception as e:
+            self.logger.error(f"verify_packet: Exception parsing proto type {self.expected_proto_type}: {e}\nFirst 32 bytes: {data[:32].hex()}")
             return False
 
     def reset_state(self) -> None:
@@ -247,6 +235,46 @@ class PacketCapture:
             self.logger.error(f"Failed to restore capture state: {e}")
             return {"running": False}
 
+    def process_tcp_stream(self, conn_key, data: bytes) -> Optional[bool]:
+        """
+        Buffer TCP data for a connection, parse packets as they become available.
+        """
+        self.tcp_stream_buffers[conn_key] += data
+        buf = self.tcp_stream_buffers[conn_key]
+        processed_any = False
+        while True:
+            if len(buf) < 8:
+                break  # Not enough for header
+            try:
+                packet_length, proto_type, random_padding = struct.unpack('<IHH', buf[:8])
+            except struct.error:
+                break
+            if not self.validate_packet_header(packet_length, proto_type, random_padding):
+                # Desync, drop one byte and try again
+                buf = buf[1:]
+                continue
+            if len(buf) < packet_length:
+                break  # Wait for more data
+            # We have a full packet
+            self.packet_data = buf[:packet_length]
+            self.expected_packet_length = packet_length
+            self.expected_proto_type = proto_type
+            self.logger.info(f"Full packet received: {packet_length} bytes (Type={proto_type})")
+            if self.verify_packet():
+                self.logger.info(f"Packet verified successfully (Type={proto_type})")
+                if self.save_packet_data():
+                    processed_any = True
+            else:
+                self.logger.warning(f"Packet verification failed (Type={proto_type})")
+            # Remove processed packet from buffer
+            buf = buf[packet_length:]
+            self.reset_state()
+        self.tcp_stream_buffers[conn_key] = buf
+        if processed_any:
+            return True
+        # No spammy return
+        return
+
     def capture(self) -> bool:
         found_flag = False
         local_ip = self.get_local_ip()
@@ -254,126 +282,67 @@ class PacketCapture:
             print(f"Could not find IP address for interface {self.interface}")
             return False
 
-        display_filter = (f'ip.dst == {local_ip} and '
-                         f'tcp.srcport >= {self.port_range[0]} and '
-                         f'tcp.srcport <= {self.port_range[1]}')
-        
-        capture = pyshark.LiveCapture(
-            interface=self.interface,
-            display_filter=display_filter
+        # BPF filter for scapy
+        display_filter = (
+            f"tcp and dst host {local_ip} and src portrange {self.port_range[0]}-{self.port_range[1]}"
         )
 
+        def scapy_packet_callback(packet):
+            if packet.haslayer(TCP) and packet.haslayer(IP):
+                ip = packet[IP]
+                tcp = packet[TCP]
+                conn_key = (ip.src, tcp.sport, ip.dst, tcp.dport)
+                payload = bytes(tcp.payload)
+                self.process_tcp_stream(conn_key, payload)  # Do not print or log return value
+            # Do not return False or anything
+
         try:
-            for packet in capture.sniff_continuously():
-                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-                    found = self.process_packet(packet.tcp.payload.binary_value)
-                    # In original capture, stop on finding a target packet.
-                    if found:
-                        print("Desired packet found, stopping capture.")
-                        found_flag = True
-                        break
+            sniff(
+                iface=self.interface,
+                filter=display_filter,
+                prn=scapy_packet_callback,
+                store=0,
+                stop_filter=lambda x: found_flag or not self.running
+            )
         except KeyboardInterrupt:
             print("Capture stopped by user")
         except Exception as e:
             print(f"Capture error: {e}")
         finally:
-            try:
-                capture.close()
-            except:
-                pass
             self.packet_data = b""
         return found_flag
 
     def capture_loop(self) -> None:
-        # Set up event loop for this thread
-        import asyncio
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
         local_ip = self.get_local_ip()
         if not local_ip:
             self.logger.error(f"Could not find IP address for interface {self.interface}")
             return
-            
-        display_filter = (f'ip.dst == {local_ip} and '
-                          f'tcp.srcport >= {self.port_range[0]} and '
-                          f'tcp.srcport <= {self.port_range[1]}')
-        
-        # Hide tshark console windows on Windows
-        override_popen_kwargs = {}
-        if os.name == 'nt':
-            override_popen_kwargs['creationflags'] = getattr(subprocess, 'CREATE_NO_WINDOW', 0x08000000)
-        
-        # Store capture object as instance variable for cleanup
-        self._current_capture = pyshark.LiveCapture(
-            interface=self.interface,
-            display_filter=display_filter
+
+        display_filter = (
+            f"tcp and dst host {local_ip} and src portrange {self.port_range[0]}-{self.port_range[1]}"
         )
-        self._current_loop = loop
-        
+
+        def scapy_packet_callback(packet):
+            if not self.running:
+                return True  # Stop sniffing
+            if packet.haslayer(TCP) and packet.haslayer(IP):
+                ip = packet[IP]
+                tcp = packet[TCP]
+                conn_key = (ip.src, tcp.sport, ip.dst, tcp.dport)
+                payload = bytes(tcp.payload)
+                self.process_tcp_stream(conn_key, payload)
+            # Do not return False or anything
+
         try:
-            for packet in self._current_capture.sniff_continuously():
-                if not self.running:
-                    break
-                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-                    self.process_packet(packet.tcp.payload.binary_value)
+            sniff(
+                iface=self.interface,
+                filter=display_filter,
+                prn=scapy_packet_callback,
+                store=0,
+                stop_filter=lambda x: not self.running
+            )
         except Exception as e:
             self.logger.error(f"Capture loop error: {e}")
-        finally:
-            self._cleanup_capture()
-
-    def _setup_temp_cleanup(self):
-        """Setup cleanup of existing pyshark temp files"""
-        temp_dir = tempfile.gettempdir()
-        pattern = os.path.join(temp_dir, "wireshark_*")
-        for temp_file in glob.glob(pattern):
-            try:
-                os.remove(temp_file)
-                self.logger.info(f"Cleaned up existing temp file: {temp_file}")
-            except Exception as e:
-                self.logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
-
-    def _cleanup_temp_files(self):
-        """Clean up any temporary files created during capture"""
-        temp_dir = tempfile.gettempdir()
-        pattern = os.path.join(temp_dir, "wireshark_*")
-        for temp_file in glob.glob(pattern):
-            try:
-                if os.path.exists(temp_file):
-                    os.remove(temp_file)
-                    self.logger.info(f"Cleaned up temp file: {temp_file}")
-            except Exception as e:
-                self.logger.warning(f"Failed to clean up temp file {temp_file}: {e}")
-
-    def _cleanup_capture(self):
-        """Clean up capture resources properly"""
-        try:
-            if hasattr(self, '_current_capture'):
-                # Create a new event loop for cleanup if needed
-                if not hasattr(self, '_current_loop') or self._current_loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                else:
-                    loop = self._current_loop
-
-                # Run close_async in the event loop
-                if hasattr(self._current_capture, 'close_async'):
-                    loop.run_until_complete(self._current_capture.close_async())
-                else:
-                    self._current_capture.close()
-                
-                del self._current_capture
-                
-                # Clean up the event loop
-                if hasattr(self, '_current_loop'):
-                    if not self._current_loop.is_closed():
-                        self._current_loop.close()
-                    del self._current_loop
-                
-                # Clean up temp files
-                self._cleanup_temp_files()
-        except Exception as e:
-            self.logger.error(f"Error during capture cleanup: {e}")
         finally:
             self.reset_state()
 
@@ -401,7 +370,6 @@ class PacketCapture:
                 self.logger.warning("Capture thread still running after timeout, forcing cleanup")
                 self._cleanup_capture()
         self.capture_thread = None
-        self._cleanup_temp_files()
         self.logger.info("Capture switch turned OFF")
 
     def _process_packet_wrapper(self, packet):
