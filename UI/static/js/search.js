@@ -140,9 +140,9 @@ function getStashTypeDisplay(stashId) {
 
 // Helper function to create a direct stash link
 function createStashLink(charId, stashId, slotId) {
-    return `<a href="/character/${charId}" class="stash-link" data-stash-id="${stashId}" data-slot-id="${slotId}">
+    return `<span class="stash-link" data-stash-id="${stashId}" data-slot-id="${slotId}">
         ${getStashTypeDisplay(stashId)} (Slot: ${slotId})
-    </a>`;
+    </span>`;
 }
 
 const debounce = (func, wait) => {
@@ -187,7 +187,6 @@ window.addEventListener('load', () => {
                     `<div class="location-info" data-char-id="${loc.id}" data-stash-id="${loc.stash_id}">
                         <div class="character-name">${loc.nickname} (${loc.class} LvL ${loc.level})</div>
                         <div class="stash-location">
-                            <span class="material-icons">inventory_2</span>
                             ${getStashTypeDisplay(loc.stash_id)} (Slot: ${loc.slotId})
                         </div>
                     </div>`
@@ -203,7 +202,6 @@ window.addEventListener('load', () => {
                     <div class="item-name">${result.item.name}</div>
                     <div class="item-rarity">${result.item.rarity}</div>
                     <div class="item-count">
-                        <span class="material-icons">inventory</span>
                         ${result.itemCount}
                     </div>
                 </div>

@@ -56,12 +56,26 @@ const updateCharacterInfo = async (characterId) => {
     const charHeader = document.getElementById('characterHeader');
     try {
         let details;
-        if (window.pywebview && window.pywebview.api) {
-            details = await window.pywebview.api.get_character_details(characterId);
-        } else {
-            const res = await fetch(`/api/character/${characterId}/details`);
-            details = await res.json();
-        }
+        // Wait for pywebview to be available
+        const waitForPywebview = () => {
+            return new Promise((resolve) => {
+                if (window.pywebview && window.pywebview.api) {
+                    resolve();
+                } else {
+                    const check = () => {
+                        if (window.pywebview && window.pywebview.api) {
+                            resolve();
+                        } else {
+                            setTimeout(check, 100);
+                        }
+                    };
+                    setTimeout(check, 100);
+                }
+            });
+        };
+
+        await waitForPywebview();
+        details = await window.pywebview.api.get_character_details(characterId);
         charHeader.textContent = details.nickname;
         charInfo.innerHTML = `
             <div class="char-info-grid">
@@ -307,8 +321,11 @@ const renderInteractiveGrid = (stashId, items) => {
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
 
-            // Apply background color based on rarity with transparency
-            itemEl.style.backgroundColor = `${rarityColor}33`;  // 33 is hex for ~20% opacity
+            // Create inset border with box-shadow instead of background color
+            itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
+
+            // Apply background color based on rarity with more subtle transparency
+            itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
 
             // If we have an image path, use it, otherwise show text
             if (item.imagePath) {
@@ -336,7 +353,7 @@ const renderInteractiveGrid = (stashId, items) => {
 
             // Build tooltip content with style matching search.js
             tooltip.innerHTML = `
-                <div class="tooltip-header" style="background-color: ${rarityColor}; color: #000; padding: 6px; border-radius: 3px 3px 0 0;">
+                <div class="tooltip-header" style="background-color: ${rarityColor}44;">
                     <div class="tooltip-name">${item.name || 'Unknown'}</div>
                     <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
                 </div>
@@ -354,16 +371,47 @@ const renderInteractiveGrid = (stashId, items) => {
             itemEl.appendChild(tooltip);
 
             // Mouse event handlers for tooltip positioning
-            itemEl.addEventListener('mouseenter', () => {
-                // Get tooltip and ensure it's visible
+            itemEl.addEventListener('mouseenter', (e) => {
+                // Get tooltip and ensure it's visible but starting with opacity 0
                 tooltip.style.display = 'block';
 
                 // Move tooltip to body to avoid any potential containment issues
                 document.body.appendChild(tooltip);
+
+                // Initial positioning
+                const rect = itemEl.getBoundingClientRect();
+                const tooltipWidth = tooltip.offsetWidth || 250;
+                const tooltipHeight = tooltip.offsetHeight || 150;
+
+                let left = e.clientX + 15;
+                let top = e.clientY + 15;
+
+                // Make sure tooltip doesn't go outside viewport
+                if (left + tooltipWidth > window.innerWidth) {
+                    left = e.clientX - tooltipWidth - 15;
+                }
+
+                if (top + tooltipHeight > window.innerHeight) {
+                    top = e.clientY - tooltipHeight - 15;
+                }
+
+                // Position the tooltip
+                tooltip.style.left = `${left}px`;
+                tooltip.style.top = `${top}px`;
+
+                // Use setTimeout to trigger animation after append
+                setTimeout(() => {
+                    tooltip.classList.add('visible');
+                }, 10);
             });
 
             itemEl.addEventListener('mouseleave', () => {
-                tooltip.style.display = 'none';
+                tooltip.classList.remove('visible');
+
+                // Hide after fade out animation completes
+                setTimeout(() => {
+                    tooltip.style.display = 'none';
+                }, 200);
             });
 
             itemEl.addEventListener('mousemove', (e) => {
@@ -372,7 +420,7 @@ const renderInteractiveGrid = (stashId, items) => {
                 const offsetY = 15;
 
                 // Get dimensions for positioning logic
-                const tooltipWidth = tooltip.offsetWidth || 220;
+                const tooltipWidth = tooltip.offsetWidth || 250;
                 const tooltipHeight = tooltip.offsetHeight || 150;
 
                 // Default position
