@@ -153,8 +153,10 @@ class Api:
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
         logger.info(f"Sort hotkey activated: {self.settings.get('sortHotkey')}")
-        if hasattr(self, '_current_char_id') and hasattr(self, '_current_stash_id'):
-            logger.info(f"Scheduling sort for character {self._current_char_id}, stash {self._current_stash_id}")
+        current_char_id = self._current_char_id
+        current_stash_id = self._current_stash_id
+        if current_char_id and current_stash_id:
+            logger.info(f"Scheduling sort for character {current_char_id}, stash {current_stash_id}")
             threading.Thread(target=self._sort_worker, daemon=True).start()
         else:
             logger.warning("No current stash selected")
@@ -377,11 +379,14 @@ def api_sort_stash(character_id, stash_id):
     result = api.sort_stash(character_id, stash_id)
     return jsonify(result)
 
-@server.route('/api/character/<character_id>/current-stash/<stash_id>', methods=['POST'])
-def api_set_current_stash(character_id, stash_id):
-    api._current_char_id = character_id
-    api._current_stash_id = stash_id
-    return jsonify({'success': True})
+@server.route('/api/character/<character_id>/current-stash', methods=['GET'])
+def api_get_current_stash(character_id):
+    """Get the last selected stash ID for a character"""
+    if hasattr(api, '_current_char_id') and api._current_char_id == character_id and hasattr(api, '_current_stash_id') and api._current_stash_id:
+        return jsonify({'stashId': api._current_stash_id})
+    from flask import session
+    stash_id = session.get(f'{character_id}_current_stash_id', None)
+    return jsonify({'stashId': stash_id})
 
 @server.route('/')
 def index():
