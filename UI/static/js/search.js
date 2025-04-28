@@ -121,6 +121,30 @@ function groupItems(results) {
     ];
 }
 
+// Helper function to get stash type name
+function getStashTypeDisplay(stashId) {
+    const stashTypes = {
+        2: 'Bag',
+        3: 'Equipment',
+        4: 'Storage',
+        5: 'Purchased Storage 1',
+        6: 'Purchased Storage 2',
+        7: 'Purchased Storage 3',
+        8: 'Purchased Storage 4',
+        9: 'Purchased Storage 5',
+        20: 'Shared Stash',
+        30: 'Shared Stash Seasonal'
+    };
+    return stashTypes[stashId] || `Stash ${stashId}`;
+}
+
+// Helper function to create a direct stash link
+function createStashLink(charId, stashId, slotId) {
+    return `<a href="/character/${charId}" class="stash-link" data-stash-id="${stashId}" data-slot-id="${slotId}">
+        ${getStashTypeDisplay(stashId)} (Slot: ${slotId})
+    </a>`;
+}
+
 const debounce = (func, wait) => {
     return (...args) => {
         clearTimeout(searchTimeout);
@@ -152,22 +176,38 @@ window.addEventListener('load', () => {
             let locationsHtml = '';
             if (result.stashType) {
                 // This is a shared stash item
-                locationsHtml = `<div class="location-info">${result.stashType} Slot: ${result.locations[0].slotId}</div>`;
+                locationsHtml = result.locations.map(loc =>
+                    `<div class="location-info" data-char-id="${loc.id}" data-stash-id="${loc.stash_id}">
+                        ${createStashLink(loc.id, loc.stash_id, loc.slotId)}
+                    </div>`
+                ).join('');
             } else {
                 // Regular character stash items
                 locationsHtml = result.locations.map(loc =>
-                    `<div class="location-info">${loc.nickname} ${loc.class} LvL ${loc.level} Slot: ${loc.slotId}</div>`
+                    `<div class="location-info" data-char-id="${loc.id}" data-stash-id="${loc.stash_id}">
+                        <div class="character-name">${loc.nickname} (${loc.class} LvL ${loc.level})</div>
+                        <div class="stash-location">
+                            <span class="material-icons">inventory_2</span>
+                            ${getStashTypeDisplay(loc.stash_id)} (Slot: ${loc.slotId})
+                        </div>
+                    </div>`
                 ).join('');
             }
 
             item.innerHTML = `
-                <div class="locations-container">${locationsHtml}</div>
-                <div class="character-info">
-                    <div>${result.item.name}</div>
-                    <div>${result.item.rarity}</div>
-                    <div>Total Count: ${result.itemCount}</div>
+                <div class="locations-container">
+                    <div class="locations-title">Found in:</div>
+                    ${locationsHtml}
                 </div>
-                <div class="item-popup" style="position: absolute; display: none; z-index: 100; pointer-events: none;">
+                <div class="character-info">
+                    <div class="item-name">${result.item.name}</div>
+                    <div class="item-rarity">${result.item.rarity}</div>
+                    <div class="item-count">
+                        <span class="material-icons">inventory</span>
+                        ${result.itemCount}
+                    </div>
+                </div>
+                <div class="item-popup" style="display: none; z-index: 100;">
                     <div class="item-header" style="background-color: ${rarityColor}; color: #000;">${result.item.name}</div>
                     <div class="item-properties">
                         <div class="primary-props">${formatPrimaryProps(result.item.pp)}</div>
@@ -176,49 +216,63 @@ window.addEventListener('load', () => {
                     <div class="item-meta">
                         <div>Rarity: ${result.item.rarity}</div>
                         <div>Total Count: ${result.itemCount}</div>
-                        <div class="item-locations">Found in:${locationsHtml}</div>
                     </div>
                 </div>
             `;
 
-            // Add event listeners for mouse interactions
+            // Add click handler for location info sections
+            item.querySelectorAll('.location-info').forEach(location => {
+                location.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const charId = location.dataset.charId;
+                    const stashId = location.dataset.stashId;
+
+                    try {
+                        // Set current stash before navigation
+                        await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+                        // Navigate with stashId as URL parameter
+                        window.location.href = `/character/${charId}?stashId=${stashId}`;
+                    } catch (error) {
+                        console.error("Error navigating to character page:", error);
+                        // If there's an error, still try to navigate with the stash parameter
+                        window.location.href = `/character/${charId}?stashId=${stashId}`;
+                    }
+                });
+            });
+
+            // Add event listeners for mouse interactions for item popup
             const popup = item.querySelector('.item-popup');
 
             item.addEventListener('mouseenter', (e) => {
-                popup.style.display = 'block';
+                if (popup) popup.style.display = 'block';
             });
 
             item.addEventListener('mousemove', (e) => {
-                // Only move the tooltip within the item box area
+                if (!popup) return;
+
                 const offsetX = 15;
                 const offsetY = 15;
-
-                // Get bounding rect of the item box
                 const rect = item.getBoundingClientRect();
+                const viewportWidth = window.innerWidth;
+                const viewportHeight = window.innerHeight;
+                const tooltipWidth = popup.offsetWidth || 200;
+                const tooltipHeight = popup.offsetHeight || 150;
 
-                // Mouse position relative to viewport
                 let left = e.clientX + offsetX;
                 let top = e.clientY + offsetY;
 
-                // Get viewport dimensions
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
-
-                // Get tooltip dimensions
-                const tooltipWidth = popup.offsetWidth;
-                const tooltipHeight = popup.offsetHeight;
-
-                // Adjust if tooltip would go beyond right edge
                 if (left + tooltipWidth > viewportWidth) {
                     left = e.clientX - tooltipWidth - offsetX;
                 }
-
-                // Adjust if tooltip would go beyond bottom edge
                 if (top + tooltipHeight > viewportHeight) {
                     top = e.clientY - tooltipHeight - offsetY;
                 }
 
-                // Ensure tooltip doesn't go beyond left or top edges
                 left = Math.max(0, left);
                 top = Math.max(0, top);
 
@@ -227,25 +281,8 @@ window.addEventListener('load', () => {
             });
 
             item.addEventListener('mouseleave', () => {
-                popup.style.display = 'none';
+                if (popup) popup.style.display = 'none';
             });
-
-            item.onclick = () => {
-                const firstLocation = result.locations[0];
-                fetch(`/api/character/${firstLocation.id}/current-stash/${firstLocation.stash_id}`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
-                window.location.href = `/character/${firstLocation.id}`;
-            };
-
-            // Set item to relative positioning so tooltip is positioned within it
-            item.style.position = 'relative';
 
             container.appendChild(item);
         });

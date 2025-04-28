@@ -117,6 +117,44 @@ const createStashTabs = (stashes) => {
     return firstStashUrl;
 };
 
+const createStashTabsWithoutDefault = (stashes) => {
+    const selector = document.getElementById('stashSelector');
+    const preview = document.getElementById('currentStashPreview');
+    const sortButton = document.querySelector('.sort-button');
+    selector.innerHTML = '';
+
+    // Ensure stashes is an object
+    const stashesObj = stashes || {};
+    const stashKeys = Object.keys(stashesObj);
+    let firstStashUrl = null;
+
+    stashKeys.forEach((stashId, index) => {
+        const tab = document.createElement('div');
+        tab.className = 'stash-tab';
+
+        // Just store the first URL for fallback
+        if (index === 0) {
+            firstStashUrl = stashes[stashId];
+        }
+
+        tab.textContent = getStashName(parseInt(stashId));
+        tab.dataset.stashId = stashId;
+        tab.onclick = (e) => {
+            document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            preview.src = stashes[stashId];
+            currentStashId = stashId;
+            updateCurrentStash(stashId);
+        };
+        selector.appendChild(tab);
+    });
+
+    // Set up sort button click handler
+    sortButton.onclick = () => triggerSort();
+
+    return firstStashUrl;
+};
+
 const updateCurrentStash = async (stashId) => {
     try {
         await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
@@ -195,6 +233,11 @@ const loadStashes = async () => {
     const previewContainer = document.getElementById('stashPreview');
     const previewImage = document.getElementById('currentStashPreview');
 
+    if (!spinner || !selector || !previewContainer || !previewImage) {
+        console.error('Required DOM elements not found for stash display');
+        return;
+    }
+
     // show spinner, hide stash content
     spinner.classList.remove('hidden');
     selector.classList.add('hidden');
@@ -202,17 +245,51 @@ const loadStashes = async () => {
     previewImage.src = "";
 
     try {
+        // First, check if there's a currently selected stash ID on the server
+        let currentStashData = null;
+        try {
+            const currentStashResponse = await fetch(`/api/character/${charId}/current-stash`);
+            currentStashData = await currentStashResponse.json();
+
+            if (currentStashData && currentStashData.stashId) {
+                // Update our local current stash ID if the server has one
+                currentStashId = currentStashData.stashId;
+                console.log(`Using server-provided stash ID: ${currentStashId}`);
+            }
+        } catch (err) {
+            console.error('Error fetching current stash ID:', err);
+            // Continue execution even if this fails
+        }
+
         const response = await fetch(`/api/character/${charId}/stashes`);
         const stashes = await response.json();
 
         // Check if we have any stashes
         const stashKeys = Object.keys(stashes || {});
         if (stashKeys.length > 0) {
-            const firstStashUrl = createStashTabs(stashes);
-            // Set the src only after making the container visible
-            if (firstStashUrl) {
-                previewImage.src = firstStashUrl;
+            // Create stash tabs but don't set first one active automatically
+            const firstStashUrl = createStashTabsWithoutDefault(stashes);
+
+            // If we have a stored current stash ID, use that
+            const currentStashTab = document.querySelector(`[data-stash-id="${currentStashId}"]`);
+            if (currentStashTab) {
+                // Make the correct tab active
+                document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
+                currentStashTab.classList.add('active');
+                previewImage.src = stashes[currentStashId];
+                console.log(`Selected stash tab: ${getStashName(parseInt(currentStashId))}`);
+            } else {
+                // If no current stash is set or found, use the first one as default
+                const firstTab = document.querySelector('.stash-tab');
+                if (firstTab) {
+                    firstTab.classList.add('active');
+                    currentStashId = firstTab.dataset.stashId;
+                    previewImage.src = stashes[currentStashId];
+                    // Update the server with our selection
+                    updateCurrentStash(currentStashId);
+                }
             }
+
             // hide spinner, show stash content
             selector.classList.remove('hidden');
             previewContainer.classList.remove('hidden');
@@ -223,6 +300,7 @@ const loadStashes = async () => {
         }
         spinner.classList.add('hidden');
     } catch (error) {
+        console.error('Error loading stashes:', error);
         handleApiError(error, document.getElementById('stashContainer'));
         spinner.classList.add('hidden');
     }
@@ -259,6 +337,29 @@ window.updateCharacterData = async () => {
 // Initialize page when DOM is loaded
 window.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Check if there's a stash ID in the URL params (added by search page)
+        const urlParams = new URLSearchParams(window.location.search);
+        const stashIdParam = urlParams.get('stashId');
+        if (stashIdParam) {
+            // Set the current stash ID from URL parameter
+            currentStashId = stashIdParam;
+            console.log(`Using stash ID from URL: ${currentStashId}`);
+        } else {
+            // If not in URL, try to get it from server
+            try {
+                const currentStashResponse = await fetch(`/api/character/${charId}/current-stash`);
+                const currentStashData = await currentStashResponse.json();
+
+                if (currentStashData && currentStashData.stashId) {
+                    // Update our local current stash ID if the server has one
+                    currentStashId = currentStashData.stashId;
+                    console.log(`Using server-provided stash ID: ${currentStashId}`);
+                }
+            } catch (err) {
+                console.error('Error fetching current stash ID:', err);
+            }
+        }
+
         await updateCharacterInfo(charId);
         await loadStashes();
     } catch (error) {
