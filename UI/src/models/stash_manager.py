@@ -256,7 +256,9 @@ class StashManager:
                 print(f"Error focusing window: {e}")
         else:
             print("No window with exact title 'Dark and Darker' found.")
+        
         # Perform sorting
+        print(inventory)
         sorter = StashSorter(stash, inventory)
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"

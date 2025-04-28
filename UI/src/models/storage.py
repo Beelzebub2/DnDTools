@@ -96,11 +96,10 @@ class Storage:
 
     def load(self):
         for obj in self.data:
-            # Skip items without slotId
+            # Set items with no slotId to 0
             slot_id = obj.get("slotId")
             if slot_id is None:
-                print(f"Skipping item without slotId: {obj}")
-                continue
+                obj["slotId"] = 0
             try:
                 design_str = obj.get("itemId", "")
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
