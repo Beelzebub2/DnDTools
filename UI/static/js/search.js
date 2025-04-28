@@ -47,11 +47,13 @@ function getStashName(stashId) {
 function groupItems(results) {
     const groupedItems = new Map();
     const sharedStashItems = new Map();
+    const characterItems = new Map(); // Map to group items by character first
 
     // First pass: Process all items, but handle shared stashes separately
     results.forEach(result => {
         const key = getItemKey(result.item);
         const isShared = isSharedStash(result.stash_id);
+        const charKey = result.id; // Character ID
 
         if (isShared) {
             // For shared stash items, track them separately first
@@ -86,32 +88,70 @@ function groupItems(results) {
                 }
             }
         } else {
-            // Regular character-specific stash item
-            if (!groupedItems.has(key)) {
-                groupedItems.set(key, {
+            // Group by character first
+            if (!characterItems.has(charKey)) {
+                characterItems.set(charKey, new Map());
+            }
+
+            const charItemMap = characterItems.get(charKey);
+
+            if (!charItemMap.has(key)) {
+                charItemMap.set(key, {
                     ...result,
-                    locations: [{
-                        nickname: result.nickname,
-                        class: result.class,
-                        level: result.level,
+                    stashLocations: [{
+                        stashId: result.stash_id,
                         slotId: result.slotId,
-                        id: result.id,
-                        stash_id: result.stash_id
+                        count: result.itemCount
                     }]
                 });
             } else {
-                const existingItem = groupedItems.get(key);
+                const existingItem = charItemMap.get(key);
+
+                // Check if this stash already exists
+                const existingStash = existingItem.stashLocations.find(
+                    s => s.stashId === result.stash_id
+                );
+
+                if (existingStash) {
+                    existingStash.count += result.itemCount;
+                } else {
+                    existingItem.stashLocations.push({
+                        stashId: result.stash_id,
+                        slotId: result.slotId,
+                        count: result.itemCount
+                    });
+                }
                 existingItem.itemCount += result.itemCount;
-                existingItem.locations.push({
-                    nickname: result.nickname,
-                    class: result.class,
-                    level: result.level,
-                    slotId: result.slotId,
-                    id: result.id,
-                    stash_id: result.stash_id
-                });
             }
         }
+    });
+
+    // Second pass: Flatten character items into the main map
+    characterItems.forEach((itemMap, charId) => {
+        itemMap.forEach((charItem, itemKey) => {
+            if (!groupedItems.has(itemKey)) {
+                groupedItems.set(itemKey, {
+                    ...charItem,
+                    locations: [{
+                        nickname: charItem.nickname,
+                        class: charItem.class,
+                        level: charItem.level,
+                        id: charItem.id,
+                        stashLocations: charItem.stashLocations
+                    }]
+                });
+            } else {
+                const existingItem = groupedItems.get(itemKey);
+                existingItem.itemCount += charItem.itemCount;
+                existingItem.locations.push({
+                    nickname: charItem.nickname,
+                    class: charItem.class,
+                    level: charItem.level,
+                    id: charItem.id,
+                    stashLocations: charItem.stashLocations
+                });
+            }
+        });
     });
 
     // Convert to array and combine with shared stash items
@@ -176,21 +216,37 @@ window.addEventListener('load', () => {
             let locationsHtml = '';
             if (result.stashType) {
                 // This is a shared stash item
-                locationsHtml = result.locations.map(loc =>
-                    `<div class="location-info" data-char-id="${loc.id}" data-stash-id="${loc.stash_id}">
-                        ${createStashLink(loc.id, loc.stash_id, loc.slotId)}
-                    </div>`
-                ).join('');
+                locationsHtml = `
+                    <div class="location-info" data-stash-id="${result.stashId}">
+                        <div class="character-name">${result.stashType}</div>
+                        <div class="stash-location">
+                            <span class="material-icons">inventory_2</span>
+                            Quantity: ${result.itemCount}
+                        </div>
+                    </div>
+                `;
             } else {
                 // Regular character stash items
-                locationsHtml = result.locations.map(loc =>
-                    `<div class="location-info" data-char-id="${loc.id}" data-stash-id="${loc.stash_id}">
-                        <div class="character-name">${loc.nickname} (${loc.class} LvL ${loc.level})</div>
-                        <div class="stash-location">
-                            ${getStashTypeDisplay(loc.stash_id)} (Slot: ${loc.slotId})
+                locationsHtml = result.locations.map(loc => {
+                    // For each character, create a section with all stash locations
+                    const stashesHtml = loc.stashLocations.map(stash =>
+                        `<div class="stash-entry" data-char-id="${loc.id}" data-stash-id="${stash.stashId}">
+                            <div class="stash-location">
+                                <span class="material-icons">inventory_2</span>
+                                ${getStashTypeDisplay(stash.stashId)} - Quantity: ${stash.count}
+                            </div>
+                        </div>`
+                    ).join('');
+
+                    return `
+                        <div class="location-info">
+                            <div class="character-name">${loc.nickname} (${loc.class} LvL ${loc.level})</div>
+                            <div class="stash-container">
+                                ${stashesHtml}
+                            </div>
                         </div>
-                    </div>`
-                ).join('');
+                    `;
+                }).join('');
             }
 
             item.innerHTML = `
@@ -220,27 +276,56 @@ window.addEventListener('load', () => {
 
             // Add click handler for location info sections
             item.querySelectorAll('.location-info').forEach(location => {
-                location.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const charId = location.dataset.charId;
-                    const stashId = location.dataset.stashId;
+                const stashEntries = location.querySelectorAll('.stash-entry');
 
-                    try {
-                        // Set current stash before navigation
-                        await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
+                // If this is a shared stash or has stash entries, make them clickable
+                if (stashEntries.length > 0) {
+                    stashEntries.forEach(stashEntry => {
+                        stashEntry.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            const charId = stashEntry.dataset.charId;
+                            const stashId = stashEntry.dataset.stashId;
+
+                            try {
+                                // Set current stash before navigation
+                                await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                // Navigate with stashId as URL parameter
+                                window.location.href = `/character/${charId}?stashId=${stashId}`;
+                            } catch (error) {
+                                console.error("Error navigating to character page:", error);
+                                // If there's an error, still try to navigate with the stash parameter
+                                window.location.href = `/character/${charId}?stashId=${stashId}`;
                             }
                         });
-                        // Navigate with stashId as URL parameter
-                        window.location.href = `/character/${charId}?stashId=${stashId}`;
-                    } catch (error) {
-                        console.error("Error navigating to character page:", error);
-                        // If there's an error, still try to navigate with the stash parameter
-                        window.location.href = `/character/${charId}?stashId=${stashId}`;
-                    }
-                });
+                    });
+                } else {
+                    location.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const charId = location.dataset.charId;
+                        const stashId = location.dataset.stashId;
+
+                        try {
+                            // Set current stash before navigation
+                            await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                            // Navigate with stashId as URL parameter
+                            window.location.href = `/character/${charId}?stashId=${stashId}`;
+                        } catch (error) {
+                            console.error("Error navigating to character page:", error);
+                            // If there's an error, still try to navigate with the stash parameter
+                            window.location.href = `/character/${charId}?stashId=${stashId}`;
+                        }
+                    });
+                }
             });
 
             // Add event listeners for mouse interactions for item popup

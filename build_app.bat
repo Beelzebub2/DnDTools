@@ -27,6 +27,7 @@ python -m nuitka ^
 --enable-plugin=tk-inter ^
 --remove-output ^
 --assume-yes-for-downloads ^
+--enable-plugin=no-qt ^
 --nofollow-import-to=tkinter ^
 --output-filename=DnDTools.exe ^
 --windows-console-mode=disable ^
