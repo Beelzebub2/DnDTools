@@ -9,7 +9,7 @@ import logging
 from datetime import datetime
 from src.models.game_data import item_data_manager
 import sys
-from src.models.appdirs import resource_path
+from src.models.appdirs import resource_path, get_resource_dir
 
 @dataclass
 class ItemInfo:
@@ -22,6 +22,7 @@ class ItemInfo:
 class StashPreviewGenerator:
     def __init__(self, cell_size: int = 45, resource_dir=None):
         self.CELL_SIZE = cell_size
+        self.resource_dir = resource_dir or get_resource_dir()
         logging.basicConfig(level=logging.INFO)
         try:
             self.font = ImageFont.truetype("arial.ttf", 16)

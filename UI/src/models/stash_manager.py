@@ -1,3 +1,4 @@
+from pathlib import Path
 import json
 import os
 from typing import Dict, List, Optional
@@ -8,7 +9,7 @@ from .storage import Storage, StashType
 from .sort import StashSorter
 from src.models.game_data import item_data_manager
 import pygetwindow as gw
-from .appdirs import get_data_dir, get_output_dir
+from .appdirs import get_data_dir, get_output_dir, resource_path
 
 class StashManager:
     def __init__(self, resource_dir: str):
@@ -202,27 +203,99 @@ class StashManager:
         return output
 
     def get_character_stash_previews(self, character_id):
-        """Get preview images for all stashes of a character"""
+        """Get preview images and detailed item data for all stashes of a character"""
         stashes = self.get_character_stashes(character_id)
         preview_paths = {}
+        stash_data = {}
         
         for stash_id, items in stashes.items():
             try:
-                # Convert items to ItemInfo objects
+                # Create image previews for backward compatibility
                 item_infos = [ItemInfo(**item) for item in items]
-                # Generate preview
                 preview = self.preview_generator.generate_preview(stash_id, item_infos)
-                # Save preview
                 outname = f"stash_preview_{character_id}_{stash_id}.png"
                 outpath = os.path.join(self.output_dir, outname)
                 preview.save(outpath)
-                # Store relative path for the frontend
                 preview_paths[stash_id] = f"/output/{outname}"
+                
+                # Create enhanced data for interactive grid rendering
+                enhanced_items = []
+                for item in items:
+                    try:
+                        design_str = item.get("itemId", "")
+                        item_id = item_data_manager.get_item_id_from_design_str(design_str)
+                        name = item_data_manager.get_item_name_from_id(item_id)
+                        rarity = item_data_manager.get_item_rarity_from_id(item_id)
+                        width, height = item_data_manager.get_item_dimensions_from_id(item_id)
+                        img_path = item_data_manager.get_item_image_path_from_id(item_id)
+                        
+                        # Extract properties from data
+                        data = item.get("data", {})
+                        effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
+                        
+                        pp = []
+                        for p in data.get("primaryPropertyArray", []):
+                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
+                                prop_name = p["propertyTypeId"].replace(effect_str, "")
+                                pp.append([prop_name, p["propertyValue"]])
+                                
+                        sp = []
+                        for p in data.get("secondaryPropertyArray", []):
+                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
+                                prop_name = p["propertyTypeId"].replace(effect_str, "")
+                                sp.append([prop_name, p["propertyValue"]])
+                        
+                        # Create URL for image path
+                        # Convert path from PathLib object to proper URL format
+                        image_url = None
+                        if img_path:
+                            # Use str(img_path) to convert the Path object to a string
+                            # This will give us a relative path like "icons/Armor/BloodwovenGloves_3001.png"
+                            image_url = f"/assets/{str(img_path)}"
+                            # Replace backslashes with forward slashes for URLs
+                            image_url = image_url.replace("\\", "/")
+                        
+                        # Create enhanced item data for frontend
+                        enhanced_item = {
+                            'name': name,
+                            'itemId': item_id,
+                            'slotId': item.get("slotId", 0),
+                            'itemCount': item.get("itemCount", 1),
+                            'rarity': rarity,
+                            'width': width or 1,
+                            'height': height or 1,
+                            'pp': pp,
+                            'sp': sp,
+                            'imagePath': image_url
+                        }
+                        enhanced_items.append(enhanced_item)
+                    except Exception as e:
+                        print(f"Error enhancing item data: {str(e)}")
+                        # Add minimal item data if enhancement fails
+                        enhanced_items.append({
+                            'name': 'Unknown Item',
+                            'itemId': item.get("itemId", "unknown"),
+                            'slotId': item.get("slotId", 0),
+                            'itemCount': item.get("itemCount", 1),
+                            'rarity': 'Common',
+                            'width': 1,
+                            'height': 1
+                        })
+                        
+                stash_data[stash_id] = enhanced_items
             except Exception as e:
-                print(f"Error generating preview for stash {stash_id}: {str(e)}")
+                print(f"Error processing stash {stash_id}: {str(e)}")
+                import traceback
+                traceback.print_exc()
                 preview_paths[stash_id] = "/static/img/error.png"  # Fallback image
+                stash_data[stash_id] = []  # Empty stash data as fallback
         
-        return preview_paths
+        # Return both the image paths (for backward compatibility) and the enhanced data
+        response = {
+            'previewImages': preview_paths,
+            'stashData': stash_data
+        }
+        return response
 
     def sort_stash(self, character_id, stash_id, cancel_event=None):
         """Sort a stash with optional cancellation support"""
