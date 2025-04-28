@@ -19,6 +19,9 @@
 
 A tool to capture and generate visual previews of Dark and Darker stash contents and organize them.
 
+🌐 **Website:** [https://dndtools.me](https://dndtools.me)  
+💬 **Discord:** [Join our community](https://discord.gg/X8FuqR2cq6)
+
 ## ⚠️ Disclaimer
 
 This project is not affiliated with, endorsed by, or connected to IRONMACE Co., Ltd. or Dark and Darker in any way. This is a fan-made tool for educational purposes only.
