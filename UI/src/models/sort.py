@@ -61,7 +61,7 @@ class StashSorter:
                             new_pos = self.stash.find_empty_slot(occupying_item)
                             if new_pos:
                                 if not intersects(new_pos, occupying_item.width, occupying_item.height,
-                                              item.position, item.width, item.height):
+                                              Point(self.cur_x, self.cur_y), item.width, item.height):
                                     print(f"Moving {occupying_item} to empty slot in stash")
                                     self.stash.move(occupying_item, new_pos, self.stash)
                                     continue
