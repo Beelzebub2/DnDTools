@@ -391,6 +391,20 @@ def api_get_current_stash(character_id):
     stash_id = session.get(f'{character_id}_current_stash_id', None)
     return jsonify({'stashId': stash_id})
 
+@server.route('/api/character/<character_id>/current-stash/<stash_id>', methods=['POST'])
+def api_set_current_stash(character_id, stash_id):
+    """Set the current stash ID for a character"""
+    # Update the global variables in the API class
+    api._current_char_id = character_id
+    api._current_stash_id = stash_id
+    
+    # Also store in session for persistence across page reloads
+    from flask import session
+    session[f'{character_id}_current_stash_id'] = stash_id
+    
+    logger.info(f"Current stash updated to character {character_id}, stash {stash_id}")
+    return jsonify({'success': True})
+
 @server.route('/')
 def index():
     return render_template('index.html')
