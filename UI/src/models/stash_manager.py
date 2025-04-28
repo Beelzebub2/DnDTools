@@ -234,15 +234,17 @@ class StashManager:
         stash_items = char.get('stashes', {}).get(str(stash_id))
         if not stash_items:
             return False, "Stash not found"
+        
         # Load inventory items from raw packet data
         file_path = os.path.join(self.data_dir, f"{character_id}.json")
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 raw = json.load(f)
-            char_base = raw.get('characterDataBase', {})
-            inv_items = char_base.get('CharacterItemList', []) or []
+            stashes = parse_stashes(raw)
+            inv_items = stashes.get(StashType.BAG.value, [])
         except:
             inv_items = []
+        
         # Create Storage instances
         stash = Storage(StashType.STORAGE.value, stash_items)
         inventory = Storage(StashType.BAG.value, inv_items)
@@ -258,7 +260,6 @@ class StashManager:
             print("No window with exact title 'Dark and Darker' found.")
         
         # Perform sorting
-        print(inventory)
         sorter = StashSorter(stash, inventory)
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"

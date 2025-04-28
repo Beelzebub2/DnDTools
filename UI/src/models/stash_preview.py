@@ -393,12 +393,9 @@ def parse_stashes(packet_data):
                 })
                 used_slots.add(slot_id)
         # Then process items without slots, assign to next free slot
-        next_slot = 0
         for item in items:
             if "slotId" not in item:
-                while next_slot in used_slots:
-                    next_slot += 1
-                slot_id = next_slot
+                slot_id = 0
                 used_slots.add(slot_id)
                 design_str = item.get("itemId", "")
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
