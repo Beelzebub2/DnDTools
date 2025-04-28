@@ -307,6 +307,9 @@ const renderInteractiveGrid = (stashId, items) => {
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
 
+            // Apply background color based on rarity with transparency
+            itemEl.style.backgroundColor = `${rarityColor}33`;  // 33 is hex for ~20% opacity
+
             // If we have an image path, use it, otherwise show text
             if (item.imagePath) {
                 const img = document.createElement('img');
@@ -317,7 +320,6 @@ const renderInteractiveGrid = (stashId, items) => {
             } else {
                 // No image, just display the name
                 itemEl.textContent = item.name || 'Unknown';
-                itemEl.style.backgroundColor = `${rarityColor}33`; // Add transparency
             }
 
             // Add count badge if more than 1
@@ -332,9 +334,9 @@ const renderInteractiveGrid = (stashId, items) => {
             const tooltip = document.createElement('div');
             tooltip.className = 'item-tooltip';
 
-            // Build tooltip content
+            // Build tooltip content with style matching search.js
             tooltip.innerHTML = `
-                <div class="tooltip-header" style="background-color: ${rarityColor};">
+                <div class="tooltip-header" style="background-color: ${rarityColor}; color: #000; padding: 6px; border-radius: 3px 3px 0 0;">
                     <div class="tooltip-name">${item.name || 'Unknown'}</div>
                     <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
                 </div>
