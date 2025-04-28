@@ -1,7 +1,7 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
 from src.models.game_data import item_data_manager
 import webview
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, render_template, jsonify, request, send_from_directory, session
 import os
 import threading
 from src.models.stash_manager import StashManager
@@ -10,6 +10,7 @@ import json
 import sys
 import logging
 from utils.logging_setup import setup_logging
+import secrets
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -43,6 +44,8 @@ server = Flask(__name__,
     template_folder=template_folder_path
 )
 server.config['JSON_AS_ASCII'] = False
+# Set a secure secret key for session
+server.secret_key = secrets.token_hex(32)  # Generate a secure random key
 
 # Initialize StashManager with explicit path
 stash_manager = StashManager(app_dir)
@@ -387,6 +390,20 @@ def api_get_current_stash(character_id):
     from flask import session
     stash_id = session.get(f'{character_id}_current_stash_id', None)
     return jsonify({'stashId': stash_id})
+
+@server.route('/api/character/<character_id>/current-stash/<stash_id>', methods=['POST'])
+def api_set_current_stash(character_id, stash_id):
+    """Set the current stash ID for a character"""
+    # Update the global variables in the API class
+    api._current_char_id = character_id
+    api._current_stash_id = stash_id
+    
+    # Also store in session for persistence across page reloads
+    from flask import session
+    session[f'{character_id}_current_stash_id'] = stash_id
+    
+    logger.info(f"Current stash updated to character {character_id}, stash {stash_id}")
+    return jsonify({'success': True})
 
 @server.route('/')
 def index():
