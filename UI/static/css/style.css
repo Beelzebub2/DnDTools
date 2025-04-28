@@ -750,3 +750,94 @@ img:not([src]) {
     z-index: 20;
     /* bring tooltip above siblings */
 }
+
+/* Modal dialog for unsaved changes */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--color-card-bg, #241c17);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    overflow: hidden;
+    border: 1px solid var(--color-border, #392e24);
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--color-border, #392e24);
+    display: flex;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    color: var(--color-heading, #e4c869);
+}
+
+.modal-body {
+    padding: 20px;
+    color: var(--color-text, #a89a6c);
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid var(--color-border, #392e24);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+/* Button styles if not already defined */
+.btn-primary {
+    background-color: var(--color-primary, #c4a564);
+    color: #000;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.btn-secondary {
+    background-color: #444;
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn {
+    background-color: transparent;
+    color: var(--color-text, #a89a6c);
+    border: 1px solid var(--color-border, #392e24);
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background-color: var(--color-primary-hover, #d5b675);
+}
+
+.btn-secondary:hover {
+    background-color: #555;
+}
+
+.btn:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
