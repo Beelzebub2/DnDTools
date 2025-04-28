@@ -56,26 +56,18 @@ const updateCharacterInfo = async (characterId) => {
     const charHeader = document.getElementById('characterHeader');
     try {
         let details;
-        // Wait for pywebview to be available
-        const waitForPywebview = () => {
-            return new Promise((resolve) => {
-                if (window.pywebview && window.pywebview.api) {
-                    resolve();
-                } else {
-                    const check = () => {
-                        if (window.pywebview && window.pywebview.api) {
-                            resolve();
-                        } else {
-                            setTimeout(check, 100);
-                        }
-                    };
-                    setTimeout(check, 100);
-                }
-            });
-        };
-
-        await waitForPywebview();
-        details = await window.pywebview.api.get_character_details(characterId);
+        // Try pywebview API if available and get_character_details is a function
+        if (
+            window.pywebview &&
+            window.pywebview.api &&
+            typeof window.pywebview.api.get_character_details === 'function'
+        ) {
+            details = await window.pywebview.api.get_character_details(characterId);
+        } else {
+            // Fallback to REST API
+            const res = await fetch(`/api/character/${characterId}/details`);
+            details = await res.json();
+        }
         charHeader.textContent = details.nickname;
         charInfo.innerHTML = `
             <div class="char-info-grid">

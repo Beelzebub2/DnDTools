@@ -291,7 +291,7 @@ window.addEventListener('load', () => {
 
         try {
             let details;
-            if (window.pywebview && window.pywebview.api) {
+            if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.search_items === 'function') {
                 details = await window.pywebview.api.search_items(query);
             } else {
                 const res = await fetch(`/api/search_items?query=${encodeURIComponent(query)}`);
