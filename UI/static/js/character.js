@@ -343,7 +343,7 @@ const renderInteractiveGrid = (stashId, items) => {
             const tooltip = document.createElement('div');
             tooltip.className = 'item-tooltip';
 
-            // Build tooltip content with style matching search.js
+            // Build tooltip content with a placeholder
             tooltip.innerHTML = `
                 <div class="tooltip-header" style="background-color: ${rarityColor}44;">
                     <div class="tooltip-name">${item.name || 'Unknown'}</div>
@@ -355,6 +355,11 @@ const renderInteractiveGrid = (stashId, items) => {
                     </div>
                     <div class="tooltip-section secondary-props">
                         ${formatSecondaryProps(item.sp)}
+                    </div>
+                </div>
+                <div class="tooltip-body">
+                    <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                        Estimated Price: Loading...
                     </div>
                 </div>
             `;
@@ -369,6 +374,26 @@ const renderInteractiveGrid = (stashId, items) => {
 
                 // Move tooltip to body to avoid any potential containment issues
                 document.body.appendChild(tooltip);
+
+                // When item is hovered, load extra info asynchronously
+                const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
+                if (extraInfoSection) {
+                    // Temporarily set a loading message while fetching the price
+                    extraInfoSection.textContent = 'Estimated Price: Loading...';
+
+                    // Fetch the most recent price asynchronously
+                    getMostRecentPrice(item).then(price => {
+                        // Update the tooltip with the fetched price once available
+                        if (extraInfoSection) {
+                            extraInfoSection.textContent = `Estimated Price: ${price}g`;
+                        }
+                    }).catch(error => {
+                        // Handle any errors and set an error message
+                        if (extraInfoSection) {
+                            extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;;
+                        }
+                    });
+                }
 
                 // Initial positioning
                 const rect = itemEl.getBoundingClientRect();
@@ -828,3 +853,36 @@ window.addEventListener('DOMContentLoaded', async () => {
         handleApiError(error, document.querySelector('.character-details'));
     }
 });
+
+
+async function getMostRecentPrice(item) {
+    const itemId = item.itemId;
+    
+    // TODO: Add API key 
+    const apiKey = "";
+
+    const apiUrl = `https://api.darkerdb.com/v1/market/analytics/${itemId}/prices/history?interval=1h`;
+
+    const headers = {
+        "X-Requested-With": "DnDTools"
+    };
+
+    try {
+        const response = await fetch(apiUrl, { headers });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        if (data.body && data.body.length > 0) {
+            const mostRecentPriceData = data.body[0];
+            const mostRecentPrice = mostRecentPriceData.avg;
+            return mostRecentPrice ?? "No Info";
+        } else {
+            return "No Info";
+        }
+    } catch (error) {
+        throw error;
+    }
+}
