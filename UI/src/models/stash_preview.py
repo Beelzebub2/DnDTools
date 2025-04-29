@@ -48,7 +48,7 @@ class StashPreviewGenerator:
     def _load_slot_config(self):
         """Load equipment slot configuration from JSON file"""
         try:
-            config_path = resource_path(os.path.join('assets', 'equipment_slots.json'))
+            config_path = resource_path('equipment_slots.json')
             with open(config_path, 'r', encoding='utf-8') as f:
                 config = json.load(f)
             return config
