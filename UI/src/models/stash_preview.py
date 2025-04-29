@@ -29,6 +29,9 @@ class StashPreviewGenerator:
         except:
             self.font = ImageFont.load_default()
             
+        # Load equipment slot configuration from JSON file
+        self.slot_config = self._load_slot_config()
+        
         # Define rarity colors with alpha (RGBA)
         self.rarity_colors = {
             0: (128, 128, 128, 100),  # None - Gray
@@ -41,6 +44,18 @@ class StashPreviewGenerator:
             7: (233, 237, 154, 150),   # Unique - Gold
             8: (255, 0, 0, 150),      # Artifact - Red
         }
+        
+    def _load_slot_config(self):
+        """Load equipment slot configuration from JSON file"""
+        try:
+            config_path = resource_path(os.path.join('assets', 'equipment_slots.json'))
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            return config
+        except Exception as e:
+            logging.error(f"Failed to load equipment slot configuration: {e}")
+            # Return empty config as fallback
+            return {"equipment_slots": {}}
 
     def _get_stash_dimensions(self, stash_id: str) -> Tuple[int, int]:
         """Return appropriate grid dimensions based on stash type"""
@@ -66,7 +81,7 @@ class StashPreviewGenerator:
             elif stash_type == StashType.EQUIPMENT:
                 # Equipment has a special layout that's not a simple grid
                 # We use a larger canvas to accommodate the specific positions
-                return 10, 10
+                return 8, 7
             elif stash_type in (StashType.STORAGE, StashType.SHARED_STASH_0, StashType.SHARED_STASH_SEASONAL_0):
                 return 12, 20
             else:
@@ -118,50 +133,14 @@ class StashPreviewGenerator:
         draw.rectangle([0, 0, img.width - 1, img.height - 1],
                       outline=(212, 175, 55, 255), width=4)
         
-        # Define slot positions based on the screenshot
-        # Format: (x, y, width, height) in grid cells
-        equipment_slots = {
-            # Weapon slots (1x4)
-            "weapon1": (0, 0, 2, 4),  # Left weapon slots
-            "weapon2": (8, 0, 2, 4),  # Right weapon slots
+        # Draw equipment slot backgrounds based on configuration
+        equipment_slots = self.slot_config.get("equipment_slots", {})
+        for slot_id, slot_data in equipment_slots.items():
+            x = slot_data.get("x", 0)
+            y = slot_data.get("y", 0)
+            w = slot_data.get("w", 1)
+            h = slot_data.get("h", 1)
             
-            # Top row - Head and amulet
-            "head": (3, 0, 2, 2),     # Helmet/head armor
-            "amulet": (5, 0, 2, 2),   # Amulet/necklace
-            
-            # Middle - Body armor and rings
-            "chest": (3, 2, 4, 3),    # Body armor (centered)
-            "ring1": (2, 3, 1, 1),    # Left ring
-            "ring2": (7, 3, 1, 1),    # Right ring
-            
-            # Gloves and accessories
-            "gloves": (2, 5, 2, 2),   # Gloves (left of pants)
-            "cape": (6, 5, 2, 2),     # Cape (right of pants)
-            
-            # Bottom row - Pants and boots
-            "pants": (3, 5, 4, 3),    # Pants/leggings
-            "boots": (4, 8, 2, 2),    # Boots
-            
-            # Consumable slots - 6 on each side in two columns
-            # Left side consumables
-            "consumable1": (0, 5, 1, 1),
-            "consumable2": (1, 5, 1, 1),
-            "consumable3": (0, 6, 1, 1),
-            "consumable4": (1, 6, 1, 1),
-            "consumable5": (0, 7, 1, 1),
-            "consumable6": (1, 7, 1, 1),
-            
-            # Right side consumables
-            "consumable7": (8, 5, 1, 1),
-            "consumable8": (9, 5, 1, 1),
-            "consumable9": (8, 6, 1, 1),
-            "consumable10": (9, 6, 1, 1),
-            "consumable11": (8, 7, 1, 1),
-            "consumable12": (9, 7, 1, 1)
-        }
-        
-        # Draw each equipment slot
-        for slot_name, (x, y, w, h) in equipment_slots.items():
             # Draw slot border
             draw.rectangle(
                 [x * self.CELL_SIZE, y * self.CELL_SIZE,
@@ -184,49 +163,13 @@ class StashPreviewGenerator:
         try:
             item_img = Image.open(img_path).convert("RGBA")
             
-            # Map slot IDs to positions based on the equipment layout from the screenshot
-            slot_positions = {
-                # Weapons (left and right columns)
-                0: (0, 0),  # Weapon slot 1 (left)
-                1: (8, 0),  # Weapon slot 2 (right)
-                
-                # Helmet and accessory slots (top row)
-                2: (3, 0),  # Helmet slot
-                7: (5, 0),  # Necklace/amulet slot
-                
-                # Body armor (center)
-                3: (3, 2),  # Body armor
-                
-                # Rings (middle row)
-                8: (2, 3),  # Left ring
-                9: (7, 3),  # Right ring
-                
-                # Accessories & armor (bottom half)
-                6: (2, 5),  # Gloves (left side)
-                4: (3, 5),  # Pants/leggings (center)
-                10: (6, 5), # Cape/cloak (right side)
-                5: (4, 8),  # Boots (center bottom)
-                
-                # Consumable slots - Left column
-                20: (0, 5),  # Top left
-                21: (1, 5),
-                22: (0, 6),
-                23: (1, 6),
-                24: (0, 7),
-                25: (1, 7),  # Bottom left
-                
-                # Consumable slots - Right column
-                26: (8, 5),  # Top right
-                27: (9, 5),
-                28: (8, 6),
-                29: (9, 6),
-                30: (8, 7),
-                31: (9, 7)   # Bottom right
-            }
+            # Get slot position from configuration
+            slot_id_str = str(item.slotId)
+            equipment_slots = self.slot_config.get("equipment_slots", {})
             
-            # Get position for this slot
-            if item.slotId in slot_positions:
-                x, y = slot_positions[item.slotId]
+            if slot_id_str in equipment_slots:
+                slot_data = equipment_slots[slot_id_str]
+                x, y = slot_data.get("x", 0), slot_data.get("y", 0)
                 expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
                 
                 if item_img.size != expected_size:

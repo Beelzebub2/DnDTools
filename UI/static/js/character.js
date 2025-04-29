@@ -117,7 +117,7 @@ const getStashDimensions = (stashId) => {
 
     // Equipment has a special layout
     if (stashIdInt === 3) {
-        return [10, 10]; // Wider format for equipment layout
+        return [8, 7]; // Wider format for equipment layout
     }
 
     // BAG is smaller
@@ -185,8 +185,26 @@ const processStashData = async (stashData, stashId) => {
     return [];
 };
 
+// Variable to store the equipment slots configuration
+let equipmentSlotConfig = null;
+
+// Function to fetch the equipment slots configuration
+async function fetchEquipmentSlotConfig() {
+    try {
+        const response = await fetch('/assets/equipment_slots.json');
+        if (!response.ok) {
+            throw new Error(`Failed to load equipment slot configuration: ${response.status}`);
+        }
+        const data = await response.json();
+        return data.equipment_slots || {};
+    } catch (error) {
+        console.error('Error loading equipment slot configuration:', error);
+        return {};
+    }
+}
+
 // Render the interactive grid for a stash
-const renderInteractiveGrid = (stashId, items) => {
+const renderInteractiveGrid = async (stashId, items) => {
     const gridContainer = document.getElementById('interactiveStashGrid');
     if (!gridContainer) return;
 
@@ -203,8 +221,13 @@ const renderInteractiveGrid = (stashId, items) => {
     grid.style.gridTemplateColumns = `repeat(${gridWidth}, 45px)`;
     grid.style.gridTemplateRows = `repeat(${gridHeight}, 45px)`;
 
-    // Add empty cells for the grid background
+    // Load equipment slot configuration if needed and not already loaded
+    if (isEquipment && !equipmentSlotConfig) {
+        equipmentSlotConfig = await fetchEquipmentSlotConfig();
+    }
+
     if (!isEquipment) {
+        // Standard stash rendering
         for (let y = 0; y < gridHeight; y++) {
             for (let x = 0; x < gridWidth; x++) {
                 const cell = document.createElement('div');
@@ -214,112 +237,199 @@ const renderInteractiveGrid = (stashId, items) => {
                 grid.appendChild(cell);
             }
         }
-    } else {
-        // Special handling for equipment screen with predefined slots
-        const equipmentSlotPositions = {
-            0: { x: 0, y: 0, w: 2, h: 4 },  // Weapon slot 1 (left)
-            1: { x: 8, y: 0, w: 2, h: 4 },  // Weapon slot 2 (right)
-            2: { x: 3, y: 0, w: 2, h: 2 },  // Helmet slot
-            7: { x: 5, y: 0, w: 2, h: 2 },  // Necklace/amulet slot
-            3: { x: 3, y: 2, w: 4, h: 3 },  // Body armor
-            8: { x: 2, y: 3, w: 1, h: 1 },  // Left ring
-            9: { x: 7, y: 3, w: 1, h: 1 },  // Right ring
-            6: { x: 2, y: 5, w: 2, h: 2 },  // Gloves (left side)
-            4: { x: 3, y: 5, w: 4, h: 3 },  // Pants/leggings (center)
-            10: { x: 6, y: 5, w: 2, h: 2 }, // Cape/cloak (right side)
-            5: { x: 4, y: 8, w: 2, h: 2 },  // Boots (center bottom)
-            20: { x: 0, y: 5, w: 1, h: 1 }, // And so on for consumable slots
-            21: { x: 1, y: 5, w: 1, h: 1 },
-            22: { x: 0, y: 6, w: 1, h: 1 },
-            23: { x: 1, y: 6, w: 1, h: 1 },
-            24: { x: 0, y: 7, w: 1, h: 1 },
-            25: { x: 1, y: 7, w: 1, h: 1 },
-            26: { x: 8, y: 5, w: 1, h: 1 },
-            27: { x: 9, y: 5, w: 1, h: 1 },
-            28: { x: 8, y: 6, w: 1, h: 1 },
-            29: { x: 9, y: 6, w: 1, h: 1 },
-            30: { x: 8, y: 7, w: 1, h: 1 },
-            31: { x: 9, y: 7, w: 1, h: 1 }
-        };
 
-        // Create slot backgrounds for equipment layout
-        for (const [slotId, pos] of Object.entries(equipmentSlotPositions)) {
-            const slotCell = document.createElement('div');
-            slotCell.className = 'equipment-slot';
-            slotCell.style.gridColumn = `${pos.x + 1} / span ${pos.w}`;
-            slotCell.style.gridRow = `${pos.y + 1} / span ${pos.h}`;
-            slotCell.dataset.slotId = slotId;
-            grid.appendChild(slotCell);
+        // Add items to the grid
+        if (items && items.length) {
+            items.forEach(item => {
+                if (!item) return;
+                let x = item.slotId % gridWidth;
+                let y = Math.floor(item.slotId / gridWidth);
+                let w = item.width || 1;
+                let h = item.height || 1;
+
+                // Create item element
+                const itemEl = document.createElement('div');
+                itemEl.className = 'stash-item';
+                itemEl.style.gridColumn = `${x + 1} / span ${w}`;
+                itemEl.style.gridRow = `${y + 1} / span ${h}`;
+
+                // Apply rarity-based border color
+                const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+                itemEl.style.borderColor = rarityColor;
+
+                // Create inset border with box-shadow instead of background color
+                itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
+
+                // Apply background color based on rarity with more subtle transparency
+                itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
+
+                // If we have an image path, use it, otherwise show text
+                if (item.imagePath) {
+                    const img = document.createElement('img');
+                    img.src = item.imagePath;
+                    img.alt = item.name || 'Item';
+                    img.className = 'item-image';
+                    itemEl.appendChild(img);
+                } else {
+                    // No image, just display the name
+                    itemEl.textContent = item.name || 'Unknown';
+                }
+
+                // Add count badge if more than 1
+                if (item.itemCount > 1) {
+                    const countBadge = document.createElement('div');
+                    countBadge.className = 'item-count-badge';
+                    countBadge.textContent = item.itemCount;
+                    itemEl.appendChild(countBadge);
+                }
+
+                // Create tooltip (hidden until hover)
+                const tooltip = document.createElement('div');
+                tooltip.className = 'item-tooltip';
+
+                // Build tooltip content with a placeholder
+                tooltip.innerHTML = `
+                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
+                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props">
+                            ${formatPrimaryProps(item.pp)}
+                        </div>
+                        <div class="tooltip-section secondary-props">
+                            ${formatSecondaryProps(item.sp)}
+                        </div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                            Estimated Price: Loading...
+                        </div>
+                    </div>
+                `;
+
+                // Attach tooltip to item
+                itemEl.appendChild(tooltip);
+
+                // Mouse event handlers for tooltip positioning
+                itemEl.addEventListener('mouseenter', (e) => {
+                    // Get tooltip and ensure it's visible but starting with opacity 0
+                    tooltip.style.display = 'block';
+
+                    // Move tooltip to body to avoid any potential containment issues
+                    document.body.appendChild(tooltip);
+
+                    // When item is hovered, load extra info asynchronously
+                    const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
+                    if (extraInfoSection) {
+                        // Temporarily set a loading message while fetching the price
+                        extraInfoSection.textContent = 'Estimated Price: Loading...';
+
+                        // Fetch the most recent price asynchronously
+                        getMostRecentPrice(item).then(price => {
+                            // Update the tooltip with the fetched price once available
+                            if (extraInfoSection) {
+                                extraInfoSection.textContent = `Estimated Price: ${price}g`;
+                            }
+                        }).catch(error => {
+                            // Handle any errors and set an error message
+                            if (extraInfoSection) {
+                                extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;;
+                            }
+                        });
+                    }
+
+                    // Initial positioning
+                    const rect = itemEl.getBoundingClientRect();
+                    const tooltipWidth = tooltip.offsetWidth || 250;
+                    const tooltipHeight = tooltip.offsetHeight || 150;
+
+                    let left = e.clientX + 15;
+                    let top = e.clientY + 15;
+
+                    // Make sure tooltip doesn't go outside viewport
+                    if (left + tooltipWidth > window.innerWidth) {
+                        left = e.clientX - tooltipWidth - 15;
+                    }
+
+                    if (top + tooltipHeight > window.innerHeight) {
+                        top = e.clientY - tooltipHeight - 15;
+                    }
+
+                    // Position the tooltip
+                    tooltip.style.left = `${left}px`;
+                    tooltip.style.top = `${top}px`;
+
+                    // Use setTimeout to trigger animation after append
+                    setTimeout(() => {
+                        tooltip.classList.add('visible');
+                    }, 10);
+                });
+
+                itemEl.addEventListener('mouseleave', () => {
+                    tooltip.classList.remove('visible');
+
+                    // Hide after fade out animation completes
+                    setTimeout(() => {
+                        tooltip.style.display = 'none';
+                    }, 200);
+                });
+
+                itemEl.addEventListener('mousemove', (e) => {
+                    // For fixed positioning, we need to use clientX/clientY coordinates directly
+                    const offsetX = 15;
+                    const offsetY = 15;
+
+                    // Get dimensions for positioning logic
+                    const tooltipWidth = tooltip.offsetWidth || 250;
+                    const tooltipHeight = tooltip.offsetHeight || 150;
+
+                    // Default position
+                    let left = e.clientX + offsetX;
+                    let top = e.clientY + offsetY;
+
+                    // Make sure tooltip doesn't go outside viewport
+                    if (left + tooltipWidth > window.innerWidth) {
+                        left = e.clientX - tooltipWidth - offsetX;
+                    }
+
+                    if (top + tooltipHeight > window.innerHeight) {
+                        top = e.clientY - tooltipHeight - offsetY;
+                    }
+
+                    // Position the tooltip
+                    tooltip.style.left = `${left}px`;
+                    tooltip.style.top = `${top}px`;
+                });
+
+                grid.appendChild(itemEl);
+            });
         }
-    }
-
-    // Add items to the grid
-    if (items && items.length) {
-        items.forEach(item => {
-            if (!item) return;
-
-            let x, y, w, h;
-
-            if (isEquipment) {
-                // For equipment, use predefined positions
-                const equipmentSlotPositions = {
-                    0: { x: 0, y: 0, w: 2, h: 4 },  // Weapon slot 1 (left)
-                    1: { x: 8, y: 0, w: 2, h: 4 },  // Weapon slot 2 (right)
-                    2: { x: 3, y: 0, w: 2, h: 2 },  // Helmet slot
-                    7: { x: 5, y: 0, w: 2, h: 2 },  // Necklace/amulet slot
-                    3: { x: 3, y: 2, w: 4, h: 3 },  // Body armor
-                    8: { x: 2, y: 3, w: 1, h: 1 },  // Left ring
-                    9: { x: 7, y: 3, w: 1, h: 1 },  // Right ring
-                    6: { x: 2, y: 5, w: 2, h: 2 },  // Gloves (left side)
-                    4: { x: 3, y: 5, w: 4, h: 3 },  // Pants/leggings (center)
-                    10: { x: 6, y: 5, w: 2, h: 2 }, // Cape/cloak (right side)
-                    5: { x: 4, y: 8, w: 2, h: 2 },  // Boots (center bottom)
-                    20: { x: 0, y: 5, w: 1, h: 1 }, // And so on for consumable slots
-                    21: { x: 1, y: 5, w: 1, h: 1 },
-                    22: { x: 0, y: 6, w: 1, h: 1 },
-                    23: { x: 1, y: 6, w: 1, h: 1 },
-                    24: { x: 0, y: 7, w: 1, h: 1 },
-                    25: { x: 1, y: 7, w: 1, h: 1 },
-                    26: { x: 8, y: 5, w: 1, h: 1 },
-                    27: { x: 9, y: 5, w: 1, h: 1 },
-                    28: { x: 8, y: 6, w: 1, h: 1 },
-                    29: { x: 9, y: 6, w: 1, h: 1 },
-                    30: { x: 8, y: 7, w: 1, h: 1 },
-                    31: { x: 9, y: 7, w: 1, h: 1 }
-                };
-
-                const pos = equipmentSlotPositions[item.slotId];
-                if (!pos) return; // Skip if no position defined
-
-                x = pos.x;
-                y = pos.y;
-                w = pos.w;
-                h = pos.h;
-            } else {
-                // For regular stash, calculate position based on slotId
-                x = item.slotId % gridWidth;
-                y = Math.floor(item.slotId / gridWidth);
-                w = item.width || 1;
-                h = item.height || 1;
-            }
-
-            // Create item element
+    } else {
+        // Equipment: render slots and place items inside their slot
+        // Build a map of items by slotId
+        const itemBySlot = {};
+        if (items && items.length) {
+            items.forEach(item => {
+                if (item && item.slotId != null) {
+                    itemBySlot[item.slotId.toString()] = item;
+                }
+            });
+        }
+        // Helper to create an item element (optionally faded and not hoverable)
+        function createItemElement(item, faded = false) {
             const itemEl = document.createElement('div');
             itemEl.className = 'stash-item';
-            itemEl.style.gridColumn = `${x + 1} / span ${w}`;
-            itemEl.style.gridRow = `${y + 1} / span ${h}`;
-
-            // Apply rarity-based border color
+            itemEl.style.width = `100%`;
+            itemEl.style.height = `100%`;
+            if (faded) {
+                itemEl.style.opacity = '0.4';
+                itemEl.style.pointerEvents = 'none';
+            }
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
-
-            // Create inset border with box-shadow instead of background color
             itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
-
-            // Apply background color based on rarity with more subtle transparency
-            itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
-
-            // If we have an image path, use it, otherwise show text
+            itemEl.style.backgroundColor = `${rarityColor}15`;
             if (item.imagePath) {
                 const img = document.createElement('img');
                 img.src = item.imagePath;
@@ -327,139 +437,118 @@ const renderInteractiveGrid = (stashId, items) => {
                 img.className = 'item-image';
                 itemEl.appendChild(img);
             } else {
-                // No image, just display the name
                 itemEl.textContent = item.name || 'Unknown';
             }
-
-            // Add count badge if more than 1
             if (item.itemCount > 1) {
                 const countBadge = document.createElement('div');
                 countBadge.className = 'item-count-badge';
                 countBadge.textContent = item.itemCount;
                 itemEl.appendChild(countBadge);
             }
-
-            // Create tooltip (hidden until hover)
-            const tooltip = document.createElement('div');
-            tooltip.className = 'item-tooltip';
-
-            // Build tooltip content with a placeholder
-            tooltip.innerHTML = `
-                <div class="tooltip-header" style="background-color: ${rarityColor}44;">
-                    <div class="tooltip-name">${item.name || 'Unknown'}</div>
-                    <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
-                </div>
-                <div class="tooltip-body">
-                    <div class="tooltip-section primary-props">
-                        ${formatPrimaryProps(item.pp)}
+            if (!faded) {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'item-tooltip';
+                tooltip.innerHTML = `
+                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
+                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
                     </div>
-                    <div class="tooltip-section secondary-props">
-                        ${formatSecondaryProps(item.sp)}
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props">
+                            ${formatPrimaryProps(item.pp)}
+                        </div>
+                        <div class="tooltip-section secondary-props">
+                            ${formatSecondaryProps(item.sp)}
+                        </div>
                     </div>
-                </div>
-                <div class="tooltip-body">
-                    <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                        Estimated Price: Loading...
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                            Estimated Price: Loading...
+                        </div>
                     </div>
-                </div>
-            `;
-
-            // Attach tooltip to item
-            itemEl.appendChild(tooltip);
-
-            // Mouse event handlers for tooltip positioning
-            itemEl.addEventListener('mouseenter', (e) => {
-                // Get tooltip and ensure it's visible but starting with opacity 0
-                tooltip.style.display = 'block';
-
-                // Move tooltip to body to avoid any potential containment issues
-                document.body.appendChild(tooltip);
-
-                // When item is hovered, load extra info asynchronously
-                const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
-                if (extraInfoSection) {
-                    // Temporarily set a loading message while fetching the price
-                    extraInfoSection.textContent = 'Estimated Price: Loading...';
-
-                    // Fetch the most recent price asynchronously
-                    getMostRecentPrice(item).then(price => {
-                        // Update the tooltip with the fetched price once available
-                        if (extraInfoSection) {
-                            extraInfoSection.textContent = `Estimated Price: ${price}g`;
-                        }
-                    }).catch(error => {
-                        // Handle any errors and set an error message
-                        if (extraInfoSection) {
-                            extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;;
-                        }
-                    });
+                `;
+                itemEl.appendChild(tooltip);
+                itemEl.addEventListener('mouseenter', (e) => {
+                    tooltip.style.display = 'block';
+                    document.body.appendChild(tooltip);
+                    const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
+                    if (extraInfoSection) {
+                        extraInfoSection.textContent = 'Estimated Price: Loading...';
+                        getMostRecentPrice(item).then(price => {
+                            if (extraInfoSection) {
+                                extraInfoSection.textContent = `Estimated Price: ${price}g`;
+                            }
+                        }).catch(error => {
+                            if (extraInfoSection) {
+                                extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;
+                            }
+                        });
+                    }
+                    const rect = itemEl.getBoundingClientRect();
+                    const tooltipWidth = tooltip.offsetWidth || 250;
+                    const tooltipHeight = tooltip.offsetHeight || 150;
+                    let left = e.clientX + 15;
+                    let top = e.clientY + 15;
+                    if (left + tooltipWidth > window.innerWidth) {
+                        left = e.clientX - tooltipWidth - 15;
+                    }
+                    if (top + tooltipHeight > window.innerHeight) {
+                        top = e.clientY - tooltipHeight - 15;
+                    }
+                    tooltip.style.left = `${left}px`;
+                    tooltip.style.top = `${top}px`;
+                    setTimeout(() => {
+                        tooltip.classList.add('visible');
+                    }, 10);
+                });
+                itemEl.addEventListener('mouseleave', () => {
+                    tooltip.classList.remove('visible');
+                    setTimeout(() => {
+                        tooltip.style.display = 'none';
+                    }, 200);
+                });
+                itemEl.addEventListener('mousemove', (e) => {
+                    const offsetX = 15;
+                    const offsetY = 15;
+                    const tooltipWidth = tooltip.offsetWidth || 250;
+                    const tooltipHeight = tooltip.offsetHeight || 150;
+                    let left = e.clientX + offsetX;
+                    let top = e.clientY + offsetY;
+                    if (left + tooltipWidth > window.innerWidth) {
+                        left = e.clientX - tooltipWidth - offsetX;
+                    }
+                    if (top + tooltipHeight > window.innerHeight) {
+                        top = e.clientY - tooltipHeight - offsetY;
+                    }
+                    tooltip.style.left = `${left}px`;
+                    tooltip.style.top = `${top}px`;
+                });
+            }
+            return itemEl;
+        }
+        // Render each equipment slot
+        for (const [slotId, slotData] of Object.entries(equipmentSlotConfig)) {
+            const slotCell = document.createElement('div');
+            slotCell.className = 'equipment-slot';
+            slotCell.style.gridColumn = `${slotData.x + 1} / span ${slotData.w}`;
+            slotCell.style.gridRow = `${slotData.y + 1} / span ${slotData.h}`;
+            slotCell.dataset.slotId = slotId;
+            slotCell.title = slotData.name;
+            // If there is an item for this slot, render it inside the slot
+            const item = itemBySlot[slotId];
+            if (item) {
+                slotCell.appendChild(createItemElement(item));
+            } else {
+                // Special logic for faded weapon ghosting
+                if (slotId === '11' && !itemBySlot['11'] && itemBySlot['10']) {
+                    slotCell.appendChild(createItemElement(itemBySlot['10'], true));
                 }
-
-                // Initial positioning
-                const rect = itemEl.getBoundingClientRect();
-                const tooltipWidth = tooltip.offsetWidth || 250;
-                const tooltipHeight = tooltip.offsetHeight || 150;
-
-                let left = e.clientX + 15;
-                let top = e.clientY + 15;
-
-                // Make sure tooltip doesn't go outside viewport
-                if (left + tooltipWidth > window.innerWidth) {
-                    left = e.clientX - tooltipWidth - 15;
+                if (slotId === '13' && !itemBySlot['13'] && itemBySlot['12']) {
+                    slotCell.appendChild(createItemElement(itemBySlot['12'], true));
                 }
-
-                if (top + tooltipHeight > window.innerHeight) {
-                    top = e.clientY - tooltipHeight - 15;
-                }
-
-                // Position the tooltip
-                tooltip.style.left = `${left}px`;
-                tooltip.style.top = `${top}px`;
-
-                // Use setTimeout to trigger animation after append
-                setTimeout(() => {
-                    tooltip.classList.add('visible');
-                }, 10);
-            });
-
-            itemEl.addEventListener('mouseleave', () => {
-                tooltip.classList.remove('visible');
-
-                // Hide after fade out animation completes
-                setTimeout(() => {
-                    tooltip.style.display = 'none';
-                }, 200);
-            });
-
-            itemEl.addEventListener('mousemove', (e) => {
-                // For fixed positioning, we need to use clientX/clientY coordinates directly
-                const offsetX = 15;
-                const offsetY = 15;
-
-                // Get dimensions for positioning logic
-                const tooltipWidth = tooltip.offsetWidth || 250;
-                const tooltipHeight = tooltip.offsetHeight || 150;
-
-                // Default position
-                let left = e.clientX + offsetX;
-                let top = e.clientY + offsetY;
-
-                // Make sure tooltip doesn't go outside viewport
-                if (left + tooltipWidth > window.innerWidth) {
-                    left = e.clientX - tooltipWidth - offsetX;
-                }
-
-                if (top + tooltipHeight > window.innerHeight) {
-                    top = e.clientY - tooltipHeight - offsetY;
-                }
-
-                // Position the tooltip
-                tooltip.style.left = `${left}px`;
-                tooltip.style.top = `${top}px`;
-            });
-
-            grid.appendChild(itemEl);
-        });
+            }
+            grid.appendChild(slotCell);
+        }
     }
 
     gridContainer.appendChild(grid);
