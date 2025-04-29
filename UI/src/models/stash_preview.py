@@ -234,7 +234,7 @@ class StashPreviewGenerator:
                 
                 # Paste the item
                 preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
-                logging.info(f"Placed equipment '{name}' at slot {item.slotId} ({x},{y})")
+                logging.debug(f"Placed equipment '{name}' at slot {item.slotId} ({x},{y})")
                 
                 # Draw item count if greater than 1
                 if item.itemCount > 1:
@@ -351,7 +351,7 @@ class StashPreviewGenerator:
                 item_img = item_img.resize(expected_size, Image.LANCZOS)
             
             preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
-            logging.info(f"Placed '{name}' (rarity {rarity}) at ({x},{y})")
+            logging.debug(f"Placed '{name}' (rarity {rarity}) at ({x},{y})")
             
             # Draw item count if greater than 1
             if item.itemCount > 1:
