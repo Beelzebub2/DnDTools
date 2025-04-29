@@ -857,13 +857,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 async function getMostRecentPrice(item) {
     const itemId = item.itemId;
-    
+
     // TODO: Add API key 
     const apiKey = "";
 
     const apiUrl = `https://api.darkerdb.com/v1/market/analytics/${itemId}/prices/history?interval=1h`;
 
     const headers = {
+        'Authorization': `Bearer ${apiKey}`,
         "X-Requested-With": "DnDTools"
     };
 
@@ -874,7 +875,7 @@ async function getMostRecentPrice(item) {
         }
 
         const data = await response.json();
-        
+
         if (data.body && data.body.length > 0) {
             const mostRecentPriceData = data.body[0];
             const mostRecentPrice = mostRecentPriceData.avg;
