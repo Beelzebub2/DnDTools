@@ -1,7 +1,7 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
 from src.models.game_data import item_data_manager
 import webview
-from flask import Flask, render_template, jsonify, request, send_from_directory, session
+from flask import Flask, render_template, jsonify, request, send_from_directory, session, redirect, url_for
 import os
 import threading
 from src.models.stash_manager import StashManager
@@ -11,6 +11,9 @@ import sys
 import logging
 from utils.logging_setup import setup_logging
 import secrets
+import subprocess
+import winreg
+import time
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -407,6 +410,8 @@ def api_set_current_stash(character_id, stash_id):
 
 @server.route('/')
 def index():
+    if not check_npcap_installed():
+        return redirect(url_for('installing'))
     return render_template('index.html')
 
 @server.route('/settings')
@@ -442,6 +447,18 @@ def serve_file(filename):
 def api_auto_resolution():
     from src.models.macros import get_game_resolution
     return jsonify({"resolution": get_game_resolution() or "Not detected"})
+
+@server.route('/api/restart', methods=['POST'])
+def api_restart():
+    import sys, os
+    import threading
+    def restart():
+        # Wait a moment to let the response finish
+        import time
+        time.sleep(0.5)
+        os.execl(sys.executable, sys.executable, *sys.argv)
+    threading.Thread(target=restart, daemon=True).start()
+    return '', 204
 
 def migrate_settings():
     """Migrate settings from old location to AppData if they exist"""
@@ -481,6 +498,65 @@ def background_init():
             api.window.evaluate_js(
                 f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
             )
+
+def check_npcap_installed():
+    """Check if Npcap/WinPcap is installed using Scapy's configuration"""
+    try:
+        import scapy.all as scapy
+        return bool(scapy.conf.use_pcap)
+    except Exception as e:
+        logger.error(f"Error checking Npcap installation: {str(e)}")
+        return False
+
+def install_npcap():
+    """Install Npcap using the bundled installer with admin privileges (UAC prompt)"""
+    try:
+        import win32com.shell.shell as shell  # type: ignore
+        from win32com.shell import shellcon  # type: ignore
+        import win32con
+        import time
+
+        npcap_installer = resource_path('npcap-1.82.exe')
+        if not os.path.exists(npcap_installer):
+            return False, "Npcap installer not found"
+
+        params = '/winpcap_mode=yes'  # Silent install
+        rc = shell.ShellExecuteEx(
+            lpVerb='runas',  # Request elevation
+            lpFile=npcap_installer,
+            lpParameters=params,
+            nShow=win32con.SW_HIDE,
+            fMask=shellcon.SEE_MASK_NOCLOSEPROCESS
+        )
+        process_handle = rc['hProcess']
+
+        # Wait for installation (timeout after 2 minutes)
+        from win32event import WaitForSingleObject, WAIT_OBJECT_0, WAIT_TIMEOUT
+        result = WaitForSingleObject(process_handle, 120 * 1000)
+        if result == WAIT_TIMEOUT:
+            return False, "Installation timed out"
+
+        # Give Windows a moment to complete registry updates
+        time.sleep(2)
+        # Always return success after installer runs
+        return True, "Installation complete!"
+    except Exception as e:
+        if hasattr(e, 'winerror') and e.winerror == 1223:
+            return False, "Installation cancelled by user"
+        return False, f"Installation failed: {str(e)}"
+
+@server.route('/installing')
+def installing():
+    return render_template('installing.html')
+
+@server.route('/api/check_npcap')
+def check_npcap():
+    return jsonify({'installed': check_npcap_installed()})
+
+@server.route('/api/install_npcap', methods=['POST'])
+def install_npcap_route():
+    success, message = install_npcap()
+    return jsonify({'success': success, 'error': message if not success else None})
 
 def main():
     logger.info("Starting DnDTools application")

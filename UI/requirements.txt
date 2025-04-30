@@ -7,3 +7,4 @@ keyboard
 psutil
 pygetwindow
 scapy
+pywin32
