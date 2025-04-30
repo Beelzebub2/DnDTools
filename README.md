@@ -34,7 +34,8 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 
 ## 📋 Requirements
 
-- Python 3.7+ [Download Python](https://www.python.org/downloads/)
+- Python 3.7+ [Download](https://www.python.org/downloads/)
+- WinPcap [Download](https://www.winpcap.org/)
 
 ## 🔧 Installation
 
