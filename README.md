@@ -93,7 +93,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## 🙏 Acknowledgments
 thanks to:
 - **Kokkor** on Discord for their help with protobuf and packet capture.
-- **Anders** on Discord for their help with this project and for allowing me to use custom models.
+- **Anders** on Discord for their help with this project and for allowing us to use custom models.
 - [Darkerdb](https://darkerdb.com/) for the amazing api.
 
 ## 📄 License
