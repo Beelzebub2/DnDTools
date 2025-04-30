@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block header %}Installing Prerequisites{% endblock %}
+
+{% block content %}
+<div class="install-container">
+    <div class="install-card">
+        <div class="install-header">
+            <h2>Installing Npcap</h2>
+            <p>This is required for packet capture functionality</p>
+        </div>
+        <div class="install-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill"></div>
+            </div>
+            <div class="status-text" id="status-text">Preparing installation...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/installing.js') }}"></script>
+{% endblock %}

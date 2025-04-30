@@ -1,0 +1,56 @@
+.install-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: calc(100vh - 60px);
+    padding: 20px;
+}
+
+.install-card {
+    background: var(--surface-color);
+    border-radius: 8px;
+    padding: 24px;
+    width: 100%;
+    max-width: 500px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.install-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.install-header h2 {
+    margin: 0 0 8px 0;
+    color: var(--text-color);
+}
+
+.install-header p {
+    margin: 0;
+    color: var(--text-secondary-color);
+}
+
+.install-progress {
+    margin-top: 24px;
+}
+
+.progress-bar {
+    height: 8px;
+    background: var(--surface-variant-color);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: var(--primary-color);
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+.status-text {
+    text-align: center;
+    color: var(--text-color);
+    font-size: 14px;
+}
