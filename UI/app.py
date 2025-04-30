@@ -11,9 +11,6 @@ import sys
 import logging
 from utils.logging_setup import setup_logging
 import secrets
-import subprocess
-import winreg
-import time
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
