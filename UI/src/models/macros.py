@@ -5,17 +5,23 @@ import re
 import ctypes
 import random
 from src.models.point import Point
+import pygetwindow as gw
+import win32gui
+
+
+# TODO find jump for all resolutions
 
 # Supported resolutions and their corresponding positions
 RESOLUTION_POSITIONS = {
-    (1920, 1080): {'stash': Point(1378, 199), 'inv': Point(690, 626)},
-    (1680, 1050): {'stash': Point(1207, 193), 'inv': Point(605, 608)},
-    (1440, 900):  {'stash': Point(1035, 165), 'inv': Point(518, 520)},
-    (1366, 768):  {'stash': Point(982, 120),  'inv': Point(492, 445)},
-    (1360, 768):  {'stash': Point(978, 120),  'inv': Point(490, 445)},
-    (1280, 800):  {'stash': Point(917, 140),  'inv': Point(458, 462)},
-    (1280, 768):  {'stash': Point(917, 120),  'inv': Point(458, 445)},
-    (1280, 720):  {'stash': Point(917, 110),  'inv': Point(458, 420)},
+    (1920, 1080): {'stash': Point(1378, 199), 'inv': Point(690, 626), 'jump': 40},
+    (1680, 1050): {'stash': Point(1207, 193), 'inv': Point(605, 608), 'jump': 40},
+    (1440, 900):  {'stash': Point(1035, 165), 'inv': Point(518, 520), 'jump': 40},
+    (1366, 768):  {'stash': Point(982, 120),  'inv': Point(492, 445), 'jump': 40},
+    (1360, 768):  {'stash': Point(978, 120),  'inv': Point(490, 445), 'jump': 40},
+    (1280, 800):  {'stash': Point(917, 140),  'inv': Point(458, 462), 'jump': 40},
+    (1280, 768):  {'stash': Point(917, 120),  'inv': Point(458, 445), 'jump': 40},
+    #(1280, 720):  {'stash': Point(917, 110),  'inv': Point(458, 420), 'jump': 27}, original values might need adjustment
+    (1280, 720):  {'stash': Point(918, 132),  'inv': Point(457, 416), 'jump': 27}, # this works on fullscrenn
 }
 
 # Windows API constants
@@ -23,6 +29,8 @@ MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_ABSOLUTE = 0x8000
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
+
+WINDOW_MODE = 2
 
 class POINT(ctypes.Structure):
     _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
@@ -96,6 +104,19 @@ def get_game_resolution():
         pass
     return None
 
+def get_game_window_mode():
+    config_path = os.path.expandvars(r'%LOCALAPPDATA%/DungeonCrawler/Saved/Config/Windows/GameUserSettings.ini')
+    try:
+        with open(config_path, 'r') as f:
+            content = f.read()
+            match = re.search(r'FullscreenMode=(\d+)', content)
+            if match:
+                mode = int(match.group(1))
+                return mode
+    except Exception:
+        pass
+    return None
+
 def get_current_resolution():
     from src.models.appdirs import get_settings_file
     settings_file = get_settings_file()
@@ -124,13 +145,42 @@ def get_current_resolution():
             pass
     return (1920, 1080)  # Default resolution
 
+def get_window_area_pos(window_title="Dark and Darker  "):
+    hwnd = win32gui.FindWindow(None, window_title)
+    if hwnd == 0:
+        print(f"No window found with title: '{window_title}'")
+        return None
+
+    # Get client area (content) coordinates relative to the screen
+    left, top = win32gui.ClientToScreen(hwnd, (0, 0))
+
+    # Get client area dimensions
+    rect = win32gui.GetClientRect(hwnd)
+    width = rect[2] - rect[0]
+    height = rect[3] - rect[1]
+
+    return (left, top, width, height)
+
 def get_screen_positions():
+    if get_game_window_mode() == WINDOW_MODE:
+        window_left, window_top, width, height = get_window_area_pos()
+        # (738, 151, 1280, 720)
+        res = get_current_resolution()
+        # (1280, 720)
+        if width == res[0] and height == res[1]:
+            base_pos = RESOLUTION_POSITIONS.get(res, RESOLUTION_POSITIONS[(1920, 1080)])
+            # {'stash': Point(917, 110), 'inv': Point(458, 420)}
+            stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
+            inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
+            positions = {'stash': stash,  'inv': inv, 'jump': base_pos["jump"]}
+            return positions
+    
     res = get_current_resolution()
     return RESOLUTION_POSITIONS.get(res, RESOLUTION_POSITIONS[(1920, 1080)])
 
-jump = 40
 stash_screen_pos = get_screen_positions()['stash']
 inv_screen_pos = get_screen_positions()['inv']
+jump = get_screen_positions()['jump']
 
 def get_sort_delay():
     """Get sort delay from settings"""

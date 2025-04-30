@@ -44,9 +44,9 @@ class Storage:
         if self.stash_type >= 4 and self.stash_type <= 30:
             self.width = 12
             self.height = 20
-            self.base_screen_pos = macros.stash_screen_pos
+            self.base_screen_pos = macros.get_screen_positions()['stash']
         elif self.stash_type == StashType.BAG.value:
-            self.base_screen_pos = macros.inv_screen_pos
+            self.base_screen_pos = macros.get_screen_positions()['inv']
             self.width = 10
             self.height = 5
         
