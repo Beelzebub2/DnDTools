@@ -1,0 +1,22 @@
+# .github/dependabot.yml
+
+version: 2
+updates:
+  # ✅ Python dependencies (e.g., requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/UI" # path where your requirements.txt is
+    schedule:
+      interval: "weekly" # or "daily", "monthly"
+    open-pull-requests-limit: 5
+    rebase-strategy: auto
+    labels:
+      - "dependencies"
+
+  # ✅ GitHub Actions dependencies (e.g., in your workflows)
+  - package-ecosystem: "github-actions"
+    directory: "/" # root where .github/workflows lives
+    schedule:
+      interval: "weekly"
+    labels:
+      - "ci"
+      - "dependencies"
