@@ -7,7 +7,7 @@ on:
       tag:
         description: 'Release tag (example: v1.0.0)'
         required: true
-        default: 'v1.0.0'
+        default: 'v2.0.0'
 
 permissions:
   contents: write
@@ -23,14 +23,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Cache pip dependencies
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('UI/requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+          cache: 'pip'
+          cache-dependency-path: UI/requirements.txt
 
       - name: Install Nuitka and dependencies
         run: |
@@ -80,9 +74,6 @@ jobs:
           tag_name: ${{ github.event.inputs.tag }}
           name: Release ${{ github.event.inputs.tag }}
           files: dist/DnDTools.exe
-          fail_on_unmatched_files: false  # Add this to avoid errors if release does not exist
+          fail_on_unmatched_files: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # If you need to use a PAT, add GH_PAT to your repo secrets and use:
-        # env:
-        #   GITHUB_TOKEN: ${{ secrets.GH_PAT }}
