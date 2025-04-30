@@ -269,15 +269,14 @@ window.addEventListener('load', async () => {
         }
     }, true); // Use capturing to intercept events before they reach the links
 
-    // Override the browser's beforeunload event
-    window.addEventListener('beforeunload', function (e) {
-        if (hasUnsavedChanges && !isHandlingNavigation) {
-            // Modern browsers require returning a value for the confirmation dialog to appear
-            e.preventDefault();
-            e.returnValue = '';
-            return '';
-        }
-    });
+    // Remove the beforeunload handler for unsaved changes
+    // window.addEventListener('beforeunload', function (e) {
+    //     if (hasUnsavedChanges && !isHandlingNavigation) {
+    //         e.preventDefault();
+    //         e.returnValue = '';
+    //         return '';
+    //     }
+    // });
 
     function showNotTestedWarning() {
         const warningBanner = document.getElementById('resolutionWarning');

@@ -294,25 +294,7 @@ class Api:
             self.is_maximized = True
 
     def close_window(self):
-        # Check if there are unsaved changes using JavaScript
-        result = self.window.evaluate_js('''
-            (function() {
-                if(window.hasUnsavedChanges && typeof window.createUnsavedChangesModal === "function") {
-                    window.createUnsavedChangesModal(
-                        function() { window.pywebview.api.force_close_window(); },
-                        function() { window.pywebview.api.force_close_window(); },
-                        function() { }
-                    );
-                    return false;
-                }
-                return true;
-            })()
-        ''')
-        
-        # If no unsaved changes (result is True), close the window immediately
-        if result:
-            self.force_close_window()
-        # Otherwise, the modal will handle closing when appropriate
+        self.force_close_window()
 
     def force_close_window(self):
         self.window.destroy()
