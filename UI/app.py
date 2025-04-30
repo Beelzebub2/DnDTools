@@ -1,5 +1,4 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
-from src.models.game_data import item_data_manager
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for
 import os
