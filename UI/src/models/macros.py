@@ -5,7 +5,6 @@ import re
 import ctypes
 import random
 from src.models.point import Point
-import pygetwindow as gw
 import win32gui
 
 
@@ -30,6 +29,13 @@ MOUSEEVENTF_ABSOLUTE = 0x8000
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
 
+# Virtual key codes
+VK_MENU = 0x12     # Alt key
+
+# Key event constants
+INPUT_KEYBOARD = 1
+KEYEVENTF_KEYUP = 0x0002
+
 WINDOW_MODE = 2
 
 class POINT(ctypes.Structure):
@@ -39,6 +45,13 @@ class MOUSEINPUT(ctypes.Structure):
     _fields_ = [("dx", ctypes.c_long),
                 ("dy", ctypes.c_long),
                 ("mouseData", ctypes.c_ulong),
+                ("dwFlags", ctypes.c_ulong),
+                ("time", ctypes.c_ulong),
+                ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
+
+class KEYBDINPUT(ctypes.Structure):
+    _fields_ = [("wVk", ctypes.c_ushort),
+                ("wScan", ctypes.c_ushort),
                 ("dwFlags", ctypes.c_ulong),
                 ("time", ctypes.c_ulong),
                 ("dwExtraInfo", ctypes.POINTER(ctypes.c_ulong))]
@@ -250,3 +263,18 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     time.sleep((DELAY / 4) + random.uniform(0, 0.03))
     mouse_up()
     time.sleep((DELAY / 2) + random.uniform(0, 0.04))
+
+def send_key(vk_code, key_up=False):
+    flags = KEYEVENTF_KEYUP if key_up else 0
+    key_input = INPUT(type=INPUT_KEYBOARD)
+    key_input.ki = KEYBDINPUT(
+        wVk=vk_code,
+        wScan=0,
+        dwFlags=flags,
+        time=0,
+        dwExtraInfo=None
+    )
+    SendInput(1, ctypes.byref(key_input), ctypes.sizeof(key_input))
+
+def send_alt_up():
+    send_key(VK_MENU, True)  # Alt up
