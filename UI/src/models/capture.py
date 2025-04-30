@@ -14,6 +14,7 @@ import time
 from .appdirs import get_data_dir, get_capture_state_file, is_frozen
 from scapy.all import sniff, TCP, IP
 from collections import defaultdict
+from src.models.protos import *
 
 # Add the absolute path to the protos directory
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -54,7 +55,7 @@ class PacketProtocol:
 
 class PacketCapture:
 
-    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), on_new_character=None):
+    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), on_new_character=None, capture_info={}):
         self.interface = interface
         self.port_range = port_range
         self.packet_data = b""
@@ -128,7 +129,8 @@ class PacketCapture:
                     self.logger.info(f"Full packet received: {current_size} bytes (Type={self.expected_proto_type})")
                     if self.verify_packet():
                         self.logger.info(f"Packet verified successfully (Type={self.expected_proto_type})")
-                        self.save_packet_data()
+                        self.handle_packet()
+                        #self.save_packet_data()
                         self.reset_state()
                         return True
                     else:
@@ -375,6 +377,10 @@ class PacketCapture:
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
             self.process_packet(packet.tcp.payload.binary_value)
+    
+    def handle_packet(self):
+        if self.expected_proto_type in self.capture_info:
+            self.capture_info[self.expected_proto_type]()
 
 def main():
     capture = PacketCapture()

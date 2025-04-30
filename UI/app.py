@@ -1,5 +1,6 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
 from src.models.game_data import item_data_manager
+from src.models.protos import *
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, session
 import os
@@ -76,11 +77,20 @@ class Api:
                 int(os.getenv('CAPTURE_PORT_HIGH', 20300))
             )
         }
+
         self.packet_capture = PacketCapture(
             interface=self.capture_settings['interface'],
             port_range=self.capture_settings['port_range'],
-            on_new_character=on_new_character_callback
+            on_new_character=on_new_character_callback,
         )
+
+        capture_info = {
+            S2C_LOBBY_CHARACTER_INFO_RES: self.packet_capture.handle_character,
+            S2C_ACCOUNT_CHARACTER_LIST_RES: self.packet_capture.handle_account_info,
+            C2S_INVENTORY_MOVE_REQ: self.packet_capture.validate_move
+        }
+        self.packet_capture.capture_info = capture_info
+
         self.capture_thread = None
         self.capture_running = self.packet_capture.running
         self._initial_restart_done = False
