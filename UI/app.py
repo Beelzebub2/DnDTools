@@ -537,10 +537,6 @@ def install_npcap_route():
     return jsonify({'success': success, 'error': message if not success else None})
 
 def main():
-    # from src.models.macros import get_screen_positions
-    # get_screen_positions()
-    # exit()
-
     logger.info("Starting DnDTools application")
     migrate_settings()
     if api.packet_capture.running and not api._initial_restart_done:
