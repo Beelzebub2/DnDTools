@@ -23,6 +23,7 @@ python -m nuitka ^
 --include-data-dir=UI\templates=templates ^
 --include-data-dir=UI\static=static ^
 --include-data-dir=UI\assets=assets ^
+--include-data-file=UI\assets\npcap-1.82.exe=assets/npcap-1.82.exe ^
 --output-dir=dist ^
 --enable-plugin=tk-inter ^
 --include-module=clr ^
