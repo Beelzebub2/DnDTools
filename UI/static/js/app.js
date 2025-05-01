@@ -159,33 +159,73 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
     document.getElementById('update-now-btn').onclick = async () => {
         const progress = document.getElementById('update-progress');
         progress.style.display = 'block';
+
+        // Show initial loading message
+        progress.textContent = 'Checking for update...';
+        progress.style.color = '#e4c869';
+
         if (window.pywebview && window.pywebview.api && window.pywebview.api.download_and_launch_update) {
+            // Use the built-in update function if available (desktop app mode)
             progress.textContent = 'Downloading and launching updater...';
             try {
                 const result = await window.pywebview.api.download_and_launch_update();
                 if (result && result.success) {
                     progress.textContent = 'Updater launched. This app will now close.';
+                    progress.style.color = '#4CAF50';
                 } else {
                     progress.textContent = 'Update failed: ' + (result && result.error ? result.error : 'Unknown error');
+                    progress.style.color = '#f44336';
+                    console.error('Update failed with result:', result);
                 }
             } catch (e) {
                 progress.textContent = 'Update failed: ' + e;
+                progress.style.color = '#f44336';
+                console.error('Exception during update:', e);
             }
         } else {
-            progress.innerHTML = `
-                <div style="text-align: left; margin-top: 8px;">
-                    <div style="margin-bottom: 6px;">Click the button below to download the update:</div>
-                    <a href="/api/download_update" download="DnDTools_new.exe" style="display:inline-block;background:#e4c869;color:#222;padding:8px 18px;border-radius:5px;text-decoration:none;font-weight:bold;margin-top:8px;">Download Update</a>
-                    <div style="margin-top: 8px; font-size: 12px; color: #aaa;">
-                        After download completes:
-                        <ol style="margin-top: 4px; padding-left: 20px;">
-                            <li>Close this application</li>
-                            <li>Run DnDTools_new.exe</li>
-                            <li>The new version will automatically replace the old one</li>
-                        </ol>
+            // Manual download mode
+            try {
+                // Try to fetch the update - this will trigger a download if successful
+                progress.textContent = 'Downloading update...';
+
+                const response = await fetch('/api/download_update');
+
+                if (!response.ok) {
+                    let errorMsg = 'Failed to download update';
+
+                    // Try to get more detailed error message from response
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                        console.error('Update failed with details:', errorData);
+                    } catch (jsonErr) {
+                        console.error('Could not parse error response', jsonErr);
+                    }
+
+                    progress.textContent = `Update failed: ${errorMsg}`;
+                    progress.style.color = '#f44336';
+                    return;
+                }
+
+                // If we reach here, the download started successfully
+                progress.innerHTML = `
+                    <div style="text-align: left; margin-top: 8px;">
+                        <div style="margin-bottom: 6px; color: #4CAF50;">✓ Update download started</div>
+                        <div style="margin-top: 8px; font-size: 12px; color: #aaa;">
+                            After download completes:
+                            <ol style="margin-top: 4px; padding-left: 20px;">
+                                <li>Close this application</li>
+                                <li>Run DnDTools_new.exe</li>
+                                <li>The new version will automatically replace the old one</li>
+                            </ol>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            } catch (e) {
+                progress.textContent = `Network error: ${e.message}`;
+                progress.style.color = '#f44336';
+                console.error('Fetch error during update:', e);
+            }
         }
     };
 }
