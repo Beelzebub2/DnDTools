@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import requests
 import io
+import tempfile
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -366,46 +367,94 @@ def download_github_release_asset(asset_url):
 
 @server.route('/api/download_update')
 def download_update():
-    """Download the latest release of DnDTools from GitHub."""
+    """Download the latest release of DnDTools from dndtools.me API, rate-limited to 10 times per hour."""
+    cache_file = os.path.join(tempfile.gettempdir(), 'dndtools_update_check_cache.json')
+    now = time.time()
+    cache_data = None
+    # Try to load cache
+    if os.path.exists(cache_file):
+        try:
+            with open(cache_file, 'r') as f:
+                cache_data = json.load(f)
+        except Exception:
+            cache_data = None
+    # If cache is valid (less than 6 minutes old), use it
+    if cache_data and 'timestamp' in cache_data and (now - cache_data['timestamp'] < 360):
+        if 'error' in cache_data:
+            return jsonify({'error': cache_data['error']}), cache_data.get('status', 400)
+        if 'file_data' in cache_data:
+            # Not caching binary, so just return error
+            return jsonify({'error': 'Update check rate-limited. Try again later.'}), 429
     try:
-        # Get latest release info
-        response = requests.get(
-            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
-            headers={'User-Agent': 'DnDTools-Updater'}
-        )
+        # Get latest release info from dndtools.me
+        response = requests.get('https://dndtools.me/api/github/latest-release', headers={'User-Agent': 'DnDTools-Updater'})
         if not response.ok:
+            cache = {'timestamp': now, 'error': 'Could not fetch release information', 'status': 400}
+            with open(cache_file, 'w') as f:
+                json.dump(cache, f)
             return jsonify({'error': 'Could not fetch release information'}), 400
-            
         release_data = response.json()
-        asset = next((a for a in release_data['assets'] if a['name'] == 'DnDTools.exe'), None)
-        
+        # Find DnDTools.exe asset
+        asset = None
+        for a in release_data.get('assets', []):
+            if a.get('name') == 'DnDTools.exe':
+                asset = a
+                break
         if not asset:
+            cache = {'timestamp': now, 'error': 'Could not find DnDTools.exe in the latest release', 'status': 404}
+            with open(cache_file, 'w') as f:
+                json.dump(cache, f)
             return jsonify({'error': 'Could not find DnDTools.exe in the latest release'}), 404
-            
         # Download the asset
         file_data = download_github_release_asset(asset['browser_download_url'])
         if not file_data:
+            cache = {'timestamp': now, 'error': 'Failed to download update', 'status': 500}
+            with open(cache_file, 'w') as f:
+                json.dump(cache, f)
             return jsonify({'error': 'Failed to download update'}), 500
-            
+        # Save only timestamp to cache (not binary)
+        cache = {'timestamp': now}
+        with open(cache_file, 'w') as f:
+            json.dump(cache, f)
         return send_file(
             file_data,
             as_attachment=True,
             download_name='DnDTools_new.exe',
             mimetype='application/octet-stream'
         )
-        
     except Exception as e:
         logger.error(f"Error downloading update: {str(e)}")
+        cache = {'timestamp': now, 'error': str(e), 'status': 500}
+        with open(cache_file, 'w') as f:
+            json.dump(cache, f)
         return jsonify({'error': str(e)}), 500
+
+@server.route('/api/version')
+def api_version():
+    """Get the latest version from dndtools.me API."""
+    try:
+        response = requests.get('https://dndtools.me/api/github/latest-release', headers={'User-Agent': 'DnDTools-Updater'})
+        if not response.ok:
+            return jsonify({'version': APP_VERSION, 'error': 'Could not fetch latest version'}), 400
+        release_data = response.json()
+        # Try to get version from html_url (e.g., .../releases/tag/v2.0.0)
+        html_url = release_data.get('html_url', '')
+        version = APP_VERSION
+        if '/tag/' in html_url:
+            version = html_url.split('/tag/')[-1]
+        return jsonify({'version': version})
+    except Exception as e:
+        return jsonify({'version': APP_VERSION, 'error': str(e)}), 500
+
+@server.route('/api/local_version')
+def api_local_version():
+    """Return the local version of the app."""
+    return jsonify({'version': APP_VERSION})
 
 # Initialize API
 api = Api()
 
 # JSON API endpoint
-@server.route('/api/version')
-def api_version():
-    return jsonify({"version": APP_VERSION})
-
 @server.route('/api/characters')
 def api_characters():
     return jsonify(api.get_characters())

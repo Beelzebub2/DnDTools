@@ -94,19 +94,18 @@ document.addEventListener('DOMContentLoaded', () => {
 async function checkForUpdates() {
     try {
         // Fetch local version
-        const localRes = await fetch('/api/version');
+        const localRes = await fetch('/api/local_version');
         const localData = await localRes.json();
         const localVersion = localData.version;
 
-        // Fetch latest release info from GitHub API
-        const apiUrl = 'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest';
-        const remoteRes = await fetch(apiUrl, { cache: 'no-store' });
-        if (!remoteRes.ok) return;
-        const releaseData = await remoteRes.json();
-        const remoteVersion = (releaseData.tag_name || '').replace(/^v/, '').trim();
+        // Fetch latest online version
+        const remoteRes = await fetch('/api/version');
+        const remoteData = await remoteRes.json();
+        const remoteVersion = (remoteData.version || '').replace(/^v/, '').trim();
+        const releaseUrl = remoteData.release_url || 'https://github.com/Beelzebub2/DnDTools/releases/latest';
 
         if (remoteVersion && isNewerVersion(remoteVersion, localVersion)) {
-            showUpdatePopup(remoteVersion, localVersion, releaseData.html_url);
+            showUpdatePopup(remoteVersion, localVersion, releaseUrl);
         }
     } catch (e) {
         // Silently ignore update check errors
