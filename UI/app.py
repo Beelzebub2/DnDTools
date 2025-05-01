@@ -10,12 +10,15 @@ import sys
 import logging
 from utils.logging_setup import setup_logging
 import secrets
+import time
+import shutil
+import subprocess
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "1.0.0"
 
 # Initialize logging first
 setup_logging()
@@ -297,6 +300,23 @@ class Api:
     def force_close_window(self):
         self.window.destroy()
 
+    def get_executable_path(self):
+        """Return the path to the current executable."""
+        import sys
+        return sys.executable
+
+    def launch_updater(self, new_exe_path, old_exe_path):
+        """Launch the new exe with /update <old_exe_path> and exit."""
+        import os, subprocess
+        try:
+            subprocess.Popen([os.path.abspath(new_exe_path), "/update", os.path.abspath(old_exe_path)])
+            if self.window:
+                self.window.destroy()
+            os._exit(0)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        return {"success": True}
+
 # Initialize API
 api = Api()
 
@@ -543,6 +563,27 @@ def install_npcap_route():
     return jsonify({'success': success, 'error': message if not success else None})
 
 def main():
+    # --- Updater logic ---
+    if len(sys.argv) >= 3 and sys.argv[1] == "/update":
+        old_exe = sys.argv[2]
+        new_exe = sys.executable  # Path to the running updater exe
+        time.sleep(1.5)
+        try:
+            if os.path.exists(old_exe):
+                os.remove(old_exe)
+        except Exception as e:
+            logger.error(f"Failed to remove old exe: {e}")
+        try:
+            # Move self to old path
+            shutil.move(new_exe, old_exe)
+            # Relaunch from the old path
+            subprocess.Popen([old_exe])
+            sys.exit(0)
+        except Exception as e:
+            logger.error(f"Failed to move or relaunch exe: {e}")
+            time.sleep(3)
+            sys.exit(1)
+    # --- End updater logic ---
     logger.info("Starting DnDTools application")
     migrate_settings()
     if api.packet_capture.running and not api._initial_restart_done:
@@ -571,6 +612,8 @@ def main():
     window.expose(api.set_capture_settings)
     window.expose(api.get_character_stash_previews)
     window.expose(api.get_capture_state)
+    window.expose(api.get_executable_path)
+    window.expose(api.launch_updater)
     api.set_window(window)
     def on_loaded():
         api.set_initial_window_state()

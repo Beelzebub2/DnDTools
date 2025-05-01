@@ -148,12 +148,68 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
             </div>
         </div>
         <div style="margin-top:10px;text-align:right;">
-            <a href="${releaseUrl || 'https://github.com/Beelzebub2/DnDTools/releases'}" target="_blank" style="color:#e4c869;text-decoration:underline;font-size:14px;">Download Update</a>
+            <a href="${releaseUrl || 'https://github.com/Beelzebub2/DnDTools/releases'}" target="_blank" style="color:#e4c869;text-decoration:underline;font-size:14px;">Download Page</a>
+            <button id="update-now-btn" style="margin-left:10px;background:#e4c869;color:#222;border:none;padding:6px 16px;border-radius:5px;cursor:pointer;font-size:14px;">Update Now</button>
             <button id="close-update-popup" style="margin-left:10px;background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;">✕</button>
         </div>
+        <div id="update-progress" style="margin-top:10px;font-size:13px;display:none;"></div>
     `;
     document.body.appendChild(popup);
     document.getElementById('close-update-popup').onclick = () => popup.remove();
+
+    document.getElementById('update-now-btn').onclick = async () => {
+        const progress = document.getElementById('update-progress');
+        progress.style.display = 'block';
+        progress.textContent = 'Fetching latest release...';
+        try {
+            // Get latest release info
+            const apiUrl = 'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest';
+            const res = await fetch(apiUrl, { cache: 'no-store' });
+            const release = await res.json();
+            const asset = (release.assets || []).find(a => a.name === 'DnDTools.exe');
+            if (!asset) {
+                progress.textContent = 'Could not find DnDTools.exe in the latest release.';
+                return;
+            }
+            progress.textContent = 'Downloading update...';
+            // Download the file
+            const downloadRes = await fetch(asset.browser_download_url);
+            if (!downloadRes.ok) {
+                progress.textContent = 'Failed to download update.';
+                return;
+            }
+            const blob = await downloadRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'DnDTools_new.exe';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                window.URL.revokeObjectURL(url);
+                a.remove();
+            }, 1000);
+            progress.textContent = 'Update downloaded as DnDTools_new.exe. Attempting to launch updater...';
+            // Try to launch the updater if running in pywebview
+            if (window.pywebview && window.pywebview.api && window.pywebview.api.launch_updater) {
+                try {
+                    // Get current exe path from backend
+                    const exePath = await window.pywebview.api.get_executable_path();
+                    await window.pywebview.api.launch_updater('DnDTools_new.exe', exePath);
+                    progress.textContent = 'Updater launched. The app will now close.';
+                    setTimeout(() => {
+                        if (window.pywebview.api.close_window) window.pywebview.api.close_window();
+                    }, 1500);
+                } catch (e) {
+                    progress.textContent = 'Failed to launch updater automatically. Please close the app and run DnDTools_new.exe manually.';
+                }
+            } else {
+                progress.textContent = 'Update downloaded as DnDTools_new.exe. Please close the app and run DnDTools_new.exe to complete the update.';
+            }
+        } catch (e) {
+            progress.textContent = 'Error downloading update: ' + e;
+        }
+    };
 }
 
 document.addEventListener('DOMContentLoaded', () => {
