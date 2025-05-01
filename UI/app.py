@@ -1,6 +1,6 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
 import webview
-from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for
+from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file
 import os
 import threading
 from src.models.stash_manager import StashManager
@@ -13,6 +13,8 @@ import secrets
 import time
 import shutil
 import subprocess
+import requests
+import io
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -317,6 +319,85 @@ class Api:
             return {"success": False, "error": str(e)}
         return {"success": True}
 
+    def download_and_launch_update(self):
+        """
+        Download the latest release exe to a temp file, then launch it with /update <current_path>.
+        """
+        import requests, sys, os, subprocess, tempfile
+        response = requests.get(
+            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
+            headers={'User-Agent': 'DnDTools-Updater'}
+        )
+        if not response.ok:
+            return {"success": False, "error": "Could not fetch release information"}
+        release_data = response.json()
+        asset = next((a for a in release_data['assets'] if a['name'] == 'DnDTools.exe'), None)
+        if not asset:
+            return {"success": False, "error": "Could not find DnDTools.exe in the latest release"}
+        temp_dir = tempfile.gettempdir()
+        new_exe_path = os.path.join(temp_dir, "DnDTools_new.exe")
+        r = requests.get(asset['browser_download_url'], headers={'User-Agent': 'DnDTools-Updater'}, stream=True)
+        if not r.ok:
+            return {"success": False, "error": "Failed to download update"}
+        with open(new_exe_path, "wb") as f:
+            for chunk in r.iter_content(chunk_size=8192):
+                if chunk:
+                    f.write(chunk)
+        current_path = sys.executable
+        try:
+            subprocess.Popen([new_exe_path, "/update", current_path])
+            if self.window:
+                self.window.destroy()
+            os._exit(0)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+        return {"success": True}
+
+def download_github_release_asset(asset_url):
+    """Download a GitHub release asset and return it as a file-like object."""
+    headers = {
+        'Accept': 'application/octet-stream',
+        'User-Agent': 'DnDTools-Updater'
+    }
+    response = requests.get(asset_url, headers=headers, stream=True)
+    if response.ok:
+        return io.BytesIO(response.content)
+    return None
+
+@server.route('/api/download_update')
+def download_update():
+    """Download the latest release of DnDTools from GitHub."""
+    try:
+        # Get latest release info
+        response = requests.get(
+            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
+            headers={'User-Agent': 'DnDTools-Updater'}
+        )
+        if not response.ok:
+            return jsonify({'error': 'Could not fetch release information'}), 400
+            
+        release_data = response.json()
+        asset = next((a for a in release_data['assets'] if a['name'] == 'DnDTools.exe'), None)
+        
+        if not asset:
+            return jsonify({'error': 'Could not find DnDTools.exe in the latest release'}), 404
+            
+        # Download the asset
+        file_data = download_github_release_asset(asset['browser_download_url'])
+        if not file_data:
+            return jsonify({'error': 'Failed to download update'}), 500
+            
+        return send_file(
+            file_data,
+            as_attachment=True,
+            download_name='DnDTools_new.exe',
+            mimetype='application/octet-stream'
+        )
+        
+    except Exception as e:
+        logger.error(f"Error downloading update: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # Initialize API
 api = Api()
 
@@ -614,6 +695,7 @@ def main():
     window.expose(api.get_capture_state)
     window.expose(api.get_executable_path)
     window.expose(api.launch_updater)
+    window.expose(api.download_and_launch_update)
     api.set_window(window)
     def on_loaded():
         api.set_initial_window_state()
