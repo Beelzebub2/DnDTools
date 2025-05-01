@@ -15,9 +15,8 @@ class StashManager:
     def __init__(self, resource_dir: str):
         self.data_dir = get_data_dir()
         self.output_dir = get_output_dir()
-        # Ensure directories exist
+        # Only ensure data directory exists, not output directory
         os.makedirs(self.data_dir, exist_ok=True)
-        os.makedirs(self.output_dir, exist_ok=True)
         
         self.characters_cache = {}
         self._load_data()
@@ -203,22 +202,14 @@ class StashManager:
         return output
 
     def get_character_stash_previews(self, character_id):
-        """Get preview images and detailed item data for all stashes of a character"""
+        """Get detailed item data for all stashes of a character without generating image previews"""
         stashes = self.get_character_stashes(character_id)
-        preview_paths = {}
+        preview_paths = {}  # Keep empty dictionary for backward compatibility
         stash_data = {}
         
         for stash_id, items in stashes.items():
             try:
-                # Create image previews for backward compatibility
-                item_infos = [ItemInfo(**item) for item in items]
-                preview = self.preview_generator.generate_preview(stash_id, item_infos)
-                outname = f"stash_preview_{character_id}_{stash_id}.png"
-                outpath = os.path.join(self.output_dir, outname)
-                preview.save(outpath)
-                preview_paths[stash_id] = f"/output/{outname}"
-                
-                # Create enhanced data for interactive grid rendering
+                # Create enhanced data for interactive grid rendering only
                 enhanced_items = []
                 for item in items:
                     try:
@@ -283,6 +274,8 @@ class StashManager:
                         })
                         
                 stash_data[stash_id] = enhanced_items
+                # Add a placeholder path for backward compatibility
+                preview_paths[stash_id] = "/static/img/placeholder.png"
             except Exception as e:
                 print(f"Error processing stash {stash_id}: {str(e)}")
                 import traceback
@@ -290,7 +283,7 @@ class StashManager:
                 preview_paths[stash_id] = "/static/img/error.png"  # Fallback image
                 stash_data[stash_id] = []  # Empty stash data as fallback
         
-        # Return both the image paths (for backward compatibility) and the enhanced data
+        # Return both the placeholder paths (for backward compatibility) and the enhanced data
         response = {
             'previewImages': preview_paths,
             'stashData': stash_data

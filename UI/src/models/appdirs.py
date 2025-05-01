@@ -36,7 +36,6 @@ def get_data_dir():
 
 def get_output_dir():
     output_dir = os.path.join(get_appdata_dir(), 'output')
-    os.makedirs(output_dir, exist_ok=True)
     return output_dir
 
 def get_logs_dir():

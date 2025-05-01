@@ -92,7 +92,7 @@ async function performRestart() {
 
         // Fallback to standard API endpoint
         await fetch('/api/restart', { method: 'POST' });
-        
+
         // Give the server a moment to initiate restart
         setTimeout(() => {
             // If we're still here after 2 seconds, try to reload
