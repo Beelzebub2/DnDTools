@@ -31,6 +31,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install nuitka
           pip install -r UI/requirements.txt
+        
+      - name: Update APP_VERSION in app.py
+        shell: pwsh
+        run: |
+          $tag = '${{ github.event.inputs.tag }}'
+          $version = $tag.TrimStart('v')
+          (Get-Content UI/app.py) -replace 'APP_VERSION = ".*"', "APP_VERSION = `"$version`"" | Set-Content UI/app.py
 
       - name: Build executable with Nuitka
         shell: cmd
@@ -59,6 +66,7 @@ jobs:
           --include-data-dir=UI\assets=assets ^
           --output-dir=dist ^
           --enable-plugin=tk-inter ^
+          --enable-plugin=pythonnet ^
           --remove-output ^
           --assume-yes-for-downloads ^
           --nofollow-import-to=tkinter ^

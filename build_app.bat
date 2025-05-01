@@ -25,6 +25,7 @@ python -m nuitka ^
 --include-data-dir=UI\assets=assets ^
 --output-dir=dist ^
 --enable-plugin=tk-inter ^
+--enable-plugin=pythonnet ^
 --remove-output ^
 --assume-yes-for-downloads ^
 --enable-plugin=no-qt ^
