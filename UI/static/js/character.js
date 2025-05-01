@@ -326,6 +326,7 @@ const renderInteractiveGrid = async (stashId, items) => {
                         extraInfoSection.textContent = 'Estimated Price: Loading...';
 
                         // Fetch the most recent price asynchronously
+                        /*
                         getMostRecentPrice(item).then(price => {
                             // Update the tooltip with the fetched price once available
                             if (extraInfoSection) {
@@ -337,6 +338,9 @@ const renderInteractiveGrid = async (stashId, items) => {
                                 extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;;
                             }
                         });
+                        */
+                        // Price prediction temporarily disabled
+                        extraInfoSection.textContent = 'Estimated Price: (Soon)';
                     }
 
                     // Initial positioning
@@ -474,6 +478,7 @@ const renderInteractiveGrid = async (stashId, items) => {
                     const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
                     if (extraInfoSection) {
                         extraInfoSection.textContent = 'Estimated Price: Loading...';
+                        /*
                         getMostRecentPrice(item).then(price => {
                             if (extraInfoSection) {
                                 extraInfoSection.textContent = `Estimated Price: ${price}g`;
@@ -483,6 +488,8 @@ const renderInteractiveGrid = async (stashId, items) => {
                                 extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;
                             }
                         });
+                        */
+                        extraInfoSection.textContent = 'Estimated Price: (disabled)';
                     }
                     const rect = itemEl.getBoundingClientRect();
                     const tooltipWidth = tooltip.offsetWidth || 250;
@@ -945,6 +952,9 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 
 async function getMostRecentPrice(item) {
+    // Price prediction temporarily disabled
+    return '(disabled)';
+    /*
     const itemId = item.itemId;
 
     // TODO: Add API key 
@@ -975,4 +985,5 @@ async function getMostRecentPrice(item) {
     } catch (error) {
         throw error;
     }
+    */
 }

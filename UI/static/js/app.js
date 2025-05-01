@@ -148,12 +148,47 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
             </div>
         </div>
         <div style="margin-top:10px;text-align:right;">
-            <a href="${releaseUrl || 'https://github.com/Beelzebub2/DnDTools/releases'}" target="_blank" style="color:#e4c869;text-decoration:underline;font-size:14px;">Download Update</a>
+            <a href="${releaseUrl}" target="_blank" style="color:#e4c869;text-decoration:underline;font-size:14px;">Release Page</a>
+            <button id="update-now-btn" style="margin-left:10px;background:#e4c869;color:#222;border:none;padding:6px 16px;border-radius:5px;cursor:pointer;font-size:14px;">Update Now</button>
             <button id="close-update-popup" style="margin-left:10px;background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;">✕</button>
         </div>
+        <div id="update-progress" style="margin-top:10px;font-size:13px;display:none;"></div>
     `;
     document.body.appendChild(popup);
     document.getElementById('close-update-popup').onclick = () => popup.remove();
+
+    document.getElementById('update-now-btn').onclick = async () => {
+        const progress = document.getElementById('update-progress');
+        progress.style.display = 'block';
+        if (window.pywebview && window.pywebview.api && window.pywebview.api.download_and_launch_update) {
+            progress.textContent = 'Downloading and launching updater...';
+            try {
+                const result = await window.pywebview.api.download_and_launch_update();
+                if (result && result.success) {
+                    progress.textContent = 'Updater launched. This app will now close.';
+                } else {
+                    progress.textContent = 'Update failed: ' + (result && result.error ? result.error : 'Unknown error');
+                }
+            } catch (e) {
+                progress.textContent = 'Update failed: ' + e;
+            }
+        } else {
+            progress.innerHTML = `
+                <div style="text-align: left; margin-top: 8px;">
+                    <div style="margin-bottom: 6px;">Click the button below to download the update:</div>
+                    <a href="/api/download_update" download="DnDTools_new.exe" style="display:inline-block;background:#e4c869;color:#222;padding:8px 18px;border-radius:5px;text-decoration:none;font-weight:bold;margin-top:8px;">Download Update</a>
+                    <div style="margin-top: 8px; font-size: 12px; color: #aaa;">
+                        After download completes:
+                        <ol style="margin-top: 4px; padding-left: 20px;">
+                            <li>Close this application</li>
+                            <li>Run DnDTools_new.exe</li>
+                            <li>The new version will automatically replace the old one</li>
+                        </ol>
+                    </div>
+                </div>
+            `;
+        }
+    };
 }
 
 document.addEventListener('DOMContentLoaded', () => {

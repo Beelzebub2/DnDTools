@@ -8,3 +8,4 @@ psutil
 pygetwindow
 scapy
 pywin32
+requests
