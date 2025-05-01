@@ -661,14 +661,40 @@ def install_npcap_route():
     success, message = install_npcap()
     return jsonify({'success': success, 'error': message if not success else None})
 
+# Cache for market price data
+market_price_cache = {}
+PRICE_CACHE_EXPIRY = 600  # 10 minutes in seconds
+
 @server.route('/api/market/price/<item_id>')
 def proxy_market_price(item_id):
     """Proxy endpoint to fetch market price from dndtools.me and avoid CORS issues."""
+    global market_price_cache
+    current_time = time.time()
+    
+    # Check if we have a cached response that's still valid
+    if item_id in market_price_cache:
+        cached_data = market_price_cache[item_id]
+        if current_time - cached_data['timestamp'] < PRICE_CACHE_EXPIRY:
+            return jsonify(cached_data['data'])
+    
+    # No valid cache, fetch from API
     try:
         url = f'https://dndtools.me/api/market/price/{item_id}'
         headers = {"X-Requested-With": "DnDTools"}
         resp = requests.get(url, headers=headers, timeout=5)
-        return (resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'application/json')})
+        
+        if resp.ok:
+            # Parse JSON to ensure it's valid before caching
+            data = resp.json()
+            # Store in cache with timestamp
+            market_price_cache[item_id] = {
+                'timestamp': current_time,
+                'data': data
+            }
+            return jsonify(data)
+        else:
+            # Return error response without caching
+            return (resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'application/json')})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

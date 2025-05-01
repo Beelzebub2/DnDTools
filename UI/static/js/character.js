@@ -283,124 +283,49 @@ const renderInteractiveGrid = async (stashId, items) => {
                     itemEl.appendChild(countBadge);
                 }
 
-                // Create tooltip (hidden until hover)
-                const tooltip = document.createElement('div');
-                tooltip.className = 'item-tooltip';
-
-                // Build tooltip content with a placeholder
-                tooltip.innerHTML = `
-                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
-                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
-                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props">
-                            ${formatPrimaryProps(item.pp)}
-                        </div>
-                        <div class="tooltip-section secondary-props">
-                            ${formatSecondaryProps(item.sp)}
-                        </div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                            Estimated Price: Loading...
-                        </div>
-                    </div>
-                `;
-
-                // Attach tooltip to item
-                itemEl.appendChild(tooltip);
-
-                // Mouse event handlers for tooltip positioning
+                itemEl.removeAttribute('title');
                 itemEl.addEventListener('mouseenter', (e) => {
-                    // Get tooltip and ensure it's visible but starting with opacity 0
-                    tooltip.style.display = 'block';
-
-                    // Move tooltip to body to avoid any potential containment issues
-                    document.body.appendChild(tooltip);
-
-                    // When item is hovered, load extra info asynchronously
+                    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+                    // Build tooltip HTML
+                    const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+                    let html = `
+                        <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+                            <div class="tooltip-name">${item.name || 'Unknown'}</div>
+                            <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
+                        </div>
+                        <div class="tooltip-body">
+                            <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
+                            <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
+                        </div>
+                        <div class="tooltip-body">
+                            <div class="tooltip-section primary-props" id="extra-info-placeholder">Estimated Price: Loading...</div>
+                        </div>
+                    `;
+                    showGlobalTooltip(html, e.clientX, e.clientY);
+                    // Fetch price info
+                    const tooltip = globalTooltip;
                     const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
                     if (extraInfoSection) {
-                        extraInfoSection.textContent = 'Estimated Price: Loading...';
                         getMostRecentPrice(item).then(price => {
                             if (typeof price === 'object' && price !== null) {
-                                // If getMostRecentPrice is updated to return the full object
                                 const avg = price.average !== undefined ? price.average : 'No Info';
                                 const med = price.median !== undefined ? price.median : 'No Info';
                                 extraInfoSection.textContent = `Estimated Price: Avg ${avg}g, Median ${med}g`;
                             } else {
-                                // If getMostRecentPrice returns just a number
                                 extraInfoSection.textContent = `Estimated Price: ${price}g`;
                             }
                         }).catch(error => {
-                            if (extraInfoSection) {
-                                extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;
-                            }
+                            extraInfoSection.textContent = 'Estimated Price: No Data Available';
                         });
                     }
-
-                    // Initial positioning
-                    const rect = itemEl.getBoundingClientRect();
-                    const tooltipWidth = tooltip.offsetWidth || 250;
-                    const tooltipHeight = tooltip.offsetHeight || 150;
-
-                    let left = e.clientX + 15;
-                    let top = e.clientY + 15;
-
-                    // Make sure tooltip doesn't go outside viewport
-                    if (left + tooltipWidth > window.innerWidth) {
-                        left = e.clientX - tooltipWidth - 15;
-                    }
-
-                    if (top + tooltipHeight > window.innerHeight) {
-                        top = e.clientY - tooltipHeight - 15;
-                    }
-
-                    // Position the tooltip
-                    tooltip.style.left = `${left}px`;
-                    tooltip.style.top = `${top}px`;
-
-                    // Use setTimeout to trigger animation after append
-                    setTimeout(() => {
-                        tooltip.classList.add('visible');
-                    }, 10);
                 });
-
-                itemEl.addEventListener('mouseleave', () => {
-                    tooltip.classList.remove('visible');
-
-                    // Hide after fade out animation completes
-                    setTimeout(() => {
-                        tooltip.style.display = 'none';
-                    }, 200);
-                });
-
                 itemEl.addEventListener('mousemove', (e) => {
-                    // For fixed positioning, we need to use clientX/clientY coordinates directly
-                    const offsetX = 15;
-                    const offsetY = 15;
-
-                    // Get dimensions for positioning logic
-                    const tooltipWidth = tooltip.offsetWidth || 250;
-                    const tooltipHeight = tooltip.offsetHeight || 150;
-
-                    // Default position
-                    let left = e.clientX + offsetX;
-                    let top = e.clientY + offsetY;
-
-                    // Make sure tooltip doesn't go outside viewport
-                    if (left + tooltipWidth > window.innerWidth) {
-                        left = e.clientX - tooltipWidth - offsetX;
+                    if (globalTooltip && globalTooltip.style.display === 'block') {
+                        showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
                     }
-
-                    if (top + tooltipHeight > window.innerHeight) {
-                        top = e.clientY - tooltipHeight - offsetY;
-                    }
-
-                    // Position the tooltip
-                    tooltip.style.left = `${left}px`;
-                    tooltip.style.top = `${top}px`;
+                });
+                itemEl.addEventListener('mouseleave', () => {
+                    hideGlobalTooltip();
                 });
 
                 grid.appendChild(itemEl);
@@ -540,7 +465,6 @@ const renderInteractiveGrid = async (stashId, items) => {
             slotCell.style.gridColumn = `${slotData.x + 1} / span ${slotData.w}`;
             slotCell.style.gridRow = `${slotData.y + 1} / span ${slotData.h}`;
             slotCell.dataset.slotId = slotId;
-            slotCell.title = slotData.name;
             // If there is an item for this slot, render it inside the slot
             const item = itemBySlot[slotId];
             if (item) {
@@ -951,10 +875,21 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
 
 
+// Global price cache object to store results
+const priceCache = {};
+const PRICE_CACHE_EXPIRY = 600000; // 10 minutes in milliseconds
+
 async function getMostRecentPrice(item) {
     const itemId = item.itemId;
 
-    // Use our Flask proxy endpoint to avoid CORS issues
+    // Check client-side cache first
+    const now = Date.now();
+    if (priceCache[itemId] && now - priceCache[itemId].timestamp < PRICE_CACHE_EXPIRY) {
+        console.log(`Using cached price for ${itemId}`);
+        return priceCache[itemId].data;
+    }
+
+    // No valid cache entry, use our Flask proxy endpoint
     const apiUrl = `/api/market/price/${itemId}`;
 
     try {
@@ -965,8 +900,12 @@ async function getMostRecentPrice(item) {
 
         const data = await response.json();
 
-        // Return the full data object for more flexibility in the UI
+        // Cache the result with timestamp
         if (data && data.success) {
+            priceCache[itemId] = {
+                timestamp: now,
+                data: data
+            };
             return data; // Return the entire data object
         } else {
             return "No Info";
@@ -975,4 +914,45 @@ async function getMostRecentPrice(item) {
         console.error('Error fetching price:', error);
         return "Error";
     }
+}
+
+// --- GLOBAL TOOLTIP SINGLETON ---
+let globalTooltip = null;
+let tooltipHideTimeout = null;
+
+function getOrCreateGlobalTooltip() {
+    if (!globalTooltip) {
+        globalTooltip = document.createElement('div');
+        globalTooltip.className = 'item-tooltip';
+        document.body.appendChild(globalTooltip);
+    }
+    return globalTooltip;
+}
+
+function showGlobalTooltip(html, x, y) {
+    const tooltip = getOrCreateGlobalTooltip();
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    tooltip.classList.add('visible');
+    // Position
+    const tooltipWidth = tooltip.offsetWidth || 250;
+    const tooltipHeight = tooltip.offsetHeight || 150;
+    let left = x + 15;
+    let top = y + 15;
+    if (left + tooltipWidth > window.innerWidth) left = x - tooltipWidth - 15;
+    if (top + tooltipHeight > window.innerHeight) top = y - tooltipHeight - 15;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+function hideGlobalTooltip(delay = 100) {
+    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = setTimeout(() => {
+        if (globalTooltip) {
+            globalTooltip.classList.remove('visible');
+            setTimeout(() => {
+                if (globalTooltip) globalTooltip.style.display = 'none';
+            }, 200);
+        }
+    }, delay);
 }
