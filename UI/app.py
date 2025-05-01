@@ -15,6 +15,8 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
+APP_VERSION = "2.0.0"
+
 # Initialize logging first
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -298,7 +300,11 @@ class Api:
 # Initialize API
 api = Api()
 
-# JSON API endpoints
+# JSON API endpoint
+@server.route('/api/version')
+def api_version():
+    return jsonify({"version": APP_VERSION})
+
 @server.route('/api/characters')
 def api_characters():
     return jsonify(api.get_characters())
