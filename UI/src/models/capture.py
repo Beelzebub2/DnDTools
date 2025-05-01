@@ -89,11 +89,6 @@ if is_frozen():
     # Replace the subprocess.Popen with our modified version
     subprocess.Popen = hidden_popen
 
-class PacketProtocol:
-    @staticmethod
-    def is_valid_type(proto_type: int) -> bool:
-        return proto_type in _PacketCommand_pb2.PacketCommand.values()
-
 class PacketCapture:
 
     def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), on_new_character=None, capture_info={}):
@@ -112,7 +107,8 @@ class PacketCapture:
         self.capture_thread = None
         self.on_new_character = on_new_character
         self.tcp_stream_buffers = defaultdict(bytes)  # key: (src_ip, src_port, dst_ip, dst_port)
-        
+        self.capture_info = {}
+
         # Restore state but don't start capture automatically
         saved_state = self._restore_state()
         if saved_state.get('running', False):
@@ -132,7 +128,7 @@ class PacketCapture:
         valid_packet_range = (100, 2 * 1024 * 1024)  # Between 100 bytes and 2MB
         return (
             valid_packet_range[0] <= length <= valid_packet_range[1] and
-            PacketProtocol.is_valid_type(proto_type) and
+            proto_type in self.capture_info and 
             padding in [0, 256]  # Common padding values
         )
 
@@ -330,7 +326,6 @@ class PacketCapture:
                     self.capture_info[self.expected_proto_type](message)
             else:
                 print("No handle for:", self.expected_proto_type)
-
 
 def main():
     capture = PacketCapture()

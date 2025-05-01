@@ -91,7 +91,10 @@ class Api:
         capture_info = {
             S2C_LOBBY_CHARACTER_INFO_RES: self.packet_capture.handle_character,
             S2C_ACCOUNT_CHARACTER_LIST_RES: self.packet_capture.handle_account_info,
-            C2S_INVENTORY_MOVE_REQ: validate_move
+            S2C_INVENTORY_MOVE_RES: validate_move,
+            S2C_INVENTORY_SWAP_RES: validate_move,
+            S2C_INVENTORY_MERGE_RES: validate_move,
+            S2C_STORAGE_INFO_RES: validate_move,
         }
         self.packet_capture.capture_info = capture_info
 
