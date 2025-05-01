@@ -14,16 +14,63 @@ import time
 from .appdirs import get_data_dir, get_capture_state_file, is_frozen
 from scapy.all import sniff, TCP, IP
 from collections import defaultdict
+import importlib
 from src.models.protos import *
-
-# Add the absolute path to the protos directory
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
-protos_path = os.path.join(ui_root, "networking", "protos")
-sys.path.insert(0, protos_path)
-
-from networking.protos import Lobby_pb2
 from networking.protos import _PacketCommand_pb2
+
+# Determine paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+ui_root     = os.path.abspath(os.path.join(current_dir, "..", ".."))
+protos_path = os.path.join(ui_root, "networking", "protos")
+
+# Ensure the networking package root is on sys.path
+networking_root = os.path.dirname(protos_path)
+if networking_root not in sys.path:
+    sys.path.insert(0, networking_root)
+
+# Dynamically load each _pb2 module under the package name networking.protos.xxx_pb2
+for filename in os.listdir(protos_path):
+    if not filename.endswith("_pb2.py"):
+        continue
+
+    module_name = filename[:-3]  # "Account_pb2"
+    full_name   = f"networking.protos.{module_name}"
+    file_path   = os.path.join(protos_path, filename)
+
+    # Create a module spec
+    spec = importlib.util.spec_from_file_location(full_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+
+    # Insert into sys.modules so relative imports inside will resolve
+    sys.modules[full_name] = module
+
+    # Execute the module
+    spec.loader.exec_module(module)
+
+    # Bring its public names into globals()
+    for attr in dir(module):
+        if not attr.startswith("_"):
+            globals()[attr] = getattr(module, attr)
+
+
+def parse_proto(data, proto_type):
+    command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
+    print(proto_type, command_name)
+
+    try:
+        # For server packets
+        message_class = globals().get("S" + command_name)
+        print(message_class)
+        if message_class:
+            message = message_class()
+            message.ParseFromString(data)
+            #print(message)
+            if message:
+                return message
+    except Exception as e:
+        print(e)
+    
+    return None
 
 # Configure subprocess to hide console windows when in executable mode
 if is_frozen():
@@ -43,15 +90,9 @@ if is_frozen():
     subprocess.Popen = hidden_popen
 
 class PacketProtocol:
-    S2C_LOBBY_CHARACTER_INFO_RES = 44
-    S2C_ACCOUNT_CHARACTER_LIST_RES = 18
-    
     @staticmethod
     def is_valid_type(proto_type: int) -> bool:
-        return proto_type in [
-            PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES,
-            PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES
-        ]
+        return proto_type in _PacketCommand_pb2.PacketCommand.values()
 
 class PacketCapture:
 
@@ -95,52 +136,6 @@ class PacketCapture:
             padding in [0, 256]  # Common padding values
         )
 
-    def process_packet(self, data: bytes) -> Optional[bool]:
-        if len(data) > 0:
-            self.packet_data += data
-            current_size = len(self.packet_data)
-            self.logger.debug(f"Received {len(data)} bytes, buffer size now {current_size}")
-            if current_size > self.MAX_BUFFER_SIZE:
-                self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes), resetting state.")
-                self.reset_state()
-                return
-            if self.expected_packet_length is None and current_size >= 8:
-                try:
-                    packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
-                    packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name if proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number else "Unknown"
-                    self.logger.info(f"Header: Type={proto_type} ({packet_type_name}), Length={packet_length}, Padding={random_padding}")
-                    if not self.validate_packet_header(packet_length, proto_type, random_padding):
-                        self.logger.warning(f"Invalid packet header: Type={proto_type} ({packet_type_name}), Length={packet_length}, Padding={random_padding}")
-                        self.reset_state()
-                        return
-                    self.logger.info(f"Started new packet: {packet_type_name} (Type={proto_type}, Length={packet_length})")
-                    self.expected_packet_length = packet_length
-                    self.expected_proto_type = proto_type
-                except struct.error as e:
-                    self.logger.error(f"Header unpack error: {e}")
-                    self.reset_state()
-                    return
-            if self.expected_packet_length and self.expected_proto_type:
-                if current_size > self.expected_packet_length:
-                    self.logger.warning(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
-                    self.packet_data = self.packet_data[:self.expected_packet_length]
-                    current_size = self.expected_packet_length
-                if current_size == self.expected_packet_length:
-                    self.logger.info(f"Full packet received: {current_size} bytes (Type={self.expected_proto_type})")
-                    if self.verify_packet():
-                        self.logger.info(f"Packet verified successfully (Type={self.expected_proto_type})")
-                        self.handle_packet()
-                        #self.save_packet_data()
-                        self.reset_state()
-                        return True
-                    else:
-                        self.logger.warning(f"Packet verification failed (Type={self.expected_proto_type})")
-                        self.reset_state()
-                elif current_size % 8192 == 0 or current_size == self.expected_packet_length - 1:
-                    self.logger.debug(f"Accumulating: {current_size}/{self.expected_packet_length}")
-        # No spammy return
-        return
-
     def verify_packet(self) -> bool:
         """Verify packet integrity before saving"""
         if len(self.packet_data) != self.expected_packet_length:
@@ -148,14 +143,10 @@ class PacketCapture:
             return False
         data = self.packet_data[8:]
         try:
-            if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
-                info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
-            elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
-                info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
-            else:
+            if parse_proto(data, self.expected_proto_type) == None:
                 self.logger.error(f"verify_packet: Unsupported proto type: {self.expected_proto_type}")
                 return False
-            info.ParseFromString(data)
+
             return True
         except Exception as e:
             self.logger.error(f"verify_packet: Exception parsing proto type {self.expected_proto_type}: {e}\nFirst 32 bytes: {data[:32].hex()}")
@@ -167,28 +158,15 @@ class PacketCapture:
         self.expected_packet_length = None
         self.expected_proto_type = None
 
-    def save_packet_data(self) -> bool:
+    def save_packet_data(self, message) -> bool:
         try:
             if len(self.packet_data) != self.expected_packet_length:
                 raise ValueError("Packet length mismatch")
-            data = self.packet_data[8:]
-            try:
-                if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
-                    info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
-                elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
-                    info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
-                else:
-                    self.logger.info(f"Skipping unsupported proto type: {self.expected_proto_type}")
-                    return False
-                info.ParseFromString(data)
-                json_data = MessageToJson(info)
-            except Exception as e:
-                self.logger.error(f"Failed to parse packet data for proto type {self.expected_proto_type}: {e}")
-                return False
-
+            
+            json_data = MessageToJson(message)
             # Overwrite file if characterId matches (no date in filename)
             if '"result": 1' in json_data and '"characterDataBase": {' in json_data:
-                char_data = info.characterDataBase
+                char_data = message.characterDataBase
                 char_id = str(char_data.characterId)
                 data_file = os.path.join(self.data_dir, f"{char_id}.json")
                 with open(data_file, "w", encoding='utf-8') as f:
@@ -264,7 +242,7 @@ class PacketCapture:
             self.logger.info(f"Full packet received: {packet_length} bytes (Type={proto_type})")
             if self.verify_packet():
                 self.logger.info(f"Packet verified successfully (Type={proto_type})")
-                if self.save_packet_data():
+                if self.handle_packet():
                     processed_any = True
             else:
                 self.logger.warning(f"Packet verification failed (Type={proto_type})")
@@ -276,43 +254,6 @@ class PacketCapture:
             return True
         # No spammy return
         return
-
-    def capture(self) -> bool:
-        found_flag = False
-        local_ip = self.get_local_ip()
-        if not local_ip:
-            print(f"Could not find IP address for interface {self.interface}")
-            return False
-
-        # BPF filter for scapy
-        display_filter = (
-            f"tcp and dst host {local_ip} and src portrange {self.port_range[0]}-{self.port_range[1]}"
-        )
-
-        def scapy_packet_callback(packet):
-            if packet.haslayer(TCP) and packet.haslayer(IP):
-                ip = packet[IP]
-                tcp = packet[TCP]
-                conn_key = (ip.src, tcp.sport, ip.dst, tcp.dport)
-                payload = bytes(tcp.payload)
-                self.process_tcp_stream(conn_key, payload)  # Do not print or log return value
-            # Do not return False or anything
-
-        try:
-            sniff(
-                iface=self.interface,
-                filter=display_filter,
-                prn=scapy_packet_callback,
-                store=0,
-                stop_filter=lambda x: found_flag or not self.running
-            )
-        except KeyboardInterrupt:
-            print("Capture stopped by user")
-        except Exception as e:
-            print(f"Capture error: {e}")
-        finally:
-            self.packet_data = b""
-        return found_flag
 
     def capture_loop(self) -> None:
         local_ip = self.get_local_ip()
@@ -374,13 +315,22 @@ class PacketCapture:
         self.capture_thread = None
         self.logger.info("Capture switch turned OFF")
 
-    def _process_packet_wrapper(self, packet):
-        if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-            self.process_packet(packet.tcp.payload.binary_value)
+    def handle_character(self, message):
+        self.save_packet_data(message)
+
+    def handle_account_info(self, message):
+        self.save_packet_data(message)
     
     def handle_packet(self):
-        if self.expected_proto_type in self.capture_info:
-            self.capture_info[self.expected_proto_type]()
+        if self.capture_info:
+            if self.expected_proto_type in self.capture_info:
+                data = self.packet_data[8:]
+                message = parse_proto(data, self.expected_proto_type)
+                if message:
+                    self.capture_info[self.expected_proto_type](message)
+            else:
+                print("No handle for:", self.expected_proto_type)
+
 
 def main():
     capture = PacketCapture()

@@ -62,6 +62,10 @@ def on_new_character_callback(character_id):
                               'if(window.updateCharacterList) window.updateCharacterList();')
     return True
 
+def validate_move(message):
+    print(message)
+    exit()
+
 class Api:
     def __init__(self):
         self.stash_manager = stash_manager
@@ -87,7 +91,7 @@ class Api:
         capture_info = {
             S2C_LOBBY_CHARACTER_INFO_RES: self.packet_capture.handle_character,
             S2C_ACCOUNT_CHARACTER_LIST_RES: self.packet_capture.handle_account_info,
-            C2S_INVENTORY_MOVE_REQ: self.packet_capture.validate_move
+            C2S_INVENTORY_MOVE_REQ: validate_move
         }
         self.packet_capture.capture_info = capture_info
 
