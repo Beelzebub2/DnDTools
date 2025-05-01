@@ -322,25 +322,22 @@ const renderInteractiveGrid = async (stashId, items) => {
                     // When item is hovered, load extra info asynchronously
                     const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
                     if (extraInfoSection) {
-                        // Temporarily set a loading message while fetching the price
                         extraInfoSection.textContent = 'Estimated Price: Loading...';
-
-                        // Fetch the most recent price asynchronously
-                        /*
                         getMostRecentPrice(item).then(price => {
-                            // Update the tooltip with the fetched price once available
-                            if (extraInfoSection) {
+                            if (typeof price === 'object' && price !== null) {
+                                // If getMostRecentPrice is updated to return the full object
+                                const avg = price.average !== undefined ? price.average : 'No Info';
+                                const med = price.median !== undefined ? price.median : 'No Info';
+                                extraInfoSection.textContent = `Estimated Price: Avg ${avg}g, Median ${med}g`;
+                            } else {
+                                // If getMostRecentPrice returns just a number
                                 extraInfoSection.textContent = `Estimated Price: ${price}g`;
                             }
                         }).catch(error => {
-                            // Handle any errors and set an error message
                             if (extraInfoSection) {
-                                extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;;
+                                extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;
                             }
                         });
-                        */
-                        // Price prediction temporarily disabled
-                        extraInfoSection.textContent = 'Estimated Price: (Soon)';
                     }
 
                     // Initial positioning
@@ -478,9 +475,14 @@ const renderInteractiveGrid = async (stashId, items) => {
                     const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
                     if (extraInfoSection) {
                         extraInfoSection.textContent = 'Estimated Price: Loading...';
-                        /*
                         getMostRecentPrice(item).then(price => {
-                            if (extraInfoSection) {
+                            if (typeof price === 'object' && price !== null) {
+                                // If getMostRecentPrice is updated to return the full object
+                                const avg = price.average !== undefined ? price.average : 'No Info';
+                                const med = price.median !== undefined ? price.median : 'No Info';
+                                extraInfoSection.textContent = `Estimated Price: Avg ${avg}g, Median ${med}g`;
+                            } else {
+                                // If getMostRecentPrice returns just a number
                                 extraInfoSection.textContent = `Estimated Price: ${price}g`;
                             }
                         }).catch(error => {
@@ -488,8 +490,6 @@ const renderInteractiveGrid = async (stashId, items) => {
                                 extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;
                             }
                         });
-                        */
-                        extraInfoSection.textContent = 'Estimated Price: (disabled)';
                     }
                     const rect = itemEl.getBoundingClientRect();
                     const tooltipWidth = tooltip.offsetWidth || 250;
@@ -952,38 +952,27 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 
 async function getMostRecentPrice(item) {
-    // Price prediction temporarily disabled
-    return '(disabled)';
-    /*
     const itemId = item.itemId;
 
-    // TODO: Add API key 
-    const apiKey = "";
-
-    const apiUrl = `https://api.darkerdb.com/v1/market/analytics/${itemId}/prices/history?interval=1h`;
-
-    const headers = {
-        'Authorization': `Bearer ${apiKey}`,
-        "X-Requested-With": "DnDTools"
-    };
+    // Use our Flask proxy endpoint to avoid CORS issues
+    const apiUrl = `/api/market/price/${itemId}`;
 
     try {
-        const response = await fetch(apiUrl, { headers });
+        const response = await fetch(apiUrl);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const data = await response.json();
 
-        if (data.body && data.body.length > 0) {
-            const mostRecentPriceData = data.body[0];
-            const mostRecentPrice = mostRecentPriceData.avg;
-            return mostRecentPrice ?? "No Info";
+        // Return the full data object for more flexibility in the UI
+        if (data && data.success) {
+            return data; // Return the entire data object
         } else {
             return "No Info";
         }
     } catch (error) {
-        throw error;
+        console.error('Error fetching price:', error);
+        return "Error";
     }
-    */
 }

@@ -190,6 +190,18 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
     };
 }
 
+// Helper to fetch market price via backend proxy to avoid CORS
+async function fetchMarketPrice(itemId) {
+    try {
+        const response = await fetch(`/api/market/price/${itemId}`);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        return await response.json();
+    } catch (error) {
+        console.error('Failed to fetch market price:', error);
+        return { success: false, error: error.message };
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     checkForUpdates();
 });

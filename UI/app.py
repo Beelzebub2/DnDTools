@@ -694,6 +694,17 @@ def install_npcap_route():
     success, message = install_npcap()
     return jsonify({'success': success, 'error': message if not success else None})
 
+@server.route('/api/market/price/<item_id>')
+def proxy_market_price(item_id):
+    """Proxy endpoint to fetch market price from dndtools.me and avoid CORS issues."""
+    try:
+        url = f'https://dndtools.me/api/market/price/{item_id}'
+        headers = {"X-Requested-With": "DnDTools"}
+        resp = requests.get(url, headers=headers, timeout=5)
+        return (resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'application/json')})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 def main():
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
