@@ -394,6 +394,8 @@ def download_update():
                 json.dump(cache, f)
             return jsonify({'error': 'Could not fetch release information'}), 400
         release_data = response.json()
+        # Debug log the response structure for troubleshooting
+        logger.error(f"Update API response: {json.dumps(release_data)[:1000]}")
         # Find DnDTools.exe asset
         asset = None
         for a in release_data.get('assets', []):
@@ -404,7 +406,7 @@ def download_update():
             cache = {'timestamp': now, 'error': 'Could not find DnDTools.exe in the latest release', 'status': 404}
             with open(cache_file, 'w') as f:
                 json.dump(cache, f)
-            return jsonify({'error': 'Could not find DnDTools.exe in the latest release'}), 404
+            return jsonify({'error': 'Could not find DnDTools.exe in the latest release', 'details': release_data}), 404
         # Download the asset
         file_data = download_github_release_asset(asset['browser_download_url'])
         if not file_data:
