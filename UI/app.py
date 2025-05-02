@@ -15,7 +15,6 @@ import shutil
 import subprocess
 import requests
 import io
-import tempfile
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -293,9 +292,19 @@ class Api:
         if self.is_maximized:
             self.window.restore()
             self.is_maximized = False
+            # Notify JS of restore
+            if self.window:
+                self.window.evaluate_js(
+                    'window.dispatchEvent(new CustomEvent("windowStateChanged", { detail: { maximized: false } }));'
+                )
         else:
             self.window.maximize()
             self.is_maximized = True
+            # Notify JS of maximize
+            if self.window:
+                self.window.evaluate_js(
+                    'window.dispatchEvent(new CustomEvent("windowStateChanged", { detail: { maximized: true } }));'
+                )
 
     def close_window(self):
         self.force_close_window()
