@@ -310,6 +310,14 @@ class Api:
         self.force_close_window()
 
     def force_close_window(self):
+        # Stop packet capture if running to avoid shutdown delays
+        try:
+            if hasattr(self, 'packet_capture') and self.packet_capture.running:
+                self.packet_capture.stop_capture_switch()
+        except Exception as e:
+            logger.error(f"Error stopping packet capture on close: {e}")
+        # Add a short delay to allow threads to clean up
+        time.sleep(0.2)
         self.window.destroy()
 
     def get_executable_path(self):
