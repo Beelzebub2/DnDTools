@@ -39,6 +39,11 @@ jobs:
           $version = $tag.TrimStart('v')
           (Get-Content UI/app.py) -replace 'APP_VERSION = ".*"', "APP_VERSION = `"$version`"" | Set-Content UI/app.py
 
+      - name: Set webview debug mode to False
+        shell: pwsh
+        run: |
+          (Get-Content UI/app.py) -replace 'webview\.start\(on_loaded, debug=True\)', 'webview.start(on_loaded, debug=False)' | Set-Content UI/app.py
+
       - name: Build executable with Nuitka
         shell: cmd
         run: |

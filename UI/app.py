@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "2.0.0"
 
 # Initialize logging first
 setup_logging()
