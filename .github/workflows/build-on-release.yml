@@ -53,8 +53,8 @@ jobs:
           --include-data-dir=templates=templates ^
           --include-data-dir=static=static ^
           --include-data-dir=assets=assets ^
-          --include-data-file=assets\equipment_slots.json=assets/equipment_slots.json ^
-          --include-data-file=assets\npcap-1.82.exe=assets/npcap-1.82.exe ^
+          --include-data-file=UI\assets\equipment_slots.json=assets/equipment_slots.json ^
+          --include-data-file=UI\assets\npcap-1.82.exe=assets/npcap-1.82.exe ^
           --output-dir=dist ^
           --include-module=clr ^
           --remove-output ^
@@ -64,6 +64,7 @@ jobs:
           --output-filename=DnDTools.exe ^
           --windows-console-mode=disable ^
           UI\app.py
+
 
           echo Build complete. Executable is in the dist folder.
 
