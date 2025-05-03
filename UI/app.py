@@ -940,7 +940,7 @@ def main():
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
         # Instead of replacing the exe, just start a new instance and exit
-        import subprocess, sys, os, time
+        import subprocess, time
         time.sleep(1.5)
         subprocess.Popen([sys.executable] + sys.argv[2:])
         sys.exit(0)
