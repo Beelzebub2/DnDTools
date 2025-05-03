@@ -20,7 +20,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.4"
 
 # Initialize logging first
 setup_logging()
@@ -981,7 +981,7 @@ def main():
         api.set_initial_window_state()
         # Start background initialization after UI is ready
         threading.Thread(target=background_init, daemon=True).start()
-    webview.start(on_loaded, debug=True)
+    webview.start(on_loaded, debug=False)
 
 if __name__ == '__main__':
     main()

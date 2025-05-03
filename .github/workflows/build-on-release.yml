@@ -31,23 +31,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install nuitka
           pip install -r UI/requirements.txt
-        
-      - name: Update APP_VERSION in app.py
-        shell: pwsh
-        run: |
-          $tag = '${{ github.event.inputs.tag }}'
-          $version = $tag.TrimStart('v')
-          (Get-Content UI/app.py) -replace 'APP_VERSION = ".*"', "APP_VERSION = `"$version`"" | Set-Content UI/app.py
-
-      - name: Set webview debug mode to False
-        shell: pwsh
-        run: |
-          (Get-Content UI/app.py) -replace 'webview\.start\(on_loaded, debug=True\)', 'webview.start(on_loaded, debug=False)' | Set-Content UI/app.py
-
-      - name: Ensure assets directory exists in dist
-        shell: cmd
-        run: |
-          mkdir dist\assets 2>nul
 
       - name: Copy equipment_slots.json directly
         shell: cmd
