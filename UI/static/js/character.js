@@ -536,12 +536,44 @@ const createStashTabsWithoutDefault = (stashes) => {
         : Object.keys(stashesObj);
 
     let firstStashUrl = null;
+    
+    // Add Character tab first if we have both equipment (3) and bag (2)
+    if (stashKeys.includes('2') && stashKeys.includes('3')) {
+        const tab = document.createElement('div');
+        tab.className = 'stash-tab';
+        tab.textContent = 'Character';
+        tab.dataset.stashId = 'character';
+        tab.onclick = (e) => {
+            document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // Hide the static image preview
+            preview.classList.add('hidden');
+            
+            // Set our tracking variables
+            currentStashId = 'character';
+            usingCombinedCharacterView = true;
+            
+            // Render combined equipment and bag view
+            renderCombinedCharacterView(stashes);
+            
+            // Update the server with our selection, using bag as the storage ID
+            updateCurrentStash('2');
+        };
+        selector.appendChild(tab);
+    }
 
+    // Then add the other stash tabs (excluding bag and equipment which are now in Character tab)
     stashKeys.forEach((stashId, index) => {
+        // Skip bag and equipment stashes as they're now in the combined Character tab
+        if (stashId === '2' || stashId === '3') {
+            return;
+        }
+        
         const tab = document.createElement('div');
         tab.className = 'stash-tab';
 
-        // Just store the first URL for fallback
+        // Store URL for fallback
         if (index === 0) {
             if (isNewFormat) {
                 firstStashUrl = stashes.previewImages[stashId];
@@ -562,8 +594,10 @@ const createStashTabsWithoutDefault = (stashes) => {
             } else {
                 preview.src = stashes[stashId];
             }
+            preview.classList.remove('hidden');
 
             currentStashId = stashId;
+            usingCombinedCharacterView = false;
             updateCurrentStash(stashId);
 
             // Load and render the interactive grid for this stash
@@ -592,7 +626,10 @@ const updateCurrentStash = async (stashId) => {
 };
 
 const triggerSort = async () => {
-    if (!currentStashId) return;
+    // If we're using the combined character view, default to sorting the bag (2)
+    const stashIdToSort = usingCombinedCharacterView ? "2" : currentStashId;
+    
+    if (!stashIdToSort) return;
 
     // prepare abort controller
     if (abortController) abortController.abort();
@@ -602,7 +639,7 @@ const triggerSort = async () => {
     setSortingState(true);
 
     try {
-        const response = await fetch(`/api/character/${charId}/stash/${currentStashId}/sort`, {
+        const response = await fetch(`/api/character/${charId}/stash/${stashIdToSort}/sort`, {
             method: 'POST',
             signal: abortController.signal
         });
@@ -704,6 +741,15 @@ const loadStashes = async () => {
             // Create stash tabs but don't set first one active automatically
             const firstStashUrl = createStashTabsWithoutDefault(stashes);
 
+            // Check if we have both equipment and bag
+            const hasCharacterTab = stashKeys.includes('2') && stashKeys.includes('3');
+            
+            // If currentStashId is 2 (bag) or 3 (equipment) and we have a Character tab,
+            // redirect to the Character tab instead
+            if (hasCharacterTab && (currentStashId === '2' || currentStashId === '3')) {
+                currentStashId = 'character';
+            }
+
             // If we have a stored current stash ID, use that
             const currentStashTab = document.querySelector(`[data-stash-id="${currentStashId}"]`);
             if (currentStashTab) {
@@ -711,40 +757,77 @@ const loadStashes = async () => {
                 document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
                 currentStashTab.classList.add('active');
 
-                // Keep the image source for fallback
-                if (isNewFormat) {
-                    previewImage.src = stashes.previewImages[currentStashId];
+                if (currentStashId === 'character') {
+                    // Hide the static image preview for Character tab
+                    previewImage.classList.add('hidden');
+                    
+                    // Set tracking variables
+                    usingCombinedCharacterView = true;
+                    
+                    // Render the combined view
+                    renderCombinedCharacterView(stashes);
+                    
+                    // Update server with selection using bag as reference
+                    updateCurrentStash('2');
                 } else {
-                    previewImage.src = stashes[currentStashId];
-                }
-
-                // Process and render the interactive grid
-                processStashData(stashes, currentStashId).then(items => {
-                    renderInteractiveGrid(currentStashId, items);
-                });
-
-                console.log(`Selected stash tab: ${getStashName(parseInt(currentStashId))}`);
-            } else {
-                // If no current stash is set or found, use the first one as default
-                const firstTab = document.querySelector('.stash-tab');
-                if (firstTab) {
-                    firstTab.classList.add('active');
-                    currentStashId = firstTab.dataset.stashId;
-
                     // Keep the image source for fallback
                     if (isNewFormat) {
                         previewImage.src = stashes.previewImages[currentStashId];
                     } else {
                         previewImage.src = stashes[currentStashId];
                     }
+                    previewImage.classList.remove('hidden');
+                    
+                    usingCombinedCharacterView = false;
 
-                    // Process and render the interactive grid 
+                    // Process and render the interactive grid
                     processStashData(stashes, currentStashId).then(items => {
                         renderInteractiveGrid(currentStashId, items);
                     });
+                }
 
-                    // Update the server with our selection
-                    updateCurrentStash(currentStashId);
+                console.log(`Selected stash tab: ${currentStashId === 'character' ? 'Character' : getStashName(parseInt(currentStashId))}`);
+            } else {
+                // If no current stash is set or found, default to Character tab if available
+                const characterTab = document.querySelector('[data-stash-id="character"]');
+                if (characterTab && hasCharacterTab) {
+                    characterTab.classList.add('active');
+                    currentStashId = 'character';
+                    previewImage.classList.add('hidden');
+                    
+                    // Set tracking variables
+                    usingCombinedCharacterView = true;
+                    
+                    // Render the combined view
+                    renderCombinedCharacterView(stashes);
+                    
+                    // Update server with selection using bag as reference
+                    updateCurrentStash('2');
+                } else {
+                    // Fall back to the first available tab
+                    const firstTab = document.querySelector('.stash-tab');
+                    if (firstTab) {
+                        firstTab.classList.add('active');
+                        currentStashId = firstTab.dataset.stashId;
+
+                        // Keep the image source for fallback
+                        if (isNewFormat) {
+                            previewImage.src = stashes.previewImages[currentStashId];
+                        } else {
+                            previewImage.src = stashes[currentStashId];
+                        }
+                        previewImage.classList.remove('hidden');
+                        
+                        usingCombinedCharacterView = false;
+
+                        // Process and render the interactive grid 
+                        processStashData(stashes, currentStashId).then(items => {
+                            renderInteractiveGrid(currentStashId, items);
+                        });
+
+                        // Update the server with our selection
+                        updateCurrentStash(currentStashId);
+                    }
                 }
             }
 
@@ -971,3 +1054,267 @@ function hideGlobalTooltip(delay = 100) {
         }
     }, delay);
 }
+
+// Variable to track if we're using combined character view
+let usingCombinedCharacterView = false;
+
+// Special function to render combined character view (equipment and bag)
+const renderCombinedCharacterView = async (stashes) => {
+    const gridContainer = document.getElementById('interactiveStashGrid');
+    if (!gridContainer) return;
+    
+    // Clear existing content
+    gridContainer.innerHTML = '';
+    
+    // Process both equipment (3) and bag (2) stash data
+    const equipmentItems = await processStashData(stashes, "3");
+    const bagItems = await processStashData(stashes, "2");
+    
+    // Equipment dimensions and bag dimensions
+    const [equipWidth, equipHeight] = getStashDimensions("3");
+    const [bagWidth, bagHeight] = getStashDimensions("2");
+    
+    // Create main grid container with appropriate space for both
+    const combinedGrid = document.createElement('div');
+    combinedGrid.className = 'combined-character-grid';
+    
+    // Create equipment section with title
+    const equipmentSection = document.createElement('div');
+    equipmentSection.className = 'equipment-section';
+    
+    const equipmentTitle = document.createElement('div');
+    equipmentTitle.className = 'section-title';
+    equipmentTitle.textContent = 'Equipment';
+    equipmentSection.appendChild(equipmentTitle);
+    
+    // Create equipment grid
+    const equipmentGrid = document.createElement('div');
+    equipmentGrid.className = 'interactive-stash-grid equipment-grid';
+    equipmentGrid.style.gridTemplateColumns = `repeat(${equipWidth}, 45px)`;
+    equipmentGrid.style.gridTemplateRows = `repeat(${equipHeight}, 45px)`;
+    
+    // Load equipment slot configuration if not already loaded
+    if (!equipmentSlotConfig) {
+        equipmentSlotConfig = await fetchEquipmentSlotConfig();
+    }
+    
+    // Build a map of equipment items by slotId
+    const itemBySlot = {};
+    if (equipmentItems && equipmentItems.length) {
+        equipmentItems.forEach(item => {
+            if (item && item.slotId != null) {
+                itemBySlot[item.slotId.toString()] = item;
+            }
+        });
+    }
+    
+    // Helper to create an item element (optionally faded and not hoverable)
+    function createItemElement(item, faded = false) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'stash-item';
+        itemEl.style.width = `100%`;
+        itemEl.style.height = `100%`;
+        if (faded) {
+            itemEl.style.opacity = '0.4';
+            itemEl.style.pointerEvents = 'none';
+        }
+        const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+        itemEl.style.borderColor = rarityColor;
+        itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
+        itemEl.style.backgroundColor = `${rarityColor}15`;
+        if (item.imagePath) {
+            const img = document.createElement('img');
+            img.src = item.imagePath;
+            img.alt = item.name || 'Item';
+            img.className = 'item-image';
+            itemEl.appendChild(img);
+        } else {
+            itemEl.textContent = item.name || 'Unknown';
+        }
+        if (item.itemCount > 1) {
+            const countBadge = document.createElement('div');
+            countBadge.className = 'item-count-badge';
+            countBadge.textContent = item.itemCount;
+            itemEl.appendChild(countBadge);
+        }
+        
+        // Add tooltip
+        if (!faded) {
+            itemEl.removeAttribute('title');
+            itemEl.addEventListener('mouseenter', (e) => {
+                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+                // Build tooltip HTML
+                const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+                let html = `
+                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
+                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
+                        <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                        Market Prices: Soon
+                        </div>
+                    </div>
+                `;
+                showGlobalTooltip(html, e.clientX, e.clientY);
+            });
+            itemEl.addEventListener('mousemove', (e) => {
+                if (globalTooltip && globalTooltip.style.display === 'block') {
+                    showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
+                }
+            });
+            itemEl.addEventListener('mouseleave', () => {
+                hideGlobalTooltip();
+            });
+        }
+        return itemEl;
+    }
+    
+    // Render each equipment slot
+    for (const [slotId, slotData] of Object.entries(equipmentSlotConfig)) {
+        const slotCell = document.createElement('div');
+        slotCell.className = 'equipment-slot';
+        slotCell.style.gridColumn = `${slotData.x + 1} / span ${slotData.w}`;
+        slotCell.style.gridRow = `${slotData.y + 1} / span ${slotData.h}`;
+        slotCell.dataset.slotId = slotId;
+        
+        // If there is an item for this slot, render it inside the slot
+        const item = itemBySlot[slotId];
+        if (item) {
+            slotCell.appendChild(createItemElement(item));
+        } else {
+            // Special logic for faded weapon ghosting
+            if (slotId === '11' && !itemBySlot['11'] && itemBySlot['10']) {
+                slotCell.appendChild(createItemElement(itemBySlot['10'], true));
+            }
+            if (slotId === '13' && !itemBySlot['13'] && itemBySlot['12']) {
+                slotCell.appendChild(createItemElement(itemBySlot['12'], true));
+            }
+        }
+        equipmentGrid.appendChild(slotCell);
+    }
+    
+    // Append equipment grid to section
+    equipmentSection.appendChild(equipmentGrid);
+    
+    // Create bag section with title
+    const bagSection = document.createElement('div');
+    bagSection.className = 'bag-section';
+    
+    const bagTitle = document.createElement('div');
+    bagTitle.className = 'section-title';
+    bagTitle.textContent = 'Bag';
+    bagSection.appendChild(bagTitle);
+    
+    // Create bag grid
+    const bagGrid = document.createElement('div');
+    bagGrid.className = 'interactive-stash-grid bag-grid';
+    bagGrid.style.gridTemplateColumns = `repeat(${bagWidth}, 45px)`;
+    bagGrid.style.gridTemplateRows = `repeat(${bagHeight}, 45px)`;
+    
+    // Create bag grid cells
+    for (let y = 0; y < bagHeight; y++) {
+        for (let x = 0; x < bagWidth; x++) {
+            const cell = document.createElement('div');
+            cell.className = 'stash-grid-cell';
+            cell.style.gridColumn = `${x + 1}`;
+            cell.style.gridRow = `${y + 1}`;
+            bagGrid.appendChild(cell);
+        }
+    }
+    
+    // Add bag items to the grid
+    if (bagItems && bagItems.length) {
+        bagItems.forEach(item => {
+            if (!item) return;
+            let x = item.slotId % bagWidth;
+            let y = Math.floor(item.slotId / bagWidth);
+            let w = item.width || 1;
+            let h = item.height || 1;
+            
+            // Create item element
+            const itemEl = document.createElement('div');
+            itemEl.className = 'stash-item';
+            itemEl.style.gridColumn = `${x + 1} / span ${w}`;
+            itemEl.style.gridRow = `${y + 1} / span ${h}`;
+            
+            // Apply rarity-based border color
+            const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+            itemEl.style.borderColor = rarityColor;
+            
+            // Create inset border with box-shadow
+            itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
+            
+            // Apply background color based on rarity with subtle transparency
+            itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
+            
+            // If we have an image path, use it, otherwise show text
+            if (item.imagePath) {
+                const img = document.createElement('img');
+                img.src = item.imagePath;
+                img.alt = item.name || 'Item';
+                img.className = 'item-image';
+                itemEl.appendChild(img);
+            } else {
+                // No image, just display the name
+                itemEl.textContent = item.name || 'Unknown';
+            }
+            
+            // Add count badge if more than 1
+            if (item.itemCount > 1) {
+                const countBadge = document.createElement('div');
+                countBadge.className = 'item-count-badge';
+                countBadge.textContent = item.itemCount;
+                itemEl.appendChild(countBadge);
+            }
+            
+            // Add tooltip functionality
+            itemEl.removeAttribute('title');
+            itemEl.addEventListener('mouseenter', (e) => {
+                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+                // Build tooltip HTML
+                const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+                let html = `
+                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
+                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
+                        <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                        Market Prices: Soon
+                        </div>
+                    </div>
+                `;
+                showGlobalTooltip(html, e.clientX, e.clientY);
+            });
+            itemEl.addEventListener('mousemove', (e) => {
+                if (globalTooltip && globalTooltip.style.display === 'block') {
+                    showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
+                }
+            });
+            itemEl.addEventListener('mouseleave', () => {
+                hideGlobalTooltip();
+            });
+            
+            bagGrid.appendChild(itemEl);
+        });
+    }
+    
+    // Append bag grid to section
+    bagSection.appendChild(bagGrid);
+    
+    // Append both sections to the combined grid
+    combinedGrid.appendChild(equipmentSection);
+    combinedGrid.appendChild(bagSection);
+    
+    // Add the combined grid to the container
+    gridContainer.appendChild(combinedGrid);
+};

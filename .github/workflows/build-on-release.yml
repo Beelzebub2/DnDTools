@@ -50,11 +50,11 @@ jobs:
           --standalone ^
           --windows-icon-from-ico=UI/assets/logo.ico ^
           --include-data-dir=UI/networking/protos=networking/protos ^
-          --include-data-files=UI/templates/*=templates/ ^
-          --include-data-files=UI/static/*=static/ ^
+          --include-data-dir=UI/templates=templates ^
+          --include-data-dir=UI/static=static ^
           --include-data-dir=UI/assets=assets ^
-          --include-data-file=UI/assets/equipment_slots.json=assets/equipment_slots.json ^
           --include-data-file=UI/assets/npcap-1.82.exe=assets/npcap-1.82.exe ^
+          --include-data-file=UI/assets/equipment_slots.json=assets/equipment_slots.json ^
           --output-dir=dist ^
           --include-module=clr ^
           --remove-output ^

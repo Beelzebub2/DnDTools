@@ -31,6 +31,7 @@ MOUSEEVENTF_LEFTUP = 0x0004
 
 # Virtual key codes
 VK_MENU = 0x12     # Alt key
+VK_CONTROL = 0x11  # Ctrl key
 
 # Key event constants
 INPUT_KEYBOARD = 1
@@ -278,3 +279,15 @@ def send_key(vk_code, key_up=False):
 
 def send_alt_up():
     send_key(VK_MENU, True)  # Alt up
+
+def send_ctrl_up():
+    send_key(VK_CONTROL, True)  # Ctrl up
+
+def release_modifiers():
+    send_alt_up()
+    send_ctrl_up()
+
+# Call release_modifiers() at the start of your macro/sort operation
+# For example, in your sort.py before starting the sort:
+# from src.models.macros import release_modifiers
+# release_modifiers()
