@@ -350,7 +350,8 @@
     width: 100%;
 }
 
-.equipment-section, .bag-section {
+.equipment-section,
+.bag-section {
     display: flex;
     flex-direction: column;
     gap: 10px;

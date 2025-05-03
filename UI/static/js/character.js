@@ -536,7 +536,7 @@ const createStashTabsWithoutDefault = (stashes) => {
         : Object.keys(stashesObj);
 
     let firstStashUrl = null;
-    
+
     // Add Character tab first if we have both equipment (3) and bag (2)
     if (stashKeys.includes('2') && stashKeys.includes('3')) {
         const tab = document.createElement('div');
@@ -546,17 +546,17 @@ const createStashTabsWithoutDefault = (stashes) => {
         tab.onclick = (e) => {
             document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
-            
+
             // Hide the static image preview
             preview.classList.add('hidden');
-            
+
             // Set our tracking variables
             currentStashId = 'character';
             usingCombinedCharacterView = true;
-            
+
             // Render combined equipment and bag view
             renderCombinedCharacterView(stashes);
-            
+
             // Update the server with our selection, using bag as the storage ID
             updateCurrentStash('2');
         };
@@ -569,7 +569,7 @@ const createStashTabsWithoutDefault = (stashes) => {
         if (stashId === '2' || stashId === '3') {
             return;
         }
-        
+
         const tab = document.createElement('div');
         tab.className = 'stash-tab';
 
@@ -628,7 +628,7 @@ const updateCurrentStash = async (stashId) => {
 const triggerSort = async () => {
     // If we're using the combined character view, default to sorting the bag (2)
     const stashIdToSort = usingCombinedCharacterView ? "2" : currentStashId;
-    
+
     if (!stashIdToSort) return;
 
     // prepare abort controller
@@ -743,7 +743,7 @@ const loadStashes = async () => {
 
             // Check if we have both equipment and bag
             const hasCharacterTab = stashKeys.includes('2') && stashKeys.includes('3');
-            
+
             // If currentStashId is 2 (bag) or 3 (equipment) and we have a Character tab,
             // redirect to the Character tab instead
             if (hasCharacterTab && (currentStashId === '2' || currentStashId === '3')) {
@@ -760,13 +760,13 @@ const loadStashes = async () => {
                 if (currentStashId === 'character') {
                     // Hide the static image preview for Character tab
                     previewImage.classList.add('hidden');
-                    
+
                     // Set tracking variables
                     usingCombinedCharacterView = true;
-                    
+
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
-                    
+
                     // Update server with selection using bag as reference
                     updateCurrentStash('2');
                 } else {
@@ -777,7 +777,7 @@ const loadStashes = async () => {
                         previewImage.src = stashes[currentStashId];
                     }
                     previewImage.classList.remove('hidden');
-                    
+
                     usingCombinedCharacterView = false;
 
                     // Process and render the interactive grid
@@ -794,13 +794,13 @@ const loadStashes = async () => {
                     characterTab.classList.add('active');
                     currentStashId = 'character';
                     previewImage.classList.add('hidden');
-                    
+
                     // Set tracking variables
                     usingCombinedCharacterView = true;
-                    
+
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
-                    
+
                     // Update server with selection using bag as reference
                     updateCurrentStash('2');
                 } else {
@@ -817,7 +817,7 @@ const loadStashes = async () => {
                             previewImage.src = stashes[currentStashId];
                         }
                         previewImage.classList.remove('hidden');
-                        
+
                         usingCombinedCharacterView = false;
 
                         // Process and render the interactive grid 
@@ -1062,42 +1062,42 @@ let usingCombinedCharacterView = false;
 const renderCombinedCharacterView = async (stashes) => {
     const gridContainer = document.getElementById('interactiveStashGrid');
     if (!gridContainer) return;
-    
+
     // Clear existing content
     gridContainer.innerHTML = '';
-    
+
     // Process both equipment (3) and bag (2) stash data
     const equipmentItems = await processStashData(stashes, "3");
     const bagItems = await processStashData(stashes, "2");
-    
+
     // Equipment dimensions and bag dimensions
     const [equipWidth, equipHeight] = getStashDimensions("3");
     const [bagWidth, bagHeight] = getStashDimensions("2");
-    
+
     // Create main grid container with appropriate space for both
     const combinedGrid = document.createElement('div');
     combinedGrid.className = 'combined-character-grid';
-    
+
     // Create equipment section with title
     const equipmentSection = document.createElement('div');
     equipmentSection.className = 'equipment-section';
-    
+
     const equipmentTitle = document.createElement('div');
     equipmentTitle.className = 'section-title';
     equipmentTitle.textContent = 'Equipment';
     equipmentSection.appendChild(equipmentTitle);
-    
+
     // Create equipment grid
     const equipmentGrid = document.createElement('div');
     equipmentGrid.className = 'interactive-stash-grid equipment-grid';
     equipmentGrid.style.gridTemplateColumns = `repeat(${equipWidth}, 45px)`;
     equipmentGrid.style.gridTemplateRows = `repeat(${equipHeight}, 45px)`;
-    
+
     // Load equipment slot configuration if not already loaded
     if (!equipmentSlotConfig) {
         equipmentSlotConfig = await fetchEquipmentSlotConfig();
     }
-    
+
     // Build a map of equipment items by slotId
     const itemBySlot = {};
     if (equipmentItems && equipmentItems.length) {
@@ -1107,7 +1107,7 @@ const renderCombinedCharacterView = async (stashes) => {
             }
         });
     }
-    
+
     // Helper to create an item element (optionally faded and not hoverable)
     function createItemElement(item, faded = false) {
         const itemEl = document.createElement('div');
@@ -1137,7 +1137,7 @@ const renderCombinedCharacterView = async (stashes) => {
             countBadge.textContent = item.itemCount;
             itemEl.appendChild(countBadge);
         }
-        
+
         // Add tooltip
         if (!faded) {
             itemEl.removeAttribute('title');
@@ -1173,7 +1173,7 @@ const renderCombinedCharacterView = async (stashes) => {
         }
         return itemEl;
     }
-    
+
     // Render each equipment slot
     for (const [slotId, slotData] of Object.entries(equipmentSlotConfig)) {
         const slotCell = document.createElement('div');
@@ -1181,7 +1181,7 @@ const renderCombinedCharacterView = async (stashes) => {
         slotCell.style.gridColumn = `${slotData.x + 1} / span ${slotData.w}`;
         slotCell.style.gridRow = `${slotData.y + 1} / span ${slotData.h}`;
         slotCell.dataset.slotId = slotId;
-        
+
         // If there is an item for this slot, render it inside the slot
         const item = itemBySlot[slotId];
         if (item) {
@@ -1197,25 +1197,25 @@ const renderCombinedCharacterView = async (stashes) => {
         }
         equipmentGrid.appendChild(slotCell);
     }
-    
+
     // Append equipment grid to section
     equipmentSection.appendChild(equipmentGrid);
-    
+
     // Create bag section with title
     const bagSection = document.createElement('div');
     bagSection.className = 'bag-section';
-    
+
     const bagTitle = document.createElement('div');
     bagTitle.className = 'section-title';
     bagTitle.textContent = 'Bag';
     bagSection.appendChild(bagTitle);
-    
+
     // Create bag grid
     const bagGrid = document.createElement('div');
     bagGrid.className = 'interactive-stash-grid bag-grid';
     bagGrid.style.gridTemplateColumns = `repeat(${bagWidth}, 45px)`;
     bagGrid.style.gridTemplateRows = `repeat(${bagHeight}, 45px)`;
-    
+
     // Create bag grid cells
     for (let y = 0; y < bagHeight; y++) {
         for (let x = 0; x < bagWidth; x++) {
@@ -1226,7 +1226,7 @@ const renderCombinedCharacterView = async (stashes) => {
             bagGrid.appendChild(cell);
         }
     }
-    
+
     // Add bag items to the grid
     if (bagItems && bagItems.length) {
         bagItems.forEach(item => {
@@ -1235,23 +1235,23 @@ const renderCombinedCharacterView = async (stashes) => {
             let y = Math.floor(item.slotId / bagWidth);
             let w = item.width || 1;
             let h = item.height || 1;
-            
+
             // Create item element
             const itemEl = document.createElement('div');
             itemEl.className = 'stash-item';
             itemEl.style.gridColumn = `${x + 1} / span ${w}`;
             itemEl.style.gridRow = `${y + 1} / span ${h}`;
-            
+
             // Apply rarity-based border color
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
-            
+
             // Create inset border with box-shadow
             itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
-            
+
             // Apply background color based on rarity with subtle transparency
             itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
-            
+
             // If we have an image path, use it, otherwise show text
             if (item.imagePath) {
                 const img = document.createElement('img');
@@ -1263,7 +1263,7 @@ const renderCombinedCharacterView = async (stashes) => {
                 // No image, just display the name
                 itemEl.textContent = item.name || 'Unknown';
             }
-            
+
             // Add count badge if more than 1
             if (item.itemCount > 1) {
                 const countBadge = document.createElement('div');
@@ -1271,7 +1271,7 @@ const renderCombinedCharacterView = async (stashes) => {
                 countBadge.textContent = item.itemCount;
                 itemEl.appendChild(countBadge);
             }
-            
+
             // Add tooltip functionality
             itemEl.removeAttribute('title');
             itemEl.addEventListener('mouseenter', (e) => {
@@ -1303,18 +1303,18 @@ const renderCombinedCharacterView = async (stashes) => {
             itemEl.addEventListener('mouseleave', () => {
                 hideGlobalTooltip();
             });
-            
+
             bagGrid.appendChild(itemEl);
         });
     }
-    
+
     // Append bag grid to section
     bagSection.appendChild(bagGrid);
-    
+
     // Append both sections to the combined grid
     combinedGrid.appendChild(equipmentSection);
     combinedGrid.appendChild(bagSection);
-    
+
     // Add the combined grid to the container
     gridContainer.appendChild(combinedGrid);
 };
