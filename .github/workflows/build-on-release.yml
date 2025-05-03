@@ -78,7 +78,6 @@ jobs:
           --include-data-dir=UI\assets=assets ^
           --include-data-file=UI\assets\equipment_slots.json=assets/equipment_slots.json ^
           --output-dir=dist ^
-          --enable-plugin=tk-inter ^
           --include-module=clr ^
           --remove-output ^
           --assume-yes-for-downloads ^

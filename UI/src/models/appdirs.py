@@ -1,27 +1,29 @@
 import os
 import sys
+import logging
 
 def is_frozen():
-    return globals().get("__compiled__", False) or hasattr(sys, 'frozen')
+    return globals().get("__compiled__", False) or hasattr(sys, 'frozen') or hasattr(sys, '_MEIPASS')
 
 def get_base_path():
     if is_frozen():
-        # Handle both PyInstaller and Nuitka cases
-        if hasattr(sys, '_MEIPASS'):  # PyInstaller
+        # PyInstaller sets _MEIPASS, Nuitka onefile uses sys.executable's dir
+        if hasattr(sys, '_MEIPASS'):
             return sys._MEIPASS
-        elif hasattr(sys, "frozen"):  # cx_Freeze
-            return os.path.dirname(sys.executable)
-        else:  # Nuitka
-            return os.path.dirname(sys.executable)
+        return os.path.dirname(sys.executable)
     else:
         # Go up two levels from UI/src/models to UI
         return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 
 def get_templates_dir():
-    return os.path.join(get_base_path(), 'templates')
+    path = os.path.join(get_base_path(), 'templates')
+    logging.getLogger(__name__).info(f"[appdirs] get_templates_dir resolved to: {path}")
+    return path
 
 def get_static_dir():
-    return os.path.join(get_base_path(), 'static')
+    path = os.path.join(get_base_path(), 'static')
+    logging.getLogger(__name__).info(f"[appdirs] get_static_dir resolved to: {path}")
+    return path
 
 def get_resource_dir():
     return os.path.join(get_base_path(), 'assets')
