@@ -50,8 +50,8 @@ jobs:
           --standalone ^
           --windows-icon-from-ico=UI/assets/logo.ico ^
           --include-data-dir=UI/networking/protos=networking/protos ^
-          --include-data-dir=UI/templates=templates ^
-          --include-data-dir=UI/static=static ^
+          --include-data-files=UI/templates/*=templates/ ^
+          --include-data-files=UI/static/*=static/ ^
           --include-data-dir=UI/assets=assets ^
           --include-data-file=UI/assets/equipment_slots.json=assets/equipment_slots.json ^
           --include-data-file=UI/assets/npcap-1.82.exe=assets/npcap-1.82.exe ^
@@ -72,7 +72,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
-          name: Release ${{ github.event.inputs.tag }}
+          name: Test-Release ${{ github.event.inputs.tag }}
           files: dist/DnDTools.exe
           fail_on_unmatched_files: false
           prerelease: true
