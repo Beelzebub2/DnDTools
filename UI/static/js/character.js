@@ -298,26 +298,12 @@ const renderInteractiveGrid = async (stashId, items) => {
                             <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
                         </div>
                         <div class="tooltip-body">
-                            <div class="tooltip-section primary-props" id="extra-info-placeholder">Estimated Price: Loading...</div>
+                            <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                            Market Prices: Soon
+                            </div>
                         </div>
                     `;
                     showGlobalTooltip(html, e.clientX, e.clientY);
-                    // Fetch price info
-                    const tooltip = globalTooltip;
-                    const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
-                    if (extraInfoSection) {
-                        getMostRecentPrice(item).then(price => {
-                            if (typeof price === 'object' && price !== null) {
-                                const avg = price.average !== undefined ? price.average : 'No Info';
-                                const med = price.median !== undefined ? price.median : 'No Info';
-                                extraInfoSection.textContent = `Estimated Price: Avg ${avg}g, Median ${med}g`;
-                            } else {
-                                extraInfoSection.textContent = `Estimated Price: ${price}g`;
-                            }
-                        }).catch(error => {
-                            extraInfoSection.textContent = 'Estimated Price: No Data Available';
-                        });
-                    }
                 });
                 itemEl.addEventListener('mousemove', (e) => {
                     if (globalTooltip && globalTooltip.style.display === 'block') {
@@ -389,7 +375,7 @@ const renderInteractiveGrid = async (stashId, items) => {
                     </div>
                     <div class="tooltip-body">
                         <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                            Estimated Price: Loading...
+                            Market Prices: Soon
                         </div>
                     </div>
                 `;
@@ -397,25 +383,8 @@ const renderInteractiveGrid = async (stashId, items) => {
                 itemEl.addEventListener('mouseenter', (e) => {
                     tooltip.style.display = 'block';
                     document.body.appendChild(tooltip);
-                    const extraInfoSection = tooltip.querySelector('#extra-info-placeholder');
-                    if (extraInfoSection) {
-                        extraInfoSection.textContent = 'Estimated Price: Loading...';
-                        getMostRecentPrice(item).then(price => {
-                            if (typeof price === 'object' && price !== null) {
-                                // If getMostRecentPrice is updated to return the full object
-                                const avg = price.average !== undefined ? price.average : 'No Info';
-                                const med = price.median !== undefined ? price.median : 'No Info';
-                                extraInfoSection.textContent = `Estimated Price: Avg ${avg}g, Median ${med}g`;
-                            } else {
-                                // If getMostRecentPrice returns just a number
-                                extraInfoSection.textContent = `Estimated Price: ${price}g`;
-                            }
-                        }).catch(error => {
-                            if (extraInfoSection) {
-                                extraInfoSection.textContent = `Failed to fetch price: ${error.message}`;
-                            }
-                        });
-                    }
+
+                    // Position tooltip
                     const rect = itemEl.getBoundingClientRect();
                     const tooltipWidth = tooltip.offsetWidth || 250;
                     const tooltipHeight = tooltip.offsetHeight || 150;
@@ -874,9 +843,9 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 });
 
-
 // Global price cache object to store results
 const priceCache = {};
+const priceFetchPromises = {}; // Track ongoing fetch promises
 const PRICE_CACHE_EXPIRY = 600000; // 10 minutes in milliseconds
 
 async function getMostRecentPrice(item) {
@@ -889,29 +858,50 @@ async function getMostRecentPrice(item) {
         return priceCache[itemId].data;
     }
 
+    // If there's already a fetch in progress for this item, return that promise
+    if (priceFetchPromises[itemId]) {
+        console.log(`Using existing fetch promise for ${itemId}`);
+        return priceFetchPromises[itemId];
+    }
+
     // No valid cache entry, use our Flask proxy endpoint
     const apiUrl = `/api/market/price/${itemId}`;
 
     try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        // Store the promise in our tracking object so we can reuse it for concurrent requests
+        priceFetchPromises[itemId] = (async () => {
+            const response = await fetch(apiUrl);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
 
-        const data = await response.json();
+            const data = await response.json();
 
-        // Cache the result with timestamp
-        if (data && data.success) {
-            priceCache[itemId] = {
-                timestamp: now,
-                data: data
-            };
-            return data; // Return the entire data object
-        } else {
-            return "No Info";
-        }
+            // Cache the result with timestamp
+            if (data && data.success) {
+                priceCache[itemId] = {
+                    timestamp: now,
+                    data: data
+                };
+                return data; // Return the entire data object
+            } else {
+                return "No Info";
+            }
+        })();
+
+        // Wait for the fetch to complete
+        const result = await priceFetchPromises[itemId];
+
+        // Clear the promise now that it's done
+        delete priceFetchPromises[itemId];
+
+        return result;
     } catch (error) {
         console.error('Error fetching price:', error);
+
+        // Clear the failed promise
+        delete priceFetchPromises[itemId];
+
         return "Error";
     }
 }
@@ -931,9 +921,34 @@ function getOrCreateGlobalTooltip() {
 
 function showGlobalTooltip(html, x, y) {
     const tooltip = getOrCreateGlobalTooltip();
+
+    // Check if we have existing content with price info that's already loaded
+    if (tooltip.innerHTML.includes('Estimated Price:') &&
+        !tooltip.innerHTML.includes('Estimated Price: Loading...') &&
+        html.includes('Estimated Price: Loading...')) {
+
+        // Extract the completed price section from the existing tooltip
+        const currentPriceInfo = tooltip.querySelector('#extra-info-placeholder');
+        if (currentPriceInfo) {
+            // Create a temporary container to parse the new HTML
+            const tempContainer = document.createElement('div');
+            tempContainer.innerHTML = html;
+
+            // Replace the loading price section with our completed one
+            const newPriceSection = tempContainer.querySelector('#extra-info-placeholder');
+            if (newPriceSection) {
+                newPriceSection.innerHTML = currentPriceInfo.innerHTML;
+            }
+
+            // Use the updated HTML
+            html = tempContainer.innerHTML;
+        }
+    }
+
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';
     tooltip.classList.add('visible');
+
     // Position
     const tooltipWidth = tooltip.offsetWidth || 250;
     const tooltipHeight = tooltip.offsetHeight || 150;
