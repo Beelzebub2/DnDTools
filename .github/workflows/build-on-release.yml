@@ -76,11 +76,12 @@ jobs:
           --include-data-dir=UI\templates=templates ^
           --include-data-dir=UI\static=static ^
           --include-data-dir=UI\assets=assets ^
-          --include-data-file=UI\assets\equipment_slots.json=assets/equipment_slots.json ^
+          --include-data-file=UI\assets\npcap-1.82.exe=assets/npcap-1.82.exe ^
           --output-dir=dist ^
           --include-module=clr ^
           --remove-output ^
           --assume-yes-for-downloads ^
+          --enable-plugin=no-qt ^
           --nofollow-import-to=tkinter ^
           --output-filename=DnDTools.exe ^
           --windows-console-mode=disable ^

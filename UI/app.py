@@ -789,13 +789,15 @@ def api_auto_resolution():
 
 @server.route('/api/restart', methods=['POST'])
 def api_restart():
-    import sys, os
+    import sys, os, subprocess
     import threading
     def restart():
         # Wait a moment to let the response finish
         import time
         time.sleep(0.5)
-        os.execl(sys.executable, sys.executable, *sys.argv)
+        # Start a new instance of the app and exit
+        subprocess.Popen([sys.executable] + sys.argv[1:])
+        os._exit(0)
     threading.Thread(target=restart, daemon=True).start()
     return '', 204
 
@@ -937,24 +939,11 @@ def proxy_market_price(item_id):
 def main():
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
-        old_exe = sys.argv[2]
-        new_exe = sys.executable  # Path to the running updater exe
+        # Instead of replacing the exe, just start a new instance and exit
+        import subprocess, sys, os, time
         time.sleep(1.5)
-        try:
-            if os.path.exists(old_exe):
-                os.remove(old_exe)
-        except Exception as e:
-            logger.error(f"Failed to remove old exe: {e}")
-        try:
-            # Move self to old path
-            shutil.move(new_exe, old_exe)
-            # Relaunch from the old path
-            subprocess.Popen([old_exe])
-            sys.exit(0)
-        except Exception as e:
-            logger.error(f"Failed to move or relaunch exe: {e}")
-            time.sleep(3)
-            sys.exit(1)
+        subprocess.Popen([sys.executable] + sys.argv[2:])
+        sys.exit(0)
     # --- End updater logic ---
     logger.info("Starting DnDTools application")
     migrate_settings()
