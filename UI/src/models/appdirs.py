@@ -2,11 +2,17 @@ import os
 import sys
 
 def is_frozen():
-    return globals().get("__compiled__", False)
+    return globals().get("__compiled__", False) or hasattr(sys, 'frozen')
 
 def get_base_path():
     if is_frozen():
-        return os.path.dirname(sys.executable)
+        # Handle both PyInstaller and Nuitka cases
+        if hasattr(sys, '_MEIPASS'):  # PyInstaller
+            return sys._MEIPASS
+        elif hasattr(sys, "frozen"):  # cx_Freeze
+            return os.path.dirname(sys.executable)
+        else:  # Nuitka
+            return os.path.dirname(sys.executable)
     else:
         # Go up two levels from UI/src/models to UI
         return os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
@@ -21,7 +27,30 @@ def get_resource_dir():
     return os.path.join(get_base_path(), 'assets')
 
 def resource_path(relative_path):
-    return os.path.join(get_resource_dir(), relative_path)
+    try:
+        # First try the normal path
+        base_path = get_resource_dir()
+        path = os.path.join(base_path, relative_path)
+        if os.path.exists(path):
+            return path
+            
+        # If not found and we're in a frozen app, try alternate locations
+        if is_frozen():
+            # Try direct from executable directory
+            alt_path = os.path.join(os.path.dirname(sys.executable), 'assets', relative_path)
+            if os.path.exists(alt_path):
+                return alt_path
+                
+            # Try in the same directory as the executable
+            alt_path2 = os.path.join(os.path.dirname(sys.executable), relative_path)
+            if os.path.exists(alt_path2):
+                return alt_path2
+        
+        # If we got here and still didn't find it, return the original path
+        return path
+    except Exception as e:
+        print(f"ERROR - Failed to load resource: {e}")
+        return os.path.join(get_resource_dir(), relative_path)
 
 def get_appdata_dir():
     appdata = os.environ.get('LOCALAPPDATA') or os.path.expanduser('~\\AppData\\Local')
