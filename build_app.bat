@@ -24,6 +24,7 @@ python -m nuitka ^
 --include-data-dir=UI\static=static ^
 --include-data-dir=UI\assets=assets ^
 --include-data-file=UI\assets\npcap-1.82.exe=assets/npcap-1.82.exe ^
+--include-data-file=UI\assets\equipment_slots.json=assets/equipment_slots.json ^
 --output-dir=dist ^
 --include-module=clr ^
 --remove-output ^

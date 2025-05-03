@@ -789,15 +789,13 @@ def api_auto_resolution():
 
 @server.route('/api/restart', methods=['POST'])
 def api_restart():
-    import sys, os, subprocess
-    import threading
+    import sys, os
     def restart():
-        # Wait a moment to let the response finish
         import time
         time.sleep(0.5)
-        # Start a new instance of the app and exit
-        subprocess.Popen([sys.executable] + sys.argv[1:])
-        os._exit(0)
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+    import threading
     threading.Thread(target=restart, daemon=True).start()
     return '', 204
 
