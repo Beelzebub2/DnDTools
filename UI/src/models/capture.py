@@ -371,6 +371,17 @@ class PacketCapture:
                 self._cleanup_capture()
         self.capture_thread = None
         self.logger.info("Capture switch turned OFF")
+        
+    def _cleanup_capture(self) -> None:
+        """Force cleanup of capture resources when thread doesn't exit cleanly."""
+        try:
+            # Reset all buffers
+            self.reset_state()
+            self.tcp_stream_buffers.clear()
+            # The thread will eventually terminate when sniff() recognizes that self.running is False
+            self.logger.info("Forced cleanup of capture resources completed")
+        except Exception as e:
+            self.logger.error(f"Error during forced cleanup: {e}")
 
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
