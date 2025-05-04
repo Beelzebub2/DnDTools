@@ -26,6 +26,17 @@ function showNotification(message, type = 'error') {
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
+
+    // Add inline styling to position the notification below the topbar
+    notification.style.position = 'fixed';
+    notification.style.top = '60px'; // Position below the topbar
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.style.padding = '12px 20px';
+    notification.style.borderRadius = '4px';
+    notification.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+    notification.style.animation = 'slideIn 0.3s ease-out forwards';
+
     document.body.appendChild(notification);
 
     setTimeout(() => {
