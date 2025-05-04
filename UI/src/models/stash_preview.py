@@ -18,6 +18,7 @@ class ItemInfo:
     itemId: str  # Changed from item_id to match incoming JSON
     itemCount: int  # Changed from item_count to match incoming JSON
     data: Dict 
+    vendor_price: int = 0  # Default vendor price set to 0
 
 class StashPreviewGenerator:
     def __init__(self, cell_size: int = 45, resource_dir=None):
@@ -328,12 +329,15 @@ def parse_stashes(packet_data):
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
                 name = item_data_manager.get_item_name_from_id(item_id)
                 slot_id = item["slotId"]
+                item_data = item_data_manager.data.get(item_id, {})
+                vendor_price = item_data.get("vendor_price", 0)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
                     "itemId": item_id,
                     "itemCount": item.get("itemCount", 1),
-                    "data": item
+                    "data": item,
+                    "vendor_price": vendor_price
                 })
                 used_slots.add(slot_id)
         # Then process items without slots, assign to next free slot
@@ -344,12 +348,15 @@ def parse_stashes(packet_data):
                 design_str = item.get("itemId", "")
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
                 name = item_data_manager.get_item_name_from_id(item_id)
+                item_data = item_data_manager.data.get(item_id, {})
+                vendor_price = item_data.get("vendor_price", 0)
                 stash_items.append({
                     "name": name,
                     "slotId": slot_id,
                     "itemId": item_id,
                     "itemCount": item.get("itemCount", 1),
-                    "data": item
+                    "data": item,
+                    "vendor_price": vendor_price
                 })
         if stash_items:
             stashes[inventory_id] = stash_items
@@ -364,12 +371,15 @@ def parse_stashes(packet_data):
         design_str = item.get("itemId", "")
         item_id = item_data_manager.get_item_id_from_design_str(design_str)
         name = item_data_manager.get_item_name_from_id(item_id)
+        item_data = item_data_manager.data.get(item_id, {})
+        vendor_price = item_data.get("vendor_price", 0)
         stashes[inventory_id].append({
             "name": name,
             "slotId": slot_id,
             "itemId": item_id,
             "itemCount": item.get("itemCount", 1),
-            "data": item
+            "data": item,
+            "vendor_price": vendor_price
         })
     return stashes
 

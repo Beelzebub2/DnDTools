@@ -25,7 +25,7 @@
 .stash-controls {
     width: 100%;
     display: flex;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-bottom: 15px;
     gap: 10px;
 }
@@ -63,6 +63,22 @@
 
 .stash-tab:hover {
     background: var(--hover-color);
+}
+
+.stash-value-indicator {
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px 12px;
+    color: var(--accent-gold);
+    font-weight: 500;
+}
+
+#totalStashValue {
+    margin: 0 4px;
+    font-weight: bold;
 }
 
 /* Interactive Stash Grid Styles */

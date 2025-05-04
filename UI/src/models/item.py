@@ -1,11 +1,12 @@
 class Item:
-    def __init__(self, name, rarity, position, width, height, stash):
+    def __init__(self, name, rarity, position, width, height, stash, vendor_price=None):
         self.name = name
         self.rarity = rarity
         self.width = width
         self.height = height
         self.position = position
         self.stash = stash
+        self.vendor_price = vendor_price
 
     def __lt__(self, other):
         if self.height != other.height:
@@ -35,5 +36,6 @@ class Item:
             "position": self.position,
             "width": self.width,
             "height": self.height,
+            "vendor_price": self.vendor_price
         }
 
