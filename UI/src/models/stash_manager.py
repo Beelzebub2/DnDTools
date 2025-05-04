@@ -257,7 +257,8 @@ class StashManager:
                             'height': height or 1,
                             'pp': pp,
                             'sp': sp,
-                            'imagePath': image_url
+                            'imagePath': image_url,
+                            'vendor_price': item_data_manager.data.get(item_id, {}).get("vendor_price", 0)
                         }
                         enhanced_items.append(enhanced_item)
                     except Exception as e:
