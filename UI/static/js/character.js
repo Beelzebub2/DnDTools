@@ -221,7 +221,7 @@ const renderInteractiveGrid = (stashId, items) => {
             return sum + ((item.vendor_price || 0) * (item.itemCount || 1));
         }, 0);
     }
-    
+
     // Update the total value display
     const totalValueElement = document.getElementById('totalStashValue');
     if (totalValueElement) {
@@ -239,7 +239,7 @@ const renderInteractiveGrid = (stashId, items) => {
     grid.className = 'interactive-stash-grid';
     grid.style.gridTemplateColumns = `repeat(${gridWidth}, 45px)`;
     grid.style.gridTemplateRows = `repeat(${gridHeight}, 45px)`;
-    
+
     // Add empty cells for grid structure
     for (let y = 0; y < gridHeight; y++) {
         for (let x = 0; x < gridWidth; x++) {
@@ -975,24 +975,24 @@ const renderCombinedCharacterView = async (stashes) => {
     // Process both equipment (3) and bag (2) stash data
     const equipmentItems = await processStashData(stashes, "3") || [];
     const bagItems = await processStashData(stashes, "2") || [];
-    
+
     // Calculate total vendor value for all items
     let totalValue = 0;
-    
+
     // Add equipment items value
     if (equipmentItems && equipmentItems.length) {
         totalValue += equipmentItems.reduce((sum, item) => {
             return sum + ((item.vendor_price || 0) * (item.itemCount || 1));
         }, 0);
     }
-    
+
     // Add bag items value
     if (bagItems && bagItems.length) {
         totalValue += bagItems.reduce((sum, item) => {
             return sum + ((item.vendor_price || 0) * (item.itemCount || 1));
         }, 0);
     }
-    
+
     // Update the total value display
     const totalValueElement = document.getElementById('totalStashValue');
     if (totalValueElement) {
