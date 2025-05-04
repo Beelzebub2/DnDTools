@@ -53,22 +53,21 @@ for filename in os.listdir(protos_path):
             globals()[attr] = getattr(module, attr)
 
 
-def parse_proto(data, proto_type):
+def parse_proto(packet_data, proto_type):
+    data = packet_data[8:]
+
     command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
     print(proto_type, command_name)
 
-    try:
-        # For server packets
-        message_class = globals().get("S" + command_name)
-        print(message_class)
-        if message_class:
-            message = message_class()
-            message.ParseFromString(data)
-            #print(message)
-            if message:
-                return message
-    except Exception as e:
-        print(e)
+    # For server packets
+    message_class = globals().get("S" + command_name)
+    print(message_class)
+    if message_class:
+        message = message_class()
+        message.ParseFromString(data)
+        #print(message)
+        if message:
+            return message
     
     return None
 
@@ -128,31 +127,23 @@ class PacketCapture:
         valid_packet_range = (100, 2 * 1024 * 1024)  # Between 100 bytes and 2MB
         return (
             valid_packet_range[0] <= length <= valid_packet_range[1] and
-            proto_type in self.capture_info and 
+            proto_type in _PacketCommand_pb2.PacketCommand.values() and 
             padding in [0, 256]  # Common padding values
         )
 
-    def verify_packet(self) -> bool:
+    def verify_packet(self, packet_data, proto_type) -> bool:
         """Verify packet integrity before saving"""
-        if len(self.packet_data) != self.expected_packet_length:
-            self.logger.error(f"verify_packet: Length mismatch: got {len(self.packet_data)}, expected {self.expected_packet_length}")
-            return False
-        data = self.packet_data[8:]
         try:
-            if parse_proto(data, self.expected_proto_type) == None:
+            if parse_proto(packet_data, proto_type) == None:
                 self.logger.error(f"verify_packet: Unsupported proto type: {self.expected_proto_type}")
                 return False
 
-            return True
         except Exception as e:
-            self.logger.error(f"verify_packet: Exception parsing proto type {self.expected_proto_type}: {e}\nFirst 32 bytes: {data[:32].hex()}")
+            self.logger.error(f"verify_packet: Exception parsing proto type {self.expected_proto_type}: {e}\nFirst 32 bytes: {packet_data[:32].hex()}")
             return False
-
-    def reset_state(self) -> None:
-        """Reset all packet processing state"""
-        self.packet_data = b""
-        self.expected_packet_length = None
-        self.expected_proto_type = None
+        
+        self.logger.info(f"Packet verified successfully (Type={proto_type})")
+        return True
 
     def save_packet_data(self, message) -> bool:
         try:
@@ -229,22 +220,22 @@ class PacketCapture:
                 # Desync, drop one byte and try again
                 buf = buf[1:]
                 continue
+
             if len(buf) < packet_length:
                 break  # Wait for more data
+
             # We have a full packet
-            self.packet_data = buf[:packet_length]
-            self.expected_packet_length = packet_length
-            self.expected_proto_type = proto_type
+            packet_data = buf[:packet_length]
             self.logger.info(f"Full packet received: {packet_length} bytes (Type={proto_type})")
-            if self.verify_packet():
-                self.logger.info(f"Packet verified successfully (Type={proto_type})")
-                if self.handle_packet():
+            if self.verify_packet(packet_data, proto_type):
+                if self.handle_packet(packet_data, proto_type):
                     processed_any = True
             else:
                 self.logger.warning(f"Packet verification failed (Type={proto_type})")
+            
             # Remove processed packet from buffer
             buf = buf[packet_length:]
-            self.reset_state()
+
         self.tcp_stream_buffers[conn_key] = buf
         if processed_any:
             return True
@@ -282,8 +273,6 @@ class PacketCapture:
             )
         except Exception as e:
             self.logger.error(f"Capture loop error: {e}")
-        finally:
-            self.reset_state()
 
     def start_capture_switch(self) -> None:
         """Start packet capture in background thread if not already running."""
@@ -317,18 +306,33 @@ class PacketCapture:
     def handle_account_info(self, message):
         self.save_packet_data(message)
     
-    def handle_packet(self):
-        if self.capture_info:
-            if self.expected_proto_type in self.capture_info:
-                data = self.packet_data[8:]
-                message = parse_proto(data, self.expected_proto_type)
-                if message:
-                    self.capture_info[self.expected_proto_type](message)
-            else:
-                print("No handle for:", self.expected_proto_type)
+    def handle_packet(self, packet_data, proto_type):
+        message = parse_proto(packet_data, proto_type)
+        print(proto_type)
+        #print(message)
+
+        # if self.capture_info:
+        #     if proto_type in self.capture_info:
+        #         message = parse_proto(packet_data, proto_type)
+        #         if message:
+        #             self.capture_info[proto_type](message)
+        #     else:
+        #         print("No handle for:", proto_type)
+
 
 def main():
     capture = PacketCapture()
+    # capture_info = {
+    #         S2C_LOBBY_CHARACTER_INFO_RES: print,
+    #         S2C_ACCOUNT_CHARACTER_LIST_RES: print,
+    #         S2C_INVENTORY_MOVE_RES: print,
+    #         S2C_INVENTORY_SWAP_RES: print,
+    #         S2C_INVENTORY_MERGE_RES: print,
+    #         S2C_STORAGE_INFO_RES: print,
+    # }
+    capture_info = {}
+    capture.capture_info = capture_info
+
     # Simulate switch: start background capture
     capture.start_capture_switch()
     try:

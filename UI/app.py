@@ -500,6 +500,10 @@ def background_init():
             )
 
 def main():
+    from src.models.capture import main
+    main()
+    exit()
+
     logger.info("Starting DnDTools application")
     migrate_settings()
     if api.packet_capture.running and not api._initial_restart_done:
