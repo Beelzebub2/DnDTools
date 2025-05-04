@@ -537,8 +537,8 @@ const createStashTabsWithoutDefault = (stashes) => {
 
     let firstStashUrl = null;
 
-    // Add Character tab first if we have both equipment (3) and bag (2)
-    if (stashKeys.includes('2') && stashKeys.includes('3')) {
+    // Add Character tab first if we have equipment (3) - we don't require bag (2) anymore
+    if (stashKeys.includes('3')) {
         const tab = document.createElement('div');
         tab.className = 'stash-tab';
         tab.textContent = 'Character';
@@ -557,8 +557,8 @@ const createStashTabsWithoutDefault = (stashes) => {
             // Render combined equipment and bag view
             renderCombinedCharacterView(stashes);
 
-            // Update the server with our selection, using bag as the storage ID
-            updateCurrentStash('2');
+            // Update the server with our selection, using equipment as the storage ID
+            updateCurrentStash('3');
         };
         selector.appendChild(tab);
     }
@@ -764,6 +764,9 @@ const loadStashes = async () => {
                     // Set tracking variables
                     usingCombinedCharacterView = true;
 
+                    // Show the preview container, it will be populated by renderCombinedCharacterView
+                    previewContainer.classList.remove('hidden');
+
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
 
@@ -776,7 +779,12 @@ const loadStashes = async () => {
                     } else {
                         previewImage.src = stashes[currentStashId];
                     }
-                    previewImage.classList.remove('hidden');
+
+                    // Only show the preview container if we have a valid image source
+                    if (previewImage.src && previewImage.src !== window.location.href) {
+                        previewImage.classList.remove('hidden');
+                        previewContainer.classList.remove('hidden');
+                    }
 
                     usingCombinedCharacterView = false;
 
@@ -798,6 +806,9 @@ const loadStashes = async () => {
                     // Set tracking variables
                     usingCombinedCharacterView = true;
 
+                    // Show the preview container, it will be populated by renderCombinedCharacterView
+                    previewContainer.classList.remove('hidden');
+
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
 
@@ -816,7 +827,12 @@ const loadStashes = async () => {
                         } else {
                             previewImage.src = stashes[currentStashId];
                         }
-                        previewImage.classList.remove('hidden');
+
+                        // Only show the preview container if we have a valid image source
+                        if (previewImage.src && previewImage.src !== window.location.href) {
+                            previewImage.classList.remove('hidden');
+                            previewContainer.classList.remove('hidden');
+                        }
 
                         usingCombinedCharacterView = false;
 
@@ -831,9 +847,11 @@ const loadStashes = async () => {
                 }
             }
 
-            // hide spinner, show stash content
+            // Show the tabs selector
             selector.classList.remove('hidden');
-            previewContainer.classList.remove('hidden');
+
+            // The preview container is shown only for tabs that have content
+            // It gets shown in the conditional blocks above
         } else {
             // Show empty state
             previewContainer.innerHTML = '<div class="empty-state">No stashes found for this character</div>';
@@ -921,6 +939,14 @@ window.addEventListener('DOMContentLoaded', async () => {
 
         await updateCharacterInfo(charId);
         await loadStashes();
+
+        // Force render the Character tab if it exists
+        setTimeout(() => {
+            const characterTab = document.querySelector('[data-stash-id="character"]');
+            if (characterTab) {
+                characterTab.click();
+            }
+        }, 100);
     } catch (error) {
         handleApiError(error, document.querySelector('.character-details'));
     }
@@ -1067,8 +1093,8 @@ const renderCombinedCharacterView = async (stashes) => {
     gridContainer.innerHTML = '';
 
     // Process both equipment (3) and bag (2) stash data
-    const equipmentItems = await processStashData(stashes, "3");
-    const bagItems = await processStashData(stashes, "2");
+    const equipmentItems = await processStashData(stashes, "3") || [];
+    const bagItems = await processStashData(stashes, "2") || [];
 
     // Equipment dimensions and bag dimensions
     const [equipWidth, equipHeight] = getStashDimensions("3");
@@ -1078,7 +1104,7 @@ const renderCombinedCharacterView = async (stashes) => {
     const combinedGrid = document.createElement('div');
     combinedGrid.className = 'combined-character-grid';
 
-    // Create equipment section with title
+    // Always render equipment section - even if empty
     const equipmentSection = document.createElement('div');
     equipmentSection.className = 'equipment-section';
 
@@ -1201,7 +1227,10 @@ const renderCombinedCharacterView = async (stashes) => {
     // Append equipment grid to section
     equipmentSection.appendChild(equipmentGrid);
 
-    // Create bag section with title
+    // Always add the equipment section to combined grid
+    combinedGrid.appendChild(equipmentSection);
+
+    // Always add bag section too (even if empty)
     const bagSection = document.createElement('div');
     bagSection.className = 'bag-section';
 
@@ -1311,8 +1340,7 @@ const renderCombinedCharacterView = async (stashes) => {
     // Append bag grid to section
     bagSection.appendChild(bagGrid);
 
-    // Append both sections to the combined grid
-    combinedGrid.appendChild(equipmentSection);
+    // Append bag section to the combined grid
     combinedGrid.appendChild(bagSection);
 
     // Add the combined grid to the container

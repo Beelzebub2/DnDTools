@@ -11,9 +11,15 @@
     flex-direction: column;
     align-items: center;
     margin-top: 20px;
-    background: rgba(0, 0, 0, 0.1);
+    background: transparent;
     border-radius: 8px;
-    padding: 20px;
+    padding: 0;
+    border: none;
+}
+
+.stash-preview::before,
+.stash-preview::after {
+    display: none !important;
 }
 
 .stash-controls {
@@ -340,6 +346,11 @@
     opacity: 0;
     pointer-events: none;
 }
+
+/* Hide the stash preview header text */
+/*.stash-preview::before {
+    display: none;
+}*/
 
 /* Combined Character View Styles */
 .combined-character-grid {
