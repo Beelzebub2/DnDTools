@@ -979,7 +979,7 @@ def main():
         api.set_initial_window_state()
         # Start background initialization after UI is ready
         threading.Thread(target=background_init, daemon=True).start()
-    webview.start(on_loaded, debug=False)
+    webview.start(on_loaded, debug=True)
 
 if __name__ == '__main__':
     main()

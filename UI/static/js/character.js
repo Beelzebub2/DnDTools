@@ -517,9 +517,11 @@ const createStashTabs = (stashes) => {
     return firstStashUrl;
 };
 
+// Function to create stash tabs without setting a default active tab
 const createStashTabsWithoutDefault = (stashes) => {
     const selector = document.getElementById('stashSelector');
     const preview = document.getElementById('currentStashPreview');
+    const previewContainer = document.getElementById('stashPreview');
     const gridContainer = document.getElementById('interactiveStashGrid');
     const sortButton = document.querySelector('.sort-button');
     selector.innerHTML = '';
@@ -588,13 +590,11 @@ const createStashTabsWithoutDefault = (stashes) => {
             document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
 
-            // Set image source for backward compatibility
-            if (isNewFormat) {
-                preview.src = stashes.previewImages[stashId];
-            } else {
-                preview.src = stashes[stashId];
-            }
-            preview.classList.remove('hidden');
+            // Always hide the static image preview - we use interactive grid instead
+            preview.classList.add('hidden');
+
+            // Hide any "Stash Preview" text 
+            previewContainer.className = 'stash-content-area';
 
             currentStashId = stashId;
             usingCombinedCharacterView = false;

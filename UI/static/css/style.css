@@ -841,3 +841,21 @@ img:not([src]) {
 .btn:hover {
     background-color: rgba(255, 255, 255, 0.05);
 }
+
+/* Completely hide any stash preview labels */
+.stash-content-area, .stash-preview {
+    position: relative;
+}
+
+.stash-content-area::before, .stash-preview::before {
+    display: none !important;
+    content: none !important;
+    font-size: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
