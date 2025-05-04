@@ -315,16 +315,19 @@ class StashManager:
         # Create Storage instances
         stash = Storage(StashType.STORAGE.value, stash_items)
         inventory = Storage(StashType.BAG.value, inv_items)
-        # Focus the 'Dark and Darker' window before sorting
+        
+        # Check if 'Dark and Darker' window exists before proceeding
         windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker  "]
-        if windows:
-            try:
-                windows[0].activate()
-                print("Focused window: Dark and Darker")
-            except Exception as e:
-                print(f"Error focusing window: {e}")
-        else:
-            print("No window with exact title 'Dark and Darker' found.")
+        if not windows:
+            print("Game window 'Dark and Darker' not found. Sorting cancelled.")
+            return False, "Game window not found. Please make sure Dark and Darker is running."
+            
+        # If window exists, try to focus it
+        try:
+            windows[0].activate()
+            print("Focused window: Dark and Darker")
+        except Exception as e:
+            print(f"Error focusing window: {e}")
         
         # Perform sorting
         sorter = StashSorter(stash, inventory)

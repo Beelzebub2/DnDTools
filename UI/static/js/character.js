@@ -530,7 +530,12 @@ const triggerSort = async () => {
             showNotification('Stash sorted successfully', 'success');
         } else {
             const errorMessage = result.error || 'Failed to sort stash. The stash might be full.';
-            showNotification(errorMessage, 'error');
+            // Use the global notification function from app.js for consistent UI notifications
+            if (typeof window.showNotification === 'function') {
+                window.showNotification(errorMessage, 'error');
+            } else {
+                showNotification(errorMessage, 'error');
+            }
         }
     } catch (error) {
         if (error.name === 'AbortError') {
@@ -750,6 +755,17 @@ function showNotification(message, type = 'info') {
     const container = document.createElement('div');
     container.className = `notification ${type}`;
     container.textContent = message;
+
+    // Add inline styling to position the notification below the topbar
+    container.style.position = 'fixed';
+    container.style.top = '60px'; // Position below the topbar
+    container.style.right = '20px';
+    container.style.zIndex = '9999';
+    container.style.padding = '12px 20px';
+    container.style.borderRadius = '4px';
+    container.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
+    container.style.animation = 'slideIn 0.3s ease-out forwards';
+
     document.body.appendChild(container);
 
     // Remove after animation
