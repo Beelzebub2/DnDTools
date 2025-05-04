@@ -843,11 +843,13 @@ img:not([src]) {
 }
 
 /* Completely hide any stash preview labels */
-.stash-content-area, .stash-preview {
+.stash-content-area,
+.stash-preview {
     position: relative;
 }
 
-.stash-content-area::before, .stash-preview::before {
+.stash-content-area::before,
+.stash-preview::before {
     display: none !important;
     content: none !important;
     font-size: 0 !important;
