@@ -4,22 +4,18 @@ import psutil
 import struct
 import json
 from datetime import datetime
-import os
 import logging
+import os
 import sys
 from typing import Tuple, Optional
-from google.protobuf.json_format import MessageToJson
 import threading
 import time
 import asyncio
 import importlib
 import subprocess
 
-from .appdirs import get_data_dir, get_capture_state_file, is_frozen
-from src.models.protos import *
+from .appdirs import get_capture_state_file, is_frozen
 from networking.protos import _PacketCommand_pb2
-from networking.protos import _Defins_pb2
-
 
 # Determine paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -54,23 +50,6 @@ for filename in os.listdir(protos_path):
         if not attr.startswith("_"):
             globals()[attr] = getattr(module, attr)
 
-def parse_proto(packet_data, proto_type):
-    data = packet_data[8:]
-
-    command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
-
-    try:
-        # For server packets
-        message_class = globals().get("S" + command_name)
-        if message_class:
-            message = message_class()
-            message.ParseFromString(data)
-            if message:
-                return message
-    except Exception as e:
-        print(e)
-
-    return None
 
 # Configure subprocess to hide console windows when in executable mode
 if is_frozen():
@@ -96,8 +75,6 @@ class PacketCapture:
         self.packet_data = b""
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-        self.data_dir = get_data_dir()
-        os.makedirs(self.data_dir, exist_ok=True)
         self.MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
         self.expected_packet_length = None
         self.expected_proto_type = None
@@ -110,6 +87,24 @@ class PacketCapture:
         if saved_state.get('running', False):
             self.running = True  # Only set the flag, don't start capture
             self.logger.info("Restored previous running state (capture will start when explicitly requested)")
+
+    def parse_proto(self, packet_data, proto_type):
+        data = packet_data[8:]
+
+        command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
+
+        try:
+            # For server packets
+            message_class = globals().get("S" + command_name)
+            if message_class:
+                message = message_class()
+                message.ParseFromString(data)
+                if message:
+                    return message
+        except Exception as e:
+            self.logger.warning(f"Error parsing proto: {e}")
+
+        return None
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
@@ -125,7 +120,7 @@ class PacketCapture:
         return (
             valid_packet_range[0] <= length <= valid_packet_range[1] and
             proto_type in _PacketCommand_pb2.PacketCommand.values() and 
-            padding == 256  # Common padding values
+            padding in [0, 256]  # Common padding values
         )
 
     def process_packet(self, data: bytes) -> Optional[bool]:
@@ -136,7 +131,7 @@ class PacketCapture:
             
             # Reset if buffer gets too large
             if current_size > self.MAX_BUFFER_SIZE:
-                print(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
+                self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
                 self.reset_state()
                 return False
 
@@ -149,11 +144,11 @@ class PacketCapture:
                     packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name if proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number else "Unknown"
                     
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
-                        print(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
+                        self.logger.warning(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
                         self.reset_state()
                         return False
-
-                    print(f"New packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
+                    
+                    self.logger.info(f"New packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
                     
                     self.expected_packet_length = packet_length
                     self.expected_proto_type = proto_type
@@ -165,7 +160,7 @@ class PacketCapture:
             if self.expected_packet_length and self.expected_proto_type:
                 # Handle overflow by trimming
                 if current_size > self.expected_packet_length:
-                    print(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
+                    self.logger.info(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
                     self.packet_data = self.packet_data[:self.expected_packet_length]
                     current_size = self.expected_packet_length
 
@@ -175,7 +170,7 @@ class PacketCapture:
                     self.reset_state()
                 # Progress update
                 elif current_size % 8192 == 0:
-                    print(f"Accumulating: {current_size}/{self.expected_packet_length}")
+                    self.logger.info(f"Accumulating: {current_size}/{self.expected_packet_length}")
         return False
 
     def reset_state(self) -> None:
@@ -183,33 +178,6 @@ class PacketCapture:
         self.packet_data = b""
         self.expected_packet_length = None
         self.expected_proto_type = None
-
-
-    def save_packet_data(self, message) -> bool:
-        try:
-
-            json_data = MessageToJson(message)
-            # Overwrite file if characterId matches (no date in filename)
-            if '"result": 1' in json_data and '"characterDataBase": {' in json_data:
-                char_data = message.characterDataBase
-                char_id = str(char_data.characterId)
-                data_file = os.path.join(self.data_dir, f"{char_id}.json")
-                with open(data_file, "w", encoding='utf-8') as f:
-                    f.write(json_data)
-                self.logger.info(f"Saved/updated target packet data to {data_file} (characterId={char_id})")
-                return True
-
-            # Save other packets to timestamped files as before
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            data_file = os.path.join(self.data_dir, f"{timestamp}.json")
-            with open(data_file, "w", encoding='utf-8') as f:
-                f.write(json_data)
-            self.logger.info(f"Successfully saved packet data to {data_file}")
-            return False
-
-        except Exception as e:
-            self.logger.error(f"Failed to save packet data: {str(e)}")
-            raise
 
     def _save_state(self):
         """Save capture state to persistent storage"""
@@ -327,32 +295,26 @@ class PacketCapture:
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
             self.process_packet(packet.tcp.payload.binary_value)
-
-    def handle_account_info(self, message):
-        self.save_packet_data(message)
     
     def handle_packet(self, packet_data, proto_type):
         name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
         if self.capture_info:
+            message = self.parse_proto(packet_data, proto_type)
             if proto_type in self.capture_info:
                 self.logger.info(f"Parsing: {name} {proto_type}")
-                message = parse_proto(packet_data, proto_type)
                 if message:
                     self.capture_info[proto_type](message)
+                else:
+                    self.logger.warning("Invalid Packet")
             else:
                 self.logger.info(f"No handle for: {name} {proto_type}")
-                message = parse_proto(packet_data, proto_type)
                 if message:
                     self.logger.info("Valid Packet")
                 else:
-                    self.logger.info("Invalid Packet")
-
-def policy(message):
-    for policy in message.policyList:
-        name = _Defins_pb2.Operate.Policy.Name(policy.policyType)
-        print(f"{name or 'UnknownPolicy'}: {getattr(policy, 'policyValue', 'N/A')}")
+                    self.logger.warning("Invalid Packet")
 
 def main():
+    from src.models.character import policy
     capture = PacketCapture()
     capture_info = {
         # S2C_LOBBY_CHARACTER_INFO_RES: print,
@@ -362,7 +324,7 @@ def main():
         # S2C_INVENTORY_MERGE_RES: print,
         # S2C_STORAGE_INFO_RES: print,
         # S2C_PING_INFO_RES: print,
-        S2C_SERVICE_POLICY_NOT: policy,
+        _PacketCommand_pb2.PacketCommand.S2C_SERVICE_POLICY_NOT: policy,
     }
     capture.capture_info = capture_info
 

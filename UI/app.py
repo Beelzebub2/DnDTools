@@ -15,7 +15,9 @@ import shutil
 import subprocess
 import requests
 import io
-from src.models.protos import *
+from networking.protos import _PacketCommand_pb2
+
+from src.models.character import save_packet_data
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -57,7 +59,8 @@ server.secret_key = secrets.token_hex(32)  # Generate a secure random key
 # Initialize StashManager with explicit path
 stash_manager = StashManager(app_dir)
 
-def on_new_character_callback():
+def handle_character(message):
+    save_packet_data(message)
     # Called from PacketCapture when a new character is saved
     stash_manager.characters_cache = {}
     stash_manager._load_data()
@@ -88,7 +91,7 @@ class Api:
             port_range=self.capture_settings['port_range'],
         )
         capture_info = {
-            S2C_LOBBY_CHARACTER_INFO_RES: self.handle_character,
+            _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
         }
         self.packet_capture.capture_info = capture_info
 
@@ -218,7 +221,6 @@ class Api:
         self.packet_capture = PacketCapture(
             interface,
             (port_low, port_high),
-            on_new_character=on_new_character_callback
         )
         return True
 
@@ -495,10 +497,6 @@ class Api:
             return {"success": False, "error": error_msg}
             
         return {"success": True}
-    
-    def handle_character(self, message):
-        self.packet_capture.save_packet_data(message)
-        on_new_character_callback()
 
 def download_github_release_asset(asset_url):
     """Download a GitHub release asset and return it as a file-like object."""
