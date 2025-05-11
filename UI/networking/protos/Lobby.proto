@@ -8,6 +8,7 @@ option java_multiple_files = false;
 
 import "_Character.proto";
 import "_Item.proto";
+import "Common.proto";
 
 message SC2S_CHARACTER_SELECT_ENTER_REQ {
 }
@@ -242,5 +243,22 @@ message SS2C_CONTENTS_OPEN_STATUS_RES {
   uint32 toggleContentType = 2;
   uint32 openStatus = 3;
   int64 remainTimeSec = 4;
+}
+
+message SC2S_LAST_GAME_ADVENTURE_RESULT_REQ {
+}
+
+message SS2C_LAST_GAME_ADVENTURE_RESULT_RES {
+  uint32 result = 1;
+  repeated .DC.Packet.GameExitAdvPoint advPoints = 2;
+  uint32 lootedItemSellBackPrice = 3;
+  .DC.Packet.SRankGameUserInfo prevRankInfo = 4;
+  uint32 isEscape = 5;
+  uint32 escapeFailApPointOnOff = 6;
+  string seasonId = 7;
+  uint32 isSeason = 8;
+  uint32 gameType = 9;
+  string characterClass = 10;
+  uint32 gender = 11;
 }
 

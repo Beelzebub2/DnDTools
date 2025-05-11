@@ -26,10 +26,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 ui_root     = os.path.abspath(os.path.join(current_dir, "..", ".."))
 protos_path = os.path.join(ui_root, "networking", "protos")
 
-# Ensure the networking package root is on sys.path
-networking_root = os.path.dirname(protos_path)
-if networking_root not in sys.path:
-    sys.path.insert(0, networking_root)
+# Ensure the protos path is on sys.path
+if protos_path not in sys.path:
+    sys.path.insert(0, protos_path)
 
 # Dynamically load each _pb2 module under the package name networking.protos.xxx_pb2
 for filename in os.listdir(protos_path):

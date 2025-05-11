@@ -65,6 +65,7 @@ message SS2C_MARKETPLACE_MY_ITEM_LIST_RES {
   repeated .DC.Packet.SMARKETPLACE_MY_ITEM_SLOT_INFO mySlotInfos = 2;
   int32 totalItemCount = 3;
   int32 currentPage = 4;
+  repeated int32 availableOrderIndexes = 5;
 }
 
 message SMARKETPLACE_TRADE_ITEM_INFO {
