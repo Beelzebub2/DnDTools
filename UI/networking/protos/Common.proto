@@ -159,6 +159,7 @@ message SS2C_JOIN_LAST_GAME_RES {
   string sessionId = 3;
   string accountId = 4;
   string serviceUrl = 5;
+  uint32 canResult = 6;
 }
 
 message SC2S_WHISPER_CHAT_REQ {
@@ -286,6 +287,7 @@ message SC2S_DLC_INSTALLED_CHECK_REQ {
 message SS2C_DLC_INSTALLED_CHECK_RES {
   int32 result = 1;
   int32 dlcType = 2;
+  repeated .DC.Packet.SACCOUNT_DLC_INSTALL_INFO dlcInstallInfos = 3;
 }
 
 message SC2S_REPORT_CHAT_REQ {
@@ -307,13 +309,37 @@ message SDUNGEON_GEAR_POOL_INFO {
   int32 maxIncludingValue = 3;
 }
 
+message SOPEN_DUNGEON_POOL_INFO {
+  uint32 gearPoolIndex = 1;
+  uint32 maxIncludingRarity = 2;
+}
+
 message SOPEN_DUNGEON_INFO {
   uint32 dungeonIndex = 1;
   uint32 gameType = 2;
   repeated .DC.Packet.SDUNGEON_GEAR_POOL_INFO gearPoolInfos = 3;
+  repeated .DC.Packet.SOPEN_DUNGEON_POOL_INFO dungeonPoolInfos = 4;
 }
 
 message SS2C_OPEN_DUNGEON_INFO_NOT {
   repeated .DC.Packet.SOPEN_DUNGEON_INFO infos = 1;
+}
+
+message GameExitAdvPoint {
+  int32 advPointType = 1;
+  int32 advPoint = 2;
+  int32 advCount = 3;
+}
+
+message SRankGameUserInfo {
+  string rankId = 1;
+  uint32 currentPoint = 2;
+  uint32 needPoint = 3;
+  uint32 currentTotalPoint = 4;
+}
+
+message SACCOUNT_DLC_INSTALL_INFO {
+  uint32 dlcType = 1;
+  uint64 dlcPurchasedElapsedTimeMs = 2;
 }
 

@@ -1,28 +1,55 @@
+import pyshark
 import socket
 import psutil
 import struct
 import json
 from datetime import datetime
-import os
 import logging
+import os
 import sys
-import subprocess
 from typing import Tuple, Optional
-from google.protobuf.json_format import MessageToJson
 import threading
 import time
-from .appdirs import get_data_dir, get_capture_state_file, is_frozen
-from scapy.all import sniff, TCP, IP
-from collections import defaultdict
+import asyncio
+import importlib
+import subprocess
 
-# Add the absolute path to the protos directory
-current_dir = os.path.dirname(os.path.abspath(__file__))
-ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
-protos_path = os.path.join(ui_root, "networking", "protos")
-sys.path.insert(0, protos_path)
-
-from networking.protos import Lobby_pb2
+from .appdirs import get_capture_state_file, is_frozen
 from networking.protos import _PacketCommand_pb2
+
+# Determine paths
+current_dir = os.path.dirname(os.path.abspath(__file__))
+ui_root     = os.path.abspath(os.path.join(current_dir, "..", ".."))
+protos_path = os.path.join(ui_root, "networking", "protos")
+
+# Ensure the protos path is on sys.path
+if protos_path not in sys.path:
+    sys.path.insert(0, protos_path)
+
+# Dynamically load each _pb2 module under the package name networking.protos.xxx_pb2
+for filename in os.listdir(protos_path):
+    if not filename.endswith("_pb2.py"):
+        continue
+
+    module_name = filename[:-3]  # "Account_pb2"
+    full_name   = f"networking.protos.{module_name}"
+    file_path   = os.path.join(protos_path, filename)
+
+    # Create a module spec
+    spec = importlib.util.spec_from_file_location(full_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+
+    # Insert into sys.modules so relative imports inside will resolve
+    sys.modules[full_name] = module
+
+    # Execute the module
+    spec.loader.exec_module(module)
+
+    # Bring its public names into globals()
+    for attr in dir(module):
+        if not attr.startswith("_"):
+            globals()[attr] = getattr(module, attr)
+
 
 # Configure subprocess to hide console windows when in executable mode
 if is_frozen():
@@ -41,41 +68,43 @@ if is_frozen():
     # Replace the subprocess.Popen with our modified version
     subprocess.Popen = hidden_popen
 
-class PacketProtocol:
-    S2C_LOBBY_CHARACTER_INFO_RES = 44
-    S2C_ACCOUNT_CHARACTER_LIST_RES = 18
-    
-    @staticmethod
-    def is_valid_type(proto_type: int) -> bool:
-        return proto_type in [
-            PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES,
-            PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES
-        ]
-
 class PacketCapture:
-
-    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), on_new_character=None):
+    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300)):
         self.interface = interface
         self.port_range = port_range
         self.packet_data = b""
-        # Use the centralized logging system instead of configuring logging here
+        logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
-        self.data_dir = get_data_dir()
-        self.STATE_FILE = get_capture_state_file()
-        os.makedirs(self.data_dir, exist_ok=True)
         self.MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
         self.expected_packet_length = None
         self.expected_proto_type = None
         self.running = False  # Initialize as False first
         self.capture_thread = None
-        self.on_new_character = on_new_character
-        self.tcp_stream_buffers = defaultdict(bytes)  # key: (src_ip, src_port, dst_ip, dst_port)
+        self.STATE_FILE = get_capture_state_file()
         
         # Restore state but don't start capture automatically
         saved_state = self._restore_state()
         if saved_state.get('running', False):
             self.running = True  # Only set the flag, don't start capture
             self.logger.info("Restored previous running state (capture will start when explicitly requested)")
+
+    def parse_proto(self, packet_data, proto_type):
+        data = packet_data[8:]
+
+        command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
+
+        try:
+            # For server packets
+            message_class = globals().get("S" + command_name)
+            if message_class:
+                message = message_class()
+                message.ParseFromString(data)
+                if message:
+                    return message
+        except Exception as e:
+            self.logger.warning(f"Error parsing proto: {e}")
+
+        return None
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
@@ -87,126 +116,68 @@ class PacketCapture:
 
     def validate_packet_header(self, length: int, proto_type: int, padding: int) -> bool:
         """Validate packet header values"""
-        valid_packet_range = (100, 2 * 1024 * 1024)  # Between 100 bytes and 2MB
+        valid_packet_range = (8, 2 * 1024 * 1024)  # Between 100 bytes and 2MB
         return (
             valid_packet_range[0] <= length <= valid_packet_range[1] and
-            PacketProtocol.is_valid_type(proto_type) and
+            proto_type in _PacketCommand_pb2.PacketCommand.values() and 
             padding in [0, 256]  # Common padding values
         )
 
     def process_packet(self, data: bytes) -> Optional[bool]:
         if len(data) > 0:
+            # Add incoming data to buffer
             self.packet_data += data
             current_size = len(self.packet_data)
-            self.logger.debug(f"Received {len(data)} bytes, buffer size now {current_size}")
+            
+            # Reset if buffer gets too large
             if current_size > self.MAX_BUFFER_SIZE:
-                self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes), resetting state.")
+                self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
                 self.reset_state()
-                return
+                return False
+
+            # Try to parse/validate header
             if self.expected_packet_length is None and current_size >= 8:
                 try:
                     packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
+                    
+                    # Get packet type name from _PacketCommand_pb2 before validation
                     packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name if proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number else "Unknown"
-                    self.logger.info(f"Header: Type={proto_type} ({packet_type_name}), Length={packet_length}, Padding={random_padding}")
+                    
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
-                        self.logger.warning(f"Invalid packet header: Type={proto_type} ({packet_type_name}), Length={packet_length}, Padding={random_padding}")
+                        self.logger.warning(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
                         self.reset_state()
-                        return
-                    self.logger.info(f"Started new packet: {packet_type_name} (Type={proto_type}, Length={packet_length})")
+                        return False
+                    
+                    self.logger.info(f"New packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
+                    
                     self.expected_packet_length = packet_length
                     self.expected_proto_type = proto_type
-                except struct.error as e:
-                    self.logger.error(f"Header unpack error: {e}")
+                except struct.error:
                     self.reset_state()
-                    return
+                    return False
+
+            # Process packet data
             if self.expected_packet_length and self.expected_proto_type:
+                # Handle overflow by trimming
                 if current_size > self.expected_packet_length:
-                    self.logger.warning(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
+                    self.logger.info(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
                     self.packet_data = self.packet_data[:self.expected_packet_length]
                     current_size = self.expected_packet_length
-                if current_size == self.expected_packet_length:
-                    self.logger.info(f"Full packet received: {current_size} bytes (Type={self.expected_proto_type})")
-                    if self.verify_packet():
-                        self.logger.info(f"Packet verified successfully (Type={self.expected_proto_type})")
-                        self.save_packet_data()
-                        self.reset_state()
-                        return True
-                    else:
-                        self.logger.warning(f"Packet verification failed (Type={self.expected_proto_type})")
-                        self.reset_state()
-                elif current_size % 8192 == 0 or current_size == self.expected_packet_length - 1:
-                    self.logger.debug(f"Accumulating: {current_size}/{self.expected_packet_length}")
-        # No spammy return
-        return
 
-    def verify_packet(self) -> bool:
-        """Verify packet integrity before saving"""
-        if len(self.packet_data) != self.expected_packet_length:
-            self.logger.error(f"verify_packet: Length mismatch: got {len(self.packet_data)}, expected {self.expected_packet_length}")
-            return False
-        data = self.packet_data[8:]
-        try:
-            if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
-                info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
-            elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
-                info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
-            else:
-                self.logger.error(f"verify_packet: Unsupported proto type: {self.expected_proto_type}")
-                return False
-            info.ParseFromString(data)
-            return True
-        except Exception as e:
-            self.logger.error(f"verify_packet: Exception parsing proto type {self.expected_proto_type}: {e}\nFirst 32 bytes: {data[:32].hex()}")
-            return False
+                # Complete packet
+                if current_size == self.expected_packet_length:
+                    self.handle_packet(self.packet_data, self.expected_proto_type)
+                    self.reset_state()
+                # Progress update
+                elif current_size % 8192 == 0:
+                    self.logger.info(f"Accumulating: {current_size}/{self.expected_packet_length}")
+        return False
 
     def reset_state(self) -> None:
         """Reset all packet processing state"""
         self.packet_data = b""
         self.expected_packet_length = None
         self.expected_proto_type = None
-
-    def save_packet_data(self) -> bool:
-        try:
-            if len(self.packet_data) != self.expected_packet_length:
-                raise ValueError("Packet length mismatch")
-            data = self.packet_data[8:]
-            try:
-                if self.expected_proto_type == PacketProtocol.S2C_LOBBY_CHARACTER_INFO_RES:
-                    info = Lobby_pb2.SS2C_LOBBY_CHARACTER_INFO_RES()
-                elif self.expected_proto_type == PacketProtocol.S2C_ACCOUNT_CHARACTER_LIST_RES:
-                    info = Lobby_pb2.SS2C_ACCOUNT_CHARACTER_LIST_RES()
-                else:
-                    self.logger.info(f"Skipping unsupported proto type: {self.expected_proto_type}")
-                    return False
-                info.ParseFromString(data)
-                json_data = MessageToJson(info)
-            except Exception as e:
-                self.logger.error(f"Failed to parse packet data for proto type {self.expected_proto_type}: {e}")
-                return False
-
-            # Overwrite file if characterId matches (no date in filename)
-            if '"result": 1' in json_data and '"characterDataBase": {' in json_data:
-                char_data = info.characterDataBase
-                char_id = str(char_data.characterId)
-                data_file = os.path.join(self.data_dir, f"{char_id}.json")
-                with open(data_file, "w", encoding='utf-8') as f:
-                    f.write(json_data)
-                self.logger.info(f"Saved/updated target packet data to {data_file} (characterId={char_id})")
-                if self.on_new_character:
-                    self.on_new_character(char_id)
-                return True
-
-            # Save other packets to timestamped files as before
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-            data_file = os.path.join(self.data_dir, f"{timestamp}.json")
-            with open(data_file, "w", encoding='utf-8') as f:
-                f.write(json_data)
-            self.logger.info(f"Successfully saved packet data to {data_file}")
-            return False
-
-        except Exception as e:
-            self.logger.error(f"Failed to save packet data: {str(e)}")
-            raise
 
     def _save_state(self):
         """Save capture state to persistent storage"""
@@ -235,114 +206,63 @@ class PacketCapture:
             self.logger.error(f"Failed to restore capture state: {e}")
             return {"running": False}
 
-    def process_tcp_stream(self, conn_key, data: bytes) -> Optional[bool]:
-        """
-        Buffer TCP data for a connection, parse packets as they become available.
-        """
-        self.tcp_stream_buffers[conn_key] += data
-        buf = self.tcp_stream_buffers[conn_key]
-        processed_any = False
-        while True:
-            if len(buf) < 8:
-                break  # Not enough for header
-            try:
-                packet_length, proto_type, random_padding = struct.unpack('<IHH', buf[:8])
-            except struct.error:
-                break
-            if not self.validate_packet_header(packet_length, proto_type, random_padding):
-                # Desync, drop one byte and try again
-                buf = buf[1:]
-                continue
-            if len(buf) < packet_length:
-                break  # Wait for more data
-            # We have a full packet
-            self.packet_data = buf[:packet_length]
-            self.expected_packet_length = packet_length
-            self.expected_proto_type = proto_type
-            self.logger.info(f"Full packet received: {packet_length} bytes (Type={proto_type})")
-            if self.verify_packet():
-                self.logger.info(f"Packet verified successfully (Type={proto_type})")
-                if self.save_packet_data():
-                    processed_any = True
-            else:
-                self.logger.warning(f"Packet verification failed (Type={proto_type})")
-            # Remove processed packet from buffer
-            buf = buf[packet_length:]
-            self.reset_state()
-        self.tcp_stream_buffers[conn_key] = buf
-        if processed_any:
-            return True
-        # No spammy return
-        return
-
-    def capture(self) -> bool:
-        found_flag = False
-        local_ip = self.get_local_ip()
-        if not local_ip:
-            print(f"Could not find IP address for interface {self.interface}")
-            return False
-
-        # BPF filter for scapy
-        display_filter = (
-            f"tcp and dst host {local_ip} and src portrange {self.port_range[0]}-{self.port_range[1]}"
-        )
-
-        def scapy_packet_callback(packet):
-            if packet.haslayer(TCP) and packet.haslayer(IP):
-                ip = packet[IP]
-                tcp = packet[TCP]
-                conn_key = (ip.src, tcp.sport, ip.dst, tcp.dport)
-                payload = bytes(tcp.payload)
-                self.process_tcp_stream(conn_key, payload)  # Do not print or log return value
-            # Do not return False or anything
-
-        try:
-            sniff(
-                iface=self.interface,
-                filter=display_filter,
-                prn=scapy_packet_callback,
-                store=0,
-                stop_filter=lambda x: found_flag or not self.running
-            )
-        except KeyboardInterrupt:
-            print("Capture stopped by user")
-        except Exception as e:
-            print(f"Capture error: {e}")
-        finally:
-            self.packet_data = b""
-        return found_flag
 
     def capture_loop(self) -> None:
+        # Set up event loop for this thread
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
         local_ip = self.get_local_ip()
         if not local_ip:
             self.logger.error(f"Could not find IP address for interface {self.interface}")
             return
-
-        display_filter = (
-            f"tcp and dst host {local_ip} and src portrange {self.port_range[0]}-{self.port_range[1]}"
-        )
-
-        def scapy_packet_callback(packet):
-            if not self.running:
-                return True  # Stop sniffing
-            if packet.haslayer(TCP) and packet.haslayer(IP):
-                ip = packet[IP]
-                tcp = packet[TCP]
-                conn_key = (ip.src, tcp.sport, ip.dst, tcp.dport)
-                payload = bytes(tcp.payload)
-                self.process_tcp_stream(conn_key, payload)
-            # Do not return False or anything
-
+            
+        display_filter = (f'ip.dst == {local_ip} and '
+                          f'tcp.srcport >= {self.port_range[0]} and '
+                          f'tcp.srcport <= {self.port_range[1]}')
+        
+        # Store capture object as instance variable for cleanup
+        self._current_capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        self._current_loop = loop
+        
         try:
-            sniff(
-                iface=self.interface,
-                filter=display_filter,
-                prn=scapy_packet_callback,
-                store=0,
-                stop_filter=lambda x: not self.running
-            )
+            for packet in self._current_capture.sniff_continuously():
+                if not self.running:
+                    break
+                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                    self.process_packet(packet.tcp.payload.binary_value)
         except Exception as e:
             self.logger.error(f"Capture loop error: {e}")
+        finally:
+            self._cleanup_capture()
+
+    def _cleanup_capture(self):
+        """Clean up capture resources properly"""
+        try:
+            if hasattr(self, '_current_capture'):
+                # Create a new event loop for cleanup if needed
+                if not hasattr(self, '_current_loop') or self._current_loop.is_closed():
+                    loop = asyncio.new_event_loop()
+                    asyncio.set_event_loop(loop)
+                else:
+                    loop = self._current_loop
+
+                # Run close_async in the event loop
+                if hasattr(self._current_capture, 'close_async'):
+                    loop.run_until_complete(self._current_capture.close_async())
+                else:
+                    self._current_capture.close()
+                
+                del self._current_capture
+                
+                # Clean up the event loop
+                if hasattr(self, '_current_loop'):
+                    if not self._current_loop.is_closed():
+                        self._current_loop.close()
+                    del self._current_loop
+        except Exception as e:
+            self.logger.error(f"Error during capture cleanup: {e}")
         finally:
             self.reset_state()
 
@@ -371,24 +291,43 @@ class PacketCapture:
                 self._cleanup_capture()
         self.capture_thread = None
         self.logger.info("Capture switch turned OFF")
-        
-    def _cleanup_capture(self) -> None:
-        """Force cleanup of capture resources when thread doesn't exit cleanly."""
-        try:
-            # Reset all buffers
-            self.reset_state()
-            self.tcp_stream_buffers.clear()
-            # The thread will eventually terminate when sniff() recognizes that self.running is False
-            self.logger.info("Forced cleanup of capture resources completed")
-        except Exception as e:
-            self.logger.error(f"Error during forced cleanup: {e}")
 
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
             self.process_packet(packet.tcp.payload.binary_value)
+    
+    def handle_packet(self, packet_data, proto_type):
+        name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
+        if self.capture_info:
+            message = self.parse_proto(packet_data, proto_type)
+            if proto_type in self.capture_info:
+                self.logger.info(f"Parsing: {name} {proto_type}")
+                if message:
+                    self.capture_info[proto_type](message)
+                else:
+                    self.logger.warning("Invalid Packet")
+            else:
+                self.logger.info(f"No handle for: {name} {proto_type}")
+                if message:
+                    self.logger.info("Valid Packet")
+                else:
+                    self.logger.warning("Invalid Packet")
 
 def main():
+    from src.models.character import policy
     capture = PacketCapture()
+    capture_info = {
+        # S2C_LOBBY_CHARACTER_INFO_RES: print,
+        # S2C_ACCOUNT_CHARACTER_LIST_RES: print,
+        # S2C_INVENTORY_MOVE_RES: print,
+        # S2C_INVENTORY_SWAP_RES: print,
+        # S2C_INVENTORY_MERGE_RES: print,
+        # S2C_STORAGE_INFO_RES: print,
+        # S2C_PING_INFO_RES: print,
+        _PacketCommand_pb2.PacketCommand.S2C_SERVICE_POLICY_NOT: policy,
+    }
+    capture.capture_info = capture_info
+
     # Simulate switch: start background capture
     capture.start_capture_switch()
     try:

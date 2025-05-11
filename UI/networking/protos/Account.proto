@@ -8,6 +8,7 @@ option java_multiple_files = false;
 
 import "_Item.proto";
 import "_Character.proto";
+import "Common.proto";
 
 message SLOGIN_ACCOUNT_INFO {
   string AccountID = 1;
@@ -92,6 +93,7 @@ message SS2C_ACCOUNT_LOGIN_RES {
   int32 banPeriodType = 22;
   int32 eulaAgreementStatus = 23;
   int32 permission = 24;
+  repeated .DC.Packet.SACCOUNT_DLC_INSTALL_INFO dlcInstallInfos = 25;
 }
 
 message SC2S_ACCOUNT_CHARACTER_CREATE_REQ {
@@ -122,6 +124,7 @@ message SS2C_ACCOUNT_CHARACTER_LIST_RES {
   repeated .DC.Packet.SLOGIN_CHARACTER_INFO characterList = 3;
   repeated .DC.Packet.SACCOUNT_CHARACTER_SLOT_INFO slotInfos = 4;
   uint32 availableSlotCount = 5;
+  uint64 wipeRemainTimeMs = 6;
 }
 
 message SC2S_ACCOUNT_CHARACTER_DELETE_REQ {
@@ -209,5 +212,14 @@ message SS2C_PING_INFO_RES {
 
 message SS2C_PING_INFO_NOT {
   uint32 result = 1;
+}
+
+message SS2C_PING_CHECKING_NETWORK_NOT {
+  uint32 result = 1;
+}
+
+message SS2C_PING_REGION_SELECT_NOT {
+  uint32 result = 1;
+  uint32 region = 2;
 }
 

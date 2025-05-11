@@ -8,6 +8,7 @@ option java_multiple_files = false;
 
 import "_Item.proto";
 import "_Character.proto";
+import "Common.proto";
 
 message SGameQuestContentInfo {
   string contentId = 1;
@@ -55,11 +56,6 @@ message S2C_GameEnterUser_Json {
   int32 karmaRating = 9;
   repeated .DC.Packet.SReservedPartyMember reservedPartyMember = 10;
   int32 isRandomJoin = 11;
-}
-
-message GameExitAdvPoint {
-  int32 advPointType = 1;
-  int32 advPoint = 2;
 }
 
 message GameExitExpPoint {
@@ -180,13 +176,6 @@ message C2S_GameCharacterInfo_Get {
   uint32 gameType = 4;
 }
 
-message SRankGameUserInfo {
-  string rankId = 1;
-  uint32 currentPoint = 2;
-  uint32 needPoint = 3;
-  uint32 currentTotalPoint = 4;
-}
-
 message SGameCharacterInfo {
   uint64 gameId = 1;
   string accountId = 2;
@@ -218,6 +207,7 @@ message SGameCharacterInfo {
   int32 chatBlockMin = 29;
   double mmr = 30;
   .DC.Packet.SACCOUNT_NICKNAME nickname = 31;
+  uint32 deathPenalty = 32;
 }
 
 message S2C_GameCharacterInfo_Json {
