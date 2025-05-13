@@ -18,6 +18,7 @@ import io
 from networking.protos import _PacketCommand_pb2
 
 from src.models.character import save_packet_data
+from src.models.item import Item
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -497,6 +498,10 @@ class Api:
             return {"success": False, "error": error_msg}
             
         return {"success": True}
+    
+    def set_sort_order(self, order):
+        Item.sort_order = order
+        return True
 
 def download_github_release_asset(asset_url):
     """Download a GitHub release asset and return it as a file-like object."""
@@ -941,6 +946,11 @@ def proxy_market_price(item_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@server.route('/api/sort_order', methods=['POST'])
+def api_sort_order():
+    data = request.get_json() or {}
+    return jsonify({'success': api.set_sort_order(data.get('order'))})
+
 def main():
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
@@ -981,6 +991,7 @@ def main():
     window.expose(api.get_executable_path)
     window.expose(api.launch_updater)
     window.expose(api.download_and_launch_update)
+    window.expose(api.set_sort_order)
     api.set_window(window)
     def on_loaded():
         api.set_initial_window_state()

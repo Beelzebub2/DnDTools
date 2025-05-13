@@ -284,8 +284,10 @@ def send_ctrl_up():
     send_key(VK_CONTROL, True)  # Ctrl up
 
 def release_modifiers():
-    send_alt_up()
-    send_ctrl_up()
+    # send_alt_up()
+    # send_ctrl_up()
+    # I dont think this is a solution, might do more harm then good.
+    pass
 
 # Call release_modifiers() at the start of your macro/sort operation
 # For example, in your sort.py before starting the sort:

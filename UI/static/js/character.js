@@ -1267,3 +1267,107 @@ const renderCombinedCharacterView = async (stashes) => {
     // Add the combined grid to the container
     gridContainer.appendChild(combinedGrid);
 };
+
+
+// Stash sort ordering popup
+document.addEventListener('DOMContentLoaded', () => {
+    const button = document.getElementById('orderingButton');
+    const menu = document.getElementById('orderingMenu');
+    let dragged = null;
+
+    // Toggle menu visibility
+    button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('hidden');
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target) && !button.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    // Setup draggable ordering options
+    menu.querySelectorAll('.ordering-option').forEach(option => {
+        option.addEventListener('dragstart', () => {
+            dragged = option;
+            option.classList.add('dragging');
+        });
+
+        option.addEventListener('dragend', () => {
+            option.classList.remove('dragging');
+            onOrderChange(); // Call onOrderChange when drag ends
+        });
+
+        option.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const bounding = option.getBoundingClientRect();
+            const offset = bounding.y + bounding.height / 2;
+            if (e.clientY < offset) {
+                option.parentNode.insertBefore(dragged, option);
+            } else {
+                option.parentNode.insertBefore(dragged, option.nextSibling);
+            }
+        });
+
+        // Click on option (excluding arrow buttons)
+        option.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            const sortKey = option.dataset.sort;
+            console.log(`Selected sort: ${sortKey}`);
+            menu.classList.add('hidden');
+        });
+    });
+
+    // Handle arrow buttons
+    menu.addEventListener('click', (e) => {
+        const btn = e.target;
+        const option = btn.closest('.ordering-option');
+        if (!option) return;
+
+        if (btn.classList.contains('arrow-up')) {
+            const prev = option.previousElementSibling;
+            if (prev) option.parentNode.insertBefore(option, prev);
+        }
+
+        if (btn.classList.contains('arrow-down')) {
+            const next = option.nextElementSibling;
+            if (next) option.parentNode.insertBefore(next, option);
+        }
+        
+        onOrderChange(); // Call onOrderChange when arrow buttons are clicked
+    });
+});
+
+// Function to handle changes in order
+function onOrderChange() {
+    const order = getOrderingOptions();
+    console.log("Order changed:", order);
+
+    fetch('/api/sort_order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ order: order })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Sort order updated successfully');
+        } else {
+            console.error('Failed to update sort order');
+        }
+    })
+    .catch(error => {
+        console.error('Error during sort order update:', error);
+    });
+}
+
+function getOrderingOptions() {
+    const menu = document.getElementById('orderingMenu');
+    const options = menu.querySelectorAll('.ordering-option');
+    const currentOrder = Array.from(options).map(option => option.dataset.sort);
+    return currentOrder;
+}

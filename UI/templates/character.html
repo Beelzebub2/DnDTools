@@ -32,6 +32,43 @@
                     </svg>
                     Sort Stash
                 </button>
+                <button class="stash-action-button sort-button" id="orderingButton">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    Ordering
+                </button>
+                <div class="ordering-menu hidden" id="orderingMenu">
+                    <div class="ordering-option" data-sort="rarity" draggable="true">
+                        <span>Rarity</span>
+                        <div class="ordering-arrows">
+                            <button class="arrow-up" aria-label="Move up">▲</button>
+                            <button class="arrow-down" aria-label="Move down">▼</button>
+                        </div>
+                    </div>
+                    <div class="ordering-option" data-sort="height" draggable="true">
+                        <span>Height</span>
+                        <div class="ordering-arrows">
+                            <button class="arrow-up">▲</button>
+                            <button class="arrow-down">▼</button>
+                        </div>
+                    </div>
+                    <div class="ordering-option" data-sort="width" draggable="true">
+                        <span>Width</span>
+                        <div class="ordering-arrows">
+                            <button class="arrow-up">▲</button>
+                            <button class="arrow-down">▼</button>
+                        </div>
+                    </div>
+                    <div class="ordering-option" data-sort="name" draggable="true">
+                        <span>Name</span>
+                        <div class="ordering-arrows">
+                            <button class="arrow-up">▲</button>
+                            <button class="arrow-down">▼</button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Space for future options -->
             </div>
             <!-- Replace static image with interactive grid container -->
