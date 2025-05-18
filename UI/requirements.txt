@@ -6,6 +6,6 @@ pyautogui
 keyboard
 psutil
 pygetwindow
-scapy
+pyshark
 pywin32
 requests
