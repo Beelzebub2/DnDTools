@@ -1027,10 +1027,67 @@ const renderCombinedCharacterView = async (stashes) => {
     const equipmentSection = document.createElement('div');
     equipmentSection.className = 'equipment-section';
 
+    const equipmentTitleContainer = document.createElement('div');
+    equipmentTitleContainer.className = 'section-title-container';
+
     const equipmentTitle = document.createElement('div');
     equipmentTitle.className = 'section-title';
     equipmentTitle.textContent = 'Equipment';
-    equipmentSection.appendChild(equipmentTitle);
+
+    const hoverButton = document.createElement('button');
+    hoverButton.className = 'tooltip-hover-button';
+    hoverButton.textContent = 'ⓘ';
+    hoverButton.title = 'Hover to view all equipment tooltips';
+
+    // Add hover events
+    hoverButton.addEventListener('mouseenter', (e) => {
+        if (!equipmentItems || !equipmentItems.length) return;
+
+        // Build a combined tooltip grid HTML
+        let gridHTML = `<div class="combined-tooltip-grid">`;
+
+        for (const item of equipmentItems) {
+            const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+            gridHTML += `
+                <div class="combined-tooltip-item" style="border-color: ${rarityColor}; background-color: ${rarityColor}10;">
+                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
+                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
+                        <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                            Market Prices: Soon
+                            <div>Vendor Price: ${item.vendor_price || 0} coins</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        gridHTML += `</div>`;
+
+        showGlobalTooltip(gridHTML, e.clientX, e.clientY);
+    });
+
+    hoverButton.addEventListener('mousemove', (e) => {
+        if (globalTooltip && globalTooltip.style.display === 'block') {
+            showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
+        }
+    });
+
+    hoverButton.addEventListener('mouseleave', () => {
+        hideGlobalTooltip();
+    });
+
+
+    equipmentTitleContainer.appendChild(equipmentTitle);
+    equipmentTitleContainer.appendChild(hoverButton);
+    equipmentSection.appendChild(equipmentTitleContainer);
+
 
     // Create equipment grid
     const equipmentGrid = document.createElement('div');
