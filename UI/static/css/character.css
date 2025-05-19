@@ -88,17 +88,37 @@
     border-radius: 4px;
     padding: 10px;
     overflow: auto;
+    position: relative;
+    margin: 0 auto;
+    /* Center the container */
+}
+
+/* Apply constraints only when showing standard stashes, not the character view */
+.stash-grid-container:not(:has(.combined-character-grid)) {
+    /* Fixed width for standard stashes to prevent expansion */
+    max-width: calc(12 * 48px + 20px);
+    /* 12 cells * (45px + 3px gap) + padding */
 }
 
 .interactive-stash-grid {
     display: grid;
     gap: 3px;
+    grid-auto-rows: 0 !important;
+    /* Ensure no implicit rows */
+    grid-auto-columns: 0 !important;
+    /* Ensure no implicit columns */
+    grid-auto-flow: dense;
     background-color: #1a1412;
     border: 2px solid #d4af37;
     border-radius: 4px;
     position: relative;
     margin: 0 auto;
     padding: 2px;
+    box-sizing: border-box;
+    overflow: hidden !important;
+    /* Prevent items from causing overflow */
+    contain: layout size;
+    /* Improve performance and prevent layout shifts */
 }
 
 .stash-grid-cell {
@@ -123,6 +143,12 @@
     z-index: 1;
     cursor: pointer;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    /* Consider padding and border as part of element's width */
+    max-width: 100%;
+    /* Prevent horizontal overflow */
+    max-height: 100%;
+    /* Prevent vertical overflow */
 }
 
 .stash-item:hover {
@@ -375,6 +401,14 @@
     gap: 30px;
     padding: 10px;
     width: 100%;
+    max-width: none;
+    /* Override any max-width constraints from parent containers */
+}
+
+/* Remove stash container width restrictions when we're in Character view */
+.stash-grid-container:has(.combined-character-grid) {
+    max-width: none;
+    width: 100%;
 }
 
 .equipment-section,
@@ -402,6 +436,14 @@
     border: 2px solid #d4af37;
     position: relative;
     margin: 0 auto;
+    overflow: visible !important;
+    /* Override the hidden overflow from the base class */
+    grid-auto-rows: auto !important;
+    /* Allow rows to size automatically */
+    grid-auto-columns: auto !important;
+    /* Allow columns to size automatically */
+    contain: none !important;
+    /* Remove containment that might restrict layout */
 }
 
 .bag-grid {
@@ -409,4 +451,12 @@
     border: 2px solid #d4af37;
     position: relative;
     margin: 0 auto;
+    overflow: visible !important;
+    /* Override the hidden overflow from the base class */
+    grid-auto-rows: auto !important;
+    /* Allow rows to size automatically */
+    grid-auto-columns: auto !important;
+    /* Allow columns to size automatically */
+    contain: none !important;
+    /* Remove containment that might restrict layout */
 }
