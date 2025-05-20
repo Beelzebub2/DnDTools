@@ -1327,18 +1327,136 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!option) return;
 
         if (btn.classList.contains('arrow-up')) {
-            const prev = option.previousElementSibling;
-            if (prev) option.parentNode.insertBefore(option, prev);
+            moveOptionUp(btn);
         }
 
         if (btn.classList.contains('arrow-down')) {
-            const next = option.nextElementSibling;
-            if (next) option.parentNode.insertBefore(next, option);
+            moveOptionDown(btn);
         }
-        
+
         onOrderChange(); // Call onOrderChange when arrow buttons are clicked
     });
 });
+
+// Add this to where the arrow click handlers are defined
+function animateSwap(element1, element2, direction) {
+    const container = element1.parentNode;
+    const containerHeight = container.offsetHeight;
+
+    // Force container to maintain height during animation
+    container.style.minHeight = `${containerHeight}px`;
+
+    // Create placeholders with exact dimensions
+    const placeholder1 = element1.cloneNode(false);
+    const placeholder2 = element2.cloneNode(false);
+
+    placeholder1.style.visibility = 'hidden';
+    placeholder2.style.visibility = 'hidden';
+    placeholder1.classList.add('placeholder');
+    placeholder2.classList.add('placeholder');
+
+    // Match dimensions exactly
+    placeholder1.style.height = `${element1.offsetHeight}px`;
+    placeholder2.style.height = `${element2.offsetHeight}px`;
+
+    // Add animating class to both elements
+    element1.classList.add('animating');
+    element2.classList.add('animating');
+
+    // Set absolute positioning to animate smoothly
+    const rect1 = element1.getBoundingClientRect();
+    const rect2 = element2.getBoundingClientRect();
+    const parentRect = element1.parentNode.getBoundingClientRect();
+
+    // Position elements absolutely during animation
+    element1.style.position = 'absolute';
+    element2.style.position = 'absolute';
+    element1.style.width = `${rect1.width}px`;
+    element1.style.height = `${rect1.height}px`;
+    element2.style.width = `${rect2.width}px`;
+    element2.style.height = `${rect2.height}px`;
+    element1.style.top = `${rect1.top - parentRect.top}px`;
+    element1.style.left = `${rect1.left - parentRect.left}px`;
+    element2.style.top = `${rect2.top - parentRect.top}px`;
+    element2.style.left = `${rect2.left - parentRect.left}px`;
+
+    // Insert placeholders
+    element1.parentNode.insertBefore(placeholder1, element1);
+    element2.parentNode.insertBefore(placeholder2, element2);
+
+    // Add transition for smooth movement
+    element1.style.transition = 'all 0.3s ease';
+    element2.style.transition = 'all 0.3s ease';
+
+    // Set timeout to ensure DOM has updated
+    setTimeout(() => {
+        // Move elements to their new positions
+        element1.style.top = `${rect2.top - parentRect.top}px`;
+        element1.style.left = `${rect2.left - parentRect.left}px`;
+        element2.style.top = `${rect1.top - parentRect.top}px`;
+        element2.style.left = `${rect1.left - parentRect.left}px`;
+
+        // After animation completes
+        setTimeout(() => {            // Remove animation styles
+            element1.style.position = '';
+            element1.style.top = '';
+            element1.style.left = '';
+            element1.style.width = '';
+            element1.style.height = '';
+            element1.style.transition = '';
+            element2.style.position = '';
+            element2.style.top = '';
+            element2.style.left = '';
+            element2.style.width = '';
+            element2.style.height = '';
+            element2.style.transition = '';
+
+            element1.classList.remove('animating');
+            element2.classList.remove('animating');
+
+            // Keep container height for a moment to prevent flickering
+            setTimeout(() => {
+                // Only remove minHeight if we're not in the middle of another animation
+                if (!element1.parentNode.querySelector('.animating')) {
+                    element1.parentNode.style.minHeight = '';
+                }
+            }, 50);
+
+            // Actually swap the elements in the DOM
+            if (direction === 'up') {
+                element2.parentNode.insertBefore(element1, element2);
+            } else {
+                element1.parentNode.insertBefore(element2, element1);
+            }
+
+            // Remove placeholders
+            placeholder1.parentNode.removeChild(placeholder1);
+            placeholder2.parentNode.removeChild(placeholder2);
+        }, 300); // Match this with the CSS transition duration
+    }, 10); // Small delay to ensure positions are calculated correctly
+}
+
+// Function to handle click on up arrow
+function moveOptionUp(button) {
+    const option = button.closest('.ordering-option');
+    const previousOption = option.previousElementSibling;
+
+    if (previousOption && previousOption.classList.contains('ordering-option')) {
+        animateSwap(option, previousOption, 'up');
+        updateOrder(); // Update the ordering after animation
+    }
+}
+
+// Function to handle click on down arrow
+function moveOptionDown(button) {
+    const option = button.closest('.ordering-option');
+    const nextOption = option.nextElementSibling;
+
+    if (nextOption && nextOption.classList.contains('ordering-option')) {
+        animateSwap(option, nextOption, 'down');
+        updateOrder(); // Update the ordering after animation
+    }
+}
 
 // Function to handle changes in order
 function onOrderChange() {
@@ -1352,17 +1470,17 @@ function onOrderChange() {
         },
         body: JSON.stringify({ order: order })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            console.log('Sort order updated successfully');
-        } else {
-            console.error('Failed to update sort order');
-        }
-    })
-    .catch(error => {
-        console.error('Error during sort order update:', error);
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Sort order updated successfully');
+            } else {
+                console.error('Failed to update sort order');
+            }
+        })
+        .catch(error => {
+            console.error('Error during sort order update:', error);
+        });
 }
 
 function getOrderingOptions() {

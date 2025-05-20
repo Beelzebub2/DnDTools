@@ -414,69 +414,103 @@
 .ordering-dropdown {
     position: relative;
     display: inline-block;
-    margin-left: 1rem;
 }
 
 .ordering-menu {
     position: absolute;
-    top: 0;
-    left: 100%;
-    margin-left: 0.5rem;
-    background: #1e1e1e;
-    border: 1px solid #444;
+    top: -1px;
+    /* Align with button top */
+    left: calc(100% + 8px);
+    /* Position to right of button with 8px gap */
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 4px;
-    padding: 0.5rem;
-    z-index: 1000;
-    min-width: 150px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    width: 200px;
+    padding: 0.5rem;
+    transform: translateY(0);
+    /* Ensure it stays at button level */
+    transition: min-height 0.3s ease;
+    /* Smooth height transitions */
+    min-height: min-content;
+    /* Ensure minimum height is maintained */
+    will-change: min-height;
+    /* Optimize for height animations */
 }
 
 .ordering-option {
     display: flex;
-    justify-content: space-between;
     align-items: center;
-    padding: 0.4rem 0.6rem;
-    background: #1e1e1e;
-    border: 1px solid #333;
-    border-radius: 4px;
+    justify-content: space-between;
+    padding: 0.5rem;
     cursor: grab;
-    color: #fff;
+    color: var(--text-primary);
+    border-radius: 3px;
+    margin-bottom: 0.25rem;
     user-select: none;
-    transition: background 0.2s;
+    background: var(--bg-primary);
+    border: 1px solid transparent;
+    position: relative;
+    transition: transform 0.3s ease, background-color 0.2s ease, border-color 0.2s ease;
+    will-change: transform;
 }
 
 .ordering-option:hover {
-    background: #333;
+    background: var(--hover-color);
+    border-color: var(--accent-gold);
 }
 
 .ordering-option.dragging {
     opacity: 0.5;
-    background: #2a2a2a;
-    border-style: dashed;
+    background: var(--hover-color);
+    border: 1px dashed var(--accent-gold);
+}
+
+/* Style for when an item is moving up */
+.ordering-option.moving-up {
+    transform: translateY(-100%);
+}
+
+/* Style for when an item is moving down */
+.ordering-option.moving-down {
+    transform: translateY(100%);
+}
+
+/* Add a placeholder space when dragging */
+.ordering-option.placeholder {
+    opacity: 0.3;
+    background: var(--hover-color);
+    border: 1px dashed var(--accent-gold);
+}
+
+/* During the move animation */
+.ordering-option.animating {
+    position: relative;
+    z-index: 2;
 }
 
 .ordering-arrows {
     display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
+    gap: 4px;
 }
 
 .ordering-arrows button {
-    background: none;
+    background: transparent;
     border: none;
-    color: #ccc;
+    color: var(--text-secondary);
     cursor: pointer;
-    font-size: 0.9rem;
+    padding: 2px 4px;
+    font-size: 12px;
     line-height: 1;
-    padding: 0;
-    width: 1.2rem;
-    text-align: center;
+    border-radius: 2px;
+    transition: color 0.2s ease;
 }
 
 .ordering-arrows button:hover {
-    color: #fff;
+    color: var(--accent-gold);
 }
 
 .hidden {
-    display: none;
+    display: none !important;
 }
