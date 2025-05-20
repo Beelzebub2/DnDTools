@@ -427,8 +427,8 @@
     border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
     z-index: 1000;
-    width: 200px;
-    padding: 0.5rem;
+    width: 160px;
+    padding: 0.4rem;
     transform: translateY(0);
     /* Ensure it stays at button level */
     transition: min-height 0.3s ease;
@@ -443,7 +443,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.5rem;
+    padding: 0.35rem;
     cursor: grab;
     color: var(--text-primary);
     border-radius: 3px;
