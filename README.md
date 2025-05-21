@@ -36,7 +36,8 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 ## 📋 Requirements
 
 - Python 3.7+ [Download](https://www.python.org/downloads/)
-- Npcap [Download](https://npcap.com/#download)
+- For versions **2.1.4 and earlier**: Npcap [Download](https://npcap.com/#download)
+- For versions **after 2.1.4**: Wireshark [Download](https://www.wireshark.org/download.html)
 
 ## 🔧 Installation
 
