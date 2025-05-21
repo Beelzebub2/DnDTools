@@ -834,9 +834,10 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
-        # Example: reload all data, caches, or anything slow
-        api.stash_manager.characters_cache = {}
-        api.stash_manager._load_data()
+        # Only trigger a reload if necessary (e.g., after file changes)
+        if not api.stash_manager._is_loaded:
+            api.stash_manager._load_data()
+            
         # Notify UI that background loading is done
         if api.window:
             api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
