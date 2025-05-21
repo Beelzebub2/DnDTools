@@ -621,12 +621,12 @@ const triggerSort = async () => {
 // Animation for sorting text messages
 let sortingTextInterval = null;
 const sortingMessages = [
-    'Sorting items by rarity...',
-    'Organizing your inventory...',
-    'Arranging items efficiently...',
-    'Maximizing storage space...',
-    'Optimizing item placement...',
-    'Almost done...'
+    'Having issues? Visit our Discord server!',
+    'Enjoying the app? Star us on GitHub!',
+    'Sorting your awesome loot...',
+    'Finding the perfect spot for everything...',
+    'Optimizing your inventory layout...',
+    'Just a moment longer...'
 ];
 
 function animateSortingText(start = true) {
