@@ -271,21 +271,84 @@
 
         /* Minimize animation */
         .minimizing-animation {
-            animation: minimizeToTaskbar 0.35s cubic-bezier(0.4,0,0.2,1) forwards;
+            animation: minimizeToTaskbar 0.35s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
+
         @keyframes minimizeToTaskbar {
             0% {
                 opacity: 1;
                 transform: scale(1) translateY(0);
             }
+
             80% {
                 opacity: 0.5;
                 transform: scale(0.7, 0.7) translateY(60px);
             }
+
             100% {
                 opacity: 0;
                 transform: scale(0.3, 0.3) translateY(400px);
             }
+        }
+
+        /* Pulse animation for sidebar */
+        .sidebar-pulse-container {
+            display: flex;
+            align-items: center;
+            margin-right: 4px;
+            min-width: 20px;
+        }
+
+        .sidebar-container {
+            --uib-size: 20px;
+            --uib-color: #ff3b30;
+            /* Default to red (off) */
+            --uib-speed: 2s;
+            position: relative;
+            height: var(--uib-size);
+            width: var(--uib-size);
+        }
+
+        .sidebar-container::before,
+        .sidebar-container::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: 100%;
+            border-radius: 50%;
+            background-color: var(--uib-color);
+            animation: pulse var(--uib-speed) linear infinite;
+            transform: scale(0);
+            opacity: 0;
+            transition: background-color 0.3s ease;
+        }
+
+        .sidebar-container::after {
+            animation-delay: calc(var(--uib-speed) / -2);
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 0;
+            }
+        }
+
+        .sidebar-container.active {
+            --uib-color: #34c759;
+            /* Green when active */
+        }
+
+        .sidebar-container.stopping {
+            --uib-color: #ffd600;
+            /* Yellow when stopping */
         }
     </style>
 </head>
@@ -324,8 +387,10 @@
                 </li>
                 <li>
                     <a href="{{ url_for('record') }}" class="nav-link">
-                        <span class="material-icons">add_circle</span>
-                        Record Character
+                        <div class="sidebar-pulse-container">
+                            <div class="sidebar-container" id="sidebarCaptureIndicator"></div>
+                        </div>
+                        Capture Characters
                     </a>
                 </li>
                 <li>
@@ -405,10 +470,10 @@
             });
 
             return modal;
-        };
-    </script>
+        };    </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/window_state.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 

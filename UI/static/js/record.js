@@ -53,6 +53,17 @@ document.addEventListener('DOMContentLoaded', () => {
             status.className = 'status-text ' + (isRunning ? 'starting' : 'stopping');
             captureSwitch.disabled = true;  // Prevent further clicks while processing
 
+            // Animate sidebar indicator: yellow when stopping
+            const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
+            if (sidebarCaptureIndicator) {
+                if (!isRunning) {
+                    sidebarCaptureIndicator.classList.remove('active');
+                    sidebarCaptureIndicator.classList.add('stopping'); // yellow
+                } else {
+                    sidebarCaptureIndicator.classList.remove('stopping');
+                }
+            }
+
             const endpoint = isRunning ? '/api/capture/switch/start' : '/api/capture/switch/stop';
             const response = await fetch(endpoint, { method: 'POST' });
             const result = await response.json();
@@ -71,12 +82,27 @@ document.addEventListener('DOMContentLoaded', () => {
             status.textContent = isRunning ? 'Capturing...' : 'Capture Off';
             status.className = isRunning ? 'status-text capturing' : 'status-text';
 
+            // Sidebar indicator: green if running, yellow if stopping
+            if (sidebarCaptureIndicator) {
+                sidebarCaptureIndicator.classList.remove('active');
+                if (!isRunning) {
+                    sidebarCaptureIndicator.classList.add('stopping'); // yellow
+                } else {
+                    sidebarCaptureIndicator.classList.remove('stopping');
+                }
+            }
+
             if (isRunning) {
                 startPolling();
                 showNotification('Capture started', 'success');
             } else {
                 stopPolling();
                 showNotification('Capture stopped', 'info');
+                // Sidebar indicator: turn red only when notification is shown
+                if (sidebarCaptureIndicator) {
+                    sidebarCaptureIndicator.classList.remove('stopping');
+                    sidebarCaptureIndicator.classList.remove('active');
+                }
             }
         } catch (error) {
             console.error('Failed to update capture state:', error);
@@ -87,6 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
             status.textContent = 'Capture error';
             status.className = 'status-text error';
             showNotification(`Failed to ${isRunning ? 'start' : 'stop'} capture`, 'error');
+            // Sidebar indicator: always red on error
+            const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
+            if (sidebarCaptureIndicator) {
+                sidebarCaptureIndicator.classList.remove('active', 'stopping');
+            }
         }
     }
 
