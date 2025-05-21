@@ -618,12 +618,53 @@ const triggerSort = async () => {
     }
 };
 
+// Animation for sorting text messages
+let sortingTextInterval = null;
+const sortingMessages = [
+    'Having issues? Visit our Discord server!',
+    'Enjoying the app? Star us on GitHub!',
+    'Sorting your awesome loot...',
+    'Finding the perfect spot for everything...',
+    'Optimizing your inventory layout...',
+    'Just a moment longer...'
+];
+
+function animateSortingText(start = true) {
+    const sortingText = document.getElementById('sortingText');
+    if (!sortingText) return;
+
+    // Clear any existing interval
+    if (sortingTextInterval) {
+        clearInterval(sortingTextInterval);
+        sortingTextInterval = null;
+    }
+
+    if (start) {
+        let index = 0;
+        sortingText.textContent = sortingMessages[0];
+
+        // Change the message every 2 seconds
+        sortingTextInterval = setInterval(() => {
+            index = (index + 1) % sortingMessages.length;
+            sortingText.textContent = sortingMessages[index];
+        }, 2000);
+    } else {
+        // Reset to default message when stopping
+        sortingText.textContent = 'Sorting items...';
+    }
+}
+
 function setSortingState(isSorting) {
     const sortButton = document.querySelector('.sort-button');
+    const sortingOverlay = document.getElementById('sortingOverlay');
+    const interactiveStashGrid = document.getElementById('interactiveStashGrid');
+
     if (!sortButton) return;
 
     sortButton.disabled = isSorting;
+
     if (isSorting) {
+        // Show sorting state on button
         sortButton.classList.add('sorting');
         sortButton.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -631,7 +672,20 @@ function setSortingState(isSorting) {
             </svg>
             Sorting...
         `;
+
+        // Hide the interactive grid and show the sorting overlay
+        if (interactiveStashGrid) {
+            interactiveStashGrid.style.opacity = '0';
+            interactiveStashGrid.style.pointerEvents = 'none';
+        }
+
+        if (sortingOverlay) {
+            sortingOverlay.classList.remove('hidden');
+            // Start the sorting text animation
+            animateSortingText(true);
+        }
     } else {
+        // Restore normal button state
         sortButton.classList.remove('sorting');
         sortButton.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -639,6 +693,18 @@ function setSortingState(isSorting) {
             </svg>
             Sort Stash
         `;
+
+        // Show the interactive grid and hide the sorting overlay
+        if (interactiveStashGrid) {
+            interactiveStashGrid.style.opacity = '1';
+            interactiveStashGrid.style.pointerEvents = 'auto';
+        }
+
+        if (sortingOverlay) {
+            sortingOverlay.classList.add('hidden');
+            // Stop the sorting text animation
+            animateSortingText(false);
+        }
     }
 }
 
@@ -1341,3 +1407,225 @@ const renderCombinedCharacterView = async (stashes) => {
     // Add the combined grid to the container
     gridContainer.appendChild(combinedGrid);
 };
+
+
+// Stash sort ordering popup
+document.addEventListener('DOMContentLoaded', () => {
+    const button = document.getElementById('orderingButton');
+    const menu = document.getElementById('orderingMenu');
+    let dragged = null;
+
+    // Toggle menu visibility
+    button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        menu.classList.toggle('hidden');
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!menu.contains(e.target) && !button.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+    // Setup draggable ordering options
+    menu.querySelectorAll('.ordering-option').forEach(option => {
+        option.addEventListener('dragstart', () => {
+            dragged = option;
+            option.classList.add('dragging');
+        });
+
+        option.addEventListener('dragend', () => {
+            option.classList.remove('dragging');
+            onOrderChange(); // Call onOrderChange when drag ends
+        });
+
+        option.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            const bounding = option.getBoundingClientRect();
+            const offset = bounding.y + bounding.height / 2;
+            if (e.clientY < offset) {
+                option.parentNode.insertBefore(dragged, option);
+            } else {
+                option.parentNode.insertBefore(dragged, option.nextSibling);
+            }
+        });
+
+        // Click on option (excluding arrow buttons)
+        option.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') return;
+            const sortKey = option.dataset.sort;
+            console.log(`Selected sort: ${sortKey}`);
+            menu.classList.add('hidden');
+        });
+    });
+
+    // Handle arrow buttons
+    menu.addEventListener('click', (e) => {
+        const btn = e.target;
+        const option = btn.closest('.ordering-option');
+        if (!option) return;
+
+        if (btn.classList.contains('arrow-up')) {
+            moveOptionUp(btn);
+        }
+
+        if (btn.classList.contains('arrow-down')) {
+            moveOptionDown(btn);
+        }
+
+        onOrderChange(); // Call onOrderChange when arrow buttons are clicked
+    });
+});
+
+// Add this to where the arrow click handlers are defined
+function animateSwap(element1, element2, direction) {
+    const container = element1.parentNode;
+    const containerHeight = container.offsetHeight;
+
+    // Force container to maintain height during animation
+    container.style.minHeight = `${containerHeight}px`;
+
+    // Create placeholders with exact dimensions
+    const placeholder1 = element1.cloneNode(false);
+    const placeholder2 = element2.cloneNode(false);
+
+    placeholder1.style.visibility = 'hidden';
+    placeholder2.style.visibility = 'hidden';
+    placeholder1.classList.add('placeholder');
+    placeholder2.classList.add('placeholder');
+
+    // Match dimensions exactly
+    placeholder1.style.height = `${element1.offsetHeight}px`;
+    placeholder2.style.height = `${element2.offsetHeight}px`;
+
+    // Add animating class to both elements
+    element1.classList.add('animating');
+    element2.classList.add('animating');
+
+    // Set absolute positioning to animate smoothly
+    const rect1 = element1.getBoundingClientRect();
+    const rect2 = element2.getBoundingClientRect();
+    const parentRect = element1.parentNode.getBoundingClientRect();
+
+    // Position elements absolutely during animation
+    element1.style.position = 'absolute';
+    element2.style.position = 'absolute';
+    element1.style.width = `${rect1.width}px`;
+    element1.style.height = `${rect1.height}px`;
+    element2.style.width = `${rect2.width}px`;
+    element2.style.height = `${rect2.height}px`;
+    element1.style.top = `${rect1.top - parentRect.top}px`;
+    element1.style.left = `${rect1.left - parentRect.left}px`;
+    element2.style.top = `${rect2.top - parentRect.top}px`;
+    element2.style.left = `${rect2.left - parentRect.left}px`;
+
+    // Insert placeholders
+    element1.parentNode.insertBefore(placeholder1, element1);
+    element2.parentNode.insertBefore(placeholder2, element2);
+
+    // Add transition for smooth movement
+    element1.style.transition = 'all 0.3s ease';
+    element2.style.transition = 'all 0.3s ease';
+
+    // Set timeout to ensure DOM has updated
+    setTimeout(() => {
+        // Move elements to their new positions
+        element1.style.top = `${rect2.top - parentRect.top}px`;
+        element1.style.left = `${rect2.left - parentRect.left}px`;
+        element2.style.top = `${rect1.top - parentRect.top}px`;
+        element2.style.left = `${rect1.left - parentRect.left}px`;
+
+        // After animation completes
+        setTimeout(() => {            // Remove animation styles
+            element1.style.position = '';
+            element1.style.top = '';
+            element1.style.left = '';
+            element1.style.width = '';
+            element1.style.height = '';
+            element1.style.transition = '';
+            element2.style.position = '';
+            element2.style.top = '';
+            element2.style.left = '';
+            element2.style.width = '';
+            element2.style.height = '';
+            element2.style.transition = '';
+
+            element1.classList.remove('animating');
+            element2.classList.remove('animating');
+
+            // Keep container height for a moment to prevent flickering
+            setTimeout(() => {
+                // Only remove minHeight if we're not in the middle of another animation
+                if (!element1.parentNode.querySelector('.animating')) {
+                    element1.parentNode.style.minHeight = '';
+                }
+            }, 50);
+
+            // Actually swap the elements in the DOM
+            if (direction === 'up') {
+                element2.parentNode.insertBefore(element1, element2);
+            } else {
+                element1.parentNode.insertBefore(element2, element1);
+            }
+
+            // Remove placeholders
+            placeholder1.parentNode.removeChild(placeholder1);
+            placeholder2.parentNode.removeChild(placeholder2);
+        }, 300); // Match this with the CSS transition duration
+    }, 10); // Small delay to ensure positions are calculated correctly
+}
+
+// Function to handle click on up arrow
+function moveOptionUp(button) {
+    const option = button.closest('.ordering-option');
+    const previousOption = option.previousElementSibling;
+
+    if (previousOption && previousOption.classList.contains('ordering-option')) {
+        animateSwap(option, previousOption, 'up');
+        updateOrder(); // Update the ordering after animation
+    }
+}
+
+// Function to handle click on down arrow
+function moveOptionDown(button) {
+    const option = button.closest('.ordering-option');
+    const nextOption = option.nextElementSibling;
+
+    if (nextOption && nextOption.classList.contains('ordering-option')) {
+        animateSwap(option, nextOption, 'down');
+        updateOrder(); // Update the ordering after animation
+    }
+}
+
+// Function to handle changes in order
+function onOrderChange() {
+    const order = getOrderingOptions();
+    console.log("Order changed:", order);
+
+    fetch('/api/sort_order', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ order: order })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log('Sort order updated successfully');
+            } else {
+                console.error('Failed to update sort order');
+            }
+        })
+        .catch(error => {
+            console.error('Error during sort order update:', error);
+        });
+}
+
+function getOrderingOptions() {
+    const menu = document.getElementById('orderingMenu');
+    const options = menu.querySelectorAll('.ordering-option');
+    const currentOrder = Array.from(options).map(option => option.dataset.sort);
+    return currentOrder;
+}

@@ -10,6 +10,10 @@ from .sort import StashSorter
 from src.models.game_data import item_data_manager
 import pygetwindow as gw
 from .appdirs import get_data_dir, get_output_dir, resource_path
+from concurrent.futures import ThreadPoolExecutor as ThreadPool
+import logging
+
+logger = logging.getLogger(__name__)
 
 class StashManager:
     def __init__(self, resource_dir: str):
@@ -19,44 +23,42 @@ class StashManager:
         os.makedirs(self.data_dir, exist_ok=True)
         
         self.characters_cache = {}
+        self._is_loaded = False
         self._load_data()
         self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
 
     def _load_data(self):
         """Load character data from packet data files"""
+        if self._is_loaded:
+            logger.info("Data already loaded, skipping reload")
+            return
+
         self.characters_cache.clear()
-        print(f"\nLoading characters from: {self.data_dir}")
-        # Load all JSON files (packet data) from the data directory
-        json_files = glob.glob(os.path.join(self.data_dir, "*.json"))
-        print(f"Found {len(json_files)} packet data files")
-        for file_path in json_files:
+        logger.info(f"Loading characters from: {self.data_dir}")
+        def load_file(file_path):
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
-                    print(f"\nReading file: {file_path}")
                     packet_data = json.load(f)
-                    # Check if we have valid character data
-                    char_data = packet_data.get("characterDataBase", {})
-                    if not char_data:
-                        continue
-                    # Extract basic character info
-                    char_id = str(char_data.get("characterId"))
-                    if not char_id:
-                        print(f"Warning: No characterId in {file_path}")
-                        continue
-                    # Process stashes using existing parse_stashes function
-                    raw_stashes = parse_stashes(packet_data)
-                    # Convert stash keys to strings for consistent lookup
-                    stashes = {str(k): v for k, v in raw_stashes.items()}
-                    # Convert raw class name
-                    raw_class = char_data.get("characterClass", "")
-                    class_name = raw_class.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
-                    # Map to the expected API format (fix key names here)
-                    nickname = char_data.get("nickName", {}).get("originalNickName", "Unknown")
-                    streaming_mode_name = char_data.get("nickName", {}).get("streamingModeNickName", "")
-                    rank_id = char_data.get("nickName", {}).get("rankId", "Unknown")
-                    fame = char_data.get("nickName", {}).get("fame", 0)
-                    rank_icon_type = char_data.get("nickName", {}).get("rankIconType", 1)
-                    self.characters_cache[char_id] = {
+                char_data = packet_data.get("characterDataBase", {})
+                if not char_data:
+                    return None
+                char_id = str(char_data.get("characterId"))
+                if not char_id:
+                    logger.warning(f"No characterId in {file_path}")
+                    return None
+                raw_stashes = parse_stashes(packet_data)
+                stashes = {str(k): v for k, v in raw_stashes.items()}
+                raw_class = char_data.get("characterClass", "")
+                class_name = raw_class.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
+                nickname = char_data.get("nickName", {}).get("originalNickName", "Unknown")
+                streaming_mode_name = char_data.get("nickName", {}).get("streamingModeNickName", "")
+                rank_id = char_data.get("nickName", {}).get("rankId", "Unknown")
+                fame = char_data.get("nickName", {}).get("fame", 0)
+                rank_icon_type = char_data.get("nickName", {}).get("rankIconType", 1)
+                return {
+                    'id': char_id,
+                    'file_path': file_path,
+                    'character_data': {
                         'id': char_id,
                         'nickname': nickname,
                         'class': class_name,
@@ -70,18 +72,35 @@ class StashManager:
                             'iconType': rank_icon_type
                         }
                     }
-                    print(f"Added character to cache: {char_id}")
+                }
             except Exception as e:
-                print(f"Error loading packet data file {file_path}: {str(e)}")
-                import traceback
-                traceback.print_exc()
-        print(f"\nLoaded {len(self.characters_cache)} characters")
+                logger.error(f"Error loading packet data file {file_path}: {str(e)}")
+                return None
+
+        # Load all JSON files from the data directory
+        json_files = glob.glob(os.path.join(self.data_dir, "*.json"))
+        logger.info(f"Found {len(json_files)} packet data files")
+
+        # Use multiprocessing to load files in parallel
+        with ThreadPool() as pool:
+            results = pool.map(load_file, json_files)
+
+        # Process results
+        for result in results:
+            if result:
+                char_id = result['id']
+                self.characters_cache[char_id] = result['character_data']
+
+        logger.info(f"Loaded {len(self.characters_cache)} characters")
         for char_id, char_data in self.characters_cache.items():
-            print(f"Character: {char_data['nickname']}")
-            print(f"Class: {char_data['class']}")
-            print(f"Level: {char_data['level']}")
-            print(f"Rank: {char_data['rank']['name']}")
-            print("----------------------------------------")
+            logger.info(f"Character: {char_data['nickname']}")
+            logger.info(f"Class: {char_data['class']}")
+            logger.info(f"Level: {char_data['level']}")
+            logger.info(f"Rank: {char_data['rank']['name']}")
+            logger.info("----------------------------------------")
+
+        # Mark data as loaded
+        self._is_loaded = True
 
     def get_characters(self) -> List[Dict]:
         """Get list of all characters"""
@@ -132,43 +151,32 @@ class StashManager:
 
     def search_items(self, query: str) -> List[Dict]:
         """Search for items across all character stashes"""
-        
-
         if not query:
             return []
-            
         keywords = [k.strip().lower() for k in query.split(",")]
         output = []
-        
         for char in self.get_characters():
             for stash_id, stash in char.get('stashes', {}).items():
                 if not isinstance(stash, list):
                     continue
-                    
                 for item in stash:
                     try:
                         design_str = item.get("itemId", "")
                         item_id = item_data_manager.get_item_id_from_design_str(design_str)
                         name = item_data_manager.get_item_name_from_id(item_id)
                         rarity = item_data_manager.get_item_rarity_from_id(item_id)
-
-                        # Extract properties safely
                         data = item.get("data", {})
                         effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
-                        
                         pp = []
                         for p in data.get("primaryPropertyArray", []):
                             if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
                                 prop_name = p["propertyTypeId"].replace(effect_str, "")
                                 pp.append((prop_name, p["propertyValue"]))
-                                
                         sp = []
                         for p in data.get("secondaryPropertyArray", []):
                             if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
                                 prop_name = p["propertyTypeId"].replace(effect_str, "")
                                 sp.append((prop_name, p["propertyValue"]))
-
-                        # Build search string including all item data
                         search_parts = [
                             name.lower(),
                             rarity.lower(),
@@ -176,8 +184,6 @@ class StashManager:
                             *[p[0].lower() for p in sp]
                         ]
                         search_str = " ".join(search_parts)
-
-                        # Check if all keywords match
                         if all(k in search_str for k in keywords):
                             result = {
                                 'nickname': char['nickname'],
@@ -196,9 +202,8 @@ class StashManager:
                             }
                             output.append(result)
                     except Exception as e:
-                        print(f"Error processing item in search: {str(e)}")
+                        logger.error(f"Error processing item in search: {str(e)}")
                         continue
-
         return output
 
     def get_character_stash_previews(self, character_id):
@@ -206,10 +211,8 @@ class StashManager:
         stashes = self.get_character_stashes(character_id)
         preview_paths = {}  # Keep empty dictionary for backward compatibility
         stash_data = {}
-        
         for stash_id, items in stashes.items():
             try:
-                # Create enhanced data for interactive grid rendering only
                 enhanced_items = []
                 for item in items:
                     try:
@@ -219,34 +222,22 @@ class StashManager:
                         rarity = item_data_manager.get_item_rarity_from_id(item_id)
                         width, height = item_data_manager.get_item_dimensions_from_id(item_id)
                         img_path = item_data_manager.get_item_image_path_from_id(item_id)
-                        
-                        # Extract properties from data
                         data = item.get("data", {})
                         effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
-                        
                         pp = []
                         for p in data.get("primaryPropertyArray", []):
                             if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
                                 prop_name = p["propertyTypeId"].replace(effect_str, "")
                                 pp.append([prop_name, p["propertyValue"]])
-                                
                         sp = []
                         for p in data.get("secondaryPropertyArray", []):
                             if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
                                 prop_name = p["propertyTypeId"].replace(effect_str, "")
                                 sp.append([prop_name, p["propertyValue"]])
-                        
-                        # Create URL for image path
-                        # Convert path from PathLib object to proper URL format
                         image_url = None
                         if img_path:
-                            # Use str(img_path) to convert the Path object to a string
-                            # This will give us a relative path like "icons/Armor/BloodwovenGloves_3001.png"
                             image_url = f"/assets/{str(img_path)}"
-                            # Replace backslashes with forward slashes for URLs
                             image_url = image_url.replace("\\", "/")
-                        
-                        # Create enhanced item data for frontend
                         enhanced_item = {
                             'name': name,
                             'itemId': item_id,
@@ -262,8 +253,7 @@ class StashManager:
                         }
                         enhanced_items.append(enhanced_item)
                     except Exception as e:
-                        print(f"Error enhancing item data: {str(e)}")
-                        # Add minimal item data if enhancement fails
+                        logger.error(f"Error enhancing item data: {str(e)}")
                         enhanced_items.append({
                             'name': 'Unknown Item',
                             'itemId': item.get("itemId", "unknown"),
@@ -273,18 +263,14 @@ class StashManager:
                             'width': 1,
                             'height': 1
                         })
-                        
                 stash_data[stash_id] = enhanced_items
-                # Add a placeholder path for backward compatibility
                 preview_paths[stash_id] = "/static/img/placeholder.png"
             except Exception as e:
-                print(f"Error processing stash {stash_id}: {str(e)}")
+                logger.error(f"Error processing stash {stash_id}: {str(e)}")
                 import traceback
                 traceback.print_exc()
-                preview_paths[stash_id] = "/static/img/error.png"  # Fallback image
-                stash_data[stash_id] = []  # Empty stash data as fallback
-        
-        # Return both the placeholder paths (for backward compatibility) and the enhanced data
+                preview_paths[stash_id] = "/static/img/error.png"
+                stash_data[stash_id] = []
         response = {
             'previewImages': preview_paths,
             'stashData': stash_data
@@ -292,79 +278,65 @@ class StashManager:
         return response
 
     def sort_stash(self, character_id, stash_id, cancel_event=None):
-        """Sort a stash with optional cancellation support"""
-        # Use cache for stash items
-        print(f"Sorting stash {stash_id} for character {character_id}")
+        logger.info(f"Sorting stash {stash_id} for character {character_id}")
         char = self.characters_cache.get(str(character_id))
         if not char:
             return False, "Character not found"
         stash_items = char.get('stashes', {}).get(str(stash_id))
         if not stash_items:
             return False, "Stash not found"
-        
-        # Load inventory items from raw packet data
         file_path = os.path.join(self.data_dir, f"{character_id}.json")
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 raw = json.load(f)
             stashes = parse_stashes(raw)
             inv_items = stashes.get(StashType.BAG.value, [])
-        except:
+        except Exception as e:
+            logger.error(f"Error loading inventory items: {str(e)}")
             inv_items = []
-        
-        # Create Storage instances
         stash = Storage(StashType.STORAGE.value, stash_items)
         inventory = Storage(StashType.BAG.value, inv_items)
-        
-        # Check if 'Dark and Darker' window exists before proceeding
         windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker  "]
         if not windows:
-            print("Game window 'Dark and Darker' not found. Sorting cancelled.")
+            logger.warning("Game window 'Dark and Darker' not found. Sorting cancelled.")
             return False, "Game window not found. Please make sure Dark and Darker is running."
-            
-        # If window exists, try to focus it
         try:
             windows[0].activate()
-            print("Focused window: Dark and Darker")
+            logger.info("Focused window: Dark and Darker")
         except Exception as e:
-            print(f"Error focusing window: {e}")
-        
-        # Perform sorting
+            logger.error(f"Error focusing window: {e}")
         sorter = StashSorter(stash, inventory)
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"
         success = sorter.sort(cancel_event)
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"
-        # On success, generate previews
         if success:
             self._generate_previews(character_id)
         return success, None
 
     def _get_character(self, character_id):
-        """Get character data from data file"""
         try:
             file_path = os.path.join(self.data_dir, f"{character_id}.json")
             if os.path.exists(file_path):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     packet_data = json.load(f)
-                    return packet_data.get("characterDataBase", {})
+                return packet_data.get("characterDataBase", {})
             return None
         except Exception as e:
-            print(f"Error reading character data: {str(e)}")
+            logger.error(f"Error reading character data: {str(e)}")
             return None
-            
+
     def _save_character(self, character_id, char_data):
-        """Save character data back to file"""
         try:
             file_path = os.path.join(self.data_dir, f"{character_id}.json")
             with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump({"characterDataBase": char_data}, f, indent=2)
             return True
         except Exception as e:
-            print(f"Error saving character data: {str(e)}")
+            logger.error(f"Error saving character data: {str(e)}")
             return False
-    
+
     def _generate_previews(self, character_id):
         # TODO ?
         pass

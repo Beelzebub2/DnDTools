@@ -1,4 +1,7 @@
 class Item:
+    # Class-level sort key order. Can be modified dynamically at runtime.
+    sort_order = ["height", "width", "name", "rarity"]
+
     def __init__(self, name, rarity, position, width, height, stash, vendor_price=None):
         self.name = name
         self.rarity = rarity
@@ -9,16 +12,17 @@ class Item:
         self.vendor_price = vendor_price
 
     def __lt__(self, other):
-        if self.height != other.height:
-            return self.height > other.height
-        if self.width != other.width:
-            return self.width > other.width
-        if self.name != other.name:
-            return self.name > other.name
-        # Safely compare rarity, treating None as 0
-        return (self.rarity or 0) > (other.rarity or 0)
+        for attr in Item.sort_order:
+            self_val = getattr(self, attr)
+            other_val = getattr(other, attr)
+            if self_val is None:
+                self_val = 0
+            if other_val is None:
+                other_val = 0
+            if self_val != other_val:
+                return self_val > other_val
+        return False
 
-    
     def __eq__(self, other):
         if self and other:
             return self.name == other.name and self.rarity == other.rarity and self.position == other.position

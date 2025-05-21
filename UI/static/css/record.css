@@ -11,10 +11,26 @@
     gap: 1rem;
 }
 
+.pulse-container {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+}
+
 .status-text {
     padding: 0.5rem 1rem;
     border-radius: 4px;
     font-weight: 500;
+}
+
+.status-text.capturing {
+    background-color: rgba(52, 199, 89, 0.15);
+    color: #34c759;
+}
+
+.status-text.error {
+    background-color: rgba(255, 59, 48, 0.15);
+    color: #ff3b30;
 }
 
 .character-select {
