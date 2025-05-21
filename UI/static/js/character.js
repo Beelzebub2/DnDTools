@@ -131,10 +131,53 @@ const getStashDimensions = (stashId) => {
 
 // Process stash data from API into a useful format for grid display
 const processStashData = async (stashData, stashId) => {
+    // Get grid dimensions for bounds checking
+    let gridWidth, gridHeight;
+    if (stashId !== '2' && stashId !== '3' && stashId !== 'character') {
+        gridWidth = 12;
+        gridHeight = 20;
+    } else {
+        [gridWidth, gridHeight] = getStashDimensions(stashId);
+    }
+
+    // Helper function to validate item bounds and normalize data
+    const normalizeItem = (item) => {
+        if (!item) return null;
+
+        // Ensure slotId is valid number and within bounds
+        const slotId = typeof item.slotId === 'number' ? item.slotId : parseInt(item.slotId, 10);
+        if (isNaN(slotId) || slotId < 0 || slotId >= (gridWidth * gridHeight)) {
+            console.warn(`Item with invalid slotId ${slotId} filtered out`);
+            return null;
+        }
+
+        // Extract row/col coordinates
+        const x = slotId % gridWidth;
+        const y = Math.floor(slotId / gridWidth);
+
+        // Ensure width/height are valid and within bounds
+        const width = Math.min(item.width || 1, gridWidth - x);
+        const height = Math.min(item.height || 1, gridHeight - y);
+
+        // Return normalized item with bounded dimensions
+        return {
+            ...item,
+            slotId: slotId,
+            width: width,
+            height: height,
+            rarity: item.rarity || 'Common',
+            itemCount: item.itemCount || 1,
+            pp: item.pp || [],
+            sp: item.sp || []
+        };
+    };
+
     // Check if we're working with the new enhanced API response format
     if (stashData && typeof stashData === 'object' && stashData.stashData) {
         // New format: we have detailed item data directly from the API
-        return stashData.stashData[stashId] || [];
+        const items = stashData.stashData[stashId] || [];
+        // Validate and normalize all items
+        return items.map(normalizeItem).filter(item => item !== null);
     }
 
     // If we got a string (old format - image URL), fetch detailed data
@@ -155,21 +198,10 @@ const processStashData = async (stashData, stashId) => {
 
             // Look up the stash content from the details
             if (details.stashes && details.stashes[stashId]) {
-                // Convert stash content to grid items
-                return details.stashes[stashId].map(item => {
-                    const rarity = item.rarity || 'Common';
-                    return {
-                        name: item.name,
-                        slotId: item.slotId,
-                        itemId: item.itemId,
-                        itemCount: item.itemCount || 1,
-                        rarity: rarity,
-                        pp: item.pp || [],
-                        sp: item.sp || [],
-                        width: item.width || 1,
-                        height: item.height || 1
-                    };
-                });
+                // Validate and normalize all items
+                return details.stashes[stashId]
+                    .map(normalizeItem)
+                    .filter(item => item !== null);
             }
 
             console.warn('No stash data found for', stashId, 'in character details');
@@ -211,8 +243,14 @@ const renderInteractiveGrid = (stashId, items) => {
     // Clear existing content
     gridContainer.innerHTML = '';
 
-    // Calculate grid dimensions based on stash type
-    const [gridWidth, gridHeight] = getStashDimensions(stashId);
+    // Strictly enforce 12x20 grid for all standard stashes (not bag, equipment, or character)
+    let gridWidth, gridHeight;
+    if (stashId !== '2' && stashId !== '3' && stashId !== 'character') {
+        gridWidth = 12;
+        gridHeight = 20;
+    } else {
+        [gridWidth, gridHeight] = getStashDimensions(stashId);
+    }
 
     // Calculate the total vendor value
     let totalValue = 0;
@@ -226,33 +264,75 @@ const renderInteractiveGrid = (stashId, items) => {
     const totalValueElement = document.getElementById('totalStashValue');
     if (totalValueElement) {
         totalValueElement.textContent = totalValue.toLocaleString();
-    }
-
-    // Special handling for equipment stashes
+    }    // Special handling for equipment stashes
     if (stashId === '3') {
-        renderEquipmentGrid(items);
+        // The renderEquipmentGrid function doesn't seem to exist
+        // Instead, use the renderCombinedCharacterView with dummy bag data
+        console.warn("Equipment view requested separately - redirecting to character view");
+        renderCombinedCharacterView({
+            stashData: {
+                "3": items,
+                "2": [] // Empty bag
+            }
+        });
         return;
     }
 
-    // Standard grid for other stash types
+    // Create one single grid - no conditional logic that could create multiple grids
     const grid = document.createElement('div');
     grid.className = 'interactive-stash-grid';
+
+    // Use explicit sizing for the grid to prevent expansion
     grid.style.gridTemplateColumns = `repeat(${gridWidth}, 45px)`;
     grid.style.gridTemplateRows = `repeat(${gridHeight}, 45px)`;
 
-    // Add empty cells for grid structure
-    for (let y = 0; y < gridHeight; y++) {
-        for (let x = 0; x < gridWidth; x++) {
-            const cell = document.createElement('div');
-            cell.className = 'stash-grid-cell';
-            grid.appendChild(cell);
-        }
+    // Force zero-sized implicit rows/columns
+    grid.style.gridAutoRows = '0px';
+    grid.style.gridAutoColumns = '0px';
+
+    // Add max-width/max-height constraints based on grid dimensions
+    grid.style.maxWidth = `${gridWidth * 48}px`; // 45px per cell + 3px gap
+    grid.style.maxHeight = `${gridHeight * 48}px`;
+
+    // Prevent overflow from causing expansion
+    grid.style.overflow = 'hidden';
+
+    // Ensure the grid container has enough space
+    gridContainer.style.paddingBottom = '20px';
+
+    // Add empty cells for grid structure - exactly the right number
+    const totalCells = gridWidth * gridHeight;
+    for (let i = 0; i < totalCells; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'stash-grid-cell';
+        grid.appendChild(cell);
     }
 
-    // Place items on top of the grid
-    if (items && items.length) {
+    // Filter items that are out of bounds before processing them
+    const validItems = [];
+    if (items && Array.isArray(items) && items.length > 0) {
         items.forEach(item => {
             if (!item) return;
+            let x = item.slotId % gridWidth;
+            let y = Math.floor(item.slotId / gridWidth);
+            let w = item.width || 1;
+            let h = item.height || 1;
+
+            // Check if item is within bounds
+            if (
+                x >= 0 && x < gridWidth &&
+                y >= 0 && y < gridHeight &&
+                (x + w) <= gridWidth &&
+                (y + h) <= gridHeight
+            ) {
+                validItems.push(item);
+            } else {
+                console.warn(`Item with slotId ${item.slotId} (size ${w}x${h}) is out of bounds for grid ${gridWidth}x${gridHeight}`);
+            }
+        });
+
+        // Now process only the valid items
+        validItems.forEach(item => {
             let x = item.slotId % gridWidth;
             let y = Math.floor(item.slotId / gridWidth);
             let w = item.width || 1;
@@ -261,20 +341,15 @@ const renderInteractiveGrid = (stashId, items) => {
             // Create item element
             const itemEl = document.createElement('div');
             itemEl.className = 'stash-item';
+
+            // Use grid positioning instead of absolute for better alignment
             itemEl.style.gridColumn = `${x + 1} / span ${w}`;
             itemEl.style.gridRow = `${y + 1} / span ${h}`;
 
-            // Apply rarity-based border color
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
-
-            // Create inset border with box-shadow instead of background color
             itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
-
-            // Apply background color based on rarity with more subtle transparency
-            itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
-
-            // If we have an image path, use it, otherwise show text
+            itemEl.style.backgroundColor = `${rarityColor}15`;
             if (item.imagePath) {
                 const img = document.createElement('img');
                 img.src = item.imagePath;
@@ -282,23 +357,17 @@ const renderInteractiveGrid = (stashId, items) => {
                 img.className = 'item-image';
                 itemEl.appendChild(img);
             } else {
-                // No image, just display the name
                 itemEl.textContent = item.name || 'Unknown';
             }
-
-            // Add count badge if more than 1
             if (item.itemCount > 1) {
                 const countBadge = document.createElement('div');
                 countBadge.className = 'item-count-badge';
                 countBadge.textContent = item.itemCount;
                 itemEl.appendChild(countBadge);
             }
-
-            // Add tooltip functionality
             itemEl.removeAttribute('title');
             itemEl.addEventListener('mouseenter', (e) => {
                 if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-                // Build tooltip HTML
                 const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
                 let html = `
                     <div class="tooltip-header" style="background-color: ${rarityColor}44;">
@@ -311,8 +380,8 @@ const renderInteractiveGrid = (stashId, items) => {
                     </div>
                     <div class="tooltip-body">
                         <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                        Market Prices: Soon
-                        <div>Vendor Price: ${item.vendor_price || 0} coins</div>
+                            Market Prices: Soon
+                            <div>Vendor Price: ${item.vendor_price || 0} coins</div>
                         </div>
                     </div>
                 `;
@@ -326,7 +395,6 @@ const renderInteractiveGrid = (stashId, items) => {
             itemEl.addEventListener('mouseleave', () => {
                 hideGlobalTooltip();
             });
-
             grid.appendChild(itemEl);
         });
     }
@@ -447,7 +515,7 @@ const createStashTabsWithoutDefault = (stashes) => {
 
     // Then add the other stash tabs (excluding bag and equipment which are now in Character tab)
     stashKeys.forEach((stashId, index) => {
-        // Skip bag and equipment stashes as they're now in the combined Character tab
+        // Skip bag and equipment as they're now in the combined Character tab
         if (stashId === '2' || stashId === '3') {
             return;
         }
@@ -550,12 +618,53 @@ const triggerSort = async () => {
     }
 };
 
+// Animation for sorting text messages
+let sortingTextInterval = null;
+const sortingMessages = [
+    'Sorting items by rarity...',
+    'Organizing your inventory...',
+    'Arranging items efficiently...',
+    'Maximizing storage space...',
+    'Optimizing item placement...',
+    'Almost done...'
+];
+
+function animateSortingText(start = true) {
+    const sortingText = document.getElementById('sortingText');
+    if (!sortingText) return;
+
+    // Clear any existing interval
+    if (sortingTextInterval) {
+        clearInterval(sortingTextInterval);
+        sortingTextInterval = null;
+    }
+
+    if (start) {
+        let index = 0;
+        sortingText.textContent = sortingMessages[0];
+
+        // Change the message every 2 seconds
+        sortingTextInterval = setInterval(() => {
+            index = (index + 1) % sortingMessages.length;
+            sortingText.textContent = sortingMessages[index];
+        }, 2000);
+    } else {
+        // Reset to default message when stopping
+        sortingText.textContent = 'Sorting items...';
+    }
+}
+
 function setSortingState(isSorting) {
     const sortButton = document.querySelector('.sort-button');
+    const sortingOverlay = document.getElementById('sortingOverlay');
+    const interactiveStashGrid = document.getElementById('interactiveStashGrid');
+
     if (!sortButton) return;
 
     sortButton.disabled = isSorting;
+
     if (isSorting) {
+        // Show sorting state on button
         sortButton.classList.add('sorting');
         sortButton.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -563,7 +672,20 @@ function setSortingState(isSorting) {
             </svg>
             Sorting...
         `;
+
+        // Hide the interactive grid and show the sorting overlay
+        if (interactiveStashGrid) {
+            interactiveStashGrid.style.opacity = '0';
+            interactiveStashGrid.style.pointerEvents = 'none';
+        }
+
+        if (sortingOverlay) {
+            sortingOverlay.classList.remove('hidden');
+            // Start the sorting text animation
+            animateSortingText(true);
+        }
     } else {
+        // Restore normal button state
         sortButton.classList.remove('sorting');
         sortButton.innerHTML = `
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -571,6 +693,18 @@ function setSortingState(isSorting) {
             </svg>
             Sort Stash
         `;
+
+        // Show the interactive grid and hide the sorting overlay
+        if (interactiveStashGrid) {
+            interactiveStashGrid.style.opacity = '1';
+            interactiveStashGrid.style.pointerEvents = 'auto';
+        }
+
+        if (sortingOverlay) {
+            sortingOverlay.classList.add('hidden');
+            // Stop the sorting text animation
+            animateSortingText(false);
+        }
     }
 }
 
@@ -1030,13 +1164,16 @@ const renderCombinedCharacterView = async (stashes) => {
     const equipmentTitle = document.createElement('div');
     equipmentTitle.className = 'section-title';
     equipmentTitle.textContent = 'Equipment';
-    equipmentSection.appendChild(equipmentTitle);
-
-    // Create equipment grid
+    equipmentSection.appendChild(equipmentTitle);    // Create equipment grid
     const equipmentGrid = document.createElement('div');
     equipmentGrid.className = 'interactive-stash-grid equipment-grid';
     equipmentGrid.style.gridTemplateColumns = `repeat(${equipWidth}, 45px)`;
     equipmentGrid.style.gridTemplateRows = `repeat(${equipHeight}, 45px)`;
+
+    // Ensure equipment grid is not constrained by the restrictions we put on standard stashes
+    equipmentGrid.style.maxWidth = 'none';
+    equipmentGrid.style.maxHeight = 'none';
+    equipmentGrid.style.overflow = 'visible';
 
     // Load equipment slot configuration if not already loaded
     if (!equipmentSlotConfig) {
@@ -1157,13 +1294,16 @@ const renderCombinedCharacterView = async (stashes) => {
     const bagTitle = document.createElement('div');
     bagTitle.className = 'section-title';
     bagTitle.textContent = 'Bag';
-    bagSection.appendChild(bagTitle);
-
-    // Create bag grid
+    bagSection.appendChild(bagTitle);    // Create bag grid
     const bagGrid = document.createElement('div');
     bagGrid.className = 'interactive-stash-grid bag-grid';
     bagGrid.style.gridTemplateColumns = `repeat(${bagWidth}, 45px)`;
     bagGrid.style.gridTemplateRows = `repeat(${bagHeight}, 45px)`;
+
+    // Ensure bag grid is not constrained by the restrictions we put on standard stashes
+    bagGrid.style.maxWidth = 'none';
+    bagGrid.style.maxHeight = 'none';
+    bagGrid.style.overflow = 'visible';
 
     // Create bag grid cells
     for (let y = 0; y < bagHeight; y++) {

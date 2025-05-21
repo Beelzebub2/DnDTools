@@ -88,17 +88,37 @@
     border-radius: 4px;
     padding: 10px;
     overflow: auto;
+    position: relative;
+    margin: 0 auto;
+    /* Center the container */
+}
+
+/* Apply constraints only when showing standard stashes, not the character view */
+.stash-grid-container:not(:has(.combined-character-grid)) {
+    /* Fixed width for standard stashes to prevent expansion */
+    max-width: calc(12 * 48px + 20px);
+    /* 12 cells * (45px + 3px gap) + padding */
 }
 
 .interactive-stash-grid {
     display: grid;
     gap: 3px;
+    grid-auto-rows: 0 !important;
+    /* Ensure no implicit rows */
+    grid-auto-columns: 0 !important;
+    /* Ensure no implicit columns */
+    grid-auto-flow: dense;
     background-color: #1a1412;
     border: 2px solid #d4af37;
     border-radius: 4px;
     position: relative;
     margin: 0 auto;
     padding: 2px;
+    box-sizing: border-box;
+    overflow: hidden !important;
+    /* Prevent items from causing overflow */
+    contain: layout size;
+    /* Improve performance and prevent layout shifts */
 }
 
 .stash-grid-cell {
@@ -123,6 +143,12 @@
     z-index: 1;
     cursor: pointer;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.3);
+    box-sizing: border-box;
+    /* Consider padding and border as part of element's width */
+    max-width: 100%;
+    /* Prevent horizontal overflow */
+    max-height: 100%;
+    /* Prevent vertical overflow */
 }
 
 .stash-item:hover {
@@ -321,52 +347,170 @@
     will-change: transform;
 }
 
-.notification {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    padding: 4px 10px;
-    border-radius: 3px;
-    color: white;
-    font-size: 12px;
-    line-height: 1.2;
-    z-index: 1000;
-    opacity: 1;
-    transition: opacity 0.2s ease, transform 0.2s ease;
-    max-width: 250px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    display: flex;
-    align-items: center;
-    height: 34px;
-    will-change: transform, opacity;
-    transform: translateZ(0);
-}
-
-.notification.error {
-    background: rgba(211, 47, 47, 0.9);
-    border-left: 2px solid #ff1744;
-}
-
-.notification.fade-out {
-    opacity: 0;
-    transform: translateY(5px);
-}
-
-@keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-.hidden {
-    opacity: 0;
-    pointer-events: none;
-}
-
 /* Hide the stash preview header text */
 /*.stash-preview::before {
     display: none;
 }*/
+
+/* Jelly Triangle Animation for Sorting */
+.jelly-triangle-container {
+    --uib-size: 30px;
+    --uib-color: var(--accent-gold, #d4af37);
+    --uib-speed: 1.75s;
+    position: relative;
+    height: var(--uib-size);
+    width: var(--uib-size);
+    filter: url('#uib-jelly-triangle-ooze');
+    display: none;
+    /* Hidden by default */
+}
+
+/* Make animation more visible in dark backgrounds */
+.jelly-triangle-container::before,
+.jelly-triangle-container::after,
+.jelly-triangle-container .dot,
+.jelly-triangle-container .traveler {
+    filter: drop-shadow(0 0 3px rgba(212, 175, 55, 0.5));
+}
+
+.jelly-triangle-container::before,
+.jelly-triangle-container::after,
+.dot {
+    content: '';
+    position: absolute;
+    width: 33%;
+    height: 33%;
+    background-color: var(--uib-color);
+    border-radius: 100%;
+    will-change: transform;
+    transition: background-color 0.3s ease;
+}
+
+.dot {
+    top: 6%;
+    left: 30%;
+    animation: grow var(--uib-speed) ease infinite;
+}
+
+.jelly-triangle-container::before {
+    bottom: 6%;
+    right: 0;
+    animation: grow var(--uib-speed) ease calc(var(--uib-speed) * -0.666) infinite;
+}
+
+.jelly-triangle-container::after {
+    bottom: 6%;
+    left: 0;
+    animation: grow var(--uib-speed) ease calc(var(--uib-speed) * -0.333) infinite;
+}
+
+.traveler {
+    position: absolute;
+    top: 6%;
+    left: 30%;
+    width: 33%;
+    height: 33%;
+    background-color: var(--uib-color);
+    border-radius: 100%;
+    animation: triangulate var(--uib-speed) ease infinite;
+    transition: background-color 0.3s ease;
+}
+
+.jelly-svg {
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+@keyframes triangulate {
+
+    0%,
+    100% {
+        transform: none;
+    }
+
+    33.333% {
+        transform: translate(120%, 175%);
+    }
+
+    66.666% {
+        transform: translate(-95%, 175%);
+    }
+}
+
+@keyframes grow {
+
+    0%,
+    85%,
+    100% {
+        transform: scale(1.5);
+    }
+
+    50%,
+    60% {
+        transform: scale(0);
+    }
+}
+
+/* When sorting is active, show jelly animation and hide the default spinner */
+.stash-action-button.sorting .jelly-triangle-container {
+    display: block;
+    position: absolute;
+    left: 8px;
+}
+
+.stash-action-button.sorting:before {
+    display: none;
+    /* Hide the original spinner */
+}
+
+/* Sorting overlay styles */
+.sorting-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(20, 15, 10, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    border-radius: 4px;
+    backdrop-filter: blur(2px);
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+.sorting-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.sorting-animation-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.sorting-overlay .jelly-triangle-container {
+    --uib-size: 80px;
+    /* Larger size for the main animation */
+    --uib-color: var(--accent-gold, #d4af37);
+    display: block;
+    filter: url('#uib-jelly-triangle-ooze');
+}
+
+.sorting-text {
+    color: var(--accent-gold, #d4af37);
+    font-size: 18px;
+    font-weight: 500;
+    text-align: center;
+    margin-top: 15px;
+    letter-spacing: 0.5px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
 
 /* Combined Character View Styles */
 .combined-character-grid {
@@ -402,6 +546,14 @@
     border: 2px solid #d4af37;
     position: relative;
     margin: 0 auto;
+    overflow: visible !important;
+    /* Override the hidden overflow from the base class */
+    grid-auto-rows: auto !important;
+    /* Allow rows to size automatically */
+    grid-auto-columns: auto !important;
+    /* Allow columns to size automatically */
+    contain: none !important;
+    /* Remove containment that might restrict layout */
 }
 
 .bag-grid {
@@ -409,6 +561,14 @@
     border: 2px solid #d4af37;
     position: relative;
     margin: 0 auto;
+    overflow: visible !important;
+    /* Override the hidden overflow from the base class */
+    grid-auto-rows: auto !important;
+    /* Allow rows to size automatically */
+    grid-auto-columns: auto !important;
+    /* Allow columns to size automatically */
+    contain: none !important;
+    /* Remove containment that might restrict layout */
 }
 
 .ordering-dropdown {
@@ -509,6 +669,22 @@
 
 .ordering-arrows button:hover {
     color: var(--accent-gold);
+}
+
+/* Mobile responsive styles */
+@media (max-width: 768px) {
+    .sorting-overlay .jelly-triangle-container {
+        --uib-size: 60px;
+        /* Smaller on mobile */
+    }
+
+    .sorting-text {
+        font-size: 16px;
+    }
+
+    .stash-controls {
+        flex-wrap: wrap;
+    }
 }
 
 .hidden {
