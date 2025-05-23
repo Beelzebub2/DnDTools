@@ -108,7 +108,6 @@ For support or questions, please [open an issue](https://github.com/Beelzebub2/d
 
 ## 📝 TODO
 ```diff 
-+ Auto updater
 ! Support for other resolutions
 - Quest tracking
 - More sorting options
