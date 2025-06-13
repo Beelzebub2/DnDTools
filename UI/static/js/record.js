@@ -1,10 +1,115 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Elements
     const captureSwitch = document.getElementById('captureSwitch');
-    const switchLabel = document.getElementById('switchLabel');
-    const status = document.getElementById('captureStatus');
-    const characterSelect = document.querySelector('.character-select');
+    const captureToggle = document.getElementById('captureToggle');
+    const switchThumb = document.getElementById('switchThumb');
+    const switchOn = document.getElementById('switchOn');
+    const switchOff = document.getElementById('switchOff');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const captureStatus = document.getElementById('captureStatus');
+    const characterSection = document.getElementById('characterSection');
     const characterGrid = document.getElementById('characterGrid');
+    
+    // Traffic visualization elements
+    const trafficVisualization = document.getElementById('trafficVisualization');
+    const nodeGame = document.getElementById('nodeGame');
+    const nodeTool = document.getElementById('nodeTool');
+    const nodeServer = document.getElementById('nodeServer');
+    const pathGameServer = document.getElementById('pathGameServer');
+    const pathGameTool = document.getElementById('pathGameTool');
+    const particleGameServer = document.getElementById('particleGameServer');
+    const particleGameTool = document.getElementById('particleGameTool');
+    const particleToolServer = document.getElementById('particleToolServer');
+    
     let pollingInterval = null;
+
+    // Initialize particles with staggered animation delays
+    function initTrafficParticles() {
+        // For Game->Server direct path (capture off)
+        const particles = [];
+        for (let i = 0; i < 3; i++) {
+            const particle = document.createElement('div');
+            particle.className = 'traffic-particle';
+            particle.id = `particleGameServer_${i}`;
+            particle.style.backgroundColor = 'var(--game-color)';
+            particle.style.animationDelay = `${i * 0.7}s`;
+            particles.push(particle);
+            pathGameServer.appendChild(particle);
+        }
+    }
+    
+    // Initialize traffic visualization
+    initTrafficParticles();
+
+    // Animation functions
+    function activateDirectPath() {
+        // Direct path animation (Game -> Server)
+        nodeGame.classList.add('pulse');
+        nodeServer.classList.add('pulse');
+        nodeTool.classList.remove('pulse');
+        
+        // Show the direct path, hide the tool path
+        pathGameServer.style.opacity = '1';
+        pathGameTool.style.opacity = '0.4';
+        nodeTool.style.opacity = '0.4';
+        
+        // Activate direct path animation
+        pathGameServer.querySelectorAll('.traffic-particle').forEach(particle => {
+            particle.style.animation = 'moveParticle 2s infinite linear';
+            particle.style.opacity = '1';
+            particle.style.display = 'block';
+        });
+        
+        // Deactivate tool path animation
+        particleGameTool.style.animation = '';
+        particleToolServer.style.animation = '';
+        particleGameTool.style.opacity = '0';
+        particleToolServer.style.opacity = '0';
+    }
+    
+    function activateToolPath() {
+        // Tool intercept path animation (Game -> Tool -> Server)
+        nodeGame.classList.add('pulse');
+        nodeTool.classList.add('pulse');
+        nodeServer.classList.add('pulse');
+        
+        // Show the tool path, hide direct path
+        pathGameServer.style.opacity = '0.4';
+        pathGameTool.style.opacity = '1';
+        nodeTool.style.opacity = '1';
+        
+        // Deactivate direct path animation
+        pathGameServer.querySelectorAll('.traffic-particle').forEach(particle => {
+            particle.style.animation = '';
+            particle.style.opacity = '0';
+        });
+        
+        // Create particles for Game->Tool and Tool->Server if they don't exist
+        if (!document.getElementById('particleGameTool_0')) {
+            for (let i = 0; i < 3; i++) {
+                const particle1 = document.createElement('div');
+                particle1.className = 'traffic-particle';
+                particle1.id = `particleGameTool_${i}`;
+                particle1.style.backgroundColor = 'var(--game-color)';
+                particle1.style.animationDelay = `${i * 0.7}s`;
+                pathGameTool.appendChild(particle1);
+                
+                const particle2 = document.createElement('div');
+                particle2.className = 'traffic-particle';
+                particle2.id = `particleToolServer_${i}`;
+                particle2.style.backgroundColor = 'var(--tool-color)';
+                particle2.style.animationDelay = `${i * 0.7 + 0.3}s`;
+                pathGameTool.appendChild(particle2);
+            }
+        }
+        
+        // Activate tool path particles
+        pathGameTool.querySelectorAll('.traffic-particle').forEach(particle => {
+            particle.style.animation = 'moveParticle 2s infinite linear';
+            particle.style.opacity = '1';
+            particle.style.display = 'block';
+        });
+    }
 
     async function loadCharacters() {
         try {
@@ -25,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 characterGrid.appendChild(card);
             });
             if (characters.length > 0) {
-                characterSelect.style.display = 'block';
+                characterSection.style.display = 'block';
             }
         } catch (error) {
             console.error('Failed to load characters:', error);
@@ -45,13 +150,32 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    function updateToggleUI(isOn) {
+        if (isOn) {
+            switchThumb.classList.add('active');
+            switchOn.classList.add('active');
+            switchOff.classList.remove('active');
+            activateToolPath();
+        } else {
+            switchThumb.classList.remove('active');
+            switchOn.classList.remove('active');
+            switchOff.classList.add('active');
+            activateDirectPath();
+        }
+    }
+
     async function updateCaptureState(isRunning) {
         try {
             // Update UI to show processing state
-            switchLabel.textContent = isRunning ? 'Starting...' : 'Stopping...';
-            status.textContent = isRunning ? 'Starting capture...' : 'Stopping capture...';
-            status.className = 'status-text ' + (isRunning ? 'starting' : 'stopping');
-            captureSwitch.disabled = true;  // Prevent further clicks while processing
+            captureToggle.style.pointerEvents = 'none';
+            
+            if (isRunning) {
+                statusIndicator.className = 'status-indicator starting';
+                captureStatus.textContent = 'Starting capture...';
+            } else {
+                statusIndicator.className = 'status-indicator stopping';
+                captureStatus.textContent = 'Stopping capture...';
+            }
 
             // Animate sidebar indicator: yellow when stopping
             const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
@@ -77,18 +201,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update UI with successful state
             captureSwitch.checked = isRunning;
-            captureSwitch.disabled = false;
-            switchLabel.textContent = isRunning ? 'Stop Capture' : 'Start Capture';
-            status.textContent = isRunning ? 'Capturing...' : 'Capture Off';
-            status.className = isRunning ? 'status-text capturing' : 'status-text';
+            captureToggle.style.pointerEvents = 'auto';
+            updateToggleUI(isRunning);
+            
+            if (isRunning) {
+                statusIndicator.className = 'status-indicator capturing';
+                captureStatus.textContent = 'Capture is running';
+                activateToolPath();
+            } else {
+                statusIndicator.className = 'status-indicator';
+                captureStatus.textContent = 'Capture is currently off';
+                activateDirectPath();
+            }
 
             // Sidebar indicator: green if running, yellow if stopping
             if (sidebarCaptureIndicator) {
-                sidebarCaptureIndicator.classList.remove('active');
-                if (!isRunning) {
-                    sidebarCaptureIndicator.classList.add('stopping'); // yellow
-                } else {
+                if (isRunning) {
+                    sidebarCaptureIndicator.classList.add('active');
                     sidebarCaptureIndicator.classList.remove('stopping');
+                } else {
+                    sidebarCaptureIndicator.classList.remove('active', 'stopping');
                 }
             }
 
@@ -98,21 +230,17 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 stopPolling();
                 showNotification('Capture stopped', 'info');
-                // Sidebar indicator: turn red only when notification is shown
-                if (sidebarCaptureIndicator) {
-                    sidebarCaptureIndicator.classList.remove('stopping');
-                    sidebarCaptureIndicator.classList.remove('active');
-                }
             }
         } catch (error) {
             console.error('Failed to update capture state:', error);
             // Revert UI to previous state
             captureSwitch.checked = !isRunning;
-            captureSwitch.disabled = false;
-            switchLabel.textContent = !isRunning ? 'Stop Capture' : 'Start Capture';
-            status.textContent = 'Capture error';
-            status.className = 'status-text error';
+            captureToggle.style.pointerEvents = 'auto';
+            updateToggleUI(!isRunning);
+            statusIndicator.className = 'status-indicator';
+            captureStatus.textContent = 'Capture error';
             showNotification(`Failed to ${isRunning ? 'start' : 'stop'} capture`, 'error');
+            
             // Sidebar indicator: always red on error
             const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
             if (sidebarCaptureIndicator) {
@@ -161,10 +289,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function restartCapture() {
         try {
-            switchLabel.textContent = 'Restarting...';
-            status.textContent = 'Restarting capture...';
-            status.className = 'status-text restarting';
-            captureSwitch.disabled = true;
+            captureToggle.style.pointerEvents = 'none';
+            statusIndicator.className = 'status-indicator starting';
+            captureStatus.textContent = 'Restarting capture...';
 
             await waitForPywebview();
             const response = await fetch('/api/capture/switch/restart', { method: 'POST' });
@@ -179,26 +306,29 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update UI with running state
             captureSwitch.checked = true;
-            captureSwitch.disabled = false;
-            switchLabel.textContent = 'Stop Capture';
-            status.textContent = 'Capturing...';
-            status.className = 'status-text capturing';
+            captureToggle.style.pointerEvents = 'auto';
+            updateToggleUI(true);
+            statusIndicator.className = 'status-indicator capturing';
+            captureStatus.textContent = 'Capture is running';
+            activateToolPath();
             startPolling();
 
         } catch (error) {
             console.error('Failed to restart capture:', error);
             captureSwitch.checked = false;
-            captureSwitch.disabled = false;
-            switchLabel.textContent = 'Start Capture';
-            status.textContent = 'Capture error';
-            status.className = 'status-text error';
+            captureToggle.style.pointerEvents = 'auto';
+            updateToggleUI(false);
+            statusIndicator.className = 'status-indicator';
+            captureStatus.textContent = 'Capture error';
             showNotification('Failed to restart capture', 'error');
+            activateDirectPath();
         }
     }
 
-    // Handle switch toggle
-    captureSwitch.addEventListener('change', () => {
-        updateCaptureState(captureSwitch.checked);
+    // Handle toggle click
+    captureToggle.addEventListener('click', () => {
+        const newState = !captureSwitch.checked;
+        updateCaptureState(newState);
     });
 
     // Initialize state on page load
@@ -210,12 +340,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Just update UI to reflect current running state, no restart here
             captureSwitch.checked = state.running;
-            switchLabel.textContent = state.running ? 'Stop Capture' : 'Start Capture';
-            status.textContent = state.running ? 'Capturing...' : 'Capture Off';
-            status.className = state.running ? 'status-text capturing' : 'status-text';
-
+            updateToggleUI(state.running);
+            
             if (state.running) {
+                statusIndicator.className = 'status-indicator capturing';
+                captureStatus.textContent = 'Capture is running';
+                activateToolPath();
                 startPolling();
+            } else {
+                statusIndicator.className = 'status-indicator';
+                captureStatus.textContent = 'Capture is currently off';
+                activateDirectPath();
             }
 
             // Load initial character list
@@ -224,12 +359,17 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to get initial capture state:', error);
             // Default to off state
             captureSwitch.checked = false;
-            switchLabel.textContent = 'Start Capture';
-            status.textContent = 'Capture Off';
-            status.className = 'status-text';
+            updateToggleUI(false);
+            statusIndicator.className = 'status-indicator';
+            captureStatus.textContent = 'Capture is currently off';
+            activateDirectPath();
             showNotification('Failed to get capture state', 'error');
         }
     }
 
+    // Initialize
     init();
+    
+    // Start direct path animation by default (capture off state)
+    activateDirectPath();
 });

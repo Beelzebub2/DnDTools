@@ -1,22 +1,431 @@
-.record-container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 2rem;
+/* Modern Dark and Darker Record Page */
+:root {
+    --accent-gold: #e4c869;
+    --accent-brown: #8b6914;
+    --bg-dark: #1a1a1a;
+    --bg-secondary: #2a2118;
+    --bg-tertiary: #3a2d1e;
+    --border-color: #4a3a2a;
+    --text-primary: #f0f0f0;
+    --text-secondary: #c0c0c0;
+    --text-muted: #888;
+    --danger: #e74c3c;
+    --success: #27ae60;
+    --warning: #f39c12;
+    --game-color: #7e57c2;
+    --server-color: #2196f3;
+    --tool-color: #4caf50;
 }
 
-.capture-controls {
-    margin: 2rem 0;
+.record-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 2rem;
+    background: transparent;
+}
+
+/* Header Section */
+.record-header {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(36, 28, 23, 0.8) 100%);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.record-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+    opacity: 0.6;
+}
+
+.header-content {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+}
+
+.header-icon {
+    width: 4rem;
+    height: 4rem;
+    font-size: 2rem;
+    color: var(--accent-gold);
+    background: rgba(228, 200, 105, 0.1);
+    border-radius: 12px;
+    border: 2px solid rgba(228, 200, 105, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.header-text h1 {
+    color: var(--accent-gold);
+    font-size: 2rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.02em;
+}
+
+.header-text p {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+/* Record Sections */
+.record-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.record-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.record-section:hover {
+    border-color: var(--accent-brown);
+    box-shadow: 0 4px 20px rgba(228, 200, 105, 0.1);
+}
+
+.section-header {
+    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
+    padding: 1.5rem;
+    border-bottom: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     gap: 1rem;
 }
 
-.pulse-container {
-    display: flex;
-    align-items: center;
-    margin-right: 15px;
+.section-header .material-icons {
+    color: var(--accent-gold);
+    font-size: 1.5rem;
+    background: rgba(228, 200, 105, 0.1);
+    padding: 0.5rem;
+    border-radius: 8px;
 }
 
+.section-header h2 {
+    color: var(--accent-gold);
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+}
+
+.section-content {
+    padding: 2rem;
+}
+
+/* Traffic Visualization */
+.traffic-visualization {
+    height: 180px;
+    position: relative;
+    margin: 2rem 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.visualization-node {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.node-game {
+    background: linear-gradient(135deg, var(--game-color), rgba(126, 87, 194, 0.7));
+    border: 2px solid rgba(126, 87, 194, 0.3);
+}
+
+.node-tool {
+    background: linear-gradient(135deg, var(--tool-color), rgba(76, 175, 80, 0.7));
+    border: 2px solid rgba(76, 175, 80, 0.3);
+}
+
+.node-server {
+    background: linear-gradient(135deg, var(--server-color), rgba(33, 150, 243, 0.7));
+    border: 2px solid rgba(33, 150, 243, 0.3);
+}
+
+.node-icon {
+    font-size: 2rem;
+    color: white;
+    margin-bottom: 0.5rem;
+}
+
+.node-label {
+    font-size: 0.8rem;
+    color: white;
+    text-align: center;
+    font-weight: 500;
+}
+
+.traffic-path {
+    position: absolute;
+    height: 3px;
+    background: var(--border-color);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+.path-game-tool {
+    left: 120px;
+    right: 120px;
+}
+
+.path-game-server {
+    left: 120px;
+    right: 120px;
+}
+
+.traffic-particle {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    opacity: 0;
+}
+
+/* Capture Controls */
+.capture-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+    margin: 2rem 0;
+}
+
+.toggle-switch {
+    display: inline-flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 240px;
+    position: relative;
+    cursor: pointer;
+    user-select: none;
+    background: var(--bg-dark);
+    border: 2px solid var(--border-color);
+    border-radius: 50px;
+    padding: 4px;
+    transition: all 0.3s ease;
+}
+
+.toggle-switch:hover {
+    border-color: var(--accent-brown);
+}
+
+.switch-thumb {
+    position: absolute;
+    width: 116px;
+    height: 38px;
+    border-radius: 50px;
+    background: var(--accent-brown);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transform: translateX(0);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.switch-thumb.active {
+    transform: translateX(116px);
+    background: var(--success);
+}
+
+.switch-option {
+    width: 116px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 500;
+    color: var(--text-secondary);
+    z-index: 2;
+    transition: color 0.3s ease;
+}
+
+.switch-option.active {
+    color: white;
+}
+
+.capture-status {
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--danger);
+}
+
+.status-indicator.capturing {
+    background: var(--success);
+    animation: pulse 1.5s infinite;
+}
+
+.status-indicator.starting {
+    background: var(--warning);
+    animation: pulse 0.8s infinite;
+}
+
+.status-indicator.stopping {
+    background: var(--warning);
+    animation: pulse 0.8s alternate infinite;
+}
+
+/* Character List */
+.character-section {
+    margin-top: 2rem;
+}
+
+.character-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.character-card {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.character-card:hover {
+    border-color: var(--accent-gold);
+    transform: translateY(-3px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.character-name {
+    color: var(--accent-gold);
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 0.5rem;
+}
+
+.character-info {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+/* Animation Keyframes */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(1.1);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes moveParticle {
+    0% {
+        left: 0%;
+        opacity: 0;
+    }
+    10% {
+        opacity: 1;
+    }
+    90% {
+        opacity: 1;
+    }
+    100% {
+        left: 100%;
+        opacity: 0;
+    }
+}
+
+.traffic-animation-active .traffic-particle {
+    animation: moveParticle 2s infinite linear;
+}
+
+.node-game.pulse, 
+.node-tool.pulse, 
+.node-server.pulse {
+    animation: nodePulse 2s infinite alternate;
+}
+
+@keyframes nodePulse {
+    0% {
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    }
+    100% {
+        box-shadow: 0 0 20px 3px rgba(228, 200, 105, 0.3);
+    }
+}
+
+/* Instructions panel */
+.instructions-panel {
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.instructions-panel h3 {
+    color: var(--accent-gold);
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+}
+
+.instructions-panel ol {
+    color: var(--text-secondary);
+    padding-left: 1.5rem;
+    margin: 0;
+}
+
+.instructions-panel li {
+    margin-bottom: 0.5rem;
+}
+
+.instructions-panel li:last-child {
+    margin-bottom: 0;
+}
+
+/* Status Text (keep for compatibility) */
 .status-text {
     padding: 0.5rem 1rem;
     border-radius: 4px;
@@ -31,8 +440,4 @@
 .status-text.error {
     background-color: rgba(255, 59, 48, 0.15);
     color: #ff3b30;
-}
-
-.character-select {
-    margin-top: 2rem;
 }
