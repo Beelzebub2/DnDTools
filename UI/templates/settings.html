@@ -1,73 +1,107 @@
 {% extends "base.html" %}
 
-{% block header %}Settings{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="settings-container">
-    <div class="settings-form">
-        <div class="settings-section">
-            <h2><span class="material-icons">dns</span>Network Settings</h2>
-            <div class="form-group">
-                <label for="interface">Network Interface</label>
-                <select id="interface" class="settings-input"></select>
-                <small class="help-text">Select the network interface used by Dark and Darker</small>
+    <!-- Header Section -->
+    <div class="settings-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <span class="material-icons">tune</span>
+            </div>
+            <div class="header-text">
+                <h1>Settings</h1>
+                <p>Configure your Dark and Darker stash organizer</p>
             </div>
         </div>
-
+    </div> <!-- Settings Sections -->
+    <div class="settings-sections">
+        <!-- Network Settings -->
         <div class="settings-section">
-            <h2><span class="material-icons">keyboard</span>Hotkey Settings</h2>
-            <div class="form-group">
-                <label for="sortHotkey">Sort Stash Hotkey</label>
-                <input type="text" id="sortHotkey" class="settings-input" placeholder="Click to set hotkey..." readonly>
-                <small class="help-text">Default: Ctrl+Alt+S</small>
+            <div class="section-header">
+                <span class="material-icons">wifi</span>
+                <h2>Network Settings</h2>
             </div>
-            <div class="form-group">
-                <label for="cancelHotkey">Cancel Sort Hotkey</label>
-                <input type="text" id="cancelHotkey" class="settings-input" placeholder="Click to set hotkey..."
-                    readonly>
-                <small class="help-text">Default: Ctrl+Alt+X</small>
-            </div>
-        </div>
-
-        <div class="settings-section">
-            <h2><span class="material-icons">speed</span>Performance Settings</h2>
-            <div class="form-group">
-                <label for="sortSpeed">Sort Speed (seconds)</label>
-                <input type="number" id="sortSpeed" class="settings-input" min="0.05" max="0.5" step="0.01">
-                <span id="sortSpeedValue"></span>
-                <small class="help-text">Lower is faster. Default: 0.2 seconds per move.</small>
-            </div>
-        </div>
-
-        <div class="settings-section">
-            <h2><span class="material-icons">desktop_windows</span>Display Settings</h2>
-            <div class="form-group">
-                <div id="resolutionWarning" class="warning-banner" style="display:none;">
-                    <span class="material-icons">warning</span>
-                    <span>This resolution is not tested and might not work as intended.</span>
-                </div>
-                <label for="resolution">Resolution</label>
-                <select id="resolution" class="settings-input">
-                    <option value="Auto">Auto (Detect from game)</option>
-                    <option value="1920x1080">1920 x 1080</option>
-                    <option value="1680x1050">1680 x 1050</option>
-                    <option value="1440x900">1440 x 900</option>
-                    <option value="1366x768">1366 x 768</option>
-                    <option value="1360x768">1360 x 768</option>
-                    <option value="1280x800">1280 x 800</option>
-                    <option value="1280x768">1280 x 768</option>
-                    <option value="1280x720">1280 x 720</option>
-                </select>
-                <small class="help-text">Default: Auto. If unsure, leave on Auto.</small>
-                <small class="help-text">Note: If your resolution is too high and not supported, try setting the in-game display mode to Window and lowering your resolution to one of the supported options.</small>
-                <div id="detectedResolution" class="detected-resolution">
-                    <span class="material-icons">search</span>
-                    <span>Detected: Loading...</span>
+            <div class="section-content">
+                <div class="form-group">
+                    <label for="interface">Network Interface:</label>
+                    <select id="interface">
+                        <option value="">Loading interfaces...</option>
+                    </select>
+                    <div class="form-help">Select the network interface that Dark and Darker uses</div>
                 </div>
             </div>
         </div>
 
-        <button id="saveSettings" class="btn-primary">Save Settings</button>
+        <!-- Hotkey Settings -->
+        <div class="settings-section">
+            <div class="section-header">
+                <span class="material-icons">keyboard</span>
+                <h2>Hotkey Settings</h2>
+            </div>
+            <div class="section-content">
+                <div class="form-group">
+                    <label for="sortHotkey">Sort Stash Hotkey:</label>
+                    <input type="text" id="sortHotkey" class="hotkey-input" placeholder="Click to record hotkey..."
+                        readonly>
+                    <div class="form-help">Global hotkey to sort the current stash</div>
+                </div>
+                <div class="form-group">
+                    <label for="cancelHotkey">Cancel Sort Hotkey:</label>
+                    <input type="text" id="cancelHotkey" class="hotkey-input" placeholder="Click to record hotkey..."
+                        readonly>
+                    <div class="form-help">Global hotkey to cancel sorting operation</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Settings -->
+        <div class="settings-section">
+            <div class="section-header">
+                <span class="material-icons">speed</span>
+                <h2>Performance Settings</h2>
+            </div>
+            <div class="section-content">
+                <div class="form-group">
+                    <label for="sortSpeed">Sort Speed (seconds):</label>
+                    <input type="number" id="sortSpeed" min="0.01" max="0.5" step="0.01" value="0.2">
+                    <div class="form-help">Delay between sort operations (lower = faster, higher = more stable)</div>
+                </div>
+                <div class="form-group">
+                    <label for="resolution">Game Resolution:</label>
+                    <select id="resolution">
+                        <option value="Auto">Auto Detection</option>
+                        <option value="1920x1080">1920 × 1080</option>
+                        <option value="1680x1050">1680 × 1050</option>
+                        <option value="1440x900">1440 × 900</option>
+                        <option value="1366x768">1366 × 768</option>
+                        <option value="1360x768">1360 × 768</option>
+                        <option value="1280x800">1280 × 800</option>
+                        <option value="1280x768">1280 × 768</option>
+                        <option value="1280x720">1280 × 720</option>
+                    </select>
+                    <div class="form-help">
+                        Current detected: <span id="detectedResolution">Loading...</span>
+                        <button id="refreshResolution" class="btn-small">Refresh</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="settings-actions">
+        <button id="resetSettings" class="btn btn-secondary">
+            <span class="material-icons">restore</span>
+            Reset to Defaults
+        </button>
+        <button id="saveSettings" class="btn btn-primary">
+            <span class="material-icons">save</span>
+            Save Settings
+        </button>
     </div>
 </div>
 {% endblock %}
