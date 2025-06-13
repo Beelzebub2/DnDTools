@@ -109,26 +109,35 @@ document.addEventListener('DOMContentLoaded', () => {
             particle.style.opacity = '1';
             particle.style.display = 'block';
         });
-    }
-
-    async function loadCharacters() {
+    } async function loadCharacters() {
         try {
             const response = await fetch('/api/characters');
             const characters = await response.json();
             characterGrid.innerHTML = '';
+
             characters.forEach(char => {
                 const card = document.createElement('div');
                 card.className = 'character-card';
+
+                const classImageSrc = getClassImage(char.class);
+
                 card.innerHTML = `
-                    <div class="character-name">${char.nickname}</div>
-                    <div class="character-info">
-                        <div>Class: ${char.class}</div>
-                        <div>Level: ${char.level}</div>
+                    <div class="card-header">
+                        <img src="${classImageSrc}" 
+                             alt="${char.class}" 
+                             class="class-image"
+                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <span class="material-icons class-icon-fallback" style="display: none;">person</span>
+                        <div class="character-title">
+                            <div class="character-name">${char.nickname}</div>
+                            <div class="character-subtitle">${char.class} • Level ${char.level}</div>
+                        </div>
                     </div>
                 `;
                 card.onclick = () => window.location.href = `/character/${char.id}`;
                 characterGrid.appendChild(card);
             });
+
             if (characters.length > 0) {
                 characterSection.style.display = 'block';
             }
@@ -136,6 +145,27 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Failed to load characters:', error);
             showNotification('Failed to load characters', 'error');
         }
+    } function getClassImage(className) {
+        if (!className) return '/assets/classes/fighter.png';
+
+        // Convert class name to lowercase and handle potential variations
+        const classMap = {
+            'fighter': 'fighter.png',
+            'ranger': 'ranger.png',
+            'rogue': 'rogue.png',
+            'wizard': 'wizard.png',
+            'cleric': 'cleric.png',
+            'warlock': 'warlock.png',
+            'barbarian': 'barbarian.png',
+            'bard': 'bard.png',
+            'druid': 'druid.png',
+            'sorcerer': 'sorcerer.png'
+        };
+
+        const classKey = className.toLowerCase();
+        const imageName = classMap[classKey] || 'fighter.png'; // Default to fighter if not found
+
+        return `/assets/classes/${imageName}`;
     }
 
     function startPolling() {
