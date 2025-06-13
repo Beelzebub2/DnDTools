@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const captureStatus = document.getElementById('captureStatus');
     const characterSection = document.getElementById('characterSection');
     const characterGrid = document.getElementById('characterGrid');
-
+    
     // Traffic visualization elements
     const trafficVisualization = document.getElementById('trafficVisualization');
     const nodeGame = document.getElementById('nodeGame');
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const particleGameServer = document.getElementById('particleGameServer');
     const particleGameTool = document.getElementById('particleGameTool');
     const particleToolServer = document.getElementById('particleToolServer');
-
+    
     let pollingInterval = null;
 
     // Initialize particles with staggered animation delays
@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             pathGameServer.appendChild(particle);
         }
     }
-
+    
     // Initialize traffic visualization
     initTrafficParticles();
 
@@ -47,43 +47,43 @@ document.addEventListener('DOMContentLoaded', () => {
         nodeGame.classList.add('pulse');
         nodeServer.classList.add('pulse');
         nodeTool.classList.remove('pulse');
-
+        
         // Show the direct path, hide the tool path
         pathGameServer.style.opacity = '1';
         pathGameTool.style.opacity = '0.4';
         nodeTool.style.opacity = '0.4';
-
+        
         // Activate direct path animation
         pathGameServer.querySelectorAll('.traffic-particle').forEach(particle => {
             particle.style.animation = 'moveParticle 2s infinite linear';
             particle.style.opacity = '1';
             particle.style.display = 'block';
         });
-
+        
         // Deactivate tool path animation
         particleGameTool.style.animation = '';
         particleToolServer.style.animation = '';
         particleGameTool.style.opacity = '0';
         particleToolServer.style.opacity = '0';
     }
-
+    
     function activateToolPath() {
         // Tool intercept path animation (Game -> Tool -> Server)
         nodeGame.classList.add('pulse');
         nodeTool.classList.add('pulse');
         nodeServer.classList.add('pulse');
-
+        
         // Show the tool path, hide direct path
         pathGameServer.style.opacity = '0.4';
         pathGameTool.style.opacity = '1';
         nodeTool.style.opacity = '1';
-
+        
         // Deactivate direct path animation
         pathGameServer.querySelectorAll('.traffic-particle').forEach(particle => {
             particle.style.animation = '';
             particle.style.opacity = '0';
         });
-
+        
         // Create particles for Game->Tool and Tool->Server if they don't exist
         if (!document.getElementById('particleGameTool_0')) {
             for (let i = 0; i < 3; i++) {
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 particle1.style.backgroundColor = 'var(--game-color)';
                 particle1.style.animationDelay = `${i * 0.7}s`;
                 pathGameTool.appendChild(particle1);
-
+                
                 const particle2 = document.createElement('div');
                 particle2.className = 'traffic-particle';
                 particle2.id = `particleToolServer_${i}`;
@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 pathGameTool.appendChild(particle2);
             }
         }
-
+        
         // Activate tool path particles
         pathGameTool.querySelectorAll('.traffic-particle').forEach(particle => {
             particle.style.animation = 'moveParticle 2s infinite linear';
@@ -168,7 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Update UI to show processing state
             captureToggle.style.pointerEvents = 'none';
-
+            
             if (isRunning) {
                 statusIndicator.className = 'status-indicator starting';
                 captureStatus.textContent = 'Starting capture...';
@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
             captureSwitch.checked = isRunning;
             captureToggle.style.pointerEvents = 'auto';
             updateToggleUI(isRunning);
-
+            
             if (isRunning) {
                 statusIndicator.className = 'status-indicator capturing';
                 captureStatus.textContent = 'Capture is running';
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
             statusIndicator.className = 'status-indicator';
             captureStatus.textContent = 'Capture error';
             showNotification(`Failed to ${isRunning ? 'start' : 'stop'} capture`, 'error');
-
+            
             // Sidebar indicator: always red on error
             const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
             if (sidebarCaptureIndicator) {
@@ -341,7 +341,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Just update UI to reflect current running state, no restart here
             captureSwitch.checked = state.running;
             updateToggleUI(state.running);
-
+            
             if (state.running) {
                 statusIndicator.className = 'status-indicator capturing';
                 captureStatus.textContent = 'Capture is running';
@@ -369,7 +369,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize
     init();
-
+    
     // Start direct path animation by default (capture off state)
     activateDirectPath();
 });

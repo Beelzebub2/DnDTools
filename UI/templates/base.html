@@ -67,11 +67,7 @@
 
         /* Smooth nav link transitions */
         .nav-link {
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .nav-link:hover {
-            transform: translateX(5px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* Hide resolution notifications that appear in corner */
@@ -188,62 +184,212 @@
             position: fixed;
             top: 32px;
             /* Start below titlebar */
-            width: 220px;
-            /* Increased from 200px */
+            width: 240px;
+            /* Increased from 220px for better spacing */
             height: calc(100vh - 32px);
             overflow-y: auto;
-            background: #241c17;
+            background: linear-gradient(180deg, #241c17 0%, #1f1712 100%);
             border-right: 1px solid #392e24;
             border-bottom-left-radius: 12px;
             display: flex;
             flex-direction: column;
-            justify-content: flex-start;
             z-index: 100;
+            box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
         }
 
-        .sidebar .nav-links {
-            flex: 0 0 auto;
+        .nav-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid rgba(228, 200, 105, 0.1);
+            background: linear-gradient(135deg, rgba(228, 200, 105, 0.05) 0%, transparent 100%);
         }
 
-        .sidebar .nav-links.settings-links {
+        .app-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .sidebar-logo {
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .app-title h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent-gold);
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        .app-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            opacity: 0.8;
+            font-weight: 400;
+        }
+
+        .nav-section {
+            margin: 0.5rem 0;
+        }
+
+        .nav-section-bottom {
             margin-top: auto;
             margin-bottom: 1rem;
         }
 
-        .nav-header h1 {
-            padding: 0 15px;
-            margin: 15px 0;
-            font-size: 1.2rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .section-divider {
+            padding: 0.5rem 1rem;
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .section-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            opacity: 0.7;
+        }
+
+        .section-divider::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 1rem;
+            right: 1rem;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(228, 200, 105, 0.2), transparent);
+        }
+
+        .nav-links {
+            list-style: none;
+            padding: 0;
+            margin: 0;
         }
 
         .nav-link {
             display: flex;
             align-items: center;
-            padding: 8px 15px;
-            /* Increased horizontal padding */
+            padding: 0.75rem 1rem;
             text-decoration: none;
-            color: #a89a6c;
-            font-size: 0.95rem;
-            white-space: nowrap;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 8px;
+            margin: 0 0.5rem 0.25rem 0.5rem;
+            position: relative;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
-            text-overflow: ellipsis;
-            min-height: 36px;
         }
 
-        .nav-link span.material-icons {
-            margin-right: 12px;
-            /* Increased spacing between icon and text */
-            font-size: 20px;
-            min-width: 24px;
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 3px;
+            background: var(--accent-gold);
+            transform: scaleY(0);
+            transform-origin: bottom;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link:hover::before,
+        .nav-link.active::before {
+            transform: scaleY(1);
+        }
+
+        .nav-link .material-icons {
+            font-size: 1.1rem;
+            margin-right: 0.75rem;
+            min-width: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-icon-container {
+            position: relative;
+            display: flex;
+            align-items: center;
+            margin-right: 0.75rem;
+        }
+
+        .nav-icon-container .material-icons {
+            margin-right: 0;
+        }
+
+        .nav-text {
+            flex: 1;
+            transition: color 0.3s ease;
+        }
+
+        .nav-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-left: auto;
+        }
+
+        .nav-link:hover {
+            background: rgba(228, 200, 105, 0.1);
+            color: var(--accent-gold);
+            transform: translateX(4px);
+            box-shadow: 0 2px 10px rgba(228, 200, 105, 0.15);
+        }
+
+        .nav-link:hover .material-icons {
+            color: var(--accent-gold);
+            transform: scale(1.1);
+        }
+
+        .nav-link:hover .nav-indicator {
+            background: var(--accent-gold);
+            box-shadow: 0 0 6px rgba(228, 200, 105, 0.5);
+        }
+
+        .nav-link.active {
+            background: linear-gradient(90deg, rgba(228, 200, 105, 0.15) 0%, rgba(228, 200, 105, 0.05) 100%);
+            color: var(--accent-gold);
+            border: 1px solid rgba(228, 200, 105, 0.2);
+            box-shadow: 0 2px 15px rgba(228, 200, 105, 0.2);
+        }
+
+        .nav-link.active .material-icons {
+            color: var(--accent-gold);
+        }
+
+        .nav-link.active .nav-indicator {
+            background: var(--accent-gold);
+            animation: pulse 2s infinite;
+        }
+
+        .nav-link.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .coming-soon {
+            font-size: 0.6rem;
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+            padding: 0.1rem 0.4rem;
+            border-radius: 8px;
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.3px;
         }
 
         .content {
             flex: 1;
             overflow-y: auto;
-            margin-left: 220px;
+            margin-left: 240px;
             /* Match new sidebar width */
             padding: 20px;
             box-sizing: border-box;
@@ -293,14 +439,17 @@
 
         /* Pulse animation for sidebar */
         .sidebar-pulse-container {
+            position: relative;
             display: flex;
             align-items: center;
-            margin-right: 4px;
+            justify-content: center;
+            margin-right: 0.75rem;
             min-width: 20px;
+            height: 20px;
         }
 
         .sidebar-container {
-            --uib-size: 20px;
+            --uib-size: 12px;
             --uib-color: #ff3b30;
             /* Default to red (off) */
             --uib-speed: 2s;
@@ -319,7 +468,7 @@
             width: 100%;
             border-radius: 50%;
             background-color: var(--uib-color);
-            animation: pulse var(--uib-speed) linear infinite;
+            animation: sidebarPulse var(--uib-speed) linear infinite;
             transform: scale(0);
             opacity: 0;
             transition: background-color 0.3s ease;
@@ -329,14 +478,14 @@
             animation-delay: calc(var(--uib-speed) / -2);
         }
 
-        @keyframes pulse {
+        @keyframes sidebarPulse {
             0% {
                 transform: scale(0);
                 opacity: 1;
             }
 
             100% {
-                transform: scale(1);
+                transform: scale(2);
                 opacity: 0;
             }
         }
@@ -376,38 +525,89 @@
     <div class="app-container">
         <nav class="sidebar">
             <div class="nav-header">
-                <h1>Stash Organizer</h1>
+                <div class="app-logo">
+                    <img src="{{ url_for('serve_file', filename='logo.png') }}" class="sidebar-logo" alt="Logo">
+                    <div class="app-title">
+                        <h1>Stash Organizer</h1>
+                        <span class="app-subtitle">Dark and Darker</span>
+                    </div>
+                </div>
             </div>
-            <ul class="nav-links">
-                <li>
-                    <a href="{{ url_for('index') }}" class="nav-link">
-                        <span class="material-icons">inventory_2</span>
-                        Characters
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ url_for('record') }}" class="nav-link">
-                        <div class="sidebar-pulse-container">
-                            <div class="sidebar-container" id="sidebarCaptureIndicator"></div>
-                        </div>
-                        Capture Characters
-                    </a>
-                </li>
-                <li>
-                    <a href="{{ url_for('search') }}" class="nav-link">
-                        <span class="material-icons">search</span>
-                        Search Items
-                    </a>
-                </li>
-            </ul>
-            <ul class="nav-links settings-links">
-                <li>
-                    <a href="{{ url_for('settings') }}" class="nav-link">
-                        <span class="material-icons">settings</span>
-                        Settings
-                    </a>
-                </li>
-            </ul>
+
+            <!-- Main Navigation Section -->
+            <div class="nav-section">
+                <div class="section-divider">
+                    <span class="section-title">Main</span>
+                </div>
+                <ul class="nav-links">
+                    <li>
+                        <a href="{{ url_for('index') }}" class="nav-link" data-page="index">
+                            <span class="material-icons">inventory_2</span>
+                            <span class="nav-text">Characters</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('record') }}" class="nav-link" data-page="record">
+                            <div class="nav-icon-container">
+                                <div class="sidebar-pulse-container">
+                                    <div class="sidebar-container" id="sidebarCaptureIndicator"></div>
+                                </div>
+                            </div>
+                            <span class="nav-text">Capture</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('search') }}" class="nav-link" data-page="search">
+                            <span class="material-icons">search</span>
+                            <span class="nav-text">Search Items</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Tools Section -->
+            <div class="nav-section">
+                <div class="section-divider">
+                    <span class="section-title">Tools</span>
+                </div>
+                <ul class="nav-links">
+                    <li>
+                        <a href="#" class="nav-link disabled" data-page="analytics">
+                            <span class="material-icons">analytics</span>
+                            <span class="nav-text">Soon</span>
+                            <span class="coming-soon">Soon</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link disabled" data-page="backup">
+                            <span class="material-icons">backup</span>
+                            <span class="nav-text">Soon</span>
+                            <span class="coming-soon">Soon</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Settings Section (at bottom) -->
+            <div class="nav-section nav-section-bottom">
+                <div class="section-divider">
+                    <span class="section-title">System</span>
+                </div>
+                <ul class="nav-links">
+                    <li>
+                        <a href="{{ url_for('settings') }}" class="nav-link" data-page="settings">
+                            <span class="material-icons">tune</span>
+                            <span class="nav-text">Settings</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </nav>
         <main class="content">
             <div class="content-header">
@@ -418,12 +618,47 @@
     </div>
     <div class="window-border"></div>
     <!-- Global modals and notifications -->
-    <div id="notifications-container"></div>
-
-    <!-- Global scripts -->
+    <div id="notifications-container"></div> <!-- Global scripts -->
     <script>
         // Global variables for unsaved changes tracking
         window.hasUnsavedChanges = false;
+
+        // Navigation active state handler
+        document.addEventListener('DOMContentLoaded', function () {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.nav-link[data-page]');
+
+            // Remove active class from all links
+            navLinks.forEach(link => link.classList.remove('active'));
+
+            // Add active class to current page link
+            navLinks.forEach(link => {
+                const page = link.dataset.page;
+                if ((currentPath === '/' && page === 'index') ||
+                    (currentPath.includes('/' + page) && page !== 'index')) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Add smooth hover animations
+            navLinks.forEach(link => {
+                if (!link.classList.contains('disabled')) {
+                    link.addEventListener('mouseenter', function () {
+                        this.style.transform = 'translateX(6px)';
+                    });
+
+                    link.addEventListener('mouseleave', function () {
+                        this.style.transform = this.classList.contains('active') ? 'translateX(2px)' : 'translateX(0)';
+                    });
+                }
+            });
+
+            // Set active link position
+            const activeLink = document.querySelector('.nav-link.active');
+            if (activeLink) {
+                activeLink.style.transform = 'translateX(2px)';
+            }
+        });
 
         // Create modal for unsaved changes prompt
         window.createUnsavedChangesModal = function (onSave, onDiscard, onCancel) {
