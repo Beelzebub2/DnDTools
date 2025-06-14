@@ -927,14 +927,14 @@ def background_init():
                 f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
             )
 
-def check_npcap_installed():
-    """Check if Npcap/WinPcap is installed using Scapy's configuration"""
-    try:
-        import scapy.all as scapy
-        return bool(scapy.conf.use_pcap)
-    except Exception as e:
-        logger.error(f"Error checking Npcap installation: {str(e)}")
-        return False
+# def check_npcap_installed():
+#     """Check if Npcap/WinPcap is installed using Scapy's configuration"""
+#     try:
+#         import scapy.all as scapy
+#         return bool(scapy.conf.use_pcap)
+#     except Exception as e:
+#         logger.error(f"Error checking Npcap installation: {str(e)}")
+#         return False
 
 def install_npcap():
     """Install Npcap using the bundled installer with admin privileges (UAC prompt)"""

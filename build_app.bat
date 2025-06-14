@@ -15,9 +15,9 @@ REM Create dist directory and copy initial data
 mkdir dist
 
 REM Run Nuitka to compile the application into a single-file executable
+@REM --standalone ^
 python -m nuitka ^
 --onefile ^
---standalone ^
 --windows-icon-from-ico=UI\assets\logo.ico ^
 --include-data-dir=UI\networking\protos=networking/protos ^
 --include-data-dir=UI\templates=templates ^
@@ -33,6 +33,8 @@ python -m nuitka ^
 --nofollow-import-to=tkinter ^
 --output-filename=DnDTools.exe ^
 --windows-console-mode=disable ^
+--lto=no ^
+--jobs=4 ^
 UI\app.py
 
 echo Build complete. Executable is in the dist folder.
