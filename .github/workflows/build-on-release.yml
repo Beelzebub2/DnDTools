@@ -37,6 +37,15 @@ jobs:
         run: |
           build_app.bat
 
+      - name: Download UPX
+        run: |
+          curl -LO https://github.com/upx/upx/releases/download/v4.2.1/upx-4.2.1-win64.zip
+          powershell -Command "Expand-Archive upx-4.2.1-win64.zip -DestinationPath upx"
+
+      - name: Compress EXE with UPX
+        run: |
+          upx\upx.exe --best dist/DnDTools.exe
+
       - name: Create GitHub Pre-Release and Upload executable
         uses: softprops/action-gh-release@v2
         with:
