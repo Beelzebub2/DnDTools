@@ -5,8 +5,7 @@
         isMaximized = !!(e.detail && e.detail.maximized);
     });
 
-    document.addEventListener('DOMContentLoaded', () => {
-        // Add a small delay to ensure all elements are properly initialized
+    document.addEventListener('DOMContentLoaded', () => {        // Add a small delay to ensure all elements are properly initialized
         setTimeout(() => {
             const minimizeBtn = document.querySelector('.titlebar-button.minimize');
             const maximizeBtn = document.querySelector('.titlebar-button.maximize');
@@ -49,6 +48,6 @@
                     }
                 });
             }
-        }, 100);
+        }, 50); // Reduced from 100ms for faster initialization
     });
 })();

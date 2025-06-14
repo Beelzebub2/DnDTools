@@ -202,18 +202,18 @@ class PacketCapture:
         self.expected_packet_length = None
         self.expected_proto_type = None
 
-    def _save_state(self):
+    def _save_state(self, running: bool):
         """Save capture state to persistent storage"""
         try:
             state = {
-                "running": self.running,
+                "running": running,
                 "timestamp": datetime.now().isoformat(),
                 "interface": self.interface,
                 "port_range": self.port_range
             }
             with open(self.STATE_FILE, "w") as f:
                 json.dump(state, f, indent=2)
-            self.logger.info(f"Saved capture state: running={self.running}")
+            self.logger.info(f"Saved capture state: running={running}")
         except Exception as e:
             self.logger.error(f"Failed to save capture state: {e}")
 
@@ -304,13 +304,10 @@ class PacketCapture:
     def shutdown(self):
         """Properly shutdown capture and save state"""
         try:
-            # First save the current state before stopping
             current_state = self.running
             if current_state:
                 self.logger.info(f"Shutting down capture (was running: {current_state})...")
-                # Explicitly save the state file first with current running state
-                self._save_state()
-                # Now stop the capture
+                self._save_state(True)  # Save as running=True before stopping
                 self.running = False
                 if self.capture_thread is not None:
                     self.capture_thread.join(timeout=5.0)
@@ -330,7 +327,7 @@ class PacketCapture:
             self.logger.info("Capture already running, ignoring start request")
             return
         self.running = True
-        self._save_state()
+        self._save_state(True)
         self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
         self.capture_thread.start()
         self.logger.info("Capture thread started")
@@ -341,7 +338,7 @@ class PacketCapture:
             self.logger.info("Capture already stopped, ignoring stop request")
             return
         self.running = False
-        self._save_state()
+        self._save_state(False)
         if self.capture_thread is not None:
             self.capture_thread.join(timeout=10.0)
             if self.capture_thread.is_alive():

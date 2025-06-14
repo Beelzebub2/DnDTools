@@ -534,10 +534,8 @@ window.addEventListener('load', () => {
             updateResultsCount(0, trimmedQuery);
             console.error('Search error:', error);
         }
-    };
-
-    // Debounced search with improved timing
-    const debouncedSearch = debounce((e) => performSearch(e.target.value), 300);
+    };    // Debounced search with improved timing
+    const debouncedSearch = debounce((e) => performSearch(e.target.value), 200); // Reduced from 300ms
     searchInput.addEventListener('input', debouncedSearch);
 
     // Initial state

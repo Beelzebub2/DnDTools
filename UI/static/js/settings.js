@@ -7,9 +7,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resolutionSelect = document.getElementById('resolution');
     const detectedResolutionSpan = document.querySelector('#detectedResolution');
     const refreshResolutionBtn = document.getElementById('refreshResolution');
-    const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');
+    const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');    // Load data in parallel for faster initialization
+    const loadPromises = [
+        loadInterfaces(),
+        loadSettings(),
+        loadDetectedResolution()
+    ];
 
-    let currentSettings = {};
+    try {
+        await Promise.allSettled(loadPromises);
+    } catch (error) {
+        console.error('Error during settings initialization:', error);
+        showNotification('Some settings failed to load', 'warning');
+    }
 
     // Load network interfaces
     async function loadInterfaces() {
@@ -478,10 +488,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const value = parseFloat(sortSpeedInput.value);
         if (value < 0.01) sortSpeedInput.value = 0.01;
         if (value > 0.5) sortSpeedInput.value = 0.5;
-    });
-
-    // Initialize
-    await loadInterfaces();
-    await loadSettings();
-    await loadDetectedResolution();
+    });    // Initialize in parallel
+    // (already handled above)
 });

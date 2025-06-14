@@ -112,8 +112,25 @@ document.addEventListener('DOMContentLoaded', () => {
     } async function loadCharacters() {
         try {
             const response = await fetch('/api/characters');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             const characters = await response.json();
+
+            // Check if characters is null, undefined, or an error object
+            if (!characters || (characters.error && characters.error.length > 0)) {
+                console.warn('No characters found or error in response:', characters);
+                characterGrid.innerHTML = '';
+                characterSection.style.display = 'none';
+                return;
+            }
+
             characterGrid.innerHTML = '';
+
+            if (!Array.isArray(characters) || characters.length === 0) {
+                characterSection.style.display = 'none';
+                return;
+            }
 
             characters.forEach(char => {
                 const card = document.createElement('div');
@@ -276,11 +293,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 sidebarCaptureIndicator.classList.remove('active', 'stopping');
             }
         }
-    }
-
-    async function verifyState(expectedState) {
-        const maxAttempts = 5;
-        const delayMs = 500;
+    } async function verifyState(expectedState) {
+        const maxAttempts = 3; // Reduced from 5
+        const delayMs = 300; // Reduced from 500
 
         for (let i = 0; i < maxAttempts; i++) {
             try {

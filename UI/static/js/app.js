@@ -81,12 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             const content = document.querySelector('.content');
             content.style.opacity = '0';
-            content.style.transform = 'translateY(5px)';
-            // Reduced delay to 100ms and only apply if the transition is visible
+            content.style.transform = 'translateY(5px)';            // Reduced delay to 50ms and only apply if the transition is visible
             requestAnimationFrame(() => {
                 setTimeout(() => {
                     window.location.href = link.href;
-                }, 80);
+                }, 50); // Reduced from 80ms
             });
         });
     });

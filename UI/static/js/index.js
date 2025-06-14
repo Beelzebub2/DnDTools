@@ -46,13 +46,30 @@ async function loadCharacters() {
             characters = await window.pywebview.api.get_characters();
         } else {
             const response = await fetch('/api/characters');
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             characters = await response.json();
         }
 
         console.log('Characters received:', characters);
-        loading.remove();
 
-        if (!characters || characters.length === 0) {
+        // Check if characters is null, undefined, or an error object
+        if (!characters || (characters.error && characters.error.length > 0)) {
+            console.warn('No characters found or error in response:', characters);
+            if (loading) loading.remove();
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <span class="material-icons">person_off</span>
+                    <h3>No Characters Found</h3>
+                    <p>Start by capturing your first character using the Capture page. Launch the game, select a character, and enable capture to begin collecting data.</p>
+                </div>`;
+            return;
+        }
+
+        if (loading) loading.remove();
+
+        if (!Array.isArray(characters) || characters.length === 0) {
             grid.innerHTML = `
                 <div class="empty-state">
                     <span class="material-icons">person_off</span>

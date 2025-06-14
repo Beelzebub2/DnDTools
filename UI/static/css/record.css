@@ -251,7 +251,7 @@
 
 .switch-thumb {
     position: absolute;
-    width: 116px;
+    width: 110px;
     height: 38px;
     border-radius: 50px;
     background: var(--accent-brown);
@@ -263,12 +263,12 @@
 }
 
 .switch-thumb.active {
-    transform: translateX(120px);
+    transform: translateX(115px);
     background: var(--success);
 }
 
 .switch-option {
-    width: 116px;
+    width: 120px;
     height: 38px;
     display: flex;
     align-items: center;
