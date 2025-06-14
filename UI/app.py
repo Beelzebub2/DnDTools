@@ -315,7 +315,19 @@ class Api:
                 )
 
     def close_window(self):
-        self.force_close_window()
+        """Properly save capture state before closing the window"""
+        try:
+            # Ensure the packet capture saves its current state before shutdown
+            if hasattr(self, 'packet_capture'):
+                # Call shutdown instead of directly stopping to ensure state is saved properly
+                self.packet_capture.shutdown()
+                
+            # Small delay to ensure state file is written
+            time.sleep(0.2)
+        except Exception as e:
+            logger.error(f"Error during window close: {e}")
+        finally:
+            self.force_close_window()
 
     def force_close_window(self):
         # Stop packet capture if running to avoid shutdown delays
@@ -838,6 +850,40 @@ def background_init():
         if not api.stash_manager._is_loaded:
             api.stash_manager._load_data()
             
+        # Check if capture should auto-start based on previous state
+        try:
+            if api.packet_capture.should_auto_start():
+                logger.info("Auto-starting capture based on previous state")
+                # Start the capture switch which will set running=True and start the thread
+                api.packet_capture.start_capture_switch()
+                
+                # Update UI to reflect running state
+                if api.window:
+                    api.window.evaluate_js('''
+                        setTimeout(() => {
+                            if (document.getElementById('captureSwitch')) {
+                                document.getElementById('captureSwitch').checked = true;
+                            }
+                            if (document.getElementById('sidebarCaptureIndicator')) {
+                                document.getElementById('sidebarCaptureIndicator').classList.add('active');
+                                document.getElementById('sidebarCaptureIndicator').classList.remove('stopping');
+                            }
+                            // Update toggle UI if the function exists
+                            if (typeof updateToggleUI === 'function') {
+                                updateToggleUI(true);
+                            }
+                            // Update status text
+                            const statusIndicator = document.getElementById('statusIndicator');
+                            const captureStatus = document.getElementById('captureStatus');
+                            if (statusIndicator) statusIndicator.className = 'status-indicator capturing';
+                            if (captureStatus) captureStatus.textContent = 'Capture is running';
+                        }, 500);
+                    ''')
+            else:
+                logger.info("Not auto-starting capture - previous state was stopped or already running")
+        except Exception as ce:
+            logger.error(f"Failed to restore capture state: {ce}")
+            
         # Notify UI that background loading is done
         if api.window:
             api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
@@ -1002,4 +1048,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    

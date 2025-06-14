@@ -153,11 +153,11 @@
         text-align: center;
         gap: 1.5rem;
     }
-    
+
     .character-hero-name {
         font-size: 2rem;
     }
-    
+
     .character-stats-grid {
         grid-template-columns: 1fr;
     }
@@ -230,6 +230,7 @@
         opacity: 0;
         transform: translateY(20px);
     }
+
     to {
         opacity: 1;
         transform: translateY(0);
@@ -941,11 +942,11 @@
         text-align: center;
         gap: 1.5rem;
     }
-    
+
     .character-hero-name {
         font-size: 2rem;
     }
-    
+
     .character-stats-grid {
         grid-template-columns: 1fr;
     }

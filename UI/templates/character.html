@@ -11,10 +11,11 @@
 <div class="character-details">
     <div id="characterInfo" class="character-header">
         <div class="loading">Loading character details...</div>
-    </div>    <div class="stash-container">
+    </div>
+    <div class="stash-container">
         <!-- loading spinner -->
         <div id="stashSpinner" class="spinner"></div>
-        
+
         <!-- Stash Section with organized layout -->
         <div class="stash-section-header hidden" id="stashSectionHeader">
             <div class="stash-section-title">
@@ -24,10 +25,11 @@
             <!-- stash tabs -->
             <div id="stashSelector" class="stash-tabs"></div>
         </div>
-        
+
         <!-- Stash content area -->
         <div id="stashPreview" class="stash-content-area hidden">
-            <div class="stash-controls">                <div class="stash-value-indicator">
+            <div class="stash-controls">
+                <div class="stash-value-indicator">
                     <span class="material-icons">monetization_on</span>
                     <span>Total Value: </span>
                     <span id="totalStashValue">0</span>
@@ -47,7 +49,8 @@
                 <div class="ordering-dropdown">
                     <button class="stash-action-button sort-button" id="orderingButton">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2"
+                                stroke-linecap="round" />
                         </svg>
                         <!-- Jelly Triangle Animation Container -->
                         <div class="jelly-triangle-container">
@@ -57,68 +60,69 @@
                         Ordering
                     </button>
                     <div class="ordering-menu hidden" id="orderingMenu">
-                    <div class="ordering-option" data-sort="rarity" draggable="true">
-                        <span>Rarity</span>
-                        <div class="ordering-arrows">
-                            <button class="arrow-up" aria-label="Move up">▲</button>
-                            <button class="arrow-down" aria-label="Move down">▼</button>
+                        <div class="ordering-option" data-sort="rarity" draggable="true">
+                            <span>Rarity</span>
+                            <div class="ordering-arrows">
+                                <button class="arrow-up" aria-label="Move up">▲</button>
+                                <button class="arrow-down" aria-label="Move down">▼</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="ordering-option" data-sort="height" draggable="true">
-                        <span>Height</span>
-                        <div class="ordering-arrows">
-                            <button class="arrow-up">▲</button>
-                            <button class="arrow-down" aria-label="Move down">▼</button>
+                        <div class="ordering-option" data-sort="height" draggable="true">
+                            <span>Height</span>
+                            <div class="ordering-arrows">
+                                <button class="arrow-up">▲</button>
+                                <button class="arrow-down" aria-label="Move down">▼</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="ordering-option" data-sort="width" draggable="true">
-                        <span>Width</span>
-                        <div class="ordering-arrows">
-                            <button class="arrow-up">▲</button>
-                            <button class="arrow-down" aria-label="Move down">▼</button>
+                        <div class="ordering-option" data-sort="width" draggable="true">
+                            <span>Width</span>
+                            <div class="ordering-arrows">
+                                <button class="arrow-up">▲</button>
+                                <button class="arrow-down" aria-label="Move down">▼</button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="ordering-option" data-sort="name" draggable="true">
-                        <span>Name</span>
-                        <div class="ordering-arrows">
-                            <button class="arrow-up">▲</button>
-                            <button class="arrow-down" aria-label="Move down">▼</button>                        </div>
-                    </div>
+                        <div class="ordering-option" data-sort="name" draggable="true">
+                            <span>Name</span>
+                            <div class="ordering-arrows">
+                                <button class="arrow-up">▲</button>
+                                <button class="arrow-down" aria-label="Move down">▼</button>
+                            </div>
+                        </div>
 
-                    <!-- Space for future options -->
-                </div>
-            </div>
-            <!-- Replace static image with interactive grid container -->
-            <div id="interactiveStashGrid" class="stash-grid-container"></div>
-            <!-- Keep the image as a fallback but hide it by default -->
-            <img id="currentStashPreview" class="stash-preview-image hidden" src="" alt="Stash Preview">
-            <!-- Sorting overlay with jelly triangle animation -->
-            <div id="sortingOverlay" class="sorting-overlay hidden">
-                <div class="sorting-animation-container">
-                    <div class="jelly-triangle-container">
-                        <div class="dot"></div>
-                        <div class="traveler"></div>
+                        <!-- Space for future options -->
                     </div>
-                    <div class="sorting-text" id="sortingText">Sorting items...</div>
+                </div>
+                <!-- Replace static image with interactive grid container -->
+                <div id="interactiveStashGrid" class="stash-grid-container"></div>
+                <!-- Keep the image as a fallback but hide it by default -->
+                <img id="currentStashPreview" class="stash-preview-image hidden" src="" alt="Stash Preview">
+                <!-- Sorting overlay with jelly triangle animation -->
+                <div id="sortingOverlay" class="sorting-overlay hidden">
+                    <div class="sorting-animation-container">
+                        <div class="jelly-triangle-container">
+                            <div class="dot"></div>
+                            <div class="traveler"></div>
+                        </div>
+                        <div class="sorting-text" id="sortingText">Sorting items...</div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- SVG Filter for Jelly Triangle Animation -->
-<svg width="0" height="0" class="jelly-svg">
-    <defs>
-        <filter id="uib-jelly-triangle-ooze">
-            <feGaussianBlur in="SourceGraphic" stdDeviation="3.333" result="blur" />
-            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
-                result="ooze" />
-            <feBlend in="SourceGraphic" in2="ooze" />
-        </filter>
-    </defs>
-</svg>
-{% endblock %}
+    <!-- SVG Filter for Jelly Triangle Animation -->
+    <svg width="0" height="0" class="jelly-svg">
+        <defs>
+            <filter id="uib-jelly-triangle-ooze">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="3.333" result="blur" />
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
+                    result="ooze" />
+                <feBlend in="SourceGraphic" in2="ooze" />
+            </filter>
+        </defs>
+    </svg>
+    {% endblock %}
 
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/character.js') }}"></script>
-{% endblock %}
+    {% block scripts %}
+    <script src="{{ url_for('static', filename='js/character.js') }}"></script>
+    {% endblock %}

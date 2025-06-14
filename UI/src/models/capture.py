@@ -82,11 +82,34 @@ class PacketCapture:
         self.capture_thread = None
         self.STATE_FILE = get_capture_state_file()
         
-        # Restore state but don't start capture automatically
-        saved_state = self._restore_state()
-        if saved_state.get('running', False):
-            self.running = True  # Only set the flag, don't start capture
-            self.logger.info("Restored previous running state (capture will start when explicitly requested)")
+        # Restore state - keep track of what the previous state was
+        self.saved_state = self._restore_state()
+        self.was_running_before = self.saved_state.get('running', False)
+        
+        # Automatically restore previous capture state
+        if self.was_running_before:
+            self.logger.info("Previous session had capture running - restoring state")
+            # Use a timer to start capture after initialization completes
+            threading.Timer(0.1, self._delayed_start).start()
+        else:
+            self.logger.info("Previous session had capture stopped")
+
+    def _delayed_start(self):
+        """Start capture after a brief delay to ensure full initialization"""
+        self.start_capture_switch()
+
+    def background_init(self):
+        """Initialize capture in background, restoring previous state if needed"""
+        # This method is now optional since auto-restore happens in __init__
+        if not self.running and self.was_running_before:
+            self.logger.info("Manual restore requested - starting capture")
+            self.start_capture_switch()
+        else:
+            self.logger.info("Background init called - capture state already correct")
+            
+    def should_auto_start(self):
+        """Return whether capture should auto-start based on previous state"""
+        return self.was_running_before
 
     def parse_proto(self, packet_data, proto_type):
         data = packet_data[8:]
@@ -241,30 +264,65 @@ class PacketCapture:
         """Clean up capture resources properly"""
         try:
             if hasattr(self, '_current_capture'):
-                # Create a new event loop for cleanup if needed
-                if not hasattr(self, '_current_loop') or self._current_loop.is_closed():
-                    loop = asyncio.new_event_loop()
-                    asyncio.set_event_loop(loop)
-                else:
-                    loop = self._current_loop
-
-                # Run close_async in the event loop
-                if hasattr(self._current_capture, 'close_async'):
-                    loop.run_until_complete(self._current_capture.close_async())
-                else:
-                    self._current_capture.close()
+                # Try to close synchronously first
+                try:
+                    if hasattr(self._current_capture, 'close'):
+                        self._current_capture.close()
+                except Exception:
+                    # If sync close fails, try async approach
+                    try:
+                        # Check if we have an event loop and it's not running
+                        if hasattr(self, '_current_loop') and not self._current_loop.is_closed():
+                            if not self._current_loop.is_running():
+                                if hasattr(self._current_capture, 'close_async'):
+                                    self._current_loop.run_until_complete(self._current_capture.close_async())
+                        else:
+                            # Create new loop for cleanup
+                            cleanup_loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(cleanup_loop)
+                            if hasattr(self._current_capture, 'close_async'):
+                                cleanup_loop.run_until_complete(self._current_capture.close_async())
+                            cleanup_loop.close()
+                    except Exception as e:
+                        self.logger.warning(f"Could not close capture async: {e}")
                 
                 del self._current_capture
                 
                 # Clean up the event loop
                 if hasattr(self, '_current_loop'):
-                    if not self._current_loop.is_closed():
-                        self._current_loop.close()
+                    try:
+                        if not self._current_loop.is_closed():
+                            self._current_loop.close()
+                    except Exception:
+                        pass
                     del self._current_loop
         except Exception as e:
             self.logger.error(f"Error during capture cleanup: {e}")
         finally:
             self.reset_state()
+
+    def shutdown(self):
+        """Properly shutdown capture and save state"""
+        try:
+            # First save the current state before stopping
+            current_state = self.running
+            if current_state:
+                self.logger.info(f"Shutting down capture (was running: {current_state})...")
+                # Explicitly save the state file first with current running state
+                self._save_state()
+                # Now stop the capture
+                self.running = False
+                if self.capture_thread is not None:
+                    self.capture_thread.join(timeout=5.0)
+                    if self.capture_thread.is_alive():
+                        self.logger.warning("Capture thread still running after timeout, forcing cleanup")
+                        self._cleanup_capture()
+                self.capture_thread = None
+                self.logger.info("Capture shutdown complete")
+            else:
+                self.logger.info("Capture was already stopped, no action needed for shutdown")
+        except Exception as e:
+            self.logger.error(f"Error during capture shutdown: {e}")
 
     def start_capture_switch(self) -> None:
         """Start packet capture in background thread if not already running."""

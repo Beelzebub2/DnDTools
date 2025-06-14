@@ -192,9 +192,7 @@ document.addEventListener('DOMContentLoaded', () => {
             switchOff.classList.add('active');
             activateDirectPath();
         }
-    }
-
-    async function updateCaptureState(isRunning) {
+    } async function updateCaptureState(isRunning) {
         try {
             // Update UI to show processing state
             captureToggle.style.pointerEvents = 'none';
@@ -207,14 +205,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 captureStatus.textContent = 'Stopping capture...';
             }
 
-            // Animate sidebar indicator: yellow when stopping
+            // Animate sidebar indicator: yellow when stopping, green when starting
             const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
             if (sidebarCaptureIndicator) {
                 if (!isRunning) {
+                    // Stopping - yellow
                     sidebarCaptureIndicator.classList.remove('active');
-                    sidebarCaptureIndicator.classList.add('stopping'); // yellow
+                    sidebarCaptureIndicator.classList.add('stopping');
                 } else {
+                    // Starting - in progress transition
                     sidebarCaptureIndicator.classList.remove('stopping');
+                    // Don't add active yet until we confirm the state change
                 }
             }
 
@@ -242,9 +243,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 statusIndicator.className = 'status-indicator';
                 captureStatus.textContent = 'Capture is currently off';
                 activateDirectPath();
-            }
-
-            // Sidebar indicator: green if running, yellow if stopping
+            }            // Sidebar indicator: green if running, off if stopped
             if (sidebarCaptureIndicator) {
                 if (isRunning) {
                     sidebarCaptureIndicator.classList.add('active');
@@ -359,18 +358,27 @@ document.addEventListener('DOMContentLoaded', () => {
     captureToggle.addEventListener('click', () => {
         const newState = !captureSwitch.checked;
         updateCaptureState(newState);
-    });
-
-    // Initialize state on page load
+    });    // Initialize state on page load
     async function init() {
         try {
             await waitForPywebview();
             const resp = await fetch('/api/capture/state');
             const state = await resp.json();
 
-            // Just update UI to reflect current running state, no restart here
+            // Update UI to reflect current running state
             captureSwitch.checked = state.running;
             updateToggleUI(state.running);
+
+            // Update sidebar indicator to reflect current state
+            const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
+            if (sidebarCaptureIndicator) {
+                if (state.running) {
+                    sidebarCaptureIndicator.classList.add('active');
+                    sidebarCaptureIndicator.classList.remove('stopping');
+                } else {
+                    sidebarCaptureIndicator.classList.remove('active', 'stopping');
+                }
+            }
 
             if (state.running) {
                 statusIndicator.className = 'status-indicator capturing';
@@ -393,6 +401,13 @@ document.addEventListener('DOMContentLoaded', () => {
             statusIndicator.className = 'status-indicator';
             captureStatus.textContent = 'Capture is currently off';
             activateDirectPath();
+
+            // Ensure sidebar indicator is also set to off state
+            const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
+            if (sidebarCaptureIndicator) {
+                sidebarCaptureIndicator.classList.remove('active', 'stopping');
+            }
+
             showNotification('Failed to get capture state', 'error');
         }
     }

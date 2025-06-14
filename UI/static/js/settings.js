@@ -297,6 +297,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: resolutionSelect.value
         };
 
+        // Validate settings before saving
+        if (!newSettings.interface) {
+            showNotification('Please select a network interface', 'error');
+            return;
+        }
+
+        if (!newSettings.sortHotkey || !newSettings.cancelHotkey) {
+            showNotification('Please set both hotkeys', 'error');
+            return;
+        }
+
         // Start save animation
         startSaveAnimation();
 
@@ -309,7 +320,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify(newSettings)
             });
 
-            const result = await response.json(); if (result.success) {
+            const result = await response.json();
+
+            if (result.success) {
                 currentSettings = newSettings;
                 await showSaveSuccess();
                 showNotification('Settings saved successfully!', 'success');

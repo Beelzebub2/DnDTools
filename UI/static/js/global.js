@@ -13,23 +13,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             const state = await response.json();
 
             // Update sidebar pulse indicator state
-            sidebarCaptureIndicator.className = 'sidebar-container ' + (state.running ? 'active' : '');
+            updateSidebarIndicator(sidebarCaptureIndicator, state.running);
 
             // Set up polling to update the indicator every 3 seconds
             setInterval(async () => {
                 try {
                     const response = await fetch('/api/capture/state');
                     const state = await response.json();
-                    sidebarCaptureIndicator.className = 'sidebar-container ' + (state.running ? 'active' : '');
+
+                    // Update indicator classes
+                    updateSidebarIndicator(sidebarCaptureIndicator, state.running);
                 } catch (error) {
                     console.error('Error updating sidebar capture indicator:', error);
+                    // On error, remove all animation classes
+                    sidebarCaptureIndicator.classList.remove('active', 'stopping');
                 }
             }, 3000);
         } catch (error) {
             console.error('Error initializing sidebar capture indicator:', error);
+            // On error, remove all animation classes
+            sidebarCaptureIndicator.classList.remove('active', 'stopping');
         }
     }
 });
+
+// Helper function to update the sidebar indicator
+function updateSidebarIndicator(indicator, isRunning) {
+    if (isRunning) {
+        indicator.classList.add('active');
+        indicator.classList.remove('stopping');
+    } else {
+        indicator.classList.remove('active', 'stopping');
+    }
+}
 
 // Utility function to wait for pywebview to be ready
 function waitForPywebview() {
