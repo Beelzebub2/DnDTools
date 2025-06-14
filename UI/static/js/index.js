@@ -174,3 +174,9 @@ window.updateCharacterList = async function () {
         await loadCharacters();
     }
 };
+
+// Character capture animation function (simplified for index page)
+window.showCharacterCaptureAnimation = function(characterClass, characterNickname) {
+    console.log(`Character captured: ${characterNickname} (${characterClass})`);
+    // Could add a simple notification here if needed
+};

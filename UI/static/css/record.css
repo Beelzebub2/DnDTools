@@ -470,3 +470,56 @@
     background-color: rgba(255, 59, 48, 0.15);
     color: #ff3b30;
 }
+
+/* Character Capture Animation */
+.character-capture-icon {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--accent-gold);
+    z-index: 10;
+    pointer-events: none;
+    opacity: 0;
+    box-shadow: 0 0 20px rgba(228, 200, 105, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-dark);
+}
+
+.character-capture-icon img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+@keyframes characterCaptureAnimation {
+    0% {
+        right: 40px;
+        top: 50%;
+        transform: translateY(-50%) scale(1);
+        opacity: 1;
+    }
+    20% {
+        transform: translateY(-50%) scale(1.2);
+        box-shadow: 0 0 30px rgba(228, 200, 105, 0.8);
+    }
+    80% {
+        right: calc(100% - 120px);
+        top: 50%;
+        transform: translateY(-50%) scale(1);
+        opacity: 1;
+    }
+    100% {
+        right: calc(100% - 120px);
+        top: 50%;
+        transform: translateY(-50%) scale(0.8);
+        opacity: 0;
+    }
+}
+
+.character-capture-icon.flying {
+    animation: characterCaptureAnimation 2.5s ease-in-out forwards;
+}

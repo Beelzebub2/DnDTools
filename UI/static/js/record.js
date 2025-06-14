@@ -423,9 +423,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 sidebarCaptureIndicator.classList.remove('active', 'stopping');
             }
 
-            showNotification('Failed to get capture state', 'error');
+            showNotification('Failed to get capture state', 'error');        }
+    }    // Character capture animation function
+    window.showCharacterCaptureAnimation = function(characterClass, characterNickname) {
+        console.log(`Showing character capture animation for ${characterClass} (${characterNickname})`);
+        
+        // Get class image path
+        function getClassImage(className) {
+            if (!className) return '/assets/classes/fighter.png';
+            
+            const classMap = {
+                'Fighter': 'fighter.png',
+                'Ranger': 'ranger.png',
+                'Rogue': 'rogue.png',
+                'Wizard': 'wizard.png',
+                'Cleric': 'cleric.png',
+                'Warlock': 'warlock.png',
+                'Barbarian': 'barbarian.png',
+                'Bard': 'bard.png',
+                'Druid': 'druid.png',
+                'Sorcerer': 'sorcerer.png'
+            };
+            
+            const imageName = classMap[className] || 'fighter.png';
+            return `/assets/classes/${imageName}`;
         }
-    }
+        
+        const trafficVisualization = document.getElementById('trafficVisualization');
+        if (!trafficVisualization) {
+            console.log('Traffic visualization not found, skipping animation');
+            return;
+        }
+        
+        // Create character icon element
+        const charIcon = document.createElement('div');
+        charIcon.className = 'character-capture-icon';
+        
+        const charImg = document.createElement('img');
+        charImg.src = getClassImage(characterClass);
+        charImg.alt = characterClass;
+        charImg.onerror = function() {
+            // Fallback to a default icon if image fails to load
+            this.style.display = 'none';
+            const fallbackIcon = document.createElement('span');
+            fallbackIcon.className = 'material-icons';
+            fallbackIcon.textContent = 'person';
+            fallbackIcon.style.color = 'var(--accent-gold)';
+            fallbackIcon.style.fontSize = '24px';
+            charIcon.appendChild(fallbackIcon);
+        };
+        
+        charIcon.appendChild(charImg);
+        trafficVisualization.appendChild(charIcon);
+        
+        // Start animation
+        setTimeout(() => {
+            charIcon.classList.add('flying');
+        }, 100);
+        
+        // Remove icon after animation completes
+        setTimeout(() => {
+            if (charIcon.parentNode) {
+                trafficVisualization.removeChild(charIcon);
+            }
+        }, 2500);
+        
+        // Pulse the DnDTools node to show it received the character
+        const nodeTool = document.getElementById('nodeTool');
+        if (nodeTool) {
+            nodeTool.classList.add('pulse');
+            setTimeout(() => {
+                nodeTool.classList.remove('pulse');
+            }, 2500);
+        }
+    };
 
     // Initialize
     init();

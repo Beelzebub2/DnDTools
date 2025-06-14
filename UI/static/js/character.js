@@ -985,6 +985,12 @@ window.updateCharacterData = async () => {
     await loadStashes();
 };
 
+// Character capture animation function (placeholder for character page)
+window.showCharacterCaptureAnimation = function(characterClass, characterNickname) {
+    console.log(`Character captured: ${characterNickname} (${characterClass})`);
+    // On character page, just log - the main animation happens on record page
+};
+
 // Initialize page when DOM is loaded
 window.addEventListener('DOMContentLoaded', async () => {
     try {

@@ -64,11 +64,20 @@ def handle_character(message):
     save_packet_data(message)
     # Called from PacketCapture when a new character is saved
     stash_manager.force_reload()  # Use force_reload to ensure data is refreshed
-    # Notify UI of data update
+    
+    # Extract character information for visual effect
+    char_data = message.characterDataBase
+    char_class = char_data.characterClass.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
+    char_nickname = char_data.nickName.originalNickName if hasattr(char_data.nickName, 'originalNickName') else "Unknown"
+    
+    # Notify UI of data update with character capture animation
     if api.window:
-        api.window.evaluate_js('showNotification("New character data received", "success");'
-                              'if(window.updateCharacterData) window.updateCharacterData();'
-                              'if(window.updateCharacterList) window.updateCharacterList();')
+        api.window.evaluate_js(f'''
+            showNotification("New character data received", "success");
+            if(window.showCharacterCaptureAnimation) window.showCharacterCaptureAnimation("{char_class}", "{char_nickname}");
+            if(window.updateCharacterData) window.updateCharacterData();
+            if(window.updateCharacterList) window.updateCharacterList();
+        ''')
     return True
 
 class Api:
