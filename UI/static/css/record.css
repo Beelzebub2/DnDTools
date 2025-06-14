@@ -111,10 +111,15 @@
 
 .section-header .material-icons {
     color: var(--accent-gold);
-    font-size: 1.5rem;
+    font-size: 2rem;
     background: rgba(228, 200, 105, 0.1);
     padding: 0.5rem;
     border-radius: 8px;
+    width: 3rem;
+    height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .section-header h2 {
@@ -171,6 +176,11 @@
     font-size: 2rem;
     color: white;
     margin-bottom: 0.5rem;
+    width: 2rem;
+    height: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .node-label {
@@ -253,7 +263,7 @@
 }
 
 .switch-thumb.active {
-    transform: translateX(112px);
+    transform: translateX(120px);
     background: var(--success);
 }
 
@@ -311,7 +321,7 @@
 
 .character-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 1rem;
     margin-top: 1.5rem;
 }
@@ -323,7 +333,7 @@
     padding: 1.5rem;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-height: 120px;
+    min-height: 140px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -338,12 +348,17 @@
 .character-name {
     color: var(--accent-gold);
     font-weight: 600;
-    font-size: 1.1rem;
+    font-size: 1rem;
     margin-bottom: 0.5rem;
     word-break: break-word;
-    line-height: 1.3;
+    line-height: 1.4;
     overflow-wrap: break-word;
     hyphens: auto;
+    max-height: 2.8em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 .character-info {

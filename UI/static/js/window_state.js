@@ -15,12 +15,7 @@
 
             if (minimizeBtn && window.pywebview && window.pywebview.api && window.pywebview.api.minimize) {
                 minimizeBtn.onclick = () => {
-                    const root = document.body;
-                    root.classList.add('minimizing-animation');
-                    setTimeout(() => {
-                        root.classList.remove('minimizing-animation');
-                        window.pywebview.api.minimize();
-                    }, 350); // Match animation duration
+                    window.pywebview.api.minimize();
                 };
             }
             if (maximizeBtn && window.pywebview && window.pywebview.api && window.pywebview.api.toggle_maximize) {
