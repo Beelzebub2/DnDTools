@@ -1,3 +1,27 @@
+import os
+import sys
+import subprocess
+import asyncio
+
+# Patch subprocess.Popen to always hide console windows on Windows (before importing pyshark)
+if (
+    os.name == 'nt' and (
+        globals().get("__compiled__", False) or hasattr(sys, 'frozen') or hasattr(sys, '_MEIPASS')
+    )
+):
+    original_popen = subprocess.Popen
+    def hidden_popen(*args, **kwargs):
+        # Hide console window
+        if os.name == 'nt':
+            startupinfo = kwargs.get('startupinfo') or subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0  # SW_HIDE
+            kwargs['startupinfo'] = startupinfo
+            # Add CREATE_NO_WINDOW for extra reliability
+            kwargs['creationflags'] = kwargs.get('creationflags', 0) | 0x08000000
+        return original_popen(*args, **kwargs)
+    subprocess.Popen = hidden_popen
+
 import pyshark
 import socket
 import psutil
@@ -5,14 +29,10 @@ import struct
 import json
 from datetime import datetime
 import logging
-import os
-import sys
 from typing import Tuple, Optional
 import threading
 import time
-import asyncio
 import importlib
-import subprocess
 
 from .appdirs import get_capture_state_file, is_frozen
 from networking.protos import _PacketCommand_pb2

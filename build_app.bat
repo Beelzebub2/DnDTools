@@ -15,25 +15,26 @@ REM Create dist directory and copy initial data
 mkdir dist
 
 REM Run Nuitka to compile the application into a single-file executable
-python -m nuitka ^
---onefile ^
---standalone ^
---windows-icon-from-ico=UI\assets\logo.ico ^
---include-data-dir=UI\networking\protos=networking/protos ^
---include-data-dir=UI\templates=templates ^
---include-data-dir=UI\static=static ^
---include-data-dir=UI\assets=assets ^
---include-data-file=UI\assets\npcap-1.82.exe=assets/npcap-1.82.exe ^
---include-data-file=UI\assets\equipment_slots.json=assets/equipment_slots.json ^
---output-dir=dist ^
---include-module=clr ^
---remove-output ^
---assume-yes-for-downloads ^
---enable-plugin=no-qt ^
---nofollow-import-to=tkinter ^
---output-filename=DnDTools.exe ^
---windows-console-mode=disable ^
-UI\app.py
+pyinstaller ^
+  --onefile ^
+  --noconsole ^
+  --icon=UI\assets\logo.ico ^
+  --add-data "UI\networking\protos;networking/protos" ^
+  --add-data "UI\templates;templates" ^
+  --add-data "UI\static;static" ^
+  --add-data "UI\assets;assets" ^
+  --add-data "UI\assets\equipment_slots.json;assets" ^
+  --name DnDTools ^
+  --distpath dist ^
+  --hidden-import=clr ^
+  --hidden-import=asyncio.events ^
+  --hidden-import=asyncio.windows_events ^
+  --hidden-import=asyncio.windows_utils ^
+  --hidden-import=pyshark.capture.live_capture ^
+  --hidden-import=pyshark.capture.capture ^
+  --hidden-import=pyshark.tshark.tshark ^
+  --exclude-module=tkinter ^
+  UI\app.py
 
 echo Build complete. Executable is in the dist folder.
 pause

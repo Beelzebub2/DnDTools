@@ -3,6 +3,7 @@ import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file
 import os
 import threading
+import asyncio
 from src.models.stash_manager import StashManager
 import psutil
 import json
@@ -235,7 +236,6 @@ class Api:
 
     def start_capture(self):
         # perform capture synchronously; return True only when valid data file is saved
-        import asyncio
         asyncio.set_event_loop(asyncio.new_event_loop())
         result = self.packet_capture.capture()
         if result:
@@ -787,8 +787,8 @@ def api_set_current_stash(character_id, stash_id):
 
 @server.route('/')
 def index():
-    if not check_npcap_installed():
-        return redirect(url_for('installing'))
+    # if not check_tshark():
+    #     return redirect(url_for('installing'))
     return render_template('index.html')
 
 @server.route('/settings')
@@ -927,13 +927,26 @@ def background_init():
                 f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
             )
 
-def check_npcap_installed():
-    """Check if Npcap/WinPcap is installed using Scapy's configuration"""
+def check_tshark():
+    # Check if tshark is in PATH
+    tshark_path = shutil.which("tshark")
+    if not tshark_path:
+        logger.error("❌ tshark is NOT in the system PATH.")
+        return False
+    logger.info(f"✅ tshark is found at: {tshark_path}")
+
+    # Check if tshark can run
     try:
-        import scapy.all as scapy
-        return bool(scapy.conf.use_pcap)
+        subprocess.run(
+            ["tshark", "--version"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        logger.info("✅ tshark runs successfully.")
+        return True
     except Exception as e:
-        logger.error(f"Error checking Npcap installation: {str(e)}")
+        logger.error(f"❌ tshark was found but failed to run: {e}")
         return False
 
 def install_npcap():
@@ -979,7 +992,7 @@ def installing():
 
 @server.route('/api/check_npcap')
 def check_npcap():
-    return jsonify({'installed': check_npcap_installed()})
+    return jsonify({'installed': check_tshark()})
 
 @server.route('/api/install_npcap', methods=['POST'])
 def install_npcap_route():
