@@ -1,6 +1,8 @@
 import os
 import sys
 import logging
+import tempfile
+import shutil
 
 def is_frozen():
     return globals().get("__compiled__", False) or hasattr(sys, 'frozen') or hasattr(sys, '_MEIPASS')

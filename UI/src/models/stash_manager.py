@@ -86,9 +86,10 @@ class StashManager:
         logger.info(f"Found {len(json_files)} packet data files")
 
         # Use multiprocessing to load files in parallel
-        max_workers = min(4, len(json_files))  # Optimize thread pool size
+        max_workers = max(1, min(4, len(json_files)))  # Always >= 1
         with ThreadPool(max_workers=max_workers) as pool:
             results = pool.map(load_file, json_files)
+
 
         # Process results
         for result in results:

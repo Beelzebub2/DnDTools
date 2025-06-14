@@ -252,7 +252,6 @@ class PacketCapture:
 
     def capture_loop(self) -> None:
         # Set up event loop for this thread
-        import asyncio
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
@@ -266,7 +265,10 @@ class PacketCapture:
                           f'tcp.srcport <= {self.port_range[1]}')
         
         # Store capture object as instance variable for cleanup
-        self._current_capture = pyshark.LiveCapture(interface=self.interface, display_filter=display_filter)
+        self._current_capture = pyshark.LiveCapture(
+            interface=self.interface,
+            display_filter=display_filter
+        )
         self._current_loop = loop
         
         try:

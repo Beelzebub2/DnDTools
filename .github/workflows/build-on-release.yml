@@ -1,4 +1,4 @@
-# This workflow builds DnDTools with Nuitka and uploads it to a GitHub Release manually
+# This workflow builds DnDTools using build_app.bat and uploads it to a GitHub Release manually
 name: Build and Release DnDTools
 
 on:
@@ -26,47 +26,16 @@ jobs:
           cache: 'pip'
           cache-dependency-path: UI/requirements.txt
 
-      - name: Install Nuitka and dependencies
+      - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install nuitka
           pip install -r UI/requirements.txt
+          pip install pyinstaller
 
-      - name: Build executable with Nuitka
+      - name: Run build script (build_app.bat)
         shell: cmd
         run: |
-          REM Ensure we're in the project root
-          cd /d %GITHUB_WORKSPACE%
-
-          REM Set PYTHONPATH to include UI so networking.protos is recognized
-          set PYTHONPATH=%GITHUB_WORKSPACE%/UI
-
-          REM Remove previous build folders if they exist
-          rmdir /s /q build 2>nul
-
-          REM Run Nuitka to compile the application into a single-file executable
-          python -m nuitka ^
-          --onefile ^
-          --standalone ^
-          --windows-icon-from-ico=UI/assets/logo.ico ^
-          --include-data-dir=UI/networking/protos=networking/protos ^
-          --include-data-dir=UI/templates=templates ^
-          --include-data-dir=UI/static=static ^
-          --include-data-dir=UI/assets=assets ^
-          --include-data-file=UI/assets/npcap-1.82.exe=assets/npcap-1.82.exe ^
-          --include-data-file=UI/assets/equipment_slots.json=assets/equipment_slots.json ^
-          --output-dir=dist ^
-          --include-module=clr ^
-          --remove-output ^
-          --assume-yes-for-downloads ^
-          --enable-plugin=no-qt ^
-          --nofollow-import-to=tkinter ^
-          --output-filename=DnDTools.exe ^
-          --windows-console-mode=disable ^
-          UI/app.py
-
-
-          echo Build complete. Executable is in the dist folder.
+          build_app.bat
 
       - name: Create GitHub Pre-Release and Upload executable
         uses: softprops/action-gh-release@v2
