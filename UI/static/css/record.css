@@ -253,7 +253,7 @@
 }
 
 .switch-thumb.active {
-    transform: translateX(116px);
+    transform: translateX(112px);
     background: var(--success);
 }
 
@@ -311,7 +311,7 @@
 
 .character-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
     gap: 1rem;
     margin-top: 1.5rem;
 }
@@ -323,6 +323,10 @@
     padding: 1.5rem;
     cursor: pointer;
     transition: all 0.3s ease;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
 }
 
 .character-card:hover {
@@ -336,6 +340,10 @@
     font-weight: 600;
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
+    word-break: break-word;
+    line-height: 1.3;
+    overflow-wrap: break-word;
+    hyphens: auto;
 }
 
 .character-info {
