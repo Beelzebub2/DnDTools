@@ -63,13 +63,21 @@ stash_manager = StashManager(app_dir)
 def handle_character(message):
     save_packet_data(message)
     # Called from PacketCapture when a new character is saved
-    stash_manager.characters_cache = {}
-    stash_manager._load_data()
-    # Notify UI of data update
+    stash_manager.force_reload()  # Use force_reload to ensure data is refreshed
+    
+    # Extract character information for visual effect
+    char_data = message.characterDataBase
+    char_class = char_data.characterClass.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
+    char_nickname = char_data.nickName.originalNickName if hasattr(char_data.nickName, 'originalNickName') else "Unknown"
+    
+    # Notify UI of data update with character capture animation
     if api.window:
-        api.window.evaluate_js('showNotification("New character data received", "success");'
-                              'if(window.updateCharacterData) window.updateCharacterData();'
-                              'if(window.updateCharacterList) window.updateCharacterList();')
+        api.window.evaluate_js(f'''
+            showNotification("New character data received", "success");
+            if(window.showCharacterCaptureAnimation) window.showCharacterCaptureAnimation("{char_class}", "{char_nickname}");
+            if(window.updateCharacterData) window.updateCharacterData();
+            if(window.updateCharacterList) window.updateCharacterList();
+        ''')
     return True
 
 class Api:
@@ -307,25 +315,43 @@ class Api:
                 )
         else:
             self.window.maximize()
-            self.is_maximized = True
-            # Notify JS of maximize
+            self.is_maximized = True                # Notify JS of maximize
             if self.window:
                 self.window.evaluate_js(
                     'window.dispatchEvent(new CustomEvent("windowStateChanged", { detail: { maximized: true } }));'
                 )
 
     def close_window(self):
-        self.force_close_window()
+        """Properly save capture state before closing the window"""
+        try:
+            # Fast shutdown - save state asynchronously and close immediately
+            if hasattr(self, 'packet_capture'):
+                # Use a background thread for shutdown to avoid blocking UI
+                def async_shutdown():
+                    try:
+                        self.packet_capture.shutdown()
+                    except Exception as e:
+                        logger.error(f"Error during async shutdown: {e}")
+                
+                # Start shutdown in background and don't wait
+                threading.Thread(target=async_shutdown, daemon=True).start()
+                
+        except Exception as e:
+            logger.error(f"Error during window close: {e}")
+        finally:
+            # Close immediately without delays
+            self.force_close_window()
 
     def force_close_window(self):
-        # Stop packet capture if running to avoid shutdown delays
+        # Quick shutdown without delays
         try:
             if hasattr(self, 'packet_capture') and self.packet_capture.running:
-                self.packet_capture.stop_capture_switch()
+                # Set running to False immediately, let background thread handle cleanup
+                self.packet_capture.running = False
+                # Remove this line: self.packet_capture._save_state()
         except Exception as e:
             logger.error(f"Error stopping packet capture on close: {e}")
-        # Add a short delay to allow threads to clean up
-        time.sleep(0.2)
+        # Remove delay - close immediately
         self.window.destroy()
 
     def get_executable_path(self):
@@ -834,11 +860,61 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
-        # Only trigger a reload if necessary (e.g., after file changes)
-        if not api.stash_manager._is_loaded:
-            api.stash_manager._load_data()
+        # Make data loading fully asynchronous and non-blocking
+        def load_data_async():
+            try:
+                # Only load if not already loaded
+                if not api.stash_manager._is_loaded:
+                    api.stash_manager._load_data()
+                # Notify UI that data loading is done
+                if api.window:
+                    api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
+            except Exception as e:
+                logger.error(f"Background data loading failed: {e}")
+                if api.window:
+                    error_str = str(e).replace('"', '\\"')
+                    api.window.evaluate_js(
+                        f'window.dispatchEvent(new CustomEvent("dataLoadingFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
+                    )
+        
+        # Start data loading in background thread immediately without waiting
+        threading.Thread(target=load_data_async, daemon=True).start()
             
-        # Notify UI that background loading is done
+        # Check if capture should auto-start based on previous state
+        try:
+            if api.packet_capture.should_auto_start():
+                logger.info("Auto-starting capture based on previous state")
+                # Start the capture switch which will set running=True and start the thread
+                api.packet_capture.start_capture_switch()
+                
+                # Update UI to reflect running state with minimal delay
+                if api.window:
+                    api.window.evaluate_js('''
+                        setTimeout(() => {
+                            if (document.getElementById('captureSwitch')) {
+                                document.getElementById('captureSwitch').checked = true;
+                            }
+                            if (document.getElementById('sidebarCaptureIndicator')) {
+                                document.getElementById('sidebarCaptureIndicator').classList.add('active');
+                                document.getElementById('sidebarCaptureIndicator').classList.remove('stopping');
+                            }
+                            // Update toggle UI if the function exists
+                            if (typeof updateToggleUI === 'function') {
+                                updateToggleUI(true);
+                            }
+                            // Update status text
+                            const statusIndicator = document.getElementById('statusIndicator');
+                            const captureStatus = document.getElementById('captureStatus');
+                            if (statusIndicator) statusIndicator.className = 'status-indicator capturing';
+                            if (captureStatus) captureStatus.textContent = 'Capture is running';
+                        }, 50); // Reduced from 100ms
+                    ''')
+            else:
+                logger.info("Not auto-starting capture - previous state was stopped or already running")
+        except Exception as ce:
+            logger.error(f"Failed to restore capture state: {ce}")
+            
+        # Notify UI that background loading is done immediately
         if api.window:
             api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
         logger.info("Background initialization complete.")
@@ -1002,4 +1078,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-    

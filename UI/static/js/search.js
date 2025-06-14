@@ -1,4 +1,6 @@
 let searchTimeout;
+let globalTooltip;
+let tooltipHideTimeout;
 
 const rarityColors = {
     'None': '#808080',      // Gray
@@ -12,6 +14,51 @@ const rarityColors = {
     'Unique': '#FFD700',    // Gold
     'Artifact': '#FF0000'   // Red
 };
+
+// Global tooltip functions - same as character page
+function getOrCreateGlobalTooltip() {
+    if (!globalTooltip) {
+        globalTooltip = document.createElement('div');
+        globalTooltip.className = 'item-tooltip';
+        document.body.appendChild(globalTooltip);
+    }
+    return globalTooltip;
+}
+
+function showGlobalTooltip(html, x, y) {
+    const tooltip = getOrCreateGlobalTooltip();
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    tooltip.classList.add('visible');
+
+    // Position
+    const tooltipWidth = tooltip.offsetWidth || 250;
+    const tooltipHeight = tooltip.offsetHeight || 150;
+    let left = x + 15;
+    let top = y + 15;
+
+    if (left + tooltipWidth > window.innerWidth) {
+        left = x - tooltipWidth - 15;
+    }
+    if (top + tooltipHeight > window.innerHeight) {
+        top = y - tooltipHeight - 15;
+    }
+
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+function hideGlobalTooltip(delay = 100) {
+    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+    tooltipHideTimeout = setTimeout(() => {
+        if (globalTooltip) {
+            globalTooltip.classList.remove('visible');
+            setTimeout(() => {
+                if (globalTooltip) globalTooltip.style.display = 'none';
+            }, 200);
+        }
+    }, delay);
+}
 
 function formatPrimaryProps(ppArray) {
     return ppArray.map(([name, value]) => `<div>${name} ${value}</div>`).join('');
@@ -195,22 +242,89 @@ const debounce = (func, wait) => {
 window.addEventListener('load', () => {
     const searchInput = document.getElementById('searchInput');
     const searchResults = document.getElementById('searchResults');
+    const clearSearch = document.getElementById('clearSearch');
+    const searchMeta = document.getElementById('searchMeta');
+    const resultsCount = document.getElementById('resultsCount');
 
-    const displayResults = (results) => {
+    // Clear search functionality
+    clearSearch.addEventListener('click', () => {
+        searchInput.value = '';
+        clearSearch.style.display = 'none';
+        searchMeta.textContent = '';
+        resultsCount.textContent = '';
+        showEmptyState();
+        searchInput.focus();
+    });
+
+    // Show/hide clear button based on input
+    searchInput.addEventListener('input', (e) => {
+        const value = e.target.value.trim();
+        clearSearch.style.display = value ? 'flex' : 'none';
+
+        if (!value) {
+            searchMeta.textContent = '';
+            resultsCount.textContent = '';
+        }
+    });
+
+    const showEmptyState = () => {
+        searchResults.innerHTML = `
+            <div class="empty-search-state">
+                <span class="material-icons">search</span>
+                <h3>Ready to search</h3>
+                <p>Enter search terms above to find items across all your character stashes</p>
+            </div>
+        `;
+    };
+
+    const showLoadingState = () => {
+        searchResults.innerHTML = `
+            <div class="loading">
+                <span class="material-icons">hourglass_empty</span>
+                Searching your character stashes...
+            </div>
+        `;
+    };
+
+    const updateResultsCount = (count, query) => {
+        if (count === 0) {
+            resultsCount.textContent = 'No results';
+            searchMeta.textContent = query ? `No items found for "${query}"` : '';
+        } else {
+            resultsCount.textContent = `${count} ${count === 1 ? 'result' : 'results'}`;
+            searchMeta.textContent = query ? `Found items matching "${query}"` : '';
+        }
+    };
+
+    const displayResults = (results, query = '') => {
         const container = document.getElementById('searchResults');
         container.innerHTML = '';
 
-        if (results.length === 0) {
-            container.innerHTML = '<div class="loading">No items found</div>';
+        const groupedResults = groupItems(results);
+        updateResultsCount(groupedResults.length, query);
+
+        if (groupedResults.length === 0) {
+            container.innerHTML = `
+                <div class="empty-search-state">
+                    <span class="material-icons">search_off</span>
+                    <h3>No items found</h3>
+                    <p>Try different search terms or check if you have captured character data</p>
+                </div>
+            `;
             return;
         }
-
-        const groupedResults = groupItems(results);
 
         groupedResults.forEach(result => {
             const item = document.createElement('div');
             item.className = 'result-item';
             const rarityColor = rarityColors[result.item.rarity] || '#ffffff';
+
+            // Set rarity styling
+            const rarityStyle = `
+                background: linear-gradient(135deg, ${rarityColor}20, ${rarityColor}10);
+                border: 1px solid ${rarityColor}40;
+                color: ${rarityColor};
+            `;
 
             // Create location info HTML based on whether it's a shared stash or not
             let locationsHtml = '';
@@ -247,32 +361,49 @@ window.addEventListener('load', () => {
                         </div>
                     `;
                 }).join('');
-            }
-
-            item.innerHTML = `
+            } item.innerHTML = `
                 <div class="locations-container">
                     <div class="locations-title">Found in:</div>
                     ${locationsHtml}
                 </div>
                 <div class="character-info">
                     <div class="item-name">${result.item.name}</div>
-                    <div class="item-rarity">${result.item.rarity}</div>
-                    <div class="item-count">
-                        ${result.itemCount}
-                    </div>
-                </div>
-                <div class="item-popup" style="display: none; z-index: 100;">
-                    <div class="item-header" style="background-color: ${rarityColor}; color: #000;">${result.item.name}</div>
-                    <div class="item-properties">
-                        <div class="primary-props">${formatPrimaryProps(result.item.pp)}</div>
-                        <div class="secondary-props">${formatSecondaryProps(result.item.sp)}</div>
-                    </div>
-                    <div class="item-meta">
-                        <div>Rarity: ${result.item.rarity}</div>
-                        <div>Total Count: ${result.itemCount}</div>
-                    </div>
+                    <div class="item-rarity" style="${rarityStyle}">${result.item.rarity}</div>
+                    <div class="item-count">${result.itemCount}</div>
                 </div>
             `;
+
+            // Add tooltip functionality using global tooltip system
+            item.addEventListener('mouseenter', (e) => {
+                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+
+                const rarityColor = rarityColors[result.item.rarity] || rarityColors['Common'];
+                const html = `
+                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+                        <div class="tooltip-name">${result.item.name || 'Unknown'}</div>
+                        <div class="tooltip-rarity">${result.item.rarity || 'Common'}</div>
+                    </div>
+                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props">${formatPrimaryProps(result.item.pp)}</div>
+                        <div class="tooltip-section secondary-props">${formatSecondaryProps(result.item.sp)}</div>
+                    </div>                    <div class="tooltip-body">
+                        <div class="tooltip-section primary-props">
+                            <div>Total Count: ${result.itemCount}</div>
+                        </div>
+                    </div>
+                `;
+                showGlobalTooltip(html, e.clientX, e.clientY);
+            });
+
+            item.addEventListener('mousemove', (e) => {
+                if (globalTooltip && globalTooltip.style.display === 'block') {
+                    showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
+                }
+            });
+
+            item.addEventListener('mouseleave', () => {
+                hideGlobalTooltip();
+            });
 
             // Add click handler for location info sections
             item.querySelectorAll('.location-info').forEach(location => {
@@ -372,24 +503,44 @@ window.addEventListener('load', () => {
     };
 
     const performSearch = async (query) => {
-        searchResults.innerHTML = '<div class="loading">Searching...</div>';
+        const trimmedQuery = query.trim();
+
+        if (!trimmedQuery) {
+            showEmptyState();
+            updateResultsCount(0, '');
+            return;
+        }
+
+        showLoadingState();
 
         try {
             let details;
             if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.search_items === 'function') {
-                details = await window.pywebview.api.search_items(query);
+                details = await window.pywebview.api.search_items(trimmedQuery);
             } else {
-                const res = await fetch(`/api/search_items?query=${encodeURIComponent(query)}`);
+                const res = await fetch(`/api/search_items?query=${encodeURIComponent(trimmedQuery)}`);
                 details = await res.json();
             }
 
-            displayResults(details);
+            displayResults(details, trimmedQuery);
         } catch (error) {
-            searchResults.innerHTML = '<div class="loading">Error searching items. Please try again.</div>';
-            console.error(error);
+            searchResults.innerHTML = `
+                <div class="empty-search-state">
+                    <span class="material-icons">error_outline</span>
+                    <h3>Search Error</h3>
+                    <p>There was an error searching your items. Please try again.</p>
+                </div>
+            `;
+            updateResultsCount(0, trimmedQuery);
+            console.error('Search error:', error);
         }
-    };
+    };    // Debounced search with improved timing
+    const debouncedSearch = debounce((e) => performSearch(e.target.value), 200); // Reduced from 300ms
+    searchInput.addEventListener('input', debouncedSearch);
 
-    searchInput.addEventListener('input', debounce((e) => performSearch(e.target.value), 500));
-    performSearch('');
+    // Initial state
+    showEmptyState();
+
+    // Focus search input
+    searchInput.focus();
 });

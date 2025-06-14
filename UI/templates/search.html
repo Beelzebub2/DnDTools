@@ -1,82 +1,99 @@
 {% extends "base.html" %}
 
-{% block header %}Search Items{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/search.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="search-container">
-    <div class="settings-form">
-        <!-- <div class="form-group">
-            <label for="name-selection">Name</label>
-            <select id="name-selection" class="name-dropdown">
-                <option value="">All Names</option>
-                {% for name in names %}
-                <option value="{{ name }}">{{ name }}</option>
-                {% endfor %}
-            </select>
-        </div> -->
-
-        <!-- <div class="form-group">
-            <label for="rarity-selection">Rarity</label>
-            <select id="rarity-selection" class="rarity-dropdown">
-                <option value="">All Rarities</option>
-                <option value="0">None</option>
-                <option value="0">Poor</option>
-                <option value="0">Common</option>
-                <option value="1">Uncommon</option>
-                <option value="2">Rare</option>
-                <option value="3">Epic</option>
-                <option value="4">Legend</option>
-                <option value="1">Unique</option>
-                <option value="5">Artifact</option>
-            </select>
-        </div> -->
-
-        <!-- <h2>Rarity</h2>
-    <select id="rarity-selection" class="rarity-dropdown">
-        <option value="">All Rarities</option>
-        <option value="0">None</option>
-        <option value="0">Poor</option>
-        <option value="0">Common</option>
-        <option value="1">Uncommon</option>
-        <option value="2">Rare</option>
-        <option value="3">Epic</option>
-        <option value="4">Legend</option>
-        <option value="1">Unique</option>
-        <option value="5">Artifact</option>
-    </select>
-
-    <h2>Enchantments</h2>
-    <div id="sp-container">No rarity selected.</div>
-    <br><br>
-
-    <input type="text" class="search-input" placeholder="Search for items across all characters..." id="searchInput"> -->
-
-        <!-- <div class="form-group">
-            <label for="sp-container">Enchantments</label>
-            <div id="sp-container">No rarity selected.</div>
-        </div> -->
-        <h2>Search</h2>
-        <div class="instructions-panel">
-            <h3>Instructions</h3>
-            <ol>
-                <li>Capture the characters whose stashes you want to search, you can check captured characters in the
-                    Characters section.</li>
-                <li>Enter keywords separated by commas.</li>
-                <li>When a similar item is found, it will appear in the list.</li>
-            </ol>
-            <h3>Example</h3>
-            <div class="form-group">
-                <input type="text" class="settings-input" value="barbuta helm, rare, agility" readonly>
+    <!-- Header Section -->
+    <div class="search-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <span class="material-icons">search</span>
             </div>
-        </div>
-
-        <div class="form-group">
-            <input type="text" class="settings-input" placeholder="Search for items across all characters..."
-                id="searchInput">
+            <div class="header-text">
+                <h1>Item Search</h1>
+                <p>Find items across all your captured character stashes</p>
+            </div>
         </div>
     </div>
 
-    <div class="search-results" id="searchResults"></div>
+    <!-- Search Section -->
+    <div class="search-sections">
+        <div class="search-section">
+            <div class="section-header">
+                <span class="material-icons">manage_search</span>
+                <h2>Search Items</h2>
+            </div>
+            <div class="section-content">
+                <div class="search-form">
+                    <div class="instructions-panel">
+                        <h3>How to search</h3>
+                        <ol>
+                            <li>Capture characters whose stashes you want to search in the <strong>Characters</strong>
+                                section</li>
+                            <li>Enter keywords separated by commas (item names, rarities, enchantments)</li>
+                            <li>Results will show items matching your search terms</li>
+                            <li>Click on results to see detailed item information</li>
+                        </ol>
+                        <div class="search-tips">
+                            <h4>Search Examples</h4>
+                            <div class="tip-examples">
+                                <div class="tip-example">
+                                    <span class="tip-label">Item name:</span>
+                                    <code>barbuta helm</code>
+                                </div>
+                                <div class="tip-example">
+                                    <span class="tip-label">By rarity:</span>
+                                    <code>rare, epic, legendary</code>
+                                </div>
+                                <div class="tip-example">
+                                    <span class="tip-label">By enchantment:</span>
+                                    <code>agility, strength, magical damage</code>
+                                </div>
+                                <div class="tip-example">
+                                    <span class="tip-label">Combined search:</span>
+                                    <code>sword, rare, strength</code>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="search-input-container">
+                        <div class="search-input-wrapper">
+                            <input type="text" class="search-input"
+                                placeholder="Search for items across all characters..." id="searchInput">
+                            <div class="search-icon">
+                                <span class="material-icons">search</span>
+                            </div>
+                            <button class="clear-search" id="clearSearch" style="display: none;">
+                                <span class="material-icons">clear</span>
+                            </button>
+                        </div>
+                        <div class="search-meta" id="searchMeta"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="search-section results-section" id="resultsSection">
+            <div class="section-header">
+                <span class="material-icons">inventory_2</span>
+                <h2>Search Results</h2>
+                <div class="results-count" id="resultsCount"></div>
+            </div>
+            <div class="section-content">
+                <div class="search-results" id="searchResults">
+                    <div class="empty-search-state">
+                        <span class="material-icons">search</span>
+                        <h3>Ready to search</h3>
+                        <p>Enter search terms above to find items across all your character stashes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

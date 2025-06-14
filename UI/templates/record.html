@@ -1,32 +1,101 @@
 {% extends "base.html" %}
 
-{% block header %}Capture Characters{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/record.css') }}">
+{% endblock %}
 
 {% block content %}
 <div class="record-container">
-    <h2>Capture Character Data</h2>
-
-    <div class="instructions-panel">
-        <h3>Instructions</h3>
-        <ol>
-            <li>Start the game and go to the character select screen</li>
-            <li>Turn the capture switch ON below to start background capture</li>
-            <li>When new character data is captured, it will appear in the list</li>
-        </ol>
-    </div>
-    <div class="capture-controls">
-        <label for="captureSwitch" class="btn-primary"
-            style="cursor: pointer; user-select: none; padding: 0.8rem 1.5rem;">
-            <input type="checkbox" id="captureSwitch" style="display: none;">
-            <span id="switchLabel">Start Capture</span>
-        </label>
-        <div id="captureStatus" class="status-text">Capture Off</div>
+    <!-- Header Section -->
+    <div class="record-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <span class="material-icons">wifi_tethering</span>
+            </div>
+            <div class="header-text">
+                <h1>Character Capture</h1>
+                <p>Collect character data from your game sessions</p>
+            </div>
+        </div>
     </div>
 
-    <div class="character-select" style="display: none;">
-        <h3>Captured Characters</h3>
-        <div class="character-grid" id="characterGrid">
-            <!-- Characters will be loaded here -->
+    <!-- Capture Section -->
+    <div class="record-sections">
+        <div class="record-section">
+            <div class="section-header">
+                <span class="material-icons">monitor</span>
+                <h2>Game Traffic Monitor</h2>
+            </div>
+            <div class="section-content">
+                <div class="instructions-panel">
+                    <h3>How to use</h3>
+                    <ol>
+                        <li>Start the game and go to the character select screen</li>
+                        <li>Toggle the capture switch ON below to start background capture</li>
+                        <li>When new character data is captured, it will appear in the list</li>
+                    </ol>
+                </div>
+
+                <!-- Traffic Visualization -->
+                <div class="traffic-visualization" id="trafficVisualization">
+                    <!-- Game Node -->
+                    <div class="visualization-node node-game" id="nodeGame">
+                        <span class="material-icons node-icon">sports_esports</span>
+                        <div class="node-label">Game</div>
+                    </div>
+
+                    <!-- Tool Node (only visible when capture is on) -->
+                    <div class="visualization-node node-tool" id="nodeTool" style="opacity: 0.4">
+                        <span class="material-icons node-icon">build</span>
+                        <div class="node-label">DnDTools</div>
+                    </div>
+
+                    <!-- Server Node -->
+                    <div class="visualization-node node-server" id="nodeServer">
+                        <span class="material-icons node-icon">dns</span>
+                        <div class="node-label">Servers</div>
+                    </div>
+
+                    <!-- Traffic Paths -->
+                    <div class="traffic-path path-game-server" id="pathGameServer"></div>
+                    <div class="traffic-path path-game-tool" id="pathGameTool" style="opacity: 0.4"></div>
+
+                    <!-- Traffic Particles for Animation -->
+                    <div class="traffic-particle" id="particleGameServer" style="background-color: var(--game-color);">
+                    </div>
+                    <div class="traffic-particle" id="particleGameTool"
+                        style="background-color: var(--game-color); opacity: 0;"></div>
+                    <div class="traffic-particle" id="particleToolServer"
+                        style="background-color: var(--tool-color); opacity: 0;"></div>
+                </div>
+
+                <!-- Capture Switch -->
+                <div class="capture-controls">
+                    <div class="toggle-switch" id="captureToggle">
+                        <div class="switch-thumb" id="switchThumb"></div>
+                        <div class="switch-option" id="switchOff">Capture Off</div>
+                        <div class="switch-option" id="switchOn">Capture On</div>
+                        <input type="checkbox" id="captureSwitch" style="display: none;">
+                    </div>
+                    <div class="capture-status">
+                        <div class="status-indicator" id="statusIndicator"></div>
+                        <span id="captureStatus">Capture is currently off</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Character Section -->
+        <div class="record-section character-section" id="characterSection" style="display: none;">
+            <div class="section-header">
+                <span class="material-icons">people</span>
+                <h2>Captured Characters</h2>
+            </div>
+            <div class="section-content">
+                <div class="character-grid" id="characterGrid">
+                    <!-- Characters will be loaded here -->
+                </div>
+            </div>
         </div>
     </div>
 </div>

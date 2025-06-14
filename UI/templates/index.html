@@ -1,10 +1,30 @@
 {% extends "base.html" %}
 
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+{% endblock %}
+
 {% block header %}Characters{% endblock %}
 
 {% block content %}
-<div class="character-grid">
-    <div class="loading" id="loading">Loading characters...</div>
+<div class="characters-container">
+    <div class="characters-header">
+        <div class="header-content">
+            <div class="header-icon">
+                <span class="material-icons">groups</span>
+            </div>
+            <div class="header-text">
+                <h1>Your Characters</h1>
+                <p>Manage and view your captured character data</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="characters-section">
+        <div class="character-grid" id="characterGrid">
+            <div class="loading" id="loading">Loading characters...</div>
+        </div>
+    </div>
 </div>
 {% endblock %}
 

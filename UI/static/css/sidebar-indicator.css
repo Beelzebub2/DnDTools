@@ -1,0 +1,55 @@
+/* Sidebar Capture Indicator Styles */
+.sidebar-pulse-container {
+    position: relative;
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.sidebar-container {
+    width: 10px;
+    height: 10px;
+    background-color: #555;
+    border-radius: 50%;
+    position: relative;
+    transition: background-color 0.3s ease;
+}
+
+.sidebar-container.active {
+    background-color: #27ae60;
+    /* Green when active */
+    box-shadow: 0 0 8px #27ae60;
+    animation: pulse 2s infinite;
+}
+
+.sidebar-container.stopping {
+    background-color: #f39c12;
+    /* Yellow when stopping */
+    box-shadow: 0 0 8px #f39c12;
+    animation: pulse 0.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.7);
+    }
+
+    70% {
+        box-shadow: 0 0 0 6px rgba(39, 174, 96, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(39, 174, 96, 0);
+    }
+}
+
+.nav-icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+}

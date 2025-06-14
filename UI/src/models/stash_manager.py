@@ -27,6 +27,12 @@ class StashManager:
         self._load_data()
         self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
 
+    def force_reload(self):
+        """Force reload of character data, ignoring the loaded flag"""
+        self._is_loaded = False
+        self.characters_cache.clear()
+        self._load_data()
+
     def _load_data(self):
         """Load character data from packet data files"""
         if self._is_loaded:
@@ -75,14 +81,13 @@ class StashManager:
                 }
             except Exception as e:
                 logger.error(f"Error loading packet data file {file_path}: {str(e)}")
-                return None
-
-        # Load all JSON files from the data directory
+                return None        # Load all JSON files from the data directory
         json_files = glob.glob(os.path.join(self.data_dir, "*.json"))
         logger.info(f"Found {len(json_files)} packet data files")
 
         # Use multiprocessing to load files in parallel
-        with ThreadPool() as pool:
+        max_workers = min(4, len(json_files))  # Optimize thread pool size
+        with ThreadPool(max_workers=max_workers) as pool:
             results = pool.map(load_file, json_files)
 
         # Process results
@@ -92,12 +97,12 @@ class StashManager:
                 self.characters_cache[char_id] = result['character_data']
 
         logger.info(f"Loaded {len(self.characters_cache)} characters")
-        for char_id, char_data in self.characters_cache.items():
-            logger.info(f"Character: {char_data['nickname']}")
-            logger.info(f"Class: {char_data['class']}")
-            logger.info(f"Level: {char_data['level']}")
-            logger.info(f"Rank: {char_data['rank']['name']}")
-            logger.info("----------------------------------------")
+        # Reduce verbose logging during startup for better performance
+        if len(self.characters_cache) <= 3:  # Only show details for small number of characters
+            for char_id, char_data in self.characters_cache.items():
+                logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
+        else:
+            logger.info(f"Character details hidden for performance (loaded {len(self.characters_cache)} characters)")
 
         # Mark data as loaded
         self._is_loaded = True

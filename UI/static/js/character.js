@@ -9,6 +9,29 @@ function formatDate(dateString) {
     }
 }
 
+function getClassImage(className) {
+    if (!className) return '/assets/classes/fighter.png';
+
+    // Convert class name to lowercase and handle potential variations
+    const classMap = {
+        'fighter': 'fighter.png',
+        'ranger': 'ranger.png',
+        'rogue': 'rogue.png',
+        'wizard': 'wizard.png',
+        'cleric': 'cleric.png',
+        'warlock': 'warlock.png',
+        'barbarian': 'barbarian.png',
+        'bard': 'bard.png',
+        'druid': 'druid.png',
+        'sorcerer': 'sorcerer.png'
+    };
+
+    const classKey = className.toLowerCase();
+    const imageName = classMap[classKey] || 'fighter.png'; // Default to fighter if not found
+
+    return `/assets/classes/${imageName}`;
+}
+
 function handleApiError(error, element) {
     console.error('API Error:', error);
     element.innerHTML = `
@@ -53,7 +76,6 @@ function formatSecondaryProps(spArray) {
 
 const updateCharacterInfo = async (characterId) => {
     const charInfo = document.getElementById('characterInfo');
-    const charHeader = document.getElementById('characterHeader');
     try {
         let details;
         // Try pywebview API if available and get_character_details is a function
@@ -68,24 +90,42 @@ const updateCharacterInfo = async (characterId) => {
             const res = await fetch(`/api/character/${characterId}/details`);
             details = await res.json();
         }
-        charHeader.textContent = details.nickname;
+        const classImageSrc = getClassImage(details.class);
         charInfo.innerHTML = `
-            <div class="char-info-grid">
-                <div class="char-info-item">
-                    <h1 class="character-name">${details.nickname}</h1>
-                    <div class="character-subtitle">Level ${details.level} ${details.class}</div>
+            <div class="character-hero-section">
+                <div class="character-hero-left">
+                    <img src="${classImageSrc}" 
+                         alt="${details.class}" 
+                         class="character-class-image"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <span class="material-icons character-class-fallback" style="display: none;">person</span>
                 </div>
-                <div class="char-info-item">
-                    <div class="info-label">Total Items</div>
-                    <div class="info-value">${details.totalItems}</div>
-                </div>
-                <div class="char-info-item">
-                    <div class="info-label">Stash Count</div>
-                    <div class="info-value">${details.stashCount}</div>
-                </div>
-                <div class="char-info-item">
-                    <div class="info-label">Last Updated</div>
-                    <div class="info-value">${formatDate(details.lastUpdate)}</div>
+                <div class="character-hero-content">
+                    <h1 class="character-hero-name">${details.nickname}</h1>
+                    <div class="character-hero-subtitle">Level ${details.level} ${details.class}</div>
+                    <div class="character-stats-grid">
+                        <div class="stat-item">
+                            <span class="material-icons">schedule</span>
+                            <div class="stat-content">
+                                <div class="stat-label">Last Updated</div>
+                                <div class="stat-value">${formatDate(details.lastUpdate)}</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="material-icons">inventory_2</span>
+                            <div class="stat-content">
+                                <div class="stat-label">Total Items</div>
+                                <div class="stat-value">${details.totalItems}</div>
+                            </div>
+                        </div>
+                        <div class="stat-item">
+                            <span class="material-icons">storage</span>
+                            <div class="stat-content">
+                                <div class="stat-label">Stash Count</div>
+                                <div class="stat-value">${details.stashCount}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -718,10 +758,12 @@ const loadStashes = async () => {
     if (!spinner || !selector || !previewContainer || !previewImage) {
         console.error('Required DOM elements not found for stash display');
         return;
-    }
-
-    // show spinner, hide stash content
+    }    // show spinner, hide stash content
     spinner.classList.remove('hidden');
+    const stashSectionHeader = document.getElementById('stashSectionHeader');
+    if (stashSectionHeader) {
+        stashSectionHeader.classList.add('hidden');
+    }
     selector.classList.add('hidden');
     previewContainer.classList.add('hidden');
     previewImage.src = "";
@@ -864,9 +906,11 @@ const loadStashes = async () => {
                         updateCurrentStash(currentStashId);
                     }
                 }
+            }            // Show the stash section header and tabs selector
+            const stashSectionHeader = document.getElementById('stashSectionHeader');
+            if (stashSectionHeader) {
+                stashSectionHeader.classList.remove('hidden');
             }
-
-            // Show the tabs selector
             selector.classList.remove('hidden');
 
             // The preview container is shown only for tabs that have content
@@ -939,6 +983,12 @@ window.addEventListener('sortingEnded', () => {
 window.updateCharacterData = async () => {
     await updateCharacterInfo(charId);
     await loadStashes();
+};
+
+// Character capture animation function (placeholder for character page)
+window.showCharacterCaptureAnimation = function(characterClass, characterNickname) {
+    console.log(`Character captured: ${characterNickname} (${characterClass})`);
+    // On character page, just log - the main animation happens on record page
 };
 
 // Initialize page when DOM is loaded
