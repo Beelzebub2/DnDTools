@@ -2,6 +2,8 @@ import os
 import sys
 import subprocess
 import asyncio
+import tempfile
+import glob
 
 # 1) Grab the original asyncio.spawn function
 _orig_create = asyncio.create_subprocess_exec
@@ -386,12 +388,60 @@ class PacketCapture:
         except Exception as e:
             self.logger.error(f"Error during capture shutdown: {e}")
 
+    
+    def _cleanup_capture(self):
+        """Clean up capture resources properly"""
+        try:
+            if hasattr(self, '_current_capture'):
+                # Try to close synchronously first
+                try:
+                    if hasattr(self._current_capture, 'close'):
+                        self._current_capture.close()
+                except Exception:
+                    # If sync close fails, try async approach
+                    try:
+                        # Check if we have an event loop and it's not running
+                        if hasattr(self, '_current_loop') and not self._current_loop.is_closed():
+                            if not self._current_loop.is_running():
+                                if hasattr(self._current_capture, 'close_async'):
+                                    # Always create a new task and ensure it's awaited
+                                    self._current_loop.run_until_complete(
+                                        self._current_capture.close_async()
+                                    )
+                            pending = asyncio.all_tasks(loop=self._current_loop)
+                            for task in pending:
+                                task.cancel()
+                            if pending:
+                                self._current_loop.run_until_complete(
+                                    asyncio.gather(*pending, return_exceptions=True)
+                                )
+                            self._current_loop.close()
+                    except Exception as e:
+                        self.logger.warning(f"Error closing event loop: {e}")
+                    del self._current_loop
+        except Exception as e:
+            self.logger.error(f"Error during capture cleanup: {e}")
+        finally:
+            self.reset_state()
+
+            # ——————————————————————
+            # Delete all leftover .pcapng files
+            temp_dir = tempfile.gettempdir()
+            for pcap in glob.glob(os.path.join(temp_dir, '*.pcapng')):
+                try:
+                    os.remove(pcap)
+                    self.logger.info(f"Deleted temp capture file: {pcap}")
+                except Exception as e:
+                    self.logger.warning(f"Could not delete {pcap}: {e}")
+            # ——————————————————————
+
     def start_capture_switch(self) -> None:
         """Start packet capture in background thread if not already running."""
         if self.capture_thread is not None and self.capture_thread.is_alive():
             self.logger.info("Capture already running, ignoring start request")
             return
         self.running = True
+        self._cleanup_capture_on_exit = True
         self._save_state(True)
         self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
         self.capture_thread.start()
@@ -399,6 +449,8 @@ class PacketCapture:
         
     def stop_capture_switch(self) -> None:
         """Stop packet capture gracefully."""
+        if hasattr(self, '_cleanup_capture_on_exit') and self._cleanup_capture_on_exit:
+            self._cleanup_capture()
         if not self.running:
             self.logger.info("Capture already stopped, ignoring stop request")
             return
