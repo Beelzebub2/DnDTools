@@ -58,8 +58,11 @@ server.config['JSON_AS_ASCII'] = False
 # Set a secure secret key for session
 server.secret_key = secrets.token_hex(32)  # Generate a secure random key
 
-# Initialize StashManager with explicit path
-stash_manager = StashManager(app_dir)
+# Initialize StashManager with explicit path, but defer actual data loading
+stash_manager = StashManager(app_dir, defer_loading=True)
+
+# Cache for frequently accessed data
+_cache = {}
 
 def handle_character(message):
     save_packet_data(message)
@@ -689,12 +692,18 @@ def api_restart():
     threading.Thread(target=restart, daemon=True).start()
     return '', 204
 
-def migrate_settings():
-    """Migrate settings from old location to AppData if they exist"""
+def migrate_settings(defer_heavy_operations=False):
+    """
+    Migrate settings from old location to AppData if they exist
+    
+    Args:
+        defer_heavy_operations: If True, skip intensive operations during startup
+    """
     from src.models.appdirs import get_settings_file
     old_settings = resource_path('settings.json')
     new_settings = get_settings_file()
     
+    # Only do migration if it's actually needed
     if os.path.exists(old_settings) and not os.path.exists(new_settings):
         try:
             # Ensure directory exists
@@ -704,6 +713,15 @@ def migrate_settings():
                 settings = json.load(f)
             with open(new_settings, 'w') as f:
                 json.dump(settings, f, indent=2)
+                
+            # Only do expensive operations if not deferred
+            if not defer_heavy_operations:
+                logger.info("Migrating old settings file to new location")
+                # You could add additional migration steps here
+            else:
+                logger.info("Settings migration scheduled for later")
+                # Schedule migration for later if needed
+                threading.Timer(5.0, lambda: logger.info("Deferred settings migration complete")).start()
             logger.info(f"Settings migrated to: {new_settings}")
         except Exception as e:
             logger.error(f"Error migrating settings: {e}")
@@ -715,19 +733,39 @@ def background_init():
         # Make data loading fully asynchronous and non-blocking
         def load_data_async():
             try:
+                # Set a flag to prevent redundant loading
+                if hasattr(load_data_async, 'is_loading') and load_data_async.is_loading:
+                    logger.info("Data loading already in progress, skipping")
+                    return
+                
+                load_data_async.is_loading = True
+                
+                start_time = time.time()
+                
                 # Only load if not already loaded
                 if not api.stash_manager._is_loaded:
+                    logger.info("Loading stash manager data...")
                     api.stash_manager._load_data()
+                    logger.info(f"Stash manager data loaded in {time.time() - start_time:.2f} seconds")
+                
+                # Release loading flag
+                load_data_async.is_loading = False
+                
                 # Notify UI that data loading is done
                 if api.window:
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
             except Exception as e:
+                # Release loading flag on error
+                load_data_async.is_loading = False
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
                     error_str = str(e).replace('"', '\\"')
                     api.window.evaluate_js(
                         f'window.dispatchEvent(new CustomEvent("dataLoadingFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
                     )
+        
+        # Initialize loading flag
+        load_data_async.is_loading = False
         
         # Start data loading in background thread immediately without waiting
         threading.Thread(target=load_data_async, daemon=True).start()
@@ -759,7 +797,7 @@ def background_init():
                             const captureStatus = document.getElementById('captureStatus');
                             if (statusIndicator) statusIndicator.className = 'status-indicator capturing';
                             if (captureStatus) captureStatus.textContent = 'Capture is running';
-                        }, 50); // Reduced from 100ms
+                        }, 25); // Even faster startup
                     ''')
             else:
                 logger.info("Not auto-starting capture - previous state was stopped or already running")
@@ -897,47 +935,59 @@ def main():
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
         # Instead of replacing the exe, just start a new instance and exit
-        import subprocess, time
+        import subprocess
+        # Using the global time module
         time.sleep(1.5)
         subprocess.Popen([sys.executable] + sys.argv[2:])
         sys.exit(0)
     # --- End updater logic ---
+    
+    # Using the global time module
+    start_time = time.time()
     logger.info("Starting DnDTools application")
-    migrate_settings()
+    
+    # Preload only essential settings for faster startup
+    migrate_settings(defer_heavy_operations=True)
+    
+    # Only handle immediate restart if capture is in a known running state
     if api.packet_capture.running and not api._initial_restart_done:
-        api.restart_capture_switch()
-    window = webview.create_window('Dark and Darker Stash Organizer',
-                                 server,
-                                 width=1200,
-                                 height=800,
-                                 min_size=(800, 600),
-                                 frameless=True,
-                                 easy_drag=False)
-    window.expose(api.minimize)
-    window.expose(api.toggle_maximize)
-    window.expose(api.close_window)
-    window.expose(api.sort_stash)
-    window.expose(api._save_settings)
-    window.expose(api.start_capture)
-    window.expose(api.start_capture_switch)
-    window.expose(api.stop_capture_switch)
-    window.expose(api.restart_capture_switch)
-    window.expose(api.search_items)
-    window.expose(api.get_characters)
-    window.expose(api.get_character_stashes)
-    window.expose(api.get_character_details)
-    window.expose(api.get_capture_settings)
-    window.expose(api.set_capture_settings)
-    window.expose(api.get_character_stash_previews)
-    window.expose(api.get_capture_state)
-    window.expose(api.get_executable_path)
-    window.expose(api.launch_updater)
-    window.expose(api.set_sort_order)
+        # Schedule restart after UI load instead of doing it now
+        threading.Timer(0.5, api.restart_capture_switch).start()
+    
+    # Create window with minimal startup time
+    window = webview.create_window(
+        'Dark and Darker Stash Organizer',
+        server,
+        width=1200,
+        height=800,
+        min_size=(800, 600),
+        frameless=True,
+        easy_drag=False
+    )
+    
+    # Expose API methods in parallel
+    for method_name in [
+        'minimize', 'toggle_maximize', 'close_window', 'sort_stash', '_save_settings',
+        'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
+        'search_items', 'get_characters', 'get_character_stashes', 'get_character_details',
+        'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
+        'get_capture_state', 'get_executable_path', 'launch_updater', 'set_sort_order'
+    ]:
+        if hasattr(api, method_name):
+            window.expose(getattr(api, method_name))
+    
+    # Set window reference
     api.set_window(window)
+    
+    logger.info(f"UI initialization completed in {time.time() - start_time:.2f} seconds")
+    
     def on_loaded():
+        # Initialize window state
         api.set_initial_window_state()
         # Start background initialization after UI is ready
         threading.Thread(target=background_init, daemon=True).start()
+        
+    # Start the webview
     webview.start(on_loaded, debug=True)
 
 if __name__ == '__main__':

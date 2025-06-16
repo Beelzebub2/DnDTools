@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import os
+import time
 from typing import Dict, List, Optional
 import glob
 from datetime import datetime
@@ -16,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class StashManager:
-    def __init__(self, resource_dir: str):
+    def __init__(self, resource_dir: str, defer_loading=False):
         self.data_dir = get_data_dir()
         self.output_dir = get_output_dir()
         # Only ensure data directory exists, not output directory
@@ -24,25 +25,43 @@ class StashManager:
         
         self.characters_cache = {}
         self._is_loaded = False
-        self._load_data()
-        self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
-
+        self.resource_dir = resource_dir
+        
+        # Initialize preview generator (lightweight)        self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
+        
+        # Load data immediately unless deferred
+        if not defer_loading:
+            self._load_data()
+            
     def force_reload(self):
         """Force reload of character data, ignoring the loaded flag"""
         self._is_loaded = False
         self.characters_cache.clear()
         self._load_data()
-
-    def _load_data(self):
-        """Load character data from packet data files"""
-        if self._is_loaded:
+        
+    def _load_data(self, force=False):
+        """
+        Load character data from packet data files
+        
+        Args:
+            force: If True, forces a reload even if data is already loaded
+        """
+        if self._is_loaded and not force:
             logger.info("Data already loaded, skipping reload")
             return
 
+        start_time = time.time()
         self.characters_cache.clear()
         logger.info(f"Loading characters from: {self.data_dir}")
+        
         def load_file(file_path):
             try:
+                # Skip excessively large files (likely corrupted)
+                file_size = os.path.getsize(file_path)
+                if file_size > 10 * 1024 * 1024:  # > 10MB
+                    logger.warning(f"Skipping oversized file: {file_path} ({file_size/1024/1024:.2f} MB)")
+                    return None
+                    
                 with open(file_path, 'r', encoding='utf-8') as f:
                     packet_data = json.load(f)
                 char_data = packet_data.get("characterDataBase", {})
@@ -52,58 +71,70 @@ class StashManager:
                 if not char_id:
                     logger.warning(f"No characterId in {file_path}")
                     return None
+                    
+                # Parse stashes efficiently
                 raw_stashes = parse_stashes(packet_data)
                 stashes = {str(k): v for k, v in raw_stashes.items()}
+                
+                # Extract character data
                 raw_class = char_data.get("characterClass", "")
                 class_name = raw_class.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
-                nickname = char_data.get("nickName", {}).get("originalNickName", "Unknown")
-                streaming_mode_name = char_data.get("nickName", {}).get("streamingModeNickName", "")
-                rank_id = char_data.get("nickName", {}).get("rankId", "Unknown")
-                fame = char_data.get("nickName", {}).get("fame", 0)
-                rank_icon_type = char_data.get("nickName", {}).get("rankIconType", 1)
+                nickname_data = char_data.get("nickName", {})
+                
                 return {
                     'id': char_id,
                     'file_path': file_path,
                     'character_data': {
                         'id': char_id,
-                        'nickname': nickname,
+                        'nickname': nickname_data.get("originalNickName", "Unknown"),
                         'class': class_name,
                         'level': char_data.get("level", 1),
                         'lastUpdate': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
                         'stashes': stashes,
-                        'streamingModeName': streaming_mode_name,
+                        'streamingModeName': nickname_data.get("streamingModeNickName", ""),
                         'rank': {
-                            'name': rank_id.replace("LeaderboardRankData:Id_LeaderboardRank_", "").replace("_", " "),
-                            'fame': fame,
-                            'iconType': rank_icon_type
+                            'name': nickname_data.get("rankId", "Unknown").replace("LeaderboardRankData:Id_LeaderboardRank_", "").replace("_", " "),
+                            'fame': nickname_data.get("fame", 0),
+                            'iconType': nickname_data.get("rankIconType", 1)
                         }
                     }
                 }
             except Exception as e:
                 logger.error(f"Error loading packet data file {file_path}: {str(e)}")
-                return None        # Load all JSON files from the data directory
+                return None
+                
+        # Load all JSON files from the data directory
         json_files = glob.glob(os.path.join(self.data_dir, "*.json"))
         logger.info(f"Found {len(json_files)} packet data files")
 
+        # Optimize worker count based on file count and system capabilities
+        cpu_count = os.cpu_count() or 4
+        max_workers = max(1, min(cpu_count, len(json_files), 8))  # Cap at 8 workers
+        
         # Use multiprocessing to load files in parallel
-        max_workers = max(1, min(4, len(json_files)))  # Always >= 1
         with ThreadPool(max_workers=max_workers) as pool:
             results = pool.map(load_file, json_files)
 
-
-        # Process results
+        # Process results efficiently
+        loaded_count = 0
         for result in results:
             if result:
                 char_id = result['id']
                 self.characters_cache[char_id] = result['character_data']
+                loaded_count += 1
 
-        logger.info(f"Loaded {len(self.characters_cache)} characters")
-        # Reduce verbose logging during startup for better performance
-        if len(self.characters_cache) <= 3:  # Only show details for small number of characters
+        # Reduce memory usage by clearing unnecessary caches
+        results = None
+        
+        load_time = time.time() - start_time
+        logger.info(f"Loaded {loaded_count} characters in {load_time:.2f} seconds")
+        
+        # Only show character details for small number of characters
+        if loaded_count <= 3:
             for char_id, char_data in self.characters_cache.items():
                 logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
         else:
-            logger.info(f"Character details hidden for performance (loaded {len(self.characters_cache)} characters)")
+            logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
 
         # Mark data as loaded
         self._is_loaded = True

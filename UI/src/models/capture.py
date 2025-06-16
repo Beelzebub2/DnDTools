@@ -266,8 +266,7 @@ class PacketCapture:
         
         # Store capture object as instance variable for cleanup
         self._current_capture = pyshark.LiveCapture(
-            interface=self.interface,
-            display_filter=display_filter
+            interface=self.interface,            display_filter=display_filter
         )
         self._current_loop = loop
         
@@ -281,7 +280,7 @@ class PacketCapture:
             self.logger.error(f"Capture loop error: {e}")
         finally:
             self._cleanup_capture()
-
+            
     def _cleanup_capture(self):
         """Clean up capture resources properly"""
         try:
@@ -297,26 +296,45 @@ class PacketCapture:
                         if hasattr(self, '_current_loop') and not self._current_loop.is_closed():
                             if not self._current_loop.is_running():
                                 if hasattr(self._current_capture, 'close_async'):
-                                    self._current_loop.run_until_complete(self._current_capture.close_async())
+                                    # Always create a new task and ensure it's awaited
+                                    future = asyncio.ensure_future(
+                                        self._current_capture.close_async(), 
+                                        loop=self._current_loop
+                                    )
+                                    self._current_loop.run_until_complete(future)
                         else:
                             # Create new loop for cleanup
                             cleanup_loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(cleanup_loop)
                             if hasattr(self._current_capture, 'close_async'):
-                                cleanup_loop.run_until_complete(self._current_capture.close_async())
+                                # Wrap in a future and await it properly
+                                future = asyncio.ensure_future(
+                                    self._current_capture.close_async(), 
+                                    loop=cleanup_loop
+                                )
+                                cleanup_loop.run_until_complete(future)
                             cleanup_loop.close()
                     except Exception as e:
                         self.logger.warning(f"Could not close capture async: {e}")
                 
+                # Make sure the reference is deleted
                 del self._current_capture
                 
                 # Clean up the event loop
                 if hasattr(self, '_current_loop'):
                     try:
                         if not self._current_loop.is_closed():
+                            # Cancel all running tasks
+                            pending = asyncio.all_tasks(self._current_loop) if hasattr(asyncio, 'all_tasks') else []
+                            for task in pending:
+                                task.cancel()
+                            if pending:
+                                self._current_loop.run_until_complete(
+                                    asyncio.gather(*pending, return_exceptions=True)
+                                )
                             self._current_loop.close()
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        self.logger.warning(f"Error closing event loop: {e}")
                     del self._current_loop
         except Exception as e:
             self.logger.error(f"Error during capture cleanup: {e}")
@@ -353,19 +371,31 @@ class PacketCapture:
         self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
         self.capture_thread.start()
         self.logger.info("Capture thread started")
-
+        
     def stop_capture_switch(self) -> None:
         """Stop packet capture gracefully."""
         if not self.running:
             self.logger.info("Capture already stopped, ignoring stop request")
             return
+            
+        # Set running to False to signal the capture loop to exit
         self.running = False
         self._save_state(False)
-        if self.capture_thread is not None:
-            self.capture_thread.join(timeout=10.0)
+        
+        if self.capture_thread is not None and self.capture_thread.is_alive():
+            # Try to join with increasing timeouts to prevent hanging
+            for timeout in [1.0, 3.0, 6.0]:
+                self.logger.info(f"Waiting for capture thread to exit (timeout: {timeout}s)...")
+                self.capture_thread.join(timeout=timeout)
+                if not self.capture_thread.is_alive():
+                    self.logger.info("Capture thread exited cleanly")
+                    break
+            
+            # If thread is still alive after all timeouts, force cleanup
             if self.capture_thread.is_alive():
-                self.logger.warning("Capture thread still running after timeout, forcing cleanup")
+                self.logger.warning("Capture thread still running after timeouts, forcing cleanup")
                 self._cleanup_capture()
+                
         self.capture_thread = None
         self.logger.info("Capture switch turned OFF")
 
