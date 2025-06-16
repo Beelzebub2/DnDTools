@@ -142,23 +142,127 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
     popup.style.position = 'fixed';
     popup.style.bottom = '30px';
     popup.style.right = '30px';
-    popup.style.background = '#222';
-    popup.style.color = '#e4c869';
-    popup.style.padding = '20px 28px';
-    popup.style.borderRadius = '10px';
-    popup.style.boxShadow = '0 2px 12px #000a';
+    popup.style.background = 'var(--bg-secondary, #241c17)';
+    popup.style.color = 'var(--text-primary, #e4c869)';
+    popup.style.padding = '24px 32px';
+    popup.style.borderRadius = '8px';
+    popup.style.border = '1px solid var(--border-color, #392e24)';
+    popup.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(228, 200, 105, 0.1)';
     popup.style.zIndex = '99999';
+    popup.style.maxWidth = '380px';
+    popup.style.minWidth = '320px';
+    popup.style.backdropFilter = 'blur(8px)';
+    popup.style.animation = 'slideInFromRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
+    
+    // Add animation keyframes if not already defined
+    if (!document.getElementById('update-popup-styles')) {
+        const style = document.createElement('style');
+        style.id = 'update-popup-styles';
+        style.textContent = `
+            @keyframes slideInFromRight {
+                from {
+                    transform: translateX(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateX(0);
+                    opacity: 1;
+                }
+            }
+            
+            .update-popup-btn {
+                background: var(--accent-gold, #e4c869);
+                color: #1a1412;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 600;
+                font-size: 14px;
+                text-decoration: none;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow: 0 2px 8px rgba(228, 200, 105, 0.2);
+            }
+            
+            .update-popup-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 16px rgba(228, 200, 105, 0.3);
+                background: #f0d478;
+            }
+            
+            .update-popup-close {
+                background: transparent;
+                border: 1px solid var(--border-color, #392e24);
+                color: var(--text-secondary, #a89a6c);
+                padding: 8px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 16px;
+                line-height: 1;
+                transition: all 0.2s ease;
+                width: 32px;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .update-popup-close:hover {
+                background: rgba(255, 255, 255, 0.05);
+                color: var(--text-primary, #e4c869);
+                border-color: var(--accent-gold, #e4c869);
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
     popup.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;">
-            <span class="material-icons" style="font-size:28px;color:#e4c869;">system_update_alt</span>
-            <div>
-                <b>New Update Available!</b><br>
-                <span style="font-size:13px;">Current: v${localVersion} &nbsp; Latest: v${remoteVersion}</span>
+        <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
+            <div style="
+                background: linear-gradient(135deg, var(--accent-gold, #e4c869), #f0d478);
+                border-radius: 50%;
+                padding: 12px;
+                box-shadow: 0 4px 12px rgba(228, 200, 105, 0.3);
+            ">
+                <span class="material-icons" style="font-size: 24px; color: #1a1412;">system_update_alt</span>
             </div>
+            <div style="flex: 1;">
+                <h3 style="
+                    color: var(--accent-gold, #e4c869);
+                    font-size: 18px;
+                    font-weight: 600;
+                    margin: 0 0 8px 0;
+                    letter-spacing: 0.5px;
+                ">Update Available!</h3>
+                <div style="
+                    font-size: 14px;
+                    color: var(--text-secondary, #a89a6c);
+                    line-height: 1.4;
+                ">
+                    <div style="margin-bottom: 4px;">
+                        <span style="color: var(--text-primary, #e4c869);">Current:</span> v${localVersion}
+                    </div>
+                    <div>
+                        <span style="color: var(--text-primary, #e4c869);">Latest:</span> 
+                        <span style="color: var(--accent-gold, #e4c869); font-weight: 600;">v${remoteVersion}</span>
+                    </div>
+                </div>
+            </div>
+            <button id="close-update-popup" class="update-popup-close" title="Close">✕</button>
         </div>
-        <div style="margin-top:10px;text-align:right;">
-            <a href="${releaseUrl}" target="_blank" style="color:#e4c869;text-decoration:underline;font-size:14px;padding:6px 16px;border-radius:5px;cursor:pointer;">Go to Release Page</a>
-            <button id="close-update-popup" style="margin-left:10px;background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;">✕</button>
+        <div style="
+            display: flex;
+            justify-content: flex-end;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color, #392e24);
+        ">
+            <a href="${releaseUrl}" target="_blank" class="update-popup-btn">
+                <span class="material-icons" style="font-size: 18px;">open_in_new</span>
+                View Release
+            </a>
         </div>
     `;
     document.body.appendChild(popup);
