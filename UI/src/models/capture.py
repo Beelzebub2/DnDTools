@@ -9,7 +9,9 @@ if (
         globals().get("__compiled__", False) or hasattr(sys, 'frozen') or hasattr(sys, '_MEIPASS')
     )
 ):
-    original_popen = subprocess.Popen
+    # Store the original Popen class before any modification
+    _original_popen_class = subprocess.Popen
+    
     def hidden_popen(*args, **kwargs):
         # Hide console window
         if os.name == 'nt':
@@ -19,7 +21,10 @@ if (
             kwargs['startupinfo'] = startupinfo
             # Add CREATE_NO_WINDOW for extra reliability
             kwargs['creationflags'] = kwargs.get('creationflags', 0) | 0x08000000
-        return original_popen(*args, **kwargs)
+        # Call the original class, not the patched version
+        return _original_popen_class(*args, **kwargs)
+    
+    # Replace subprocess.Popen with our wrapper
     subprocess.Popen = hidden_popen
 
 import pyshark
@@ -248,38 +253,61 @@ class PacketCapture:
         except Exception as e:
             self.logger.error(f"Failed to restore capture state: {e}")
             return {"running": False}
-
-
     def capture_loop(self) -> None:
-        # Set up event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        
-        local_ip = self.get_local_ip()
-        if not local_ip:
-            self.logger.error(f"Could not find IP address for interface {self.interface}")
-            return
-            
-        display_filter = (f'ip.dst == {local_ip} and '
-                          f'tcp.srcport >= {self.port_range[0]} and '
-                          f'tcp.srcport <= {self.port_range[1]}')
-        
-        # Store capture object as instance variable for cleanup
-        self._current_capture = pyshark.LiveCapture(
-            interface=self.interface,            display_filter=display_filter
-        )
-        self._current_loop = loop
-        
+        """Main capture loop that runs in a separate thread"""
         try:
-            for packet in self._current_capture.sniff_continuously():
-                if not self.running:
-                    break
-                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-                    self.process_packet(packet.tcp.payload.binary_value)
+            # Set up event loop for this thread
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            local_ip = self.get_local_ip()
+            if not local_ip:
+                self.logger.error(f"Could not find IP address for interface {self.interface}")
+                return
+                
+            display_filter = (f'ip.dst == {local_ip} and '
+                              f'tcp.srcport >= {self.port_range[0]} and '
+                              f'tcp.srcport <= {self.port_range[1]}')
+            
+            self.logger.info(f"Starting capture on interface: {self.interface}, IP: {local_ip}")
+            self.logger.info(f"Display filter: {display_filter}")
+            
+            # Store capture object as instance variable for cleanup
+            try:
+                self._current_capture = pyshark.LiveCapture(
+                    interface=self.interface,
+                    display_filter=display_filter
+                )
+                self._current_loop = loop
+            except Exception as e:
+                self.logger.error(f"Failed to create LiveCapture: {e}")
+                # Check if this is a tshark/executable issue
+                if "tshark" in str(e).lower():
+                    self.logger.error("This appears to be a tshark-related issue. Make sure tshark is properly installed and accessible.")
+                raise
+            
+            try:
+                for packet in self._current_capture.sniff_continuously():
+                    if not self.running:
+                        break
+                    if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                        self.process_packet(packet.tcp.payload.binary_value)
+            except Exception as e:
+                self.logger.error(f"Capture loop error: {e}")
+                # Log additional details for debugging
+                import traceback
+                self.logger.error(f"Full traceback: {traceback.format_exc()}")
+            finally:
+                self._cleanup_capture()
         except Exception as e:
-            self.logger.error(f"Capture loop error: {e}")
-        finally:
-            self._cleanup_capture()
+            self.logger.error(f"Fatal error in capture_loop: {e}")
+            import traceback
+            self.logger.error(f"Full traceback: {traceback.format_exc()}")
+            # Make sure we cleanup even if there's a fatal error
+            try:
+                self._cleanup_capture()
+            except:
+                pass
             
     def _cleanup_capture(self):
         """Clean up capture resources properly"""
