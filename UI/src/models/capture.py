@@ -3,29 +3,26 @@ import sys
 import subprocess
 import asyncio
 
-# Patch subprocess.Popen to always hide console windows on Windows (before importing pyshark)
-if (
-    os.name == 'nt' and (
-        globals().get("__compiled__", False) or hasattr(sys, 'frozen') or hasattr(sys, '_MEIPASS')
-    )
-):
-    # Store the original Popen class before any modification
-    _original_popen_class = subprocess.Popen
-    
-    def hidden_popen(*args, **kwargs):
-        # Hide console window
-        if os.name == 'nt':
-            startupinfo = kwargs.get('startupinfo') or subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0  # SW_HIDE
-            kwargs['startupinfo'] = startupinfo
-            # Add CREATE_NO_WINDOW for extra reliability
-            kwargs['creationflags'] = kwargs.get('creationflags', 0) | 0x08000000
-        # Call the original class, not the patched version
-        return _original_popen_class(*args, **kwargs)
-    
-    # Replace subprocess.Popen with our wrapper
-    subprocess.Popen = hidden_popen
+# 1) Grab the original asyncio.spawn function
+_orig_create = asyncio.create_subprocess_exec
+
+# 2) Define a wrapper that injects the Windows "no console" flag
+async def _create_no_window(*args, **kwargs):
+    # send everything to DEVNULL unless you need it
+    kwargs.setdefault('stdin',  subprocess.DEVNULL)
+    kwargs.setdefault('stdout', subprocess.DEVNULL)
+    kwargs.setdefault('stderr', subprocess.DEVNULL)
+
+    # on Windows, suppress the child console
+    if sys.platform == 'win32':
+        kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
+
+    # call the real create_subprocess_exec
+    return await _orig_create(*args, **kwargs)
+
+# 3) Monkey-patch asyncio so PyShark’s captures inherit this behavior
+asyncio.create_subprocess_exec = _create_no_window
+
 
 import pyshark
 import socket
