@@ -157,87 +157,12 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
             </div>
         </div>
         <div style="margin-top:10px;text-align:right;">
-            <a href="${releaseUrl}" target="_blank" style="color:#e4c869;text-decoration:underline;font-size:14px;">Release Page</a>
-            <button id="update-now-btn" style="margin-left:10px;background:#e4c869;color:#222;border:none;padding:6px 16px;border-radius:5px;cursor:pointer;font-size:14px;">Update Now</button>
+            <a href="${releaseUrl}" target="_blank" style="color:#e4c869;text-decoration:underline;font-size:14px;padding:6px 16px;border-radius:5px;cursor:pointer;">Go to Release Page</a>
             <button id="close-update-popup" style="margin-left:10px;background:none;border:none;color:#aaa;font-size:16px;cursor:pointer;">✕</button>
         </div>
-        <div id="update-progress" style="margin-top:10px;font-size:13px;display:none;"></div>
     `;
     document.body.appendChild(popup);
     document.getElementById('close-update-popup').onclick = () => popup.remove();
-
-    document.getElementById('update-now-btn').onclick = async () => {
-        const progress = document.getElementById('update-progress');
-        progress.style.display = 'block';
-
-        // Show initial loading message
-        progress.textContent = 'Checking for update...';
-        progress.style.color = '#e4c869';
-
-        if (window.pywebview && window.pywebview.api && window.pywebview.api.download_and_launch_update) {
-            // Use the built-in update function if available (desktop app mode)
-            progress.textContent = 'Downloading and launching updater...';
-            try {
-                const result = await window.pywebview.api.download_and_launch_update();
-                if (result && result.success) {
-                    progress.textContent = 'Updater launched. This app will now close.';
-                    progress.style.color = '#4CAF50';
-                } else {
-                    progress.textContent = 'Update failed: ' + (result && result.error ? result.error : 'Unknown error');
-                    progress.style.color = '#f44336';
-                    console.error('Update failed with result:', result);
-                }
-            } catch (e) {
-                progress.textContent = 'Update failed: ' + e;
-                progress.style.color = '#f44336';
-                console.error('Exception during update:', e);
-            }
-        } else {
-            // Manual download mode
-            try {
-                // Try to fetch the update - this will trigger a download if successful
-                progress.textContent = 'Downloading update...';
-
-                const response = await fetch('/api/download_update');
-
-                if (!response.ok) {
-                    let errorMsg = 'Failed to download update';
-
-                    // Try to get more detailed error message from response
-                    try {
-                        const errorData = await response.json();
-                        errorMsg = errorData.error || errorMsg;
-                        console.error('Update failed with details:', errorData);
-                    } catch (jsonErr) {
-                        console.error('Could not parse error response', jsonErr);
-                    }
-
-                    progress.textContent = `Update failed: ${errorMsg}`;
-                    progress.style.color = '#f44336';
-                    return;
-                }
-
-                // If we reach here, the download started successfully
-                progress.innerHTML = `
-                    <div style="text-align: left; margin-top: 8px;">
-                        <div style="margin-bottom: 6px; color: #4CAF50;">✓ Update download started</div>
-                        <div style="margin-top: 8px; font-size: 12px; color: #aaa;">
-                            After download completes:
-                            <ol style="margin-top: 4px; padding-left: 20px;">
-                                <li>Close this application</li>
-                                <li>Run DnDTools_new.exe</li>
-                                <li>The new version will automatically replace the old one</li>
-                            </ol>
-                        </div>
-                    </div>
-                `;
-            } catch (e) {
-                progress.textContent = `Network error: ${e.message}`;
-                progress.style.color = '#f44336';
-                console.error('Fetch error during update:', e);
-            }
-        }
-    };
 }
 
 // Helper to fetch market price via backend proxy to avoid CORS

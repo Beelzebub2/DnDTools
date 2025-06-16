@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
-APP_VERSION = "2.1.4"
+APP_VERSION = "2.1.3"
 
 # Initialize logging first
 setup_logging()
@@ -336,12 +336,11 @@ class Api:
                 # Start shutdown in background and don't wait
                 threading.Thread(target=async_shutdown, daemon=True).start()
                 
-        except Exception as e:
-            logger.error(f"Error during window close: {e}")
+        except Exception as e:            logger.error(f"Error during window close: {e}")
         finally:
             # Close immediately without delays
             self.force_close_window()
-
+            
     def force_close_window(self):
         # Quick shutdown without delays
         try:
@@ -353,12 +352,12 @@ class Api:
             logger.error(f"Error stopping packet capture on close: {e}")
         # Remove delay - close immediately
         self.window.destroy()
-
+        
     def get_executable_path(self):
         """Return the path to the current executable."""
         import sys
         return sys.executable
-
+        
     def launch_updater(self, new_exe_path, old_exe_path):
         """Launch the new exe with /update <old_exe_path> and exit."""
         import os, subprocess
@@ -367,24 +366,24 @@ class Api:
             if self.window:
                 self.window.destroy()
             os._exit(0)
-        except Exception as e:
-            return {"success": False, "error": str(e)}
+        except Exception as e:            return {"success": False, "error": str(e)}
         return {"success": True}
-
-    def download_and_launch_update(self):
+        
+    def check_for_updates(self):
         """
-        Download the latest release exe to a temp file, then launch it with /update <current_path>.
+        Check if a newer version is available on GitHub, but only return version info without downloading.
         """
-        import requests, sys, os, subprocess, tempfile, traceback
-        logger.info("Starting download_and_launch_update")
+        import requests, traceback
+        logger.info("Checking for updates")
         try:
-            # First try with GitHub API
-            logger.info("Attempting to fetch release information from GitHub API")
+            # Try with GitHub API
+            logger.info("Attempting to fetch release information from GitHub API")            
             response = requests.get(
                 'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
                 headers={'User-Agent': 'DnDTools-Updater'},
                 timeout=15
             )
+            
             if not response.ok:
                 error_msg = f"GitHub API request failed with status code: {response.status_code}"
                 logger.error(error_msg)
@@ -393,114 +392,18 @@ class Api:
                 
             release_data = response.json()
             logger.info(f"Release data received with keys: {list(release_data.keys())}")
-            logger.info(f"Available assets: {[a.get('name') for a in release_data.get('assets', [])]}")
             
-            asset = next((a for a in release_data.get('assets', []) if a.get('name') == 'DnDTools.exe'), None)
-            if not asset:
-                error_msg = "Could not find DnDTools.exe in the latest release"
-                logger.error(error_msg)
-                return {"success": False, "error": error_msg}
-                
-            logger.info(f"Found asset at {asset.get('browser_download_url')}")
-            temp_dir = tempfile.gettempdir()
-            new_exe_path = os.path.join(temp_dir, "DnDTools_new.exe")
+            # Extract version information
+            version = release_data.get('tag_name', '').replace('v', '')
+            release_url = release_data.get('html_url')
             
-            logger.info(f"Downloading to: {new_exe_path}")
-            r = requests.get(
-                asset['browser_download_url'], 
-                headers={'User-Agent': 'DnDTools-Updater'}, 
-                stream=True,
-                timeout=60  # Longer timeout for file download
-            )
+            logger.info(f"Latest version: {version}, URL: {release_url}")
             
-            if not r.ok:
-                error_msg = f"Download failed with status code: {r.status_code}"
-                logger.error(error_msg)
-                return {"success": False, "error": error_msg}
-                
-            # Track download size
-            total_size = int(r.headers.get('content-length', 0))
-            logger.info(f"Download size: {total_size} bytes")
-            
-            # Download with progress tracking
-            downloaded_size = 0
-            with open(new_exe_path, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    if chunk:
-                        f.write(chunk)
-                        downloaded_size += len(chunk)
-                        if total_size > 0:
-                            percent = int((downloaded_size / total_size) * 100)
-                            if percent % 10 == 0:  # Log every 10%
-                                logger.info(f"Download progress: {percent}% ({downloaded_size}/{total_size})")
-            
-            logger.info(f"Download complete. File size: {os.path.getsize(new_exe_path)} bytes")
-            
-            # Verify file exists and has content
-            if not os.path.exists(new_exe_path) or os.path.getsize(new_exe_path) < 1000000:  # Expect exe to be at least 1MB
-                error_msg = f"Downloaded file appears invalid. Size: {os.path.getsize(new_exe_path) if os.path.exists(new_exe_path) else 'file not found'}"
-                logger.error(error_msg)
-                return {"success": False, "error": error_msg}
-                
-            current_path = sys.executable
-            logger.info(f"Current executable path: {current_path}")
-            
-            try:
-                # Show a warning notification to the user that the app will restart for update
-                if self.window:
-                    logger.info("Showing update restart notification")
-                    self.window.evaluate_js('''
-                        (function() {
-                            const popup = document.createElement('div');
-                            popup.style.position = 'fixed';
-                            popup.style.top = '50%';
-                            popup.style.left = '50%';
-                            popup.style.transform = 'translate(-50%, -50%)';
-                            popup.style.backgroundColor = '#222';
-                            popup.style.color = '#e4c869';
-                            popup.style.padding = '20px';
-                            popup.style.borderRadius = '10px';
-                            popup.style.boxShadow = '0 0 20px rgba(0,0,0,0.5)';
-                            popup.style.zIndex = '99999';
-                            popup.style.textAlign = 'center';
-                            popup.style.minWidth = '300px';
-                            popup.innerHTML = `
-                                <div style="font-size: 24px; margin-bottom: 10px;">
-                                    <span class="material-icons" style="font-size:36px;vertical-align:middle;margin-right:10px;">system_update_alt</span>
-                                    Update Ready
-                                </div>
-                                <p style="margin: 15px 0;">Application will restart to apply updates...</p>
-                                <div id="update-countdown" style="font-size: 18px; font-weight: bold;">3</div>
-                            `;
-                            document.body.appendChild(popup);
-                            
-                            let count = 3;
-                            const interval = setInterval(() => {
-                                count--;
-                                if (count <= 0) {
-                                    clearInterval(interval);
-                                }
-                                document.getElementById('update-countdown').textContent = count;
-                            }, 1000);
-                        })();
-                    ''')
-                    
-                    # Wait 3 seconds to show the notification
-                    import time
-                    time.sleep(3)
-                    
-                logger.info(f"Launching updater: {new_exe_path} /update {current_path}")
-                subprocess.Popen([new_exe_path, "/update", current_path])
-                
-                if self.window:
-                    self.window.destroy()
-                logger.info("Window destroyed, exiting application")
-                os._exit(0)
-            except Exception as e:
-                error_msg = f"Failed to launch updater: {str(e)}"
-                logger.error(error_msg)
-                logger.error(traceback.format_exc())
-                return {"success": False, "error": error_msg}
+            return {
+                "success": True, 
+                "version": version, 
+                "release_url": release_url
+            }
                 
         except requests.exceptions.Timeout:
             error_msg = "Connection timed out while fetching update information"
@@ -542,79 +445,28 @@ def download_github_release_asset(asset_url):
 
 @server.route('/api/download_update')
 def download_update():
-    """Download the latest release of DnDTools from dndtools.me API or direct GitHub API as fallback."""
+    """Instead of downloading the update, redirect to the latest release page."""
     try:
-        # First try dndtools.me API
-        logger.info("Attempting to fetch release information from dndtools.me API")
-        response = requests.get('https://dndtools.me/api/github/latest-release', 
-                               headers={'User-Agent': 'DnDTools-Updater'}, 
-                               timeout=10)
-        
-        # If dndtools.me fails, try GitHub API directly
-        if not response.ok:
-            logger.warning(f"dndtools.me API failed with status {response.status_code}, trying GitHub API directly")
-            response = requests.get(
-                'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
-                headers={'User-Agent': 'DnDTools-Updater'},
-                timeout=10
-            )
-            if not response.ok:
-                error_msg = f"Both APIs failed. GitHub API status: {response.status_code}"
-                logger.error(error_msg)
-                return jsonify({'version': APP_VERSION, 'error': error_msg}), 400
-        
-        release_data = response.json()
-        
-        # Debug log the response structure for troubleshooting (limited to reduce log size)
-        logger.info(f"Release data received with keys: {list(release_data.keys())}")
-        
-        # Find DnDTools.exe asset
-        asset = None
-        for a in release_data.get('assets', []):
-            if a.get('name') == 'DnDTools.exe':
-                asset = a
-                logger.info(f"Found DnDTools.exe asset with URL: {a.get('browser_download_url', 'No URL found')}")
-                break
-                
-        if not asset:
-            error_msg = "Could not find DnDTools.exe in the latest release"
-            logger.error(f"{error_msg}, available assets: {[a.get('name') for a in release_data.get('assets', [])]}")
-            return jsonify({'error': error_msg, 'details': release_data}), 404
-            
-        # Download the asset
-        logger.info(f"Downloading asset from: {asset['browser_download_url']}")
-        file_data = download_github_release_asset(asset['browser_download_url'])
-        if not file_data:
-            error_msg = "Failed to download update file"
-            logger.error(error_msg)
-            return jsonify({'error': error_msg}), 500
-            
-        logger.info("Update file downloaded successfully, sending to client")
-        return send_file(
-            file_data,
-            as_attachment=True,
-            download_name='DnDTools_new.exe',
-            mimetype='application/octet-stream'
+        # Try with GitHub API to get the release URL
+        logger.info("Redirecting to GitHub releases page")
+        response = requests.get(
+            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
+            headers={'User-Agent': 'DnDTools-Updater'},
+            timeout=10
         )
         
-    except requests.exceptions.Timeout:
-        error_msg = "Connection timed out while fetching update information"
-        logger.error(error_msg)
-        return jsonify({'error': error_msg}), 504
-        
-    except requests.exceptions.ConnectionError:
-        error_msg = "Connection error while fetching update information. Please check your internet connection."
-        logger.error(error_msg)
-        return jsonify({'error': error_msg}), 503
-        
-    except ValueError as e:
-        error_msg = f"Invalid JSON response: {str(e)}"
-        logger.error(error_msg)
-        return jsonify({'error': error_msg}), 500
-        
+        if response.ok:
+            release_data = response.json()
+            release_url = release_data.get('html_url', 'https://github.com/Beelzebub2/DnDTools/releases/latest')
+            logger.info(f"Redirecting to: {release_url}")
+            return redirect(release_url)
+        else:
+            # If GitHub API fails, redirect to the main releases page
+            return redirect('https://github.com/Beelzebub2/DnDTools/releases/latest')
+            
     except Exception as e:
-        error_msg = f"Error downloading update: {str(e)}"
-        logger.error(error_msg, exc_info=True)  # Log full traceback for debugging
+        error_msg = f"Error redirecting to update page: {str(e)}"
+        logger.error(error_msg, exc_info=True)
         return jsonify({'error': error_msg}), 500
 
 @server.route('/api/version')
@@ -1080,7 +932,6 @@ def main():
     window.expose(api.get_capture_state)
     window.expose(api.get_executable_path)
     window.expose(api.launch_updater)
-    window.expose(api.download_and_launch_update)
     window.expose(api.set_sort_order)
     api.set_window(window)
     def on_loaded():
