@@ -1,4 +1,3 @@
-# This workflow builds DnDTools using build_app.bat and uploads it to a GitHub Release manually
 name: Build and Release DnDTools
 
 on:
@@ -36,6 +35,14 @@ jobs:
         shell: cmd
         run: |
           build_app.bat
+
+      - name: Strip CFGuard from the EXE
+        shell: cmd
+        run: |
+          REM Initialize VS build tools so EditBin.exe is on PATH
+          call "%ProgramFiles(x86)%\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvarsall.bat" x64
+          REM Remove the Load Configuration directory (CFGuard data)
+          EditBin.exe /LOADCONFIG:DATA=0 dist\DnDTools.exe
 
       - name: Compress EXE with UPX
         uses: crazy-max/ghaction-upx@v3
