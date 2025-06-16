@@ -988,7 +988,7 @@ def main():
         threading.Thread(target=background_init, daemon=True).start()
         
     # Start the webview
-    webview.start(on_loaded, debug=True)
+    webview.start(on_loaded, debug=False)
 
 if __name__ == '__main__':
     main()
