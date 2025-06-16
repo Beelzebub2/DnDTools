@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
-APP_VERSION = "2.1.3"
+APP_VERSION = "3.2.1"
 
 # Initialize logging first
 setup_logging()
