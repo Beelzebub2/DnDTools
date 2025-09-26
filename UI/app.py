@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
-APP_VERSION = "3.3.0"
+APP_VERSION = "3.3.1"
 
 # Initialize logging first
 setup_logging()
@@ -1160,7 +1160,7 @@ def main():
         threading.Thread(target=background_init, daemon=True).start()
         
     # Start the webview
-    webview.start(on_loaded, debug=True)
+    webview.start(on_loaded, debug=False)
 
 if __name__ == '__main__':
     main()
