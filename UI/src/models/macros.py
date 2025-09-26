@@ -11,18 +11,75 @@ import win32gui
 # Note: Jump values may need adjustment for different resolutions
 # Currently optimized for common gaming resolutions
 
-# Supported resolutions and their corresponding positions
-RESOLUTION_POSITIONS = {
-    (1920, 1080): {'stash': Point(1378, 199), 'inv': Point(690, 626), 'jump': 40},
-    (1680, 1050): {'stash': Point(1207, 193), 'inv': Point(605, 608), 'jump': 40},
-    (1440, 900):  {'stash': Point(1035, 165), 'inv': Point(518, 520), 'jump': 40},
-    (1366, 768):  {'stash': Point(982, 120),  'inv': Point(492, 445), 'jump': 40},
-    (1360, 768):  {'stash': Point(978, 120),  'inv': Point(490, 445), 'jump': 40},
-    (1280, 800):  {'stash': Point(917, 140),  'inv': Point(458, 462), 'jump': 40},
-    (1280, 768):  {'stash': Point(917, 120),  'inv': Point(458, 445), 'jump': 40},
-    #(1280, 720):  {'stash': Point(917, 110),  'inv': Point(458, 420), 'jump': 27}, original values might need adjustment
-    (1280, 720):  {'stash': Point(918, 132),  'inv': Point(457, 416), 'jump': 27}, # this works on fullscrenn
+# Supported resolutions are generated from a single 1920x1080 calibration
+BASE_RESOLUTION = (1920, 1080)
+BASE_LAYOUT = {
+    'stash': Point(1378, 199),
+    'inv': Point(690, 626),
+    'jump': 40,
 }
+
+# Resolutions that benefit from hand-tuned offsets can live here
+MANUAL_OVERRIDES = {
+    # Keeping the empirically tested fullscreen values for 720p
+    (1280, 720): {'stash': Point(918, 132), 'inv': Point(457, 416), 'jump': 27},
+}
+
+COMMON_RESOLUTIONS = [
+    BASE_RESOLUTION,
+    (2560, 1440),
+    (3840, 2160),
+    (1680, 1050),
+    (1440, 900),
+    (1366, 768),
+    (1360, 768),
+    (1280, 800),
+    (1280, 768),
+    (1280, 720),
+]
+
+
+def _clone_layout(layout):
+    cloned = {}
+    for key, value in layout.items():
+        if isinstance(value, Point):
+            cloned[key] = Point(value.x, value.y)
+        else:
+            cloned[key] = value
+    return cloned
+
+
+def _scaled_layout(resolution):
+    scale_x = resolution[0] / BASE_RESOLUTION[0]
+    scale_y = resolution[1] / BASE_RESOLUTION[1]
+
+    return {
+        'stash': Point(int(round(BASE_LAYOUT['stash'].x * scale_x)),
+                       int(round(BASE_LAYOUT['stash'].y * scale_y))),
+        'inv': Point(int(round(BASE_LAYOUT['inv'].x * scale_x)),
+                     int(round(BASE_LAYOUT['inv'].y * scale_y))),
+        'jump': max(1, int(round(BASE_LAYOUT['jump'] * scale_y)))
+    }
+
+
+def get_positions_for_resolution(resolution):
+    """Return stash/inventory/jump positions for the requested resolution."""
+    if resolution in MANUAL_OVERRIDES:
+        return _clone_layout(MANUAL_OVERRIDES[resolution])
+    return _scaled_layout(resolution)
+
+
+RESOLUTION_POSITIONS = {
+    res: get_positions_for_resolution(res) for res in COMMON_RESOLUTIONS
+}
+
+
+def _ensure_positions(resolution):
+    positions = RESOLUTION_POSITIONS.get(resolution)
+    if positions is None:
+        positions = get_positions_for_resolution(resolution)
+        RESOLUTION_POSITIONS[resolution] = positions
+    return positions
 
 # Windows API constants
 MOUSEEVENTF_MOVE = 0x0001
@@ -142,23 +199,22 @@ def get_current_resolution():
             user_res = settings.get('resolution', 'Auto')
     except Exception:
         pass
+    resolution_str = None
     if user_res == 'Auto':
-        res = get_game_resolution()
-        if res:
-            try:
-                x, y = map(int, res.split('x'))
-                if (x, y) in RESOLUTION_POSITIONS:
-                    return (x, y)
-            except Exception:
-                pass
+        resolution_str = get_game_resolution()
     else:
+        resolution_str = user_res
+
+    if resolution_str:
         try:
-            x, y = map(int, user_res.split('x'))
-            if (x, y) in RESOLUTION_POSITIONS:
-                return (x, y)
+            x, y = map(int, resolution_str.split('x'))
+            resolution = (x, y)
+            _ensure_positions(resolution)
+            return resolution
         except Exception:
             pass
-    return (1920, 1080)  # Default resolution
+
+    return BASE_RESOLUTION  # Fallback to calibrated default
 
 def get_window_area_pos(window_title="Dark and Darker  "):
     hwnd = win32gui.FindWindow(None, window_title)
@@ -177,25 +233,24 @@ def get_window_area_pos(window_title="Dark and Darker  "):
     return (left, top, width, height)
 
 def get_screen_positions():
-    if get_game_window_mode() == WINDOW_MODE:
-        window_left, window_top, width, height = get_window_area_pos()
-        # (738, 151, 1280, 720)
-        res = get_current_resolution()
-        # (1280, 720)
-        if width == res[0] and height == res[1]:
-            base_pos = RESOLUTION_POSITIONS.get(res, RESOLUTION_POSITIONS[(1920, 1080)])
-            # {'stash': Point(917, 110), 'inv': Point(458, 420)}
-            stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
-            inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
-            positions = {'stash': stash,  'inv': inv, 'jump': base_pos["jump"]}
-            return positions
-    
     res = get_current_resolution()
-    return RESOLUTION_POSITIONS.get(res, RESOLUTION_POSITIONS[(1920, 1080)])
 
-stash_screen_pos = get_screen_positions()['stash']
-inv_screen_pos = get_screen_positions()['inv']
-jump = get_screen_positions()['jump']
+    if get_game_window_mode() == WINDOW_MODE:
+        window_area = get_window_area_pos()
+        if window_area:
+            window_left, window_top, width, height = window_area
+            if width == res[0] and height == res[1]:
+                base_pos = _ensure_positions(res)
+                stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
+                inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
+                return {'stash': stash, 'inv': inv, 'jump': base_pos["jump"]}
+
+    return _clone_layout(_ensure_positions(res))
+
+_initial_positions = get_screen_positions()
+stash_screen_pos = _initial_positions['stash']
+inv_screen_pos = _initial_positions['inv']
+jump = _initial_positions['jump']
 
 def get_sort_delay():
     """Get sort delay from settings"""
