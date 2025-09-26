@@ -63,6 +63,22 @@ class StashManager:
         self.characters_cache.clear()
         logger.info(f"Loading characters from: {self.data_dir}")
         
+        # Get all JSON files first and sort by modification time (newest first)
+        json_files = []
+        for file_path in Path(self.data_dir).glob("*.json"):
+            try:
+                # Quick size check before adding to list
+                file_size = file_path.stat().st_size
+                if file_size > 10 * 1024 * 1024:  # > 10MB
+                    logger.warning(f"Skipping oversized file: {file_path} ({file_size/1024/1024:.2f} MB)")
+                    continue
+                json_files.append(file_path)
+            except OSError:
+                continue
+        
+        # Sort by modification time (newest first) for better user experience
+        json_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+        
         def load_file(file_path):
             try:
                 # Skip excessively large files (likely corrupted)
@@ -112,8 +128,6 @@ class StashManager:
                 logger.error(f"Error loading packet data file {file_path}: {str(e)}")
                 return None
                 
-        # Load all JSON files from the data directory
-        json_files = glob.glob(os.path.join(self.data_dir, "*.json"))
         logger.info(f"Found {len(json_files)} packet data files")
 
         # Optimize worker count based on file count and system capabilities
@@ -126,8 +140,8 @@ class StashManager:
             loaded_count = 0
             
             with ThreadPool(max_workers=max_workers) as pool:
-                # Submit all tasks
-                futures = [loop.run_in_executor(pool, load_file, file_path) for file_path in json_files]
+                # Submit all tasks using the pre-sorted file list
+                futures = [loop.run_in_executor(pool, load_file, str(file_path)) for file_path in json_files]
                 
                 # Process results as they complete (asynchronous processing)
                 for future in asyncio.as_completed(futures):
@@ -197,6 +211,10 @@ class StashManager:
 
     def get_characters(self) -> List[Dict]:
         """Get list of all characters"""
+        # Ensure data is loaded before returning characters
+        if not self._is_loaded:
+            self._load_data()
+            
         return list(self.characters_cache.values())
 
     def get_character_stashes(self, character_id: str) -> Dict:
@@ -246,6 +264,11 @@ class StashManager:
         """Search for items across all character stashes"""
         if not query:
             return []
+        
+        # Ensure data is loaded before searching
+        if not self._is_loaded:
+            self._load_data()
+            
         keywords = [k.strip().lower() for k in query.split(",")]
         output = []
         for char in self.get_characters():
@@ -258,6 +281,7 @@ class StashManager:
                         item_id = item_data_manager.get_item_id_from_design_str(design_str)
                         name = item_data_manager.get_item_name_from_id(item_id)
                         rarity = item_data_manager.get_item_rarity_from_id(item_id)
+                        icon_path = item_data_manager.get_item_image_path_from_id(item_id)
                         data = item.get("data", {})
                         effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
                         pp = []
@@ -289,7 +313,8 @@ class StashManager:
                                     'name': name,
                                     'rarity': rarity,
                                     'pp': pp,
-                                    'sp': sp
+                                    'sp': sp,
+                                    'iconPath': str(icon_path) if icon_path else None
                                 },
                                 'stash_id': stash_id
                             }
