@@ -386,14 +386,14 @@ window.addEventListener('load', () => {
 
             // Get item icon path
             const iconPath = result.item.iconPath ? `/assets/${result.item.iconPath.replace(/\\/g, '/')}` : null;
-            
+
             item.innerHTML = `
                 <div class="item-icon-container">
-                    ${iconPath ? 
-                        `<img src="${iconPath}" alt="${result.item.name}" class="item-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    ${iconPath ?
+                    `<img src="${iconPath}" alt="${result.item.name}" class="item-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                          <span class="material-icons item-icon-fallback" style="display: none;">inventory_2</span>` :
-                        `<span class="material-icons item-icon-fallback">inventory_2</span>`
-                    }
+                    `<span class="material-icons item-icon-fallback">inventory_2</span>`
+                }
                 </div>
                 <div class="item-content">
                     <div class="item-details">
