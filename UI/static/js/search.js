@@ -232,19 +232,36 @@ function createStashLink(charId, stashId, slotId) {
     </span>`;
 }
 
-const debounce = (func, wait) => {
-    return (...args) => {
-        clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(() => func(...args), wait);
-    };
-};
-
 window.addEventListener('load', () => {
     const searchInput = document.getElementById('searchInput');
     const searchResults = document.getElementById('searchResults');
     const clearSearch = document.getElementById('clearSearch');
     const searchMeta = document.getElementById('searchMeta');
     const resultsCount = document.getElementById('resultsCount');
+
+    // Show initial loading if data hasn't been loaded yet
+    let isInitialLoad = true;
+    
+    // Pre-load character data on page load to avoid delays during search
+    const preloadData = async () => {
+        try {
+            if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.get_characters === 'function') {
+                // Pre-load character data by calling get_characters
+                await window.pywebview.api.get_characters();
+            } else {
+                // Pre-load via API
+                const response = await fetch('/api/characters');
+                await response.json();
+            }
+            isInitialLoad = false;
+        } catch (error) {
+            console.warn('Failed to preload character data:', error);
+            isInitialLoad = false;
+        }
+    };
+
+    // Start preloading in the background
+    preloadData();
 
     // Clear search functionality
     clearSearch.addEventListener('click', () => {
@@ -278,10 +295,14 @@ window.addEventListener('load', () => {
     };
 
     const showLoadingState = () => {
+        const loadingMessage = isInitialLoad ? 
+            'Loading character data for the first time...' : 
+            'Searching your character stashes...';
+        
         searchResults.innerHTML = `
             <div class="loading">
                 <span class="material-icons">hourglass_empty</span>
-                Searching your character stashes...
+                ${loadingMessage}
             </div>
         `;
     };
@@ -512,27 +533,40 @@ window.addEventListener('load', () => {
         }
 
         showLoadingState();
+        console.log('Performing search for:', trimmedQuery);
 
         try {
             let details;
             if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.search_items === 'function') {
+                console.log('Using pywebview API for search');
                 details = await window.pywebview.api.search_items(trimmedQuery);
             } else {
+                console.log('Using fetch API for search');
                 const res = await fetch(`/api/search_items?query=${encodeURIComponent(trimmedQuery)}`);
+                if (!res.ok) {
+                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                }
                 details = await res.json();
             }
 
+            // Mark initial load as complete after first successful search
+            if (isInitialLoad) {
+                isInitialLoad = false;
+            }
+
+            console.log('Search results:', details.length, 'items found');
             displayResults(details, trimmedQuery);
         } catch (error) {
+            console.error('Search error:', error);
             searchResults.innerHTML = `
                 <div class="empty-search-state">
                     <span class="material-icons">error_outline</span>
                     <h3>Search Error</h3>
-                    <p>There was an error searching your items. Please try again.</p>
+                    <p>There was an error searching your items: ${error.message}</p>
+                    <p>Please try again or check the console for more details.</p>
                 </div>
             `;
             updateResultsCount(0, trimmedQuery);
-            console.error('Search error:', error);
         }
     };    // Debounced search with improved timing
     const debouncedSearch = debounce((e) => performSearch(e.target.value), 200); // Reduced from 300ms
