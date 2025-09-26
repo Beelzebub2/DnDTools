@@ -281,6 +281,7 @@ class StashManager:
                         item_id = item_data_manager.get_item_id_from_design_str(design_str)
                         name = item_data_manager.get_item_name_from_id(item_id)
                         rarity = item_data_manager.get_item_rarity_from_id(item_id)
+                        icon_path = item_data_manager.get_item_image_path_from_id(item_id)
                         data = item.get("data", {})
                         effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
                         pp = []
@@ -312,7 +313,8 @@ class StashManager:
                                     'name': name,
                                     'rarity': rarity,
                                     'pp': pp,
-                                    'sp': sp
+                                    'sp': sp,
+                                    'iconPath': str(icon_path) if icon_path else None
                                 },
                                 'stash_id': stash_id
                             }

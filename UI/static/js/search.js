@@ -241,7 +241,7 @@ window.addEventListener('load', () => {
 
     // Show initial loading if data hasn't been loaded yet
     let isInitialLoad = true;
-    
+
     // Pre-load character data on page load to avoid delays during search
     const preloadData = async () => {
         try {
@@ -295,10 +295,10 @@ window.addEventListener('load', () => {
     };
 
     const showLoadingState = () => {
-        const loadingMessage = isInitialLoad ? 
-            'Loading character data for the first time...' : 
+        const loadingMessage = isInitialLoad ?
+            'Loading character data for the first time...' :
             'Searching your character stashes...';
-        
+
         searchResults.innerHTML = `
             <div class="loading">
                 <span class="material-icons">hourglass_empty</span>
@@ -382,15 +382,31 @@ window.addEventListener('load', () => {
                         </div>
                     `;
                 }).join('');
-            } item.innerHTML = `
-                <div class="locations-container">
-                    <div class="locations-title">Found in:</div>
-                    ${locationsHtml}
+            }
+
+            // Get item icon path
+            const iconPath = result.item.iconPath ? `/assets/${result.item.iconPath.replace(/\\/g, '/')}` : null;
+            
+            item.innerHTML = `
+                <div class="item-icon-container">
+                    ${iconPath ? 
+                        `<img src="${iconPath}" alt="${result.item.name}" class="item-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                         <span class="material-icons item-icon-fallback" style="display: none;">inventory_2</span>` :
+                        `<span class="material-icons item-icon-fallback">inventory_2</span>`
+                    }
                 </div>
-                <div class="character-info">
-                    <div class="item-name">${result.item.name}</div>
-                    <div class="item-rarity" style="${rarityStyle}">${result.item.rarity}</div>
-                    <div class="item-count">${result.itemCount}</div>
+                <div class="item-content">
+                    <div class="item-details">
+                        <div class="item-name">${result.item.name}</div>
+                        <div class="item-meta">
+                            <div class="item-rarity" style="${rarityStyle}">${result.item.rarity}</div>
+                            <div class="item-count">x${result.itemCount}</div>
+                        </div>
+                    </div>
+                    <div class="locations-container">
+                        <div class="locations-title">Found in:</div>
+                        ${locationsHtml}
+                    </div>
                 </div>
             `;
 
