@@ -57,10 +57,14 @@
                     };
                 }
 
-                if (closeBtn && window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+                if (closeBtn) {
                     closeBtn.onclick = () => {
                         try {
-                            window.pywebview.api.close_window();
+                            if (typeof window.handleWindowClose === 'function') {
+                                window.handleWindowClose();
+                            } else if (window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
+                                window.pywebview.api.close_window();
+                            }
                         } catch (error) {
                             console.error('Error closing window:', error);
                         }

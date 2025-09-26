@@ -367,7 +367,7 @@ class Api:
     def get_capture_state(self):
         """Get current capture state including if initial restart was done"""
         return {
-            "running": self.packet_capture.running,
+            "running": self.packet_capture.is_active(),
             "initialRestartDone": self._initial_restart_done
         }
 
@@ -422,19 +422,10 @@ class Api:
     def close_window(self):
         """Properly save capture state before closing the window"""
         try:
-            # Fast shutdown - save state asynchronously and close immediately
             if hasattr(self, 'packet_capture'):
-                # Use a background thread for shutdown to avoid blocking UI
-                def async_shutdown():
-                    try:
-                        self.packet_capture.shutdown()
-                    except Exception as e:
-                        logger.error(f"Error during async shutdown: {e}")
-                
-                # Start shutdown in background and don't wait
-                threading.Thread(target=async_shutdown, daemon=True).start()
-                
-        except Exception as e:            logger.error(f"Error during window close: {e}")
+                self.packet_capture.shutdown()
+        except Exception as e:
+            logger.error(f"Error during window close: {e}")
         finally:
             # Close immediately without delays
             self.force_close_window()
