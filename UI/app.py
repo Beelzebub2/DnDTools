@@ -95,25 +95,46 @@ def validate_stash_id(stash_id):
     except (ValueError, TypeError):
         return None
 
-def handle_character(message):
-    save_packet_data(message)
-    # Called from PacketCapture when a new character is saved
-    stash_manager.force_reload()  # Use force_reload to ensure data is refreshed
-    
-    # Extract character information for visual effect
-    char_data = message.characterDataBase
-    char_class = char_data.characterClass.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
-    char_nickname = char_data.nickName.originalNickName if hasattr(char_data.nickName, 'originalNickName') else "Unknown"
-    
-    # Notify UI of data update with character capture animation
+def handle_alive_packet(message):
+    """Handle S2C_ALIVE_RES packets to trigger traffic animation"""
+    # Notify UI of alive packet reception for traffic animation
     if api.window:
-        api.window.evaluate_js(f'''
-            showNotification("New character data received", "success");
-            if(window.showCharacterCaptureAnimation) window.showCharacterCaptureAnimation("{char_class}", "{char_nickname}");
-            if(window.updateCharacterData) window.updateCharacterData();
-            if(window.updateCharacterList) window.updateCharacterList();
+        api.window.evaluate_js('''
+            if(window.triggerTrafficParticle) window.triggerTrafficParticle();
         ''')
     return True
+
+def handle_character(message):
+    """Handle S2C_LOBBY_CHARACTER_INFO_RES packets to save character data"""
+    from src.models.character import save_packet_data
+    
+    # Save the character data first
+    saved = save_packet_data(message)
+    
+    if saved:
+        # Force reload stash manager data to ensure it's refreshed
+        stash_manager.force_reload()
+        
+        # Extract character information for visual effect
+        try:
+            char_data = message.characterDataBase
+            char_class = char_data.characterClass.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
+            char_nickname = char_data.nickName.originalNickName if hasattr(char_data.nickName, 'originalNickName') else "Unknown"
+            
+            # Notify UI of data update with character capture animation
+            if api.window:
+                # Escape quotes in nickname for JavaScript
+                escaped_nickname = char_nickname.replace('"', '\\"')
+                api.window.evaluate_js(f'''
+                    showNotification("New character data received", "success");
+                    if(window.showCharacterCaptureAnimation) window.showCharacterCaptureAnimation("{char_class}", "{escaped_nickname}");
+                    if(window.updateCharacterData) window.updateCharacterData();
+                    if(window.updateCharacterList) window.updateCharacterList();
+                ''')
+        except Exception as e:
+            logger.error(f"Error extracting character info for animation: {e}")
+    
+    return saved
 
 class Api:
     def __init__(self):
@@ -136,6 +157,7 @@ class Api:
         )
         capture_info = {
             _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
+            _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
         }
         self.packet_capture.capture_info = capture_info
 

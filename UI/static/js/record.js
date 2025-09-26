@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let pollingInterval = null;
 
-    // Initialize particles with staggered animation delays
+    // Initialize particles without continuous animation
     function initTrafficParticles() {
         // For Game->Server direct path (capture off)
         const particles = [];
@@ -32,7 +32,8 @@ document.addEventListener('DOMContentLoaded', () => {
             particle.className = 'traffic-particle';
             particle.id = `particleGameServer_${i}`;
             particle.style.backgroundColor = 'var(--game-color)';
-            particle.style.animationDelay = `${i * 0.7}s`;
+            particle.style.opacity = '0'; // Start hidden
+            particle.style.display = 'none'; // Start hidden
             particles.push(particle);
             pathGameServer.appendChild(particle);
         }
@@ -53,11 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
         pathGameTool.style.opacity = '0.4';
         nodeTool.style.opacity = '0.4';
 
-        // Activate direct path animation
+        // Particles are now triggered by events, not continuous animation
         pathGameServer.querySelectorAll('.traffic-particle').forEach(particle => {
-            particle.style.animation = 'moveParticle 2s infinite linear';
-            particle.style.opacity = '1';
-            particle.style.display = 'block';
+            particle.style.animation = '';
+            particle.style.opacity = '0';
+            particle.style.display = 'none';
         });
 
         // Deactivate tool path animation
@@ -82,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pathGameServer.querySelectorAll('.traffic-particle').forEach(particle => {
             particle.style.animation = '';
             particle.style.opacity = '0';
+            particle.style.display = 'none';
         });
 
         // Create particles for Game->Tool and Tool->Server if they don't exist
@@ -91,23 +93,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 particle1.className = 'traffic-particle';
                 particle1.id = `particleGameTool_${i}`;
                 particle1.style.backgroundColor = 'var(--game-color)';
-                particle1.style.animationDelay = `${i * 0.7}s`;
+                particle1.style.opacity = '0'; // Start hidden
+                particle1.style.display = 'none'; // Start hidden
                 pathGameTool.appendChild(particle1);
 
                 const particle2 = document.createElement('div');
                 particle2.className = 'traffic-particle';
                 particle2.id = `particleToolServer_${i}`;
                 particle2.style.backgroundColor = 'var(--tool-color)';
-                particle2.style.animationDelay = `${i * 0.7 + 0.3}s`;
+                particle2.style.opacity = '0'; // Start hidden
+                particle2.style.display = 'none'; // Start hidden
                 pathGameTool.appendChild(particle2);
             }
         }
 
-        // Activate tool path particles
+        // Particles are now triggered by events, not continuous animation
         pathGameTool.querySelectorAll('.traffic-particle').forEach(particle => {
-            particle.style.animation = 'moveParticle 2s infinite linear';
-            particle.style.opacity = '1';
-            particle.style.display = 'block';
+            particle.style.animation = '';
+            particle.style.opacity = '0';
+            particle.style.display = 'none';
         });
     } async function loadCharacters() {
         try {
@@ -423,15 +427,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 sidebarCaptureIndicator.classList.remove('active', 'stopping');
             }
 
-            showNotification('Failed to get capture state', 'error');        }
-    }    // Character capture animation function
-    window.showCharacterCaptureAnimation = function(characterClass, characterNickname) {
+            showNotification('Failed to get capture state', 'error');
+        }
+    }    // Function to trigger traffic particle animation on packet reception
+    window.triggerTrafficParticle = function () {
+        const isCaptureOn = captureSwitch.checked;
+        const targetPath = isCaptureOn ? pathGameTool : pathGameServer;
+        const particles = targetPath.querySelectorAll('.traffic-particle');
+
+        if (particles.length === 0) return;
+
+        // Find an available particle (not currently animating)
+        let availableParticle = null;
+        for (let particle of particles) {
+            if (particle.style.animation === '' || particle.style.animation === 'none') {
+                availableParticle = particle;
+                break;
+            }
+        }
+
+        // If no particle is available, use the first one
+        if (!availableParticle) {
+            availableParticle = particles[0];
+        }
+
+        // Trigger single particle animation
+        availableParticle.style.display = 'block';
+        availableParticle.style.opacity = '1';
+        availableParticle.style.animation = 'moveParticle 2s ease-in-out';
+
+        // Reset particle after animation completes
+        setTimeout(() => {
+            availableParticle.style.animation = '';
+            availableParticle.style.opacity = '0';
+            availableParticle.style.display = 'none';
+        }, 2000);
+    };
+
+    // Character capture animation function
+    window.showCharacterCaptureAnimation = function (characterClass, characterNickname) {
         console.log(`Showing character capture animation for ${characterClass} (${characterNickname})`);
-        
+
         // Get class image path
         function getClassImage(className) {
             if (!className) return '/assets/classes/fighter.png';
-            
+
             const classMap = {
                 'Fighter': 'fighter.png',
                 'Ranger': 'ranger.png',
@@ -444,25 +484,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 'Druid': 'druid.png',
                 'Sorcerer': 'sorcerer.png'
             };
-            
+
             const imageName = classMap[className] || 'fighter.png';
             return `/assets/classes/${imageName}`;
         }
-        
+
         const trafficVisualization = document.getElementById('trafficVisualization');
         if (!trafficVisualization) {
             console.log('Traffic visualization not found, skipping animation');
             return;
         }
-        
+
         // Create character icon element
         const charIcon = document.createElement('div');
         charIcon.className = 'character-capture-icon';
-        
+
         const charImg = document.createElement('img');
         charImg.src = getClassImage(characterClass);
         charImg.alt = characterClass;
-        charImg.onerror = function() {
+        charImg.onerror = function () {
             // Fallback to a default icon if image fails to load
             this.style.display = 'none';
             const fallbackIcon = document.createElement('span');
@@ -472,22 +512,22 @@ document.addEventListener('DOMContentLoaded', () => {
             fallbackIcon.style.fontSize = '24px';
             charIcon.appendChild(fallbackIcon);
         };
-        
+
         charIcon.appendChild(charImg);
         trafficVisualization.appendChild(charIcon);
-        
+
         // Start animation
         setTimeout(() => {
             charIcon.classList.add('flying');
         }, 100);
-        
+
         // Remove icon after animation completes
         setTimeout(() => {
             if (charIcon.parentNode) {
                 trafficVisualization.removeChild(charIcon);
             }
         }, 2500);
-        
+
         // Pulse the DnDTools node to show it received the character
         const nodeTool = document.getElementById('nodeTool');
         if (nodeTool) {
