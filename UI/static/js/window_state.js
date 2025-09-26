@@ -9,7 +9,7 @@
         }
     });
 
-    document.addEventListener('DOMContentLoaded', () => {        
+    document.addEventListener('DOMContentLoaded', () => {
         // Add a small delay to ensure all elements are properly initialized
         setTimeout(() => {
             try {
@@ -27,7 +27,7 @@
                         }
                     };
                 }
-                
+
                 if (maximizeBtn && window.pywebview && window.pywebview.api && window.pywebview.api.toggle_maximize) {
                     maximizeBtn.onclick = () => {
                         try {
@@ -37,7 +37,7 @@
                         }
                     };
                 }
-                
+
                 if (closeBtn && window.pywebview && window.pywebview.api && window.pywebview.api.close_window) {
                     closeBtn.onclick = () => {
                         try {

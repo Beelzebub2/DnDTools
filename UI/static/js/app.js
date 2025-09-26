@@ -145,7 +145,7 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
     popup.style.minWidth = '320px';
     popup.style.backdropFilter = 'blur(8px)';
     popup.style.animation = 'slideInFromRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    
+
     // Add animation keyframes if not already defined
     if (!document.getElementById('update-popup-styles')) {
         const style = document.createElement('style');
@@ -210,7 +210,7 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
         `;
         document.head.appendChild(style);
     }
-    
+
     popup.innerHTML = `
         <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
             <div style="

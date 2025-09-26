@@ -13,7 +13,7 @@ function formatDate(dateString) {
     try {
         const date = new Date(dateString);
         if (isNaN(date.getTime())) return dateString;
-        
+
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -35,7 +35,7 @@ function formatDateTime(isoString) {
     try {
         const date = new Date(isoString);
         if (isNaN(date.getTime())) return isoString;
-        
+
         return date.toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -58,7 +58,7 @@ function formatDateTime(isoString) {
 function handleApiError(error, element = null, customMessage = null) {
     const errorMessage = customMessage || 'An error occurred. Please try again later.';
     console.error('API Error:', error);
-    
+
     if (element) {
         element.innerHTML = `
             <div class="error-state">
@@ -79,17 +79,17 @@ function showNotification(message, type = 'info', duration = 5000) {
     // Remove any existing notifications
     const existingNotifications = document.querySelectorAll('.app-notification');
     existingNotifications.forEach(n => n.remove());
-    
+
     const notification = document.createElement('div');
     notification.className = `app-notification notification-${type}`;
-    
+
     const iconMap = {
         'success': 'check_circle',
         'error': 'error',
         'warning': 'warning',
         'info': 'info'
     };
-    
+
     notification.innerHTML = `
         <span class="material-icons">${iconMap[type] || 'info'}</span>
         <span class="notification-message">${message}</span>
@@ -97,9 +97,9 @@ function showNotification(message, type = 'info', duration = 5000) {
             <span class="material-icons">close</span>
         </button>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Auto-remove after duration
     setTimeout(() => {
         if (notification.parentElement) {
@@ -125,7 +125,7 @@ function formatNumber(num) {
  */
 function setLoading(element, isLoading) {
     if (!element) return;
-    
+
     if (isLoading) {
         element.classList.add('loading');
         element.innerHTML = `
@@ -191,15 +191,15 @@ function compareVersions(version1, version2) {
     const v1parts = version1.split('.').map(Number);
     const v2parts = version2.split('.').map(Number);
     const maxLength = Math.max(v1parts.length, v2parts.length);
-    
+
     for (let i = 0; i < maxLength; i++) {
         const v1part = v1parts[i] || 0;
         const v2part = v2parts[i] || 0;
-        
+
         if (v1part < v2part) return -1;
         if (v1part > v2part) return 1;
     }
-    
+
     return 0;
 }
 
