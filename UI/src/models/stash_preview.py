@@ -230,7 +230,7 @@ class StashPreviewGenerator:
             rarity = int(parts[-1][0])
         else:
             # Check if it's a unique item in the data
-            item_data = item_data_manager.data.get(item.itemId, {})
+            item_data = item_data_manager.get_item_data(item.itemId)
             rarity_str = item_data.get("rarity", None)
             if rarity_str is not None:
                 rarity_map = {
@@ -329,7 +329,7 @@ def parse_stashes(packet_data):
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
                 name = item_data_manager.get_item_name_from_id(item_id)
                 slot_id = item["slotId"]
-                item_data = item_data_manager.data.get(item_id, {})
+                item_data = item_data_manager.get_item_data(item_id)
                 vendor_price = item_data.get("vendor_price", 0)
                 stash_items.append({
                     "name": name,
@@ -348,7 +348,7 @@ def parse_stashes(packet_data):
                 design_str = item.get("itemId", "")
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
                 name = item_data_manager.get_item_name_from_id(item_id)
-                item_data = item_data_manager.data.get(item_id, {})
+                item_data = item_data_manager.get_item_data(item_id)
                 vendor_price = item_data.get("vendor_price", 0)
                 stash_items.append({
                     "name": name,
@@ -371,7 +371,7 @@ def parse_stashes(packet_data):
         design_str = item.get("itemId", "")
         item_id = item_data_manager.get_item_id_from_design_str(design_str)
         name = item_data_manager.get_item_name_from_id(item_id)
-        item_data = item_data_manager.data.get(item_id, {})
+        item_data = item_data_manager.get_item_data(item_id)
         vendor_price = item_data.get("vendor_price", 0)
         stashes[inventory_id].append({
             "name": name,

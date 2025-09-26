@@ -620,7 +620,7 @@
     display: none;
 }*/
 
-/* Jelly Triangle Animation for Sorting */
+/* Jelly Triangle Animation for Sorting - Simplified CSS version */
 .jelly-triangle-container {
     --uib-size: 30px;
     --uib-color: var(--accent-gold, #d4af37);
@@ -628,7 +628,7 @@
     position: relative;
     height: var(--uib-size);
     width: var(--uib-size);
-    filter: url('#uib-jelly-triangle-ooze');
+    /* Removed expensive SVG filter for better performance */
     display: none;
     /* Hidden by default */
 }
@@ -638,7 +638,8 @@
 .jelly-triangle-container::after,
 .jelly-triangle-container .dot,
 .jelly-triangle-container .traveler {
-    filter: drop-shadow(0 0 3px rgba(212, 175, 55, 0.5));
+    /* Replaced expensive drop-shadow filter with text-shadow for better performance */
+    text-shadow: 0 0 3px rgba(212, 175, 55, 0.5);
 }
 
 .jelly-triangle-container::before,
@@ -767,7 +768,7 @@
     /* Larger size for the main animation */
     --uib-color: var(--accent-gold, #d4af37);
     display: block;
-    filter: url('#uib-jelly-triangle-ooze');
+    /* Removed expensive SVG filter for better performance */
 }
 
 .sorting-text {

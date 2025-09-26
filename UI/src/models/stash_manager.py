@@ -11,6 +11,7 @@ from .sort import StashSorter
 from src.models.game_data import item_data_manager
 import pygetwindow as gw
 from .appdirs import get_data_dir, get_output_dir, resource_path
+import asyncio
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 import logging
 
@@ -26,6 +27,14 @@ class StashManager:
         self.characters_cache = {}
         self._is_loaded = False
         self.resource_dir = resource_dir
+        
+        # Performance tracking
+        self.load_stats = {
+            'last_load_time': None,
+            'characters_loaded': 0,
+            'files_processed': 0,
+            'average_load_time_per_file': None
+        }
         
         # Initialize preview generator (lightweight)        self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
         
@@ -111,23 +120,42 @@ class StashManager:
         cpu_count = os.cpu_count() or 4
         max_workers = max(1, min(cpu_count, len(json_files), 8))  # Cap at 8 workers
         
-        # Use multiprocessing to load files in parallel
-        with ThreadPool(max_workers=max_workers) as pool:
-            results = pool.map(load_file, json_files)
+        # Use asyncio to make data loading truly asynchronous
+        async def load_data_async():
+            loop = asyncio.get_event_loop()
+            loaded_count = 0
+            
+            with ThreadPool(max_workers=max_workers) as pool:
+                # Submit all tasks
+                futures = [loop.run_in_executor(pool, load_file, file_path) for file_path in json_files]
+                
+                # Process results as they complete (asynchronous processing)
+                for future in asyncio.as_completed(futures):
+                    result = await future
+                    if result:
+                        char_id = result['id']
+                        self.characters_cache[char_id] = result['character_data']
+                        loaded_count += 1
+                        
+                        # Log progress for large loads
+                        if loaded_count % 10 == 0:
+                            logger.info(f"Loaded {loaded_count}/{len(json_files)} characters...")
+            
+            return loaded_count
 
-        # Process results efficiently
-        loaded_count = 0
-        for result in results:
-            if result:
-                char_id = result['id']
-                self.characters_cache[char_id] = result['character_data']
-                loaded_count += 1
-
-        # Reduce memory usage by clearing unnecessary caches
-        results = None
+        # Run the async loading
+        loaded_count = asyncio.run(load_data_async())
         
         load_time = time.time() - start_time
+        self.load_stats.update({
+            'last_load_time': load_time,
+            'characters_loaded': loaded_count,
+            'files_processed': len(json_files),
+            'average_load_time_per_file': load_time / len(json_files) if json_files else 0
+        })
+        
         logger.info(f"Loaded {loaded_count} characters in {load_time:.2f} seconds")
+        logger.info(f"Average load time per file: {self.load_stats['average_load_time_per_file']:.4f} seconds")
         
         # Only show character details for small number of characters
         if loaded_count <= 3:
@@ -138,6 +166,34 @@ class StashManager:
 
         # Mark data as loaded
         self._is_loaded = True
+
+    def get_performance_stats(self) -> Dict:
+        """Get performance statistics for data loading and memory usage"""
+        import psutil
+        import sys
+        
+        process = psutil.Process()
+        memory_info = process.memory_info()
+        
+        return {
+            'load_stats': self.load_stats,
+            'memory_usage': {
+                'rss': memory_info.rss / 1024 / 1024,  # MB
+                'vms': memory_info.vms / 1024 / 1024,  # MB
+            },
+            'cache_info': {
+                'characters_cached': len(self.characters_cache),
+                'total_stashes': sum(len(char.get('stashes', {})) for char in self.characters_cache.values()),
+                'estimated_items': sum(
+                    sum(len(stash) for stash in char.get('stashes', {}).values() if isinstance(stash, list))
+                    for char in self.characters_cache.values()
+                )
+            },
+            'system_info': {
+                'cpu_count': os.cpu_count(),
+                'python_version': sys.version
+            }
+        }
 
     def get_characters(self) -> List[Dict]:
         """Get list of all characters"""
@@ -286,7 +342,7 @@ class StashManager:
                             'pp': pp,
                             'sp': sp,
                             'imagePath': image_url,
-                            'vendor_price': item_data_manager.data.get(item_id, {}).get("vendor_price", 0)
+                            'vendor_price': item_data_manager.get_item_vendor_price(item_id)
                         }
                         enhanced_items.append(enhanced_item)
                     except Exception as e:
