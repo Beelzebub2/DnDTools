@@ -17,7 +17,6 @@ message SKARMA_CHARACTER_INFO {
   uint32 isVote = 6;
   uint32 karmaAction = 7;
   uint32 karmaStatus = 8;
-  string accountNickname = 9;
 }
 
 message SKARMA_MOST_RECENT_MATCH_INFO {

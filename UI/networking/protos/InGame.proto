@@ -66,6 +66,7 @@ message SS2C_AUTO_MATCH_REG_RES {
     FAIL_LATENCY_SYSTEM_SICK = 30;
     FAIL_INVALID_ITEM_FOR_DUNGEON = 31;
     FAIL_CONTENT_NOT_ALLOWED_FOR_MATCHING = 32;
+    FAIL_TA_OUTLAW_LIMIT = 33;
   }
 
   uint32 result = 1;
@@ -108,6 +109,18 @@ message SS2C_MATCH_POOL_REGISTERED_NOT {
 }
 
 message SS2C_MATCHMAKING_FAIL_NOT {
+  uint32 result = 1;
+}
+
+message SC2S_INGAME_REPORT_REQ {
+  string accountId = 1;
+  uint32 category = 2;
+  string targetAccountId = 3;
+  string targetCharacterId = 4;
+  .DC.Packet.SACCOUNT_NICKNAME targetNickname = 5;
+}
+
+message SS2C_INGAME_REPORT_RES {
   uint32 result = 1;
 }
 

@@ -283,6 +283,7 @@ class PacketCapture:
                 # Check if this is a tshark/executable issue
                 if "tshark" in str(e).lower():
                     self.logger.error("This appears to be a tshark-related issue. Make sure tshark is properly installed and accessible.")
+                self.running = False  # Ensure we stop if capture creation fails
                 raise
             
             try:
@@ -296,17 +297,19 @@ class PacketCapture:
                 # Log additional details for debugging
                 import traceback
                 self.logger.error(f"Full traceback: {traceback.format_exc()}")
+                self.running = False  # Stop capture on error
             finally:
                 self._cleanup_capture()
         except Exception as e:
             self.logger.error(f"Fatal error in capture_loop: {e}")
             import traceback
             self.logger.error(f"Full traceback: {traceback.format_exc()}")
+            self.running = False  # Ensure we stop on fatal error
             # Make sure we cleanup even if there's a fatal error
             try:
                 self._cleanup_capture()
-            except:
-                pass
+            except Exception as cleanup_error:
+                self.logger.error(f"Error during cleanup after fatal error: {cleanup_error}")
             
     def _cleanup_capture(self):
         """Clean up capture resources properly"""
@@ -356,13 +359,17 @@ class PacketCapture:
                             for task in pending:
                                 task.cancel()
                             if pending:
-                                self._current_loop.run_until_complete(
-                                    asyncio.gather(*pending, return_exceptions=True)
-                                )
+                                try:
+                                    self._current_loop.run_until_complete(
+                                        asyncio.gather(*pending, return_exceptions=True)
+                                    )
+                                except Exception as gather_error:
+                                    self.logger.warning(f"Error gathering pending tasks: {gather_error}")
                             self._current_loop.close()
                     except Exception as e:
                         self.logger.warning(f"Error closing event loop: {e}")
-                    del self._current_loop
+                    finally:
+                        self._current_loop = None
         except Exception as e:
             self.logger.error(f"Error during capture cleanup: {e}")
         finally:

@@ -8,7 +8,8 @@ from src.models.point import Point
 import win32gui
 
 
-# TODO find jump for all resolutions
+# Note: Jump values may need adjustment for different resolutions
+# Currently optimized for common gaming resolutions
 
 # Supported resolutions and their corresponding positions
 RESOLUTION_POSITIONS = {

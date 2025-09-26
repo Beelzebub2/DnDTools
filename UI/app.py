@@ -64,6 +64,37 @@ stash_manager = StashManager(app_dir, defer_loading=True)
 # Cache for frequently accessed data
 _cache = {}
 
+def validate_character_id(character_id):
+    """Validate character ID format and sanitize input"""
+    if not character_id:
+        return None
+    
+    # Basic sanitization - remove whitespace and check for minimum length
+    character_id = str(character_id).strip()
+    if len(character_id) < 1 or len(character_id) > 100:  # reasonable bounds
+        return None
+    
+    # Check for potentially dangerous characters
+    import re
+    if not re.match(r'^[a-zA-Z0-9_-]+$', character_id):
+        return None
+        
+    return character_id
+
+def validate_stash_id(stash_id):
+    """Validate stash ID format and sanitize input"""
+    if stash_id is None:
+        return None
+    
+    try:
+        # Convert to int and validate range
+        stash_id = int(stash_id)
+        if stash_id < 0:  # negative values not allowed
+            return None
+        return stash_id
+    except (ValueError, TypeError):
+        return None
+
 def handle_character(message):
     save_packet_data(message)
     # Called from PacketCapture when a new character is saved
@@ -121,36 +152,78 @@ class Api:
         self._current_stash_id = None
 
     def _load_settings(self):
+        """Load settings from file with proper error handling"""
         if os.path.exists(self.settings_file):
             try:
-                with open(self.settings_file, 'r') as f:
-                    return json.load(f)
+                with open(self.settings_file, 'r', encoding='utf-8') as f:
+                    settings = json.load(f)
+                    logger.info("Settings loaded successfully")
+                    return settings
+            except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON in settings file: {e}")
+            except IOError as e:
+                logger.error(f"Error reading settings file: {e}")
             except Exception as e:
-                logger.error(f"Error loading settings: {e}")
-                pass
-        return {
+                logger.error(f"Unexpected error loading settings: {e}")
+        
+        # Return default settings if loading fails
+        default_settings = {
             'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
             'sortHotkey': 'ctrl+alt+s',
             'cancelHotkey': 'ctrl+alt+x',
             'sortSpeed': 0.2,
             'resolution': 'Auto'
         }
+        logger.info("Using default settings")
+        return default_settings
 
     def _save_settings(self, settings):
-        # Ensure hotkeys are lowercase for keyboard library
-        settings['sortHotkey'] = settings['sortHotkey'].lower()
-        settings['cancelHotkey'] = settings['cancelHotkey'].lower()
-        if 'sortSpeed' not in settings:
-            settings['sortSpeed'] = 0.2
+        """Save settings to file with proper error handling and validation"""
         try:
-            with open(self.settings_file, 'w') as f:
-                json.dump(settings, f, indent=2)
+            # Validate settings structure
+            if not isinstance(settings, dict):
+                raise ValueError("Settings must be a dictionary")
+            
+            # Ensure hotkeys are lowercase for keyboard library
+            if 'sortHotkey' in settings:
+                settings['sortHotkey'] = str(settings['sortHotkey']).lower()
+            if 'cancelHotkey' in settings:
+                settings['cancelHotkey'] = str(settings['cancelHotkey']).lower()
+            if 'sortSpeed' not in settings:
+                settings['sortSpeed'] = 0.2
+                
+            # Validate sortSpeed is a valid number
+            try:
+                settings['sortSpeed'] = float(settings['sortSpeed'])
+                if settings['sortSpeed'] <= 0:
+                    settings['sortSpeed'] = 0.2
+            except (ValueError, TypeError):
+                settings['sortSpeed'] = 0.2
+                
+            # Ensure directory exists
+            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
+            
+            # Save to temporary file first, then rename (atomic operation)
+            temp_file = self.settings_file + '.tmp'
+            with open(temp_file, 'w', encoding='utf-8') as f:
+                json.dump(settings, f, indent=2, ensure_ascii=False)
+            
+            # Atomic rename
+            os.replace(temp_file, self.settings_file)
+            
             self.settings = settings
             self._setup_global_hotkeys()
             logger.info("Settings saved successfully")
             return True
+            
+        except (IOError, OSError) as e:
+            logger.error(f"Error writing settings file: {e}")
+            return False
+        except ValueError as e:
+            logger.error(f"Invalid settings data: {e}")
+            return False
         except Exception as e:
-            logger.error(f"Error saving settings: {e}")
+            logger.error(f"Unexpected error saving settings: {e}")
             return False
 
     def _setup_global_hotkeys(self):
@@ -369,8 +442,9 @@ class Api:
             if self.window:
                 self.window.destroy()
             os._exit(0)
-        except Exception as e:            return {"success": False, "error": str(e)}
-        return {"success": True}
+        except Exception as e:
+            logger.error(f"Failed to launch updater: {e}")
+            return {"success": False, "error": str(e)}
         
     def check_for_updates(self):
         """
@@ -580,32 +654,87 @@ def api_search_items():
 def api_capture_settings():
     if request.method == 'GET':
         return jsonify(api.get_capture_settings())
-    data = request.get_json() or {}
-    return jsonify({'success': api.set_capture_settings(data.get('interface'), data.get('port_low'), data.get('port_high'))})
+    
+    try:
+        data = request.get_json() or {}
+        
+        # Validate input data
+        interface = data.get('interface', '').strip()
+        port_low = data.get('port_low')
+        port_high = data.get('port_high')
+        
+        # Validate port numbers
+        if port_low is not None:
+            try:
+                port_low = int(port_low)
+                if not (1 <= port_low <= 65535):
+                    return jsonify({'success': False, 'error': 'Port low must be between 1 and 65535'}), 400
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'Invalid port_low value'}), 400
+                
+        if port_high is not None:
+            try:
+                port_high = int(port_high)
+                if not (1 <= port_high <= 65535):
+                    return jsonify({'success': False, 'error': 'Port high must be between 1 and 65535'}), 400
+            except (ValueError, TypeError):
+                return jsonify({'success': False, 'error': 'Invalid port_high value'}), 400
+                
+        if port_low is not None and port_high is not None and port_low > port_high:
+            return jsonify({'success': False, 'error': 'Port low cannot be greater than port high'}), 400
+            
+        return jsonify({'success': api.set_capture_settings(interface, port_low, port_high)})
+        
+    except Exception as e:
+        logger.error(f"Error processing capture settings: {e}")
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 @server.route('/api/capture/start', methods=['POST'])
 def api_capture_start():
-    return jsonify({'success': api.start_capture()})
+    try:
+        return jsonify({'success': api.start_capture()})
+    except Exception as e:
+        logger.error(f"Error starting capture: {e}")
+        return jsonify({'success': False, 'error': 'Failed to start capture'}), 500
 
 @server.route('/api/record_character/<character_id>', methods=['POST'])
 def api_record_character(character_id):
+    # Validate character_id format (basic validation)
+    if not character_id or not character_id.strip():
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
     return jsonify({'success': False, 'error': 'Recording individual characters is no longer supported'})
 
 @server.route('/api/capture/switch/start', methods=['POST'])
 def capture_switch_start():
-    return jsonify({'success': api.start_capture_switch()})
+    try:
+        return jsonify({'success': api.start_capture_switch()})
+    except Exception as e:
+        logger.error(f"Error starting capture switch: {e}")
+        return jsonify({'success': False, 'error': 'Failed to start capture'}), 500
 
 @server.route('/api/capture/switch/stop', methods=['POST'])
 def capture_switch_stop():
-    return jsonify({'success': api.stop_capture_switch()})
+    try:
+        return jsonify({'success': api.stop_capture_switch()})
+    except Exception as e:
+        logger.error(f"Error stopping capture switch: {e}")
+        return jsonify({'success': False, 'error': 'Failed to stop capture'}), 500
 
 @server.route('/api/capture/switch/restart', methods=['POST'])
 def capture_switch_restart():
-    return jsonify({'success': api.restart_capture_switch()})
+    try:
+        return jsonify({'success': api.restart_capture_switch()})
+    except Exception as e:
+        logger.error(f"Error restarting capture switch: {e}")
+        return jsonify({'success': False, 'error': 'Failed to restart capture'}), 500
 
 @server.route('/api/capture/state', methods=['GET'])
 def api_capture_state():
-    return jsonify(api.get_capture_state())
+    try:
+        return jsonify(api.get_capture_state())
+    except Exception as e:
+        logger.error(f"Error getting capture state: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get capture state'}), 500
 
 @server.route('/api/network_interfaces', methods=['GET'])
 def api_network_interfaces():
@@ -614,20 +743,50 @@ def api_network_interfaces():
 
 @server.route('/api/character/<character_id>/stash/<stash_id>/sort', methods=['POST'])
 def api_sort_stash(character_id, stash_id):
-    result = api.sort_stash(character_id, stash_id)
-    return jsonify(result)
+    # Validate inputs
+    character_id = validate_character_id(character_id)
+    if not character_id:
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
+        
+    stash_id = validate_stash_id(stash_id)
+    if stash_id is None:
+        return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
+    
+    try:
+        result = api.sort_stash(character_id, stash_id)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error sorting stash: {e}")
+        return jsonify({'success': False, 'error': 'Failed to sort stash'}), 500
 
 @server.route('/api/character/<character_id>/current-stash', methods=['GET'])
 def api_get_current_stash(character_id):
-    """Get the last selected stash ID for a character"""
-    if hasattr(api, '_current_char_id') and api._current_char_id == character_id and hasattr(api, '_current_stash_id') and api._current_stash_id:
-        return jsonify({'stashId': api._current_stash_id})
-    from flask import session
-    stash_id = session.get(f'{character_id}_current_stash_id', None)
-    return jsonify({'stashId': stash_id})
+    # Validate input
+    character_id = validate_character_id(character_id)
+    if not character_id:
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
+        
+    try:
+        """Get the last selected stash ID for a character"""
+        if hasattr(api, '_current_char_id') and api._current_char_id == character_id and hasattr(api, '_current_stash_id') and api._current_stash_id:
+            return jsonify({'stashId': api._current_stash_id})
+        from flask import session
+        stash_id = session.get(f'{character_id}_current_stash_id', None)
+        return jsonify({'stashId': stash_id})
+    except Exception as e:
+        logger.error(f"Error getting current stash: {e}")
+        return jsonify({'success': False, 'error': 'Failed to get current stash'}), 500
 
 @server.route('/api/character/<character_id>/current-stash/<stash_id>', methods=['POST'])
 def api_set_current_stash(character_id, stash_id):
+    # Validate inputs
+    character_id = validate_character_id(character_id)
+    if not character_id:
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
+        
+    stash_id = validate_stash_id(stash_id)
+    if stash_id is None:
+        return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
     """Set the current stash ID for a character"""
     # Update the global variables in the API class
     api._current_char_id = character_id

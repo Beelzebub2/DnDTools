@@ -384,43 +384,54 @@ def parse_stashes(packet_data):
     return stashes
 
 def main():
+    """
+    Main function for processing stash data and generating previews.
+    Currently disabled - this was used for development/testing purposes.
+    """
     from pathlib import Path
-
-    folder = Path(r"data")
-
-    # TODO
-    # for file in folder.iterdir():
-    #     if file.is_file():
-    #         base_dir = os.path.dirname(os.path.abspath(__file__))
-    #         packet_data_path = os.path.join(base_dir, file)
-    #         output_dir = os.path.join(base_dir, "output")
-    #         os.makedirs(output_dir, exist_ok=True)
-
+    import logging
+    
+    # Set up logging for standalone execution
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
+    
+    data_folder = Path("data")
+    
+    if not data_folder.exists():
+        logger.warning(f"Data folder '{data_folder}' does not exist. Skipping preview generation.")
+        return
+    
+    # This functionality is currently disabled as it was used for development/testing
+    # To enable, uncomment and modify the code below:
+    
+    # base_dir = os.path.dirname(os.path.abspath(__file__))
+    # output_dir = os.path.join(base_dir, "output")
+    # os.makedirs(output_dir, exist_ok=True)
+    
+    # for file in data_folder.iterdir():
+    #     if file.is_file() and file.suffix == '.json':
     #         try:
-    #             if not os.path.exists(packet_data_path):
-    #                 print(f"Error: {packet_data_path} not found. Please run packet capture first.")
-    #                 return
-                    
-    #             packet_data = ItemDataManager.load_json(packet_data_path)
-    #             matching_db = {}  # collect original → matched names
-
+    #             packet_data = ItemDataManager.load_json(str(file))
     #             stashes = parse_stashes(packet_data)
+    #             
     #             if not stashes:
-    #                 print("No stashes found in packet data.")
-    #                 return
-
+    #                 logger.info(f"No stashes found in {file}")
+    #                 continue
+    #                 
     #             generator = StashPreviewGenerator()
-
+    #             
     #             for stash_id, items in stashes.items():
-    #                 print(f"\nProcessing stash inventoryId={stash_id} with {len(items)} items...")
+    #                 logger.info(f"Processing stash {stash_id} with {len(items)} items")
     #                 preview = generator.generate_preview(stash_id, [ItemInfo(**item) for item in items])
-    #                 outname = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
-    #                 preview.save(outname)
-    #                 print(f"Preview saved as {outname}")
-                
+    #                 output_file = os.path.join(output_dir, f"stash_preview_{stash_id}.png")
+    #                 preview.save(output_file)
+    #                 logger.info(f"Preview saved as {output_file}")
+    #                 
     #         except Exception as e:
-    #             print(f"Error generating previews: {e}")
-    #             logging.error(f"Failed to generate previews: {e}", exc_info=True)
+    #             logger.error(f"Error processing file {file}: {e}", exc_info=True)
+    
+    logger.info("Main function completed (preview generation currently disabled)")
+
 
 if __name__ == "__main__":
     main()

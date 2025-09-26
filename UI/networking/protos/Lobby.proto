@@ -245,6 +245,19 @@ message SS2C_CONTENTS_OPEN_STATUS_RES {
   int64 remainTimeSec = 4;
 }
 
+message SC2S_OUTGAME_REPORT_REQ {
+  string accountId = 1;
+  uint32 category = 2;
+  string targetAccountId = 3;
+  string targetCharacterId = 4;
+  .DC.Packet.SACCOUNT_NICKNAME targetNickname = 5;
+  uint32 reportLocation = 6;
+}
+
+message SS2C_OUTGAME_REPORT_RES {
+  uint32 result = 1;
+}
+
 message SC2S_LAST_GAME_ADVENTURE_RESULT_REQ {
 }
 
@@ -260,5 +273,6 @@ message SS2C_LAST_GAME_ADVENTURE_RESULT_RES {
   uint32 gameType = 9;
   string characterClass = 10;
   uint32 gender = 11;
+  repeated .DC.Packet.AttackInfo attackInfos = 12;
 }
 

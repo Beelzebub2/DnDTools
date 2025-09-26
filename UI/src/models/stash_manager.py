@@ -375,5 +375,11 @@ class StashManager:
             return False
 
     def _generate_previews(self, character_id):
-        # TODO ?
+        """
+        Generate visual previews for character stashes.
+        This functionality is currently disabled but may be implemented in the future
+        to provide visual representations of stash contents.
+        """
+        # Preview generation is currently not implemented
+        # This could be extended to use the StashPreviewGenerator class
         pass
