@@ -96,3 +96,209 @@ message SS2C_GATHERING_HALL_TARGET_EQUIPPED_ITEM_RES {
   .DC.Packet.SCHARACTER_GATHERING_HALL_INFO characterInfo = 3;
 }
 
+message SGATHERING_HALL_ROOM_INFO {
+  uint64 roomIndex = 1;
+  string roomName = 2;
+  uint32 gsLimit = 3;
+  uint32 accountType = 4;
+  uint32 membership = 5;
+  uint32 entranceFee = 6;
+  uint32 currentPlayerCount = 7;
+  uint32 maxPlayerCount = 8;
+  uint32 ping = 9;
+  uint32 isPrivate = 10;
+  uint32 isVoipPermitted = 11;
+  string ipAddress = 12;
+  int32 port = 13;
+}
+
+message SGATHERING_HALL_ROOM_FILTER_INFO {
+  uint32 filterType = 1;
+  uint32 filter = 2;
+}
+
+message SC2S_GATHERING_HALL_ROOM_LIST_REQ {
+  int32 currentPage = 1;
+  int32 perPage = 2;
+  int32 sortType = 3;
+  int32 sortMethod = 4;
+  repeated .DC.Packet.SGATHERING_HALL_ROOM_FILTER_INFO filterInfos = 5;
+}
+
+message SS2C_GATHERING_HALL_ROOM_LIST_RES {
+  int32 currentPage = 1;
+  int32 maxPage = 2;
+  int32 sortType = 3;
+  int32 sortMethod = 4;
+  repeated .DC.Packet.SGATHERING_HALL_ROOM_INFO roomInfos = 5;
+}
+
+message SC2S_GATHERING_HALL_ROOM_SELECT_REQ {
+  uint64 roomIndex = 1;
+}
+
+message SS2C_GATHERING_HALL_ROOM_SELECT_RES {
+  int32 result = 1;
+}
+
+message SC2S_GATHERING_HALL_ROOM_SEARCH_REQ {
+  string searchName = 1;
+  int32 perPage = 2;
+  int32 sortType = 3;
+  int32 sortMethod = 4;
+  repeated .DC.Packet.SGATHERING_HALL_ROOM_FILTER_INFO filterInfos = 5;
+}
+
+message SS2C_GATHERING_HALL_ROOM_SEARCH_RES {
+  int32 result = 1;
+}
+
+message SGATHERING_HALL_MY_HALL_INFO {
+  uint64 roomIndex = 1;
+  string hallName = 2;
+  string password = 3;
+  int32 visibilityType = 4;
+  int32 entranceFee = 5;
+  int32 gearScoreMin = 6;
+  int32 gearScoreMax = 7;
+  int32 accountType = 8;
+  uint32 isVoipPermitted = 9;
+  uint32 membership = 10;
+}
+
+message SGATHERING_HALL_MY_HALL_RENT_INFO {
+  uint64 roomIndex = 1;
+  uint64 expireMS = 2;
+}
+
+message SC2S_GATHERING_HALL_MY_HALL_LIST_REQ {
+}
+
+message SS2C_GATHERING_HALL_MY_HALL_LIST_RES {
+  repeated .DC.Packet.SGATHERING_HALL_MY_HALL_INFO myHallInfos = 1;
+  repeated .DC.Packet.SGATHERING_HALL_MY_HALL_RENT_INFO rentInfos = 2;
+}
+
+message SC2S_GATHERING_HALL_MY_HALL_RENT_REQ {
+}
+
+message SS2C_GATHERING_HALL_MY_HALL_RENT_RES {
+  int32 result = 1;
+}
+
+message SC2S_GATHERING_HALL_MY_HALL_SETTING_UPDATE_REQ {
+  .DC.Packet.SGATHERING_HALL_MY_HALL_INFO info = 1;
+}
+
+message SS2C_GATHERING_HALL_MY_HALL_SETTING_UPDATE_RES {
+  int32 result = 1;
+}
+
+message SC2S_GATHERING_HALL_MY_HALL_PLAYER_LIST_REQ {
+  uint64 roomIndex = 1;
+}
+
+message SS2C_GATHERING_HALL_MY_HALL_PLAYER_LIST_RES {
+  repeated .DC.Packet.SCHARACTER_GATHERING_HALL_INFO infos = 1;
+}
+
+message SC2S_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_REQ {
+  uint64 roomIndex = 1;
+}
+
+message SS2C_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_RES {
+  repeated .DC.Packet.SCHARACTER_GATHERING_HALL_INFO infos = 1;
+}
+
+message SC2S_GATHERING_HALL_MY_HALL_BANNED_LIST_REQ {
+  uint64 roomIndex = 1;
+}
+
+message SS2C_GATHERING_HALL_MY_HALL_BANNED_LIST_RES {
+  repeated .DC.Packet.SCHARACTER_GATHERING_HALL_BANNED_INFO infos = 1;
+}
+
+message SC2S_GATHERING_HALL_MY_HALL_USER_ACTION_REQ {
+  uint64 roomIndex = 1;
+  int32 userAction = 2;
+}
+
+message SS2C_GATHERING_HALL_MY_HALL_USER_ACTION_RES {
+  int32 result = 1;
+}
+
+message SS2C_GATHERING_HALL_ENTER_NOT {
+  string ip = 1;
+  int32 port = 2;
+  string tempSessionId = 3;
+  string serviceUrl = 4;
+}
+
+enum GATHERING_HALL_ROOM_FILTER_TYPE {
+  FILTER_TYPE_NONE = 0;
+  FT_FAVORITES = 1;
+  FT_PUBLIC = 2;
+  FT_PRIVATE = 3;
+  FT_GS_LIMITS = 4;
+  FT_LEGENDARY = 5;
+  FT_FRIEND = 6;
+  FT_GUILD = 7;
+  FT_FRIEND_AND_GUILD = 8;
+  FT_NO_FEE = 9;
+  FT_FEE = 10;
+  FT_AVAILABLE_SLOT_ONLY = 11;
+}
+
+enum GATHERING_HALL_ROOM_FILTER {
+  ROOM_FILTER_NONE = 0;
+  FILTER_CHECK = 1;
+  FILTER_UNCHECK = 2;
+}
+
+enum GATHERING_HALL_ROOM_ACCOUNT_TYPE {
+  ROOM_ACCOUNT_TYPE = 0;
+  AT_ALL = 1;
+  AT_LEGENDARY = 2;
+}
+
+enum GATHERING_HALL_ROOM_MEMBERSHIP {
+  ROOM_MEMBERSHIP_NONE = 0;
+  M_ALL = 1;
+  M_FRIEND = 2;
+  M_GUILD = 3;
+  M_FRIEND_AND_GUILD = 4;
+}
+
+enum GATHERING_HALL_ROOM_SORT_TYPE {
+  ROOM_SORT_TYPE_NONE = 0;
+  GS_ASCENDING = 1;
+  GS_DESCENDING = 2;
+}
+
+enum GATHERING_HALL_ROOM_METHOD {
+  ROOM_METHOD_NONE = 0;
+  RM_PING = 1;
+  RM_GEAR_SCORE = 2;
+  RM_ACCOUNT_TYPE = 3;
+  RM_MEMBERSHIP = 4;
+  RM_ENTRANCE_FEE = 5;
+  RM_PLAYERS = 6;
+}
+
+enum GATHERING_HALL_ROOM_USER_ACTION {
+  ROOM_USER_ACTION_NONE = 0;
+  UA_PROMOTE_TO_HALL_MASTER = 1;
+  UA_REVOKE_HALL_MASTER = 2;
+  UA_HALL_KICK = 3;
+  UA_HALL_BAN = 4;
+  UA_HALL_UNBAN = 5;
+  UA_HALL_MUTE = 6;
+  UA_HALL_UNMUTE = 7;
+}
+
+enum GATHERING_HALL_MY_HALL_LIST_VISIBILITY_TYPE {
+  VISIBILITY_TYPE_NONE = 0;
+  VT_PUBLIC = 1;
+  VT_HIDDEN = 2;
+}
+

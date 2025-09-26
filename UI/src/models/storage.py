@@ -56,9 +56,15 @@ class Storage:
         self.load()
     
     def get_items(self):
-        # TODO
-        # need to identify unique items in grid then covert position to slotID and other necessary fields
-        # or we just recapture the stash packet
+        """
+        Get items from the storage grid.
+        Note: This method needs to be implemented to identify unique items in the grid
+        and convert position to slotID and other necessary fields.
+        For now, recapturing the stash packet is recommended.
+        """
+        # Implementation needed: identify unique items in grid then convert 
+        # position to slotID and other necessary fields
+        # Alternative: recapture the stash packet
         return []
 
     def move(self, item, end_pos, end_stash):

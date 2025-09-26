@@ -986,7 +986,7 @@ window.updateCharacterData = async () => {
 };
 
 // Character capture animation function (placeholder for character page)
-window.showCharacterCaptureAnimation = function(characterClass, characterNickname) {
+window.showCharacterCaptureAnimation = function (characterClass, characterNickname) {
     console.log(`Character captured: ${characterNickname} (${characterClass})`);
     // On character page, just log - the main animation happens on record page
 };
@@ -1036,6 +1036,8 @@ window.addEventListener('DOMContentLoaded', async () => {
 const priceCache = {};
 const priceFetchPromises = {}; // Track ongoing fetch promises
 const PRICE_CACHE_EXPIRY = 600000; // 10 minutes in milliseconds
+const MAX_CONCURRENT_REQUESTS = 3; // Limit concurrent requests
+let activeRequests = 0;
 
 async function getMostRecentPrice(item) {
     const itemId = item.itemId;
@@ -1053,28 +1055,42 @@ async function getMostRecentPrice(item) {
         return priceFetchPromises[itemId];
     }
 
+    // Limit concurrent requests
+    if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+        console.log(`Too many concurrent requests, queuing ${itemId}`);
+        // Wait for a slot to become available
+        while (activeRequests >= MAX_CONCURRENT_REQUESTS) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+    }
+
     // No valid cache entry, use our Flask proxy endpoint
     const apiUrl = `/api/market/price/${itemId}`;
 
     try {
         // Store the promise in our tracking object so we can reuse it for concurrent requests
         priceFetchPromises[itemId] = (async () => {
-            const response = await fetch(apiUrl);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+            activeRequests++;
+            try {
+                const response = await fetch(apiUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
 
-            const data = await response.json();
+                const data = await response.json();
 
-            // Cache the result with timestamp
-            if (data && data.success) {
-                priceCache[itemId] = {
-                    timestamp: now,
-                    data: data
-                };
-                return data; // Return the entire data object
-            } else {
-                return "No Info";
+                // Cache the result with timestamp
+                if (data && data.success) {
+                    priceCache[itemId] = {
+                        timestamp: now,
+                        data: data
+                    };
+                    return data; // Return the entire data object
+                } else {
+                    return "No Info";
+                }
+            } finally {
+                activeRequests--;
             }
         })();
 
@@ -1090,6 +1106,7 @@ async function getMostRecentPrice(item) {
 
         // Clear the failed promise
         delete priceFetchPromises[itemId];
+        activeRequests = Math.max(0, activeRequests - 1);
 
         return "Error";
     }
@@ -1391,12 +1408,34 @@ const renderCombinedCharacterView = async (stashes) => {
             // Apply background color based on rarity with subtle transparency
             itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
 
-            // If we have an image path, use it, otherwise show text
+            // If we have an image path, use lazy loading, otherwise show text
             if (item.imagePath) {
                 const img = document.createElement('img');
                 img.src = item.imagePath;
                 img.alt = item.name || 'Item';
                 img.className = 'item-image';
+                img.loading = 'lazy'; // Enable native lazy loading
+                // Add error handling for missing images
+                img.onerror = function () {
+                    this.style.display = 'none';
+                    // Create a fallback text element
+                    const fallback = document.createElement('div');
+                    fallback.className = 'item-fallback';
+                    fallback.textContent = (item.name || 'Unknown').charAt(0).toUpperCase();
+                    fallback.style.cssText = `
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        background: ${rarityColor}20;
+                        color: ${rarityColor};
+                        font-weight: bold;
+                        font-size: 12px;
+                        border-radius: 2px;
+                    `;
+                    itemEl.appendChild(fallback);
+                };
                 itemEl.appendChild(img);
             } else {
                 // No image, just display the name

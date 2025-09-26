@@ -23,6 +23,12 @@ message SRANKING_REWARD_INFO {
   int32 rewardState = 2;
 }
 
+message SRANKING_PERIOD_INFO {
+  string sheetId = 1;
+  uint32 periodIndex = 2;
+  uint64 remainTimeSec = 3;
+}
+
 message SRANKING_INFO {
   enum STATE {
     NONE = 0;
@@ -41,6 +47,8 @@ message SRANKING_INFO {
   string rewardTime = 10;
   repeated .DC.Packet.SRankUserInfo rankInfo = 11;
   repeated .DC.Packet.SRANKING_REWARD_INFO rewardInfos = 12;
+  repeated .DC.Packet.SRANKING_PERIOD_INFO periodInfos = 13;
+  repeated string dungeonIdTags = 14;
 }
 
 message SS2C_RANKING_INFO_RES {
@@ -64,9 +72,10 @@ message SC2S_RANKING_RANGE_REQ {
   string seasonId = 1;
   string sheetId = 2;
   string contentId = 3;
-  uint32 startIndex = 4;
-  uint32 endIndex = 5;
-  string characterClass = 6;
+  uint32 periodIndex = 4;
+  uint32 startIndex = 5;
+  uint32 endIndex = 6;
+  string characterClass = 7;
 }
 
 message SS2C_RANKING_RANGE_RES {
@@ -75,18 +84,20 @@ message SS2C_RANKING_RANGE_RES {
   repeated .DC.Packet.SRankRecord records = 3;
   string sheetId = 4;
   string contentId = 5;
-  uint32 allRowCount = 6;
-  uint32 startIndex = 7;
-  uint32 endIndex = 8;
-  string characterClass = 9;
+  uint32 periodIndex = 6;
+  uint32 allRowCount = 7;
+  uint32 startIndex = 8;
+  uint32 endIndex = 9;
+  string characterClass = 10;
 }
 
 message SC2S_RANKING_CHARACTER_REQ {
   string seasonId = 1;
   string sheetId = 2;
   string contentId = 3;
-  .DC.Packet.SACCOUNT_NICKNAME nickName = 4;
-  string characterClass = 5;
+  uint32 periodIndex = 4;
+  .DC.Packet.SACCOUNT_NICKNAME nickName = 5;
+  string characterClass = 6;
 }
 
 message SC2S_RANKING_REWARD_GET_REQ {
@@ -104,20 +115,22 @@ message SS2C_RANKING_CHARACTER_RES {
   .DC.Packet.SRankRecord rankRecord = 3;
   string sheetId = 4;
   string contentId = 5;
-  uint32 allRowCount = 6;
-  string characterClass = 7;
-  uint32 playGameCount = 8;
-  uint32 placementGameCount = 9;
-  uint32 mmrRating = 10;
+  uint32 periodIndex = 6;
+  uint32 allRowCount = 7;
+  string characterClass = 8;
+  uint32 playGameCount = 9;
+  uint32 placementGameCount = 10;
+  uint32 mmrRating = 11;
 }
 
 message SC2S_RANKING_AP_CONFIG_REQ {
-  int32 gameType = 1;
-  string dungeonTagId = 2;
+  string seasonId = 1;
+  string sheetId = 2;
+  string dungeonIdTag = 3;
 }
 
 message SRANKING_AP_CONFIG_RECORD {
-  string rankAPId = 1;
+  string rankId = 1;
   int32 requiredTotalAP = 2;
   int32 requiredTopRank = 3;
 }
@@ -127,15 +140,12 @@ message SRANKING_EF_CONFIG_RECORD {
   int32 entranceFee = 2;
 }
 
-message SRANKING_CONFIG_INFO {
-  int32 gameType = 1;
-  string dungeonIdTag = 2;
-  repeated .DC.Packet.SRANKING_AP_CONFIG_RECORD apRecords = 3;
-  repeated .DC.Packet.SRANKING_EF_CONFIG_RECORD efRecords = 4;
-}
-
 message SS2C_RANKING_AP_CONFIG_RES {
-  repeated .DC.Packet.SRANKING_CONFIG_INFO configInfos = 1;
+  string seasonId = 1;
+  string sheetId = 2;
+  string dungeonIdTag = 3;
+  repeated .DC.Packet.SRANKING_AP_CONFIG_RECORD apRecords = 4;
+  repeated .DC.Packet.SRANKING_EF_CONFIG_RECORD efRecords = 5;
 }
 
 message SS2C_RANKING_HAS_REWARD_NOT {
@@ -154,6 +164,9 @@ enum RANKING_TYPE {
   Slayer_CaveTroll = 8;
   Slayer_BossAll = 9;
   Arena = 10;
+  Slayer_CaveDweller = 11;
+  Slayer_GhostHunter = 12;
+  Slayer_WyvernSlayer = 13;
 }
 
 enum CONTENT_TYPE {

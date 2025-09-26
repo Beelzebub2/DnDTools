@@ -223,3 +223,45 @@ message SS2C_PING_REGION_SELECT_NOT {
   uint32 region = 2;
 }
 
+message SS2C_TRUSTED_ACCOUNT_INFO_NOT {
+  uint32 result = 1;
+  string enforcerRatingId = 2;
+  int32 guiltyReportCount = 3;
+  int32 judgedReportCount = 4;
+  uint64 outlawReleaseTimeMs = 5;
+  string badgeId = 6;
+}
+
+message SC2S_TRUSTED_ACCOUNT_INFO_REQ {
+}
+
+message SS2C_TRUSTED_ACCOUNT_INFO_RES {
+  uint32 result = 1;
+  string enforcerRatingId = 2;
+  int32 guiltyReportCount = 3;
+  int32 judgedReportCount = 4;
+  uint64 outlawReleaseTimeMs = 5;
+  string badgeId = 6;
+}
+
+message SC2S_NEWS_ENDPOINT_REQ {
+}
+
+message SS2C_NEWS_ENDPOINT_RES {
+  uint32 result = 1;
+  string allUrl = 2;
+  string recentUrl = 3;
+  string articleUrl = 4;
+}
+
+message SS2C_NEWS_NEW_ARTICLE_NOT {
+}
+
+message SC2S_NEWS_READ_ARTICLE_REQ {
+  uint64 latestArticleId = 1;
+}
+
+message SS2C_NEWS_READ_ARTICLE_RES {
+  uint32 result = 1;
+}
+

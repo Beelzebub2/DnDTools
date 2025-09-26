@@ -312,6 +312,7 @@ message SDUNGEON_GEAR_POOL_INFO {
 message SOPEN_DUNGEON_POOL_INFO {
   uint32 gearPoolIndex = 1;
   uint32 maxIncludingRarity = 2;
+  uint32 isLegendaryStatusOnly = 3;
 }
 
 message SOPEN_DUNGEON_INFO {
@@ -319,6 +320,7 @@ message SOPEN_DUNGEON_INFO {
   uint32 gameType = 2;
   repeated .DC.Packet.SDUNGEON_GEAR_POOL_INFO gearPoolInfos = 3;
   repeated .DC.Packet.SOPEN_DUNGEON_POOL_INFO dungeonPoolInfos = 4;
+  string dungeonIdTag = 5;
 }
 
 message SS2C_OPEN_DUNGEON_INFO_NOT {
@@ -331,6 +333,23 @@ message GameExitAdvPoint {
   int32 advCount = 3;
 }
 
+message AttackInfo {
+  string dungeon = 1;
+  string accountId = 2;
+  string characterClass = 3;
+  uint32 gender = 4;
+  repeated string equipItems = 5;
+  string characterSkin = 6;
+  repeated string itemSkins = 7;
+  repeated string armorSkins = 8;
+  uint32 hotBox = 9;
+  uint32 isKill = 10;
+  string partyId = 11;
+  .DC.Packet.SACCOUNT_NICKNAME nickname = 12;
+  string reason = 13;
+  uint64 worldTime = 14;
+}
+
 message SRankGameUserInfo {
   string rankId = 1;
   uint32 currentPoint = 2;
@@ -341,5 +360,8 @@ message SRankGameUserInfo {
 message SACCOUNT_DLC_INSTALL_INFO {
   uint32 dlcType = 1;
   uint64 dlcPurchasedElapsedTimeMs = 2;
+}
+
+message SS2C_REPORT_TARGET_NOT {
 }
 

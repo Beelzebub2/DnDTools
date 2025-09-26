@@ -34,6 +34,11 @@ message SMERCHANT_QUEST_CONTENT_INFO {
   int32 contentCurrentValue = 2;
 }
 
+message SMERCHANT_QUEST_CHAPTER_INFO {
+  string chapterId = 1;
+  uint64 remainMSTime = 2;
+}
+
 message SMERCHANT_QUEST_INFO {
   enum FLAG {
     NONE = 0;
@@ -50,6 +55,9 @@ message SMERCHANT_QUEST_INFO {
   int32 questFlag = 4;
   int32 alreadyGetAffinity = 5;
   repeated .DC.Packet.SMERCHANT_QUEST_CONTENT_INFO missions = 6;
+}
+
+message SS2C_MERCHANT_QUEST_REPEAT_NOT {
 }
 
 message SC2S_MERCHANT_LIST_REQ {
@@ -181,6 +189,7 @@ message SC2S_MERCHANT_QUEST_LIST_INFO_REQ {
 message SS2C_MERCHANT_QUEST_LIST_INFO_RES {
   uint32 result = 1;
   repeated .DC.Packet.SMERCHANT_QUEST_INFO quests = 2;
+  repeated .DC.Packet.SMERCHANT_QUEST_CHAPTER_INFO chapters = 3;
 }
 
 message SC2S_MERCHANT_QUEST_SELECT_REQ {
@@ -319,6 +328,7 @@ message SS2C_MERCHANT_RECOVERY_BUY_RES {
 message SMERCHANT_QUEST_LOG_INFO {
   string merchantId = 1;
   repeated .DC.Packet.SMERCHANT_QUEST_INFO quests = 2;
+  repeated .DC.Packet.SMERCHANT_QUEST_CHAPTER_INFO chapters = 3;
 }
 
 message SC2S_MERCHANT_QUEST_LOG_LIST_REQ {

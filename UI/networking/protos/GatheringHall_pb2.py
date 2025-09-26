@@ -27,7 +27,7 @@ import _Character_pb2 as __Character__pb2
 import _Chat_pb2 as __Chat__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13GatheringHall.proto\x12\tDC.Packet\x1a\x0b_Item.proto\x1a\x10_Character.proto\x1a\x0b_Chat.proto\"k\n\x17SGATHERING_HALL_CHANNEL\x12\x14\n\x0c\x63hannelIndex\x18\x01 \x01(\r\x12\x11\n\tchannelId\x18\x02 \x01(\t\x12\x13\n\x0bmemberCount\x18\x03 \x01(\r\x12\x12\n\ngroupIndex\x18\x04 \x01(\r\"\x88\x01\n\x18SGATHERING_HALL_CHAT_C2S\x12\x10\n\x08\x63hatType\x18\x01 \x01(\r\x12\x17\n\x0ftargetAccountId\x18\x02 \x01(\t\x12\x19\n\x11targetCharacterId\x18\x03 \x01(\t\x12&\n\x08\x63hatData\x18\x04 \x01(\x0b\x32\x14.DC.Packet.SCHATDATA\"u\n\x18SGATHERING_HALL_CHAT_S2C\x12\x11\n\tchatIndex\x18\x01 \x01(\x04\x12\x10\n\x08\x63hatType\x18\x02 \x01(\r\x12\x0c\n\x04time\x18\x03 \x01(\x04\x12&\n\x08\x63hatData\x18\x04 \x01(\x0b\x32\x14.DC.Packet.SCHATDATA\"o\n SGATHERING_HALL_USER_UPDATE_INFO\x12\x12\n\nupdateFlag\x18\x01 \x01(\r\x12\x37\n\x04info\x18\x02 \x01(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFO\"&\n$SC2S_GATHERING_HALL_CHANNEL_LIST_REQ\"\\\n$SS2C_GATHERING_HALL_CHANNEL_LIST_RES\x12\x34\n\x08\x63hannels\x18\x01 \x03(\x0b\x32\".DC.Packet.SGATHERING_HALL_CHANNEL\">\n&SC2S_GATHERING_HALL_CHANNEL_SELECT_REQ\x12\x14\n\x0c\x63hannelIndex\x18\x01 \x01(\r\"8\n&SS2C_GATHERING_HALL_CHANNEL_SELECT_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\"&\n$SC2S_GATHERING_HALL_CHANNEL_EXIT_REQ\"6\n$SS2C_GATHERING_HALL_CHANNEL_EXIT_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\"+\n)SC2S_GATHERING_HALL_CHANNEL_USER_LIST_REQ\"|\n)SS2C_GATHERING_HALL_CHANNEL_USER_LIST_RES\x12\x10\n\x08loopFlag\x18\x01 \x01(\r\x12=\n\ncharacters\x18\x02 \x03(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFO\"k\n+SS2C_GATHERING_HALL_CHANNEL_USER_UPDATE_NOT\x12<\n\x07updates\x18\x01 \x03(\x0b\x32+.DC.Packet.SGATHERING_HALL_USER_UPDATE_INFO\"Y\n$SC2S_GATHERING_HALL_CHANNEL_CHAT_REQ\x12\x31\n\x04\x63hat\x18\x01 \x01(\x0b\x32#.DC.Packet.SGATHERING_HALL_CHAT_C2S\"\x82\x01\n$SS2C_GATHERING_HALL_CHANNEL_CHAT_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\x12\x32\n\x05\x63hats\x18\x02 \x03(\x0b\x32#.DC.Packet.SGATHERING_HALL_CHAT_S2C\x12\x16\n\x0e\x62\x61nDurationMin\x18\x03 \x01(\x05\"Z\n$SS2C_GATHERING_HALL_CHANNEL_CHAT_NOT\x12\x32\n\x05\x63hats\x18\x01 \x03(\x0b\x32#.DC.Packet.SGATHERING_HALL_CHAT_S2C\"l\n,SC2S_GATHERING_HALL_TARGET_EQUIPPED_ITEM_REQ\x12\x14\n\x0c\x63hannelIndex\x18\x01 \x01(\r\x12\x11\n\taccountId\x18\x02 \x01(\t\x12\x13\n\x0b\x63haracterId\x18\x03 \x01(\t\"\xa9\x01\n,SS2C_GATHERING_HALL_TARGET_EQUIPPED_ITEM_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\x12\'\n\requippedItems\x18\x02 \x03(\x0b\x32\x10.DC.Packet.SItem\x12@\n\rcharacterInfo\x18\x03 \x01(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFOB.\n\x1a\x63om.packets.gathering_hallB\x0egathering_hallP\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13GatheringHall.proto\x12\tDC.Packet\x1a\x0b_Item.proto\x1a\x10_Character.proto\x1a\x0b_Chat.proto\"k\n\x17SGATHERING_HALL_CHANNEL\x12\x14\n\x0c\x63hannelIndex\x18\x01 \x01(\r\x12\x11\n\tchannelId\x18\x02 \x01(\t\x12\x13\n\x0bmemberCount\x18\x03 \x01(\r\x12\x12\n\ngroupIndex\x18\x04 \x01(\r\"\x88\x01\n\x18SGATHERING_HALL_CHAT_C2S\x12\x10\n\x08\x63hatType\x18\x01 \x01(\r\x12\x17\n\x0ftargetAccountId\x18\x02 \x01(\t\x12\x19\n\x11targetCharacterId\x18\x03 \x01(\t\x12&\n\x08\x63hatData\x18\x04 \x01(\x0b\x32\x14.DC.Packet.SCHATDATA\"u\n\x18SGATHERING_HALL_CHAT_S2C\x12\x11\n\tchatIndex\x18\x01 \x01(\x04\x12\x10\n\x08\x63hatType\x18\x02 \x01(\r\x12\x0c\n\x04time\x18\x03 \x01(\x04\x12&\n\x08\x63hatData\x18\x04 \x01(\x0b\x32\x14.DC.Packet.SCHATDATA\"o\n SGATHERING_HALL_USER_UPDATE_INFO\x12\x12\n\nupdateFlag\x18\x01 \x01(\r\x12\x37\n\x04info\x18\x02 \x01(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFO\"&\n$SC2S_GATHERING_HALL_CHANNEL_LIST_REQ\"\\\n$SS2C_GATHERING_HALL_CHANNEL_LIST_RES\x12\x34\n\x08\x63hannels\x18\x01 \x03(\x0b\x32\".DC.Packet.SGATHERING_HALL_CHANNEL\">\n&SC2S_GATHERING_HALL_CHANNEL_SELECT_REQ\x12\x14\n\x0c\x63hannelIndex\x18\x01 \x01(\r\"8\n&SS2C_GATHERING_HALL_CHANNEL_SELECT_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\"&\n$SC2S_GATHERING_HALL_CHANNEL_EXIT_REQ\"6\n$SS2C_GATHERING_HALL_CHANNEL_EXIT_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\"+\n)SC2S_GATHERING_HALL_CHANNEL_USER_LIST_REQ\"|\n)SS2C_GATHERING_HALL_CHANNEL_USER_LIST_RES\x12\x10\n\x08loopFlag\x18\x01 \x01(\r\x12=\n\ncharacters\x18\x02 \x03(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFO\"k\n+SS2C_GATHERING_HALL_CHANNEL_USER_UPDATE_NOT\x12<\n\x07updates\x18\x01 \x03(\x0b\x32+.DC.Packet.SGATHERING_HALL_USER_UPDATE_INFO\"Y\n$SC2S_GATHERING_HALL_CHANNEL_CHAT_REQ\x12\x31\n\x04\x63hat\x18\x01 \x01(\x0b\x32#.DC.Packet.SGATHERING_HALL_CHAT_C2S\"\x82\x01\n$SS2C_GATHERING_HALL_CHANNEL_CHAT_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\x12\x32\n\x05\x63hats\x18\x02 \x03(\x0b\x32#.DC.Packet.SGATHERING_HALL_CHAT_S2C\x12\x16\n\x0e\x62\x61nDurationMin\x18\x03 \x01(\x05\"Z\n$SS2C_GATHERING_HALL_CHANNEL_CHAT_NOT\x12\x32\n\x05\x63hats\x18\x01 \x03(\x0b\x32#.DC.Packet.SGATHERING_HALL_CHAT_S2C\"l\n,SC2S_GATHERING_HALL_TARGET_EQUIPPED_ITEM_REQ\x12\x14\n\x0c\x63hannelIndex\x18\x01 \x01(\r\x12\x11\n\taccountId\x18\x02 \x01(\t\x12\x13\n\x0b\x63haracterId\x18\x03 \x01(\t\"\xa9\x01\n,SS2C_GATHERING_HALL_TARGET_EQUIPPED_ITEM_RES\x12\x0e\n\x06result\x18\x01 \x01(\r\x12\'\n\requippedItems\x18\x02 \x03(\x0b\x32\x10.DC.Packet.SItem\x12@\n\rcharacterInfo\x18\x03 \x01(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFO\"\x9e\x02\n\x19SGATHERING_HALL_ROOM_INFO\x12\x11\n\troomIndex\x18\x01 \x01(\x04\x12\x10\n\x08roomName\x18\x02 \x01(\t\x12\x0f\n\x07gsLimit\x18\x03 \x01(\r\x12\x13\n\x0b\x61\x63\x63ountType\x18\x04 \x01(\r\x12\x12\n\nmembership\x18\x05 \x01(\r\x12\x13\n\x0b\x65ntranceFee\x18\x06 \x01(\r\x12\x1a\n\x12\x63urrentPlayerCount\x18\x07 \x01(\r\x12\x16\n\x0emaxPlayerCount\x18\x08 \x01(\r\x12\x0c\n\x04ping\x18\t \x01(\r\x12\x11\n\tisPrivate\x18\n \x01(\r\x12\x17\n\x0fisVoipPermitted\x18\x0b \x01(\r\x12\x11\n\tipAddress\x18\x0c \x01(\t\x12\x0c\n\x04port\x18\r \x01(\x05\"F\n SGATHERING_HALL_ROOM_FILTER_INFO\x12\x12\n\nfilterType\x18\x01 \x01(\r\x12\x0e\n\x06\x66ilter\x18\x02 \x01(\r\"\xb1\x01\n!SC2S_GATHERING_HALL_ROOM_LIST_REQ\x12\x13\n\x0b\x63urrentPage\x18\x01 \x01(\x05\x12\x0f\n\x07perPage\x18\x02 \x01(\x05\x12\x10\n\x08sortType\x18\x03 \x01(\x05\x12\x12\n\nsortMethod\x18\x04 \x01(\x05\x12@\n\x0b\x66ilterInfos\x18\x05 \x03(\x0b\x32+.DC.Packet.SGATHERING_HALL_ROOM_FILTER_INFO\"\xa8\x01\n!SS2C_GATHERING_HALL_ROOM_LIST_RES\x12\x13\n\x0b\x63urrentPage\x18\x01 \x01(\x05\x12\x0f\n\x07maxPage\x18\x02 \x01(\x05\x12\x10\n\x08sortType\x18\x03 \x01(\x05\x12\x12\n\nsortMethod\x18\x04 \x01(\x05\x12\x37\n\troomInfos\x18\x05 \x03(\x0b\x32$.DC.Packet.SGATHERING_HALL_ROOM_INFO\"8\n#SC2S_GATHERING_HALL_ROOM_SELECT_REQ\x12\x11\n\troomIndex\x18\x01 \x01(\x04\"5\n#SS2C_GATHERING_HALL_ROOM_SELECT_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\"\xb2\x01\n#SC2S_GATHERING_HALL_ROOM_SEARCH_REQ\x12\x12\n\nsearchName\x18\x01 \x01(\t\x12\x0f\n\x07perPage\x18\x02 \x01(\x05\x12\x10\n\x08sortType\x18\x03 \x01(\x05\x12\x12\n\nsortMethod\x18\x04 \x01(\x05\x12@\n\x0b\x66ilterInfos\x18\x05 \x03(\x0b\x32+.DC.Packet.SGATHERING_HALL_ROOM_FILTER_INFO\"5\n#SS2C_GATHERING_HALL_ROOM_SEARCH_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\"\xf0\x01\n\x1cSGATHERING_HALL_MY_HALL_INFO\x12\x11\n\troomIndex\x18\x01 \x01(\x04\x12\x10\n\x08hallName\x18\x02 \x01(\t\x12\x10\n\x08password\x18\x03 \x01(\t\x12\x16\n\x0evisibilityType\x18\x04 \x01(\x05\x12\x13\n\x0b\x65ntranceFee\x18\x05 \x01(\x05\x12\x14\n\x0cgearScoreMin\x18\x06 \x01(\x05\x12\x14\n\x0cgearScoreMax\x18\x07 \x01(\x05\x12\x13\n\x0b\x61\x63\x63ountType\x18\x08 \x01(\x05\x12\x17\n\x0fisVoipPermitted\x18\t \x01(\r\x12\x12\n\nmembership\x18\n \x01(\r\"H\n!SGATHERING_HALL_MY_HALL_RENT_INFO\x12\x11\n\troomIndex\x18\x01 \x01(\x04\x12\x10\n\x08\x65xpireMS\x18\x02 \x01(\x04\"&\n$SC2S_GATHERING_HALL_MY_HALL_LIST_REQ\"\xa5\x01\n$SS2C_GATHERING_HALL_MY_HALL_LIST_RES\x12<\n\x0bmyHallInfos\x18\x01 \x03(\x0b\x32\'.DC.Packet.SGATHERING_HALL_MY_HALL_INFO\x12?\n\trentInfos\x18\x02 \x03(\x0b\x32,.DC.Packet.SGATHERING_HALL_MY_HALL_RENT_INFO\"&\n$SC2S_GATHERING_HALL_MY_HALL_RENT_REQ\"6\n$SS2C_GATHERING_HALL_MY_HALL_RENT_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\"g\n.SC2S_GATHERING_HALL_MY_HALL_SETTING_UPDATE_REQ\x12\x35\n\x04info\x18\x01 \x01(\x0b\x32\'.DC.Packet.SGATHERING_HALL_MY_HALL_INFO\"@\n.SS2C_GATHERING_HALL_MY_HALL_SETTING_UPDATE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\"@\n+SC2S_GATHERING_HALL_MY_HALL_PLAYER_LIST_REQ\x12\x11\n\troomIndex\x18\x01 \x01(\x04\"g\n+SS2C_GATHERING_HALL_MY_HALL_PLAYER_LIST_RES\x12\x38\n\x05infos\x18\x01 \x03(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFO\"E\n0SC2S_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_REQ\x12\x11\n\troomIndex\x18\x01 \x01(\x04\"l\n0SS2C_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_RES\x12\x38\n\x05infos\x18\x01 \x03(\x0b\x32).DC.Packet.SCHARACTER_GATHERING_HALL_INFO\"@\n+SC2S_GATHERING_HALL_MY_HALL_BANNED_LIST_REQ\x12\x11\n\troomIndex\x18\x01 \x01(\x04\"n\n+SS2C_GATHERING_HALL_MY_HALL_BANNED_LIST_RES\x12?\n\x05infos\x18\x01 \x03(\x0b\x32\x30.DC.Packet.SCHARACTER_GATHERING_HALL_BANNED_INFO\"T\n+SC2S_GATHERING_HALL_MY_HALL_USER_ACTION_REQ\x12\x11\n\troomIndex\x18\x01 \x01(\x04\x12\x12\n\nuserAction\x18\x02 \x01(\x05\"=\n+SS2C_GATHERING_HALL_MY_HALL_USER_ACTION_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\"d\n\x1dSS2C_GATHERING_HALL_ENTER_NOT\x12\n\n\x02ip\x18\x01 \x01(\t\x12\x0c\n\x04port\x18\x02 \x01(\x05\x12\x15\n\rtempSessionId\x18\x03 \x01(\t\x12\x12\n\nserviceUrl\x18\x04 \x01(\t*\xf9\x01\n\x1fGATHERING_HALL_ROOM_FILTER_TYPE\x12\x14\n\x10\x46ILTER_TYPE_NONE\x10\x00\x12\x10\n\x0c\x46T_FAVORITES\x10\x01\x12\r\n\tFT_PUBLIC\x10\x02\x12\x0e\n\nFT_PRIVATE\x10\x03\x12\x10\n\x0c\x46T_GS_LIMITS\x10\x04\x12\x10\n\x0c\x46T_LEGENDARY\x10\x05\x12\r\n\tFT_FRIEND\x10\x06\x12\x0c\n\x08\x46T_GUILD\x10\x07\x12\x17\n\x13\x46T_FRIEND_AND_GUILD\x10\x08\x12\r\n\tFT_NO_FEE\x10\t\x12\n\n\x06\x46T_FEE\x10\n\x12\x1a\n\x16\x46T_AVAILABLE_SLOT_ONLY\x10\x0b*X\n\x1aGATHERING_HALL_ROOM_FILTER\x12\x14\n\x10ROOM_FILTER_NONE\x10\x00\x12\x10\n\x0c\x46ILTER_CHECK\x10\x01\x12\x12\n\x0e\x46ILTER_UNCHECK\x10\x02*W\n GATHERING_HALL_ROOM_ACCOUNT_TYPE\x12\x15\n\x11ROOM_ACCOUNT_TYPE\x10\x00\x12\n\n\x06\x41T_ALL\x10\x01\x12\x10\n\x0c\x41T_LEGENDARY\x10\x02*x\n\x1eGATHERING_HALL_ROOM_MEMBERSHIP\x12\x18\n\x14ROOM_MEMBERSHIP_NONE\x10\x00\x12\t\n\x05M_ALL\x10\x01\x12\x0c\n\x08M_FRIEND\x10\x02\x12\x0b\n\x07M_GUILD\x10\x03\x12\x16\n\x12M_FRIEND_AND_GUILD\x10\x04*]\n\x1dGATHERING_HALL_ROOM_SORT_TYPE\x12\x17\n\x13ROOM_SORT_TYPE_NONE\x10\x00\x12\x10\n\x0cGS_ASCENDING\x10\x01\x12\x11\n\rGS_DESCENDING\x10\x02*\x9f\x01\n\x1aGATHERING_HALL_ROOM_METHOD\x12\x14\n\x10ROOM_METHOD_NONE\x10\x00\x12\x0b\n\x07RM_PING\x10\x01\x12\x11\n\rRM_GEAR_SCORE\x10\x02\x12\x13\n\x0fRM_ACCOUNT_TYPE\x10\x03\x12\x11\n\rRM_MEMBERSHIP\x10\x04\x12\x13\n\x0fRM_ENTRANCE_FEE\x10\x05\x12\x0e\n\nRM_PLAYERS\x10\x06*\xd2\x01\n\x1fGATHERING_HALL_ROOM_USER_ACTION\x12\x19\n\x15ROOM_USER_ACTION_NONE\x10\x00\x12\x1d\n\x19UA_PROMOTE_TO_HALL_MASTER\x10\x01\x12\x19\n\x15UA_REVOKE_HALL_MASTER\x10\x02\x12\x10\n\x0cUA_HALL_KICK\x10\x03\x12\x0f\n\x0bUA_HALL_BAN\x10\x04\x12\x11\n\rUA_HALL_UNBAN\x10\x05\x12\x10\n\x0cUA_HALL_MUTE\x10\x06\x12\x12\n\x0eUA_HALL_UNMUTE\x10\x07*e\n+GATHERING_HALL_MY_HALL_LIST_VISIBILITY_TYPE\x12\x18\n\x14VISIBILITY_TYPE_NONE\x10\x00\x12\r\n\tVT_PUBLIC\x10\x01\x12\r\n\tVT_HIDDEN\x10\x02\x42.\n\x1a\x63om.packets.gathering_hallB\x0egathering_hallP\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,6 +35,22 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'GatheringHall_pb2', _global
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\032com.packets.gathering_hallB\016gathering_hallP\000'
+  _globals['_GATHERING_HALL_ROOM_FILTER_TYPE']._serialized_start=4423
+  _globals['_GATHERING_HALL_ROOM_FILTER_TYPE']._serialized_end=4672
+  _globals['_GATHERING_HALL_ROOM_FILTER']._serialized_start=4674
+  _globals['_GATHERING_HALL_ROOM_FILTER']._serialized_end=4762
+  _globals['_GATHERING_HALL_ROOM_ACCOUNT_TYPE']._serialized_start=4764
+  _globals['_GATHERING_HALL_ROOM_ACCOUNT_TYPE']._serialized_end=4851
+  _globals['_GATHERING_HALL_ROOM_MEMBERSHIP']._serialized_start=4853
+  _globals['_GATHERING_HALL_ROOM_MEMBERSHIP']._serialized_end=4973
+  _globals['_GATHERING_HALL_ROOM_SORT_TYPE']._serialized_start=4975
+  _globals['_GATHERING_HALL_ROOM_SORT_TYPE']._serialized_end=5068
+  _globals['_GATHERING_HALL_ROOM_METHOD']._serialized_start=5071
+  _globals['_GATHERING_HALL_ROOM_METHOD']._serialized_end=5230
+  _globals['_GATHERING_HALL_ROOM_USER_ACTION']._serialized_start=5233
+  _globals['_GATHERING_HALL_ROOM_USER_ACTION']._serialized_end=5443
+  _globals['_GATHERING_HALL_MY_HALL_LIST_VISIBILITY_TYPE']._serialized_start=5445
+  _globals['_GATHERING_HALL_MY_HALL_LIST_VISIBILITY_TYPE']._serialized_end=5546
   _globals['_SGATHERING_HALL_CHANNEL']._serialized_start=78
   _globals['_SGATHERING_HALL_CHANNEL']._serialized_end=185
   _globals['_SGATHERING_HALL_CHAT_C2S']._serialized_start=188
@@ -71,4 +87,54 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SC2S_GATHERING_HALL_TARGET_EQUIPPED_ITEM_REQ']._serialized_end=1614
   _globals['_SS2C_GATHERING_HALL_TARGET_EQUIPPED_ITEM_RES']._serialized_start=1617
   _globals['_SS2C_GATHERING_HALL_TARGET_EQUIPPED_ITEM_RES']._serialized_end=1786
+  _globals['_SGATHERING_HALL_ROOM_INFO']._serialized_start=1789
+  _globals['_SGATHERING_HALL_ROOM_INFO']._serialized_end=2075
+  _globals['_SGATHERING_HALL_ROOM_FILTER_INFO']._serialized_start=2077
+  _globals['_SGATHERING_HALL_ROOM_FILTER_INFO']._serialized_end=2147
+  _globals['_SC2S_GATHERING_HALL_ROOM_LIST_REQ']._serialized_start=2150
+  _globals['_SC2S_GATHERING_HALL_ROOM_LIST_REQ']._serialized_end=2327
+  _globals['_SS2C_GATHERING_HALL_ROOM_LIST_RES']._serialized_start=2330
+  _globals['_SS2C_GATHERING_HALL_ROOM_LIST_RES']._serialized_end=2498
+  _globals['_SC2S_GATHERING_HALL_ROOM_SELECT_REQ']._serialized_start=2500
+  _globals['_SC2S_GATHERING_HALL_ROOM_SELECT_REQ']._serialized_end=2556
+  _globals['_SS2C_GATHERING_HALL_ROOM_SELECT_RES']._serialized_start=2558
+  _globals['_SS2C_GATHERING_HALL_ROOM_SELECT_RES']._serialized_end=2611
+  _globals['_SC2S_GATHERING_HALL_ROOM_SEARCH_REQ']._serialized_start=2614
+  _globals['_SC2S_GATHERING_HALL_ROOM_SEARCH_REQ']._serialized_end=2792
+  _globals['_SS2C_GATHERING_HALL_ROOM_SEARCH_RES']._serialized_start=2794
+  _globals['_SS2C_GATHERING_HALL_ROOM_SEARCH_RES']._serialized_end=2847
+  _globals['_SGATHERING_HALL_MY_HALL_INFO']._serialized_start=2850
+  _globals['_SGATHERING_HALL_MY_HALL_INFO']._serialized_end=3090
+  _globals['_SGATHERING_HALL_MY_HALL_RENT_INFO']._serialized_start=3092
+  _globals['_SGATHERING_HALL_MY_HALL_RENT_INFO']._serialized_end=3164
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_LIST_REQ']._serialized_start=3166
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_LIST_REQ']._serialized_end=3204
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_LIST_RES']._serialized_start=3207
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_LIST_RES']._serialized_end=3372
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_RENT_REQ']._serialized_start=3374
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_RENT_REQ']._serialized_end=3412
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_RENT_RES']._serialized_start=3414
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_RENT_RES']._serialized_end=3468
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_SETTING_UPDATE_REQ']._serialized_start=3470
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_SETTING_UPDATE_REQ']._serialized_end=3573
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_SETTING_UPDATE_RES']._serialized_start=3575
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_SETTING_UPDATE_RES']._serialized_end=3639
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_PLAYER_LIST_REQ']._serialized_start=3641
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_PLAYER_LIST_REQ']._serialized_end=3705
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_PLAYER_LIST_RES']._serialized_start=3707
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_PLAYER_LIST_RES']._serialized_end=3810
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_REQ']._serialized_start=3812
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_REQ']._serialized_end=3881
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_RES']._serialized_start=3883
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_HALL_MASTER_LIST_RES']._serialized_end=3991
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_BANNED_LIST_REQ']._serialized_start=3993
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_BANNED_LIST_REQ']._serialized_end=4057
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_BANNED_LIST_RES']._serialized_start=4059
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_BANNED_LIST_RES']._serialized_end=4169
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_USER_ACTION_REQ']._serialized_start=4171
+  _globals['_SC2S_GATHERING_HALL_MY_HALL_USER_ACTION_REQ']._serialized_end=4255
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_USER_ACTION_RES']._serialized_start=4257
+  _globals['_SS2C_GATHERING_HALL_MY_HALL_USER_ACTION_RES']._serialized_end=4318
+  _globals['_SS2C_GATHERING_HALL_ENTER_NOT']._serialized_start=4320
+  _globals['_SS2C_GATHERING_HALL_ENTER_NOT']._serialized_end=4420
 # @@protoc_insertion_point(module_scope)
