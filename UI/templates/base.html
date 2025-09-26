@@ -444,7 +444,17 @@
         .closing-overlay .material-icons {
             font-size: 42px;
             color: #e4c869;
-            animation: pulse 1.4s ease-in-out infinite;
+            animation: rotateSandWatch 2s linear infinite;
+        }
+
+        @keyframes rotateSandWatch {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .closing-overlay-message {
@@ -725,35 +735,35 @@
             });
 
             return modal;
-            };
+        };
 
-            window.handleWindowClose = function () {
+        window.handleWindowClose = function () {
+            try {
+                const overlay = document.getElementById('closing-overlay');
+                if (overlay && !overlay.classList.contains('active')) {
+                    overlay.classList.add('active');
+                }
+            } catch (err) {
+                console.error('Failed to show closing overlay', err);
+            }
+
+            const triggerClose = () => {
                 try {
-                    const overlay = document.getElementById('closing-overlay');
-                    if (overlay && !overlay.classList.contains('active')) {
-                        overlay.classList.add('active');
+                    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
+                        window.pywebview.api.close_window();
                     }
-                } catch (err) {
-                    console.error('Failed to show closing overlay', err);
-                }
-
-                const triggerClose = () => {
-                    try {
-                        if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
-                            window.pywebview.api.close_window();
-                        }
-                    } catch (closeErr) {
-                        console.error('Failed to invoke close_window()', closeErr);
-                    }
-                };
-
-                if (window.requestAnimationFrame) {
-                    window.requestAnimationFrame(() => setTimeout(triggerClose, 60));
-                } else {
-                    setTimeout(triggerClose, 60);
+                } catch (closeErr) {
+                    console.error('Failed to invoke close_window()', closeErr);
                 }
             };
-        </script>
+
+            if (window.requestAnimationFrame) {
+                window.requestAnimationFrame(() => setTimeout(triggerClose, 60));
+            } else {
+                setTimeout(triggerClose, 60);
+            }
+        };
+    </script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/window_state.js') }}"></script>
