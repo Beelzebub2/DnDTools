@@ -188,6 +188,29 @@
     background-color: #3b82f6 !important;
 }
 
+/* Window minimize animation */
+@keyframes minimizeWindow {
+    0% {
+        transform: scale(1) translateY(0);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(0.95) translateY(0);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: scale(0.1) translateY(100vh);
+        opacity: 0;
+    }
+}
+
+.minimizing {
+    animation: minimizeWindow 0.3s ease-in forwards;
+    pointer-events: none;
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .app-notification {

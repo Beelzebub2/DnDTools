@@ -4,9 +4,16 @@
     window.addEventListener('windowStateChanged', e => {
         try {
             isMaximized = !!(e.detail && e.detail.maximized);
+            // Remove minimizing class when window state changes (restore, maximize, etc.)
+            document.body.classList.remove('minimizing');
         } catch (error) {
             console.error('Error handling window state change:', error);
         }
+    });
+
+    // Also listen for focus events to ensure animation class is removed when window is restored
+    window.addEventListener('focus', () => {
+        document.body.classList.remove('minimizing');
     });
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -21,9 +28,21 @@
                 if (minimizeBtn && window.pywebview && window.pywebview.api && window.pywebview.api.minimize) {
                     minimizeBtn.onclick = () => {
                         try {
-                            window.pywebview.api.minimize();
+                            // Add minimizing animation class to body
+                            document.body.classList.add('minimizing');
+
+                            // Wait for animation to complete before actually minimizing
+                            setTimeout(() => {
+                                window.pywebview.api.minimize();
+                                // Remove animation class after minimize (in case window is restored)
+                                setTimeout(() => {
+                                    document.body.classList.remove('minimizing');
+                                }, 100);
+                            }, 300); // Match animation duration
                         } catch (error) {
                             console.error('Error minimizing window:', error);
+                            // Remove animation class on error
+                            document.body.classList.remove('minimizing');
                         }
                     };
                 }
