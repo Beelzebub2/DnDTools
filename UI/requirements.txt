@@ -1,4 +1,4 @@
-flask==3.1.0
+flask==3.1.2
 pywebview==5.4
 protobuf==6.32.1
 python-dotenv
