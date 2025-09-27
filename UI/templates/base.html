@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar-indicator.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/utils.css') }}">
     {% block head %}{% endblock %}
     <style>
         /* Global scrollbar styling */
@@ -165,7 +166,8 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: #1a1412;
+            background: #1a1412 !important;
+            /* Ensure consistent background color */
             border-radius: 12px;
             -webkit-app-region: no-drag;
         }
@@ -416,6 +418,51 @@
             z-index: 20000;
         }
 
+        .closing-overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 18px;
+            background: rgba(17, 12, 10, 0.92);
+            color: #f6e0a5;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.05em;
+            z-index: 30000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.18s ease;
+        }
+
+        .closing-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .closing-overlay .material-icons {
+            font-size: 42px;
+            color: #e4c869;
+            animation: rotateSandWatch 2s linear infinite;
+        }
+
+        @keyframes rotateSandWatch {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .closing-overlay-message {
+            font-size: 1.15rem;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
         /* Pulse animation for sidebar */
         .sidebar-pulse-container {
             position: relative;
@@ -495,7 +542,7 @@
             <button class="titlebar-button maximize" onclick="pywebview.api.toggle_maximize()">
                 <span class="material-icons" style="font-size: 18px;">crop_square</span>
             </button>
-            <button class="titlebar-button close" onclick="pywebview.api.close_window()">
+            <button class="titlebar-button close" onclick="handleWindowClose()">
                 <span class="material-icons" style="font-size: 18px;">close</span>
             </button>
         </div>
@@ -596,6 +643,10 @@
         </main>
     </div>
     <div class="window-border"></div>
+    <div id="closing-overlay" class="closing-overlay">
+        <span class="material-icons">hourglass_top</span>
+        <div class="closing-overlay-message">Closing application...</div>
+    </div>
     <!-- Global modals and notifications -->
     <div id="notifications-container"></div> <!-- Global scripts -->
     <script>
@@ -684,7 +735,36 @@
             });
 
             return modal;
-        };    </script>
+        };
+
+        window.handleWindowClose = function () {
+            try {
+                const overlay = document.getElementById('closing-overlay');
+                if (overlay && !overlay.classList.contains('active')) {
+                    overlay.classList.add('active');
+                }
+            } catch (err) {
+                console.error('Failed to show closing overlay', err);
+            }
+
+            const triggerClose = () => {
+                try {
+                    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
+                        window.pywebview.api.close_window();
+                    }
+                } catch (closeErr) {
+                    console.error('Failed to invoke close_window()', closeErr);
+                }
+            };
+
+            if (window.requestAnimationFrame) {
+                window.requestAnimationFrame(() => setTimeout(triggerClose, 60));
+            } else {
+                setTimeout(triggerClose, 60);
+            }
+        };
+    </script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/window_state.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>

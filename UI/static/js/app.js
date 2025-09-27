@@ -122,16 +122,8 @@ async function checkForUpdates() {
     }
 }
 
-function isNewerVersion(remote, local) {
-    // Simple semver compare: '1.2.3' > '1.2.2'
-    const r = remote.split('.').map(Number);
-    const l = local.split('.').map(Number);
-    for (let i = 0; i < Math.max(r.length, l.length); i++) {
-        if ((r[i] || 0) > (l[i] || 0)) return true;
-        if ((r[i] || 0) < (l[i] || 0)) return false;
-    }
-    return false;
-}
+// Version comparison now handled by utils.js
+// Remove duplicate function that's now in utils.js
 
 function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
     // Remove any existing popup
@@ -153,7 +145,7 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
     popup.style.minWidth = '320px';
     popup.style.backdropFilter = 'blur(8px)';
     popup.style.animation = 'slideInFromRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
-    
+
     // Add animation keyframes if not already defined
     if (!document.getElementById('update-popup-styles')) {
         const style = document.createElement('style');
@@ -218,7 +210,7 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
         `;
         document.head.appendChild(style);
     }
-    
+
     popup.innerHTML = `
         <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
             <div style="

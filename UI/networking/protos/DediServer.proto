@@ -24,6 +24,11 @@ message SGameQuestInfo {
   int32 merchantAffinity = 6;
 }
 
+message SMerchantAffinity {
+  string merchantId = 1;
+  int32 merchantAffinity = 2;
+}
+
 message IngameObjectiveInfo {
   string objectiveType = 1;
   string params = 2;
@@ -56,6 +61,7 @@ message S2C_GameEnterUser_Json {
   int32 karmaRating = 9;
   repeated .DC.Packet.SReservedPartyMember reservedPartyMember = 10;
   int32 isRandomJoin = 11;
+  int32 findRandomTeam = 12;
 }
 
 message GameExitExpPoint {
@@ -208,6 +214,7 @@ message SGameCharacterInfo {
   double mmr = 30;
   .DC.Packet.SACCOUNT_NICKNAME nickname = 31;
   uint32 deathPenalty = 32;
+  repeated .DC.Packet.SMerchantAffinity affinities = 33;
 }
 
 message S2C_GameCharacterInfo_Json {
@@ -242,11 +249,15 @@ message C2S_UserReport_POST {
   string reportContent = 7;
 }
 
-message S2C_UserReport_POST_Response {
-  string reportAccountId = 1;
+message UserReport {
+  string reporterAccountId = 1;
   string targetAccountId = 2;
-  string reportKey = 3;
-  uint32 category = 4;
+  uint32 category = 3;
+  string reportKey = 4;
+}
+
+message S2C_UserReport_POST_Response {
+  .DC.Packet.UserReport report = 1;
 }
 
 message Location {
@@ -295,6 +306,9 @@ message GameResultInfo {
   string characterSteamingModeNickName = 27;
   repeated .DC.Packet.IngameObjectiveInfo objectives = 28;
   uint32 escapeFailAdventurePointOnOff = 29;
+  string dungeonId = 30;
+  repeated .DC.Packet.MonsterKillLog monsterKillAssistLogs = 31;
+  repeated string faustianMonsterIds = 32;
 }
 
 message C2S_GameEscapeUser_POST {
@@ -319,6 +333,11 @@ message SFloorRuleBlizzardInfo {
   int32 index = 1;
   string id = 2;
   int32 phaseDuration = 3;
+}
+
+message S2C_GameReport_GET {
+  uint32 result = 1;
+  repeated .DC.Packet.UserReport reports = 2;
 }
 
 message S2C_DungeonFloorRuleBlizzard_GET {
@@ -389,17 +408,18 @@ message SDownCharacterInfo {
   uint32 bDead = 1;
   uint32 bNotEscaped = 2;
   uint32 bHasDamaged = 3;
-  repeated .DC.Packet.SDownItem downItems = 4;
-  repeated .DC.Packet.SDownSpell downSpells = 5;
-  repeated .DC.Packet.SDownSkill downSkills = 6;
-  repeated .DC.Packet.SDownEffect downEffects = 7;
-  repeated uint64 originItemUniqueIds = 8;
-  repeated .DC.Packet.SDownFriendItem friendItems = 9;
-  repeated .DC.Packet.SItem recoveryItems = 10;
-  repeated .DC.Packet.SGameQuestInfo downQuests = 11;
-  repeated .DC.Packet.IngameObjectiveInfo downAchievements = 12;
-  repeated uint64 prevGameIds = 13;
-  repeated .DC.Packet.SDownLog downLogs = 14;
+  uint32 bIngamePartied = 4;
+  repeated .DC.Packet.SDownItem downItems = 5;
+  repeated .DC.Packet.SDownSpell downSpells = 6;
+  repeated .DC.Packet.SDownSkill downSkills = 7;
+  repeated .DC.Packet.SDownEffect downEffects = 8;
+  repeated uint64 originItemUniqueIds = 9;
+  repeated .DC.Packet.SDownFriendItem friendItems = 10;
+  repeated .DC.Packet.SItem recoveryItems = 11;
+  repeated .DC.Packet.SGameQuestInfo downQuests = 12;
+  repeated .DC.Packet.IngameObjectiveInfo downAchievements = 13;
+  repeated uint64 prevGameIds = 14;
+  repeated .DC.Packet.SDownLog downLogs = 15;
 }
 
 message S2C_ContinuousMatch_CharacterInfo {
@@ -584,5 +604,43 @@ message SUserGameEnterInfo {
 
 message S2C_Polling_UserGameEnter_Res {
   repeated .DC.Packet.SUserGameEnterInfo infos = 1;
+}
+
+message C2S_GameAttackInfo_Post {
+  uint64 gameId = 1;
+  string accountId = 2;
+  string characterId = 3;
+  repeated .DC.Packet.AttackInfo attackInfo = 4;
+}
+
+message C2S_Game_Party_Formation_POST {
+  uint64 gameId = 1;
+  string accountId = 2;
+  string characterId = 3;
+  repeated string partyAccountIds = 4;
+}
+
+message S2C_GATHERING_HALL_CHARACTER_DATA {
+  .DC.Packet.SGameCharacterInfo info = 1;
+}
+
+message S2C_GATHERING_HALL_CHARACTER_STORAGE {
+  int64 sessionId = 1;
+  string accountId = 2;
+  string characterId = 3;
+  repeated .DC.Packet.SSTORAGE_INFO infos = 4;
+}
+
+message C2S_GATHERING_HALL_EXIT_USER {
+  int64 sessionId = 1;
+  string accountId = 2;
+  string characterId = 3;
+}
+
+message C2S_GATHERING_HALL_ENTER_USER {
+  int64 sessionId = 1;
+  string accountId = 2;
+  string characterId = 3;
+  int32 isSuccess = 4;
 }
 

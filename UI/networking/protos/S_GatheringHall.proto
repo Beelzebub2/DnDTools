@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.s_session";
+option java_outer_classname = "s_gathering_hall";
+option java_multiple_files = false;
+
+import "_Character.proto";
+
+message SGATHERING_HALL_INIT_INFO {
+  string restUrl = 1;
+}
+
+message SS2D_GATHERING_HALL_INIT_NOT {
+  .DC.Packet.SGATHERING_HALL_INIT_INFO info = 1;
+}
+
+message SGATHERING_HALL_JOIN_PARTY_INFO {
+  string accountId = 1;
+  .DC.Packet.SACCOUNT_NICKNAME nickname = 2;
+  int32 karmaRating = 3;
+  string characterClass = 4;
+}
+
+message SGATHERING_HALL_JOIN_USER_INFO {
+  string restUrl = 1;
+  string accountId = 2;
+  string characterId = 3;
+  .DC.Packet.SACCOUNT_NICKNAME nickname = 4;
+  string characterClass = 5;
+  uint32 gender = 6;
+  uint32 level = 7;
+  string partyId = 8;
+  int32 karmaRating = 9;
+  repeated .DC.Packet.SGATHERING_HALL_JOIN_PARTY_INFO reservedPartyMember = 10;
+}
+
+message SD2S_GATHERING_HALL_ACTIVE_REQ {
+  uint64 sessionId = 1;
+}
+
+message SS2D_GATHERING_HALL_ACTIVE_RES {
+  int32 result = 1;
+}
+
+message SD2S_GATHERING_HALL_USER_JOIN_REQ {
+  string userTempSession = 1;
+}
+
+message SS2D_GATHERING_HALL_USER_JOIN_RES {
+  int32 result = 1;
+  .DC.Packet.SGATHERING_HALL_JOIN_USER_INFO userInfo = 2;
+}
+

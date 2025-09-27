@@ -79,6 +79,13 @@ async function loadCharacters() {
             return;
         }
 
+        // Sort characters by recently updated (most recent first)
+        characters.sort((a, b) => {
+            const dateA = new Date(a.lastUpdate || 0);
+            const dateB = new Date(b.lastUpdate || 0);
+            return dateB - dateA; // Descending order (most recent first)
+        });
+
         characters.forEach(char => {
             const card = document.createElement('div');
             card.className = 'character-card';
@@ -176,7 +183,7 @@ window.updateCharacterList = async function () {
 };
 
 // Character capture animation function (simplified for index page)
-window.showCharacterCaptureAnimation = function(characterClass, characterNickname) {
+window.showCharacterCaptureAnimation = function (characterClass, characterNickname) {
     console.log(`Character captured: ${characterNickname} (${characterClass})`);
     // Could add a simple notification here if needed
 };

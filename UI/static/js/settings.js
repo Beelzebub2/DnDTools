@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/api/auto_resolution');
             const data = await response.json();
             if (detectedResolutionSpan) {
-                detectedResolutionSpan.textContent = `Detected: ${data.resolution || 'Not detected'}`;
+                detectedResolutionSpan.textContent = `${data.resolution || 'Not detected'}`;
             }
         } catch (error) {
             console.error('Failed to detect resolution:', error);
