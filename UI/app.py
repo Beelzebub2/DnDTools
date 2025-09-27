@@ -136,6 +136,121 @@ def handle_character(message):
     
     return saved
 
+class CaptureController:
+    """Encapsulates PacketCapture lifecycle and user intent state."""
+
+    def __init__(self, initial_settings, capture_info):
+        self._lock = threading.RLock()
+        self._capture_info = capture_info
+        self._settings = {
+            "interface": initial_settings.get("interface", "Ethernet"),
+            "port_range": initial_settings.get("port_range", (20200, 20300)),
+        }
+        self._packet_capture = self._create_capture()
+        self._desired_running = False
+        self._last_error = None
+
+        if self._packet_capture.should_auto_start():
+            self._desired_running = True
+            self._packet_capture.start_capture_switch()
+
+    def _create_capture(self):
+        capture = PacketCapture(
+            interface=self._settings["interface"],
+            port_range=self._settings["port_range"],
+        )
+        capture.capture_info = self._capture_info
+        return capture
+
+    def _state_dict(self):
+        running = self._packet_capture.is_active()
+        return {
+            "running": running,
+            "interface": self._settings["interface"],
+            "portRange": {
+                "low": self._settings["port_range"][0],
+                "high": self._settings["port_range"][1],
+            },
+            "desired": self._desired_running,
+            "lastError": self._last_error,
+        }
+
+    def start(self):
+        with self._lock:
+            self._desired_running = True
+            self._packet_capture.start_capture_switch()
+            running = self._packet_capture.is_active()
+            self._last_error = None if running else "Capture failed to start"
+            return running, self._state_dict()
+
+    def stop(self):
+        with self._lock:
+            self._desired_running = False
+            self._packet_capture.stop_capture_switch()
+            running = self._packet_capture.is_active()
+            success = not running
+            self._last_error = None if success else "Capture is still running"
+            return success, self._state_dict()
+
+    def restart(self):
+        with self._lock:
+            desired = self._desired_running or self._packet_capture.is_active()
+            self._packet_capture.stop_capture_switch()
+            self._packet_capture.start_capture_switch()
+            self._desired_running = True if desired else self._desired_running
+            running = self._packet_capture.is_active()
+            self._last_error = None if running else "Capture failed to restart"
+            return running, self._state_dict()
+
+    def update_settings(self, interface, port_low, port_high):
+        with self._lock:
+            new_interface = interface or self._settings["interface"]
+            low = port_low if port_low is not None else self._settings["port_range"][0]
+            high = port_high if port_high is not None else self._settings["port_range"][1]
+            new_range = (low, high)
+
+            if (
+                new_interface == self._settings["interface"]
+                and new_range == self._settings["port_range"]
+            ):
+                return self._state_dict()
+
+            should_resume = self._desired_running
+            self._settings = {"interface": new_interface, "port_range": new_range}
+
+            self._packet_capture.stop_capture_switch(persist_running_state=should_resume)
+            self._packet_capture = self._create_capture()
+
+            if should_resume:
+                self._packet_capture.start_capture_switch()
+
+            return self._state_dict()
+
+    def should_auto_start(self):
+        return self._packet_capture.should_auto_start()
+
+    def state(self):
+        with self._lock:
+            return self._state_dict()
+
+    def settings(self):
+        with self._lock:
+            return {
+                "interface": self._settings["interface"],
+                "port_range": self._settings["port_range"],
+            }
+
+    def shutdown(self):
+        with self._lock:
+            desired = self._desired_running or self._packet_capture.is_active()
+            self._desired_running = desired
+
+        self._packet_capture.shutdown(persist_running_state=desired)
+
+    @property
+    def packet_capture(self):
+        return self._packet_capture
+
 class Api:
     def __init__(self):
         self.stash_manager = stash_manager
@@ -151,18 +266,13 @@ class Api:
                 int(os.getenv('CAPTURE_PORT_HIGH', 20300))
             )
         }
-        self.packet_capture = PacketCapture(
-            interface=self.capture_settings['interface'],
-            port_range=self.capture_settings['port_range'],
-        )
         capture_info = {
             _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
             _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
         }
-        self.packet_capture.capture_info = capture_info
-
-        self.capture_thread = None
-        self.capture_running = self.packet_capture.running
+        self.capture_controller = CaptureController(self.capture_settings, capture_info)
+        # Normalize settings from controller (ensures tuple types)
+        self.capture_settings = self.capture_controller.settings()
         self._initial_restart_done = False
         self.window = None
         self._setup_global_hotkeys()
@@ -205,6 +315,8 @@ class Api:
             # Validate settings structure
             if not isinstance(settings, dict):
                 raise ValueError("Settings must be a dictionary")
+
+            previous_settings = self.settings if isinstance(self.settings, dict) else {}
             
             # Ensure hotkeys are lowercase for keyboard library
             if 'sortHotkey' in settings:
@@ -235,6 +347,36 @@ class Api:
             
             self.settings = settings
             self._setup_global_hotkeys()
+
+            interface_changed = (
+                settings.get('interface')
+                and settings.get('interface') != previous_settings.get('interface')
+            )
+
+            if interface_changed:
+                try:
+                    state = self.capture_controller.update_settings(settings.get('interface'), None, None)
+                    self.capture_settings = {
+                        'interface': state['interface'],
+                        'port_range': (state['portRange']['low'], state['portRange']['high'])
+                    }
+
+                    if self.window:
+                        payload = json.dumps(state)
+                        self.window.evaluate_js(
+                            f"window.applyCaptureState && window.applyCaptureState({payload}, {{ suppressErrorToast: true }});"
+                        )
+                        self.window.evaluate_js(
+                            "showNotification('Capture interface updated', 'info');"
+                        )
+                except Exception as capture_err:
+                    logger.error(f"Failed to apply capture interface change: {capture_err}")
+                    if self.window:
+                        error_msg = str(capture_err).replace('"', '\\"')
+                        self.window.evaluate_js(
+                            f"showNotification('Failed to switch capture interface: {error_msg}', 'error');"
+                        )
+
             logger.info("Settings saved successfully")
             return True
             
@@ -262,6 +404,10 @@ class Api:
         cancel_hotkey = self.settings.get('cancelHotkey', 'ctrl+alt+x')
         logger.info(f"Registering cancel hotkey: {cancel_hotkey}")
         keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
+        
+    @property
+    def packet_capture(self):
+        return self.capture_controller.packet_capture
         
     def set_window(self, window):
         """Set the window reference for JavaScript evaluation"""
@@ -321,15 +467,11 @@ class Api:
         return self.stash_manager.search_items(query)
 
     def set_capture_settings(self, interface, port_low, port_high):
-        # Stop current capture if running
-        if self.packet_capture.running:
-            self.packet_capture.stop_capture_switch()
-        # Create new PacketCapture with updated settings and callback
-        self.capture_settings = {'interface': interface, 'port_range': (port_low, port_high)}
-        self.packet_capture = PacketCapture(
-            interface,
-            (port_low, port_high),
-        )
+        state = self.capture_controller.update_settings(interface, port_low, port_high)
+        self.capture_settings = {
+            'interface': state['interface'],
+            'port_range': (state['portRange']['low'], state['portRange']['high'])
+        }
         return True
 
     def start_capture(self):
@@ -346,30 +488,24 @@ class Api:
         return self.stash_manager.get_character_stash_previews(character_id)
 
     def start_capture_switch(self):
-        self.packet_capture.start_capture_switch()
-        return True
+        success, state = self.capture_controller.start()
+        return success, state
 
     def stop_capture_switch(self):
-        self.packet_capture.stop_capture_switch()
-        return True
+        success, state = self.capture_controller.stop()
+        return success, state
 
     def restart_capture_switch(self):
         """Stop capture if running and start it again"""
-        if self.packet_capture.running:
-            self.packet_capture.stop_capture_switch()
-        # Small delay to ensure cleanup
-        import time
-        time.sleep(0.5)
-        self.packet_capture.start_capture_switch()
+        success, state = self.capture_controller.restart()
         self._initial_restart_done = True
-        return True
+        return success, state
 
     def get_capture_state(self):
         """Get current capture state including if initial restart was done"""
-        return {
-            "running": self.packet_capture.is_active(),
-            "initialRestartDone": self._initial_restart_done
-        }
+        state = self.capture_controller.state()
+        state["initialRestartDone"] = self._initial_restart_done
+        return state
 
     def sort_stash(self, character_id, stash_id):
         """Sort a specific stash for a character"""
@@ -422,7 +558,9 @@ class Api:
     def close_window(self):
         """Properly save capture state before closing the window"""
         try:
-            if hasattr(self, 'packet_capture'):
+            if hasattr(self, 'capture_controller'):
+                self.capture_controller.shutdown()
+            elif hasattr(self, 'packet_capture'):
                 self.packet_capture.shutdown()
         except Exception as e:
             logger.error(f"Error during window close: {e}")
@@ -433,10 +571,10 @@ class Api:
     def force_close_window(self):
         # Quick shutdown without delays
         try:
-            if hasattr(self, 'packet_capture') and self.packet_capture.running:
-                # Set running to False immediately, let background thread handle cleanup
+            if hasattr(self, 'capture_controller'):
+                self.capture_controller.packet_capture.running = False
+            elif hasattr(self, 'packet_capture') and self.packet_capture.running:
                 self.packet_capture.running = False
-                # Remove this line: self.packet_capture._save_state()
         except Exception as e:
             logger.error(f"Error stopping packet capture on close: {e}")
         # Remove delay - close immediately
@@ -720,7 +858,8 @@ def api_record_character(character_id):
 @server.route('/api/capture/switch/start', methods=['POST'])
 def capture_switch_start():
     try:
-        return jsonify({'success': api.start_capture_switch()})
+        success, state = api.start_capture_switch()
+        return jsonify({'success': success, 'state': state})
     except Exception as e:
         logger.error(f"Error starting capture switch: {e}")
         return jsonify({'success': False, 'error': 'Failed to start capture'}), 500
@@ -728,7 +867,8 @@ def capture_switch_start():
 @server.route('/api/capture/switch/stop', methods=['POST'])
 def capture_switch_stop():
     try:
-        return jsonify({'success': api.stop_capture_switch()})
+        success, state = api.stop_capture_switch()
+        return jsonify({'success': success, 'state': state})
     except Exception as e:
         logger.error(f"Error stopping capture switch: {e}")
         return jsonify({'success': False, 'error': 'Failed to stop capture'}), 500
@@ -736,7 +876,8 @@ def capture_switch_stop():
 @server.route('/api/capture/switch/restart', methods=['POST'])
 def capture_switch_restart():
     try:
-        return jsonify({'success': api.restart_capture_switch()})
+        success, state = api.restart_capture_switch()
+        return jsonify({'success': success, 'state': state})
     except Exception as e:
         logger.error(f"Error restarting capture switch: {e}")
         return jsonify({'success': False, 'error': 'Failed to restart capture'}), 500
@@ -902,87 +1043,65 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
-        # Make data loading fully asynchronous and non-blocking
         def load_data_async():
+            """Load stash data once in a background thread."""
+            if getattr(load_data_async, 'is_loading', False):
+                logger.info("Data loading already in progress, skipping")
+                return
+
+            load_data_async.is_loading = True
+            start_time = time.time()
+
             try:
-                # Set a flag to prevent redundant loading
-                if hasattr(load_data_async, 'is_loading') and load_data_async.is_loading:
-                    logger.info("Data loading already in progress, skipping")
-                    return
-                
-                load_data_async.is_loading = True
-                
-                start_time = time.time()
-                
-                # Only load if not already loaded
                 if not api.stash_manager._is_loaded:
                     logger.info("Loading stash manager data...")
                     api.stash_manager._load_data()
-                    logger.info(f"Stash manager data loaded in {time.time() - start_time:.2f} seconds")
-                
-                # Release loading flag
-                load_data_async.is_loading = False
-                
-                # Notify UI that data loading is done
+                    logger.info(
+                        f"Stash manager data loaded in {time.time() - start_time:.2f} seconds"
+                    )
+
                 if api.window:
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
             except Exception as e:
-                # Release loading flag on error
-                load_data_async.is_loading = False
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
                     error_str = str(e).replace('"', '\\"')
                     api.window.evaluate_js(
                         f'window.dispatchEvent(new CustomEvent("dataLoadingFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
                     )
-        
-        # Initialize loading flag
+            finally:
+                load_data_async.is_loading = False
+
         load_data_async.is_loading = False
-        
-        # Start data loading in background thread immediately without waiting
         threading.Thread(target=load_data_async, daemon=True).start()
-            
-        # Check if capture should auto-start based on previous state
+
         try:
-            if api.packet_capture.should_auto_start():
-                logger.info("Auto-starting capture based on previous state")
-                # Start the capture switch which will set running=True and start the thread
-                api.packet_capture.start_capture_switch()
-                
-                # Update UI to reflect running state with minimal delay
-                if api.window:
-                    api.window.evaluate_js('''
-                        setTimeout(() => {
-                            if (document.getElementById('captureSwitch')) {
-                                document.getElementById('captureSwitch').checked = true;
-                            }
-                            if (document.getElementById('sidebarCaptureIndicator')) {
-                                document.getElementById('sidebarCaptureIndicator').classList.add('active');
-                                document.getElementById('sidebarCaptureIndicator').classList.remove('stopping');
-                            }
-                            // Update toggle UI if the function exists
-                            if (typeof updateToggleUI === 'function') {
-                                updateToggleUI(true);
-                            }
-                            // Update status text
-                            const statusIndicator = document.getElementById('statusIndicator');
-                            const captureStatus = document.getElementById('captureStatus');
-                            if (statusIndicator) statusIndicator.className = 'status-indicator capturing';
-                            if (captureStatus) captureStatus.textContent = 'Capture is running';
-                        }, 25); // Even faster startup
-                    ''')
-            else:
-                logger.info("Not auto-starting capture - previous state was stopped or already running")
+            state = api.capture_controller.state()
+
+            if state.get("desired") and not state.get("running"):
+                logger.info("Restoring desired capture state from previous session")
+                started, updated_state = api.capture_controller.start()
+                if started:
+                    state = updated_state
+                else:
+                    logger.warning("Capture auto-start was requested but failed to activate")
+
+            if api.window:
+                state_payload = json.dumps(state)
+                api.window.evaluate_js(
+                    f"window.applyCaptureState && window.applyCaptureState({state_payload});"
+                )
+
+            if state.get("running"):
+                api._initial_restart_done = True
         except Exception as ce:
             logger.error(f"Failed to restore capture state: {ce}")
-            
-        # Notify UI that background loading is done immediately
+
         if api.window:
             api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
         logger.info("Background initialization complete.")
     except Exception as e:
         logger.error(f"Background initialization failed: {e}")
-        # Escape error string for JS
         error_str = str(e).replace('"', '\\"')
         if api.window:
             api.window.evaluate_js(
@@ -1122,9 +1241,9 @@ def main():
     migrate_settings(defer_heavy_operations=True)
     
     # Only handle immediate restart if capture is in a known running state
-    if api.packet_capture.running and not api._initial_restart_done:
+    if api.capture_controller.state()["running"] and not api._initial_restart_done:
         # Schedule restart after UI load instead of doing it now
-        threading.Timer(0.5, api.restart_capture_switch).start()
+        threading.Timer(0.5, lambda: api.restart_capture_switch()).start()
     
     # Create window with minimal startup time
     window = webview.create_window(

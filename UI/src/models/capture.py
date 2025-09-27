@@ -165,6 +165,8 @@ class PacketCapture:
         self.running = False  # Initialize as False first
         self.capture_thread = None
         self._cleanup_capture_on_exit = False
+        self._state_lock = threading.Lock()
+        self._stop_event = threading.Event()
         self.STATE_FILE = get_capture_state_file()
         
         # Restore state - keep track of what the previous state was
@@ -355,63 +357,55 @@ class PacketCapture:
             self.logger.error(f"Failed to restore capture state: {e}")
             return {"running": False}
     def capture_loop(self) -> None:
-        """Main capture loop that runs in a separate thread"""
+        """Main capture loop that runs in a separate thread."""
         try:
-            # Set up event loop for this thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            
+
             local_ip = self.get_local_ip()
             if not local_ip:
                 self.logger.error(f"Could not find IP address for interface {self.interface}")
                 return
-                
-            display_filter = (f'ip.dst == {local_ip} and '
-                              f'tcp.srcport >= {self.port_range[0]} and '
-                              f'tcp.srcport <= {self.port_range[1]}')
-            
+
+            display_filter = (
+                f'ip.dst == {local_ip} and '
+                f'tcp.srcport >= {self.port_range[0]} and '
+                f'tcp.srcport <= {self.port_range[1]}'
+            )
+
             self.logger.info(f"Starting capture on interface: {self.interface}, IP: {local_ip}")
             self.logger.info(f"Display filter: {display_filter}")
-            
-            # Store capture object as instance variable for cleanup
+
+            self._current_loop = loop
             try:
                 self._current_capture = pyshark.LiveCapture(
                     interface=self.interface,
-                    display_filter=display_filter
+                    display_filter=display_filter,
+                    eventloop=loop
                 )
-                self._current_loop = loop
-            except Exception as e:
-                self.logger.error(f"Failed to create LiveCapture: {e}")
-                # Check if this is a tshark/executable issue
-                if "tshark" in str(e).lower():
+            except Exception as capture_error:
+                self.logger.error(f"Failed to create LiveCapture: {capture_error}")
+                if "tshark" in str(capture_error).lower():
                     self.logger.error("This appears to be a tshark-related issue. Make sure tshark is properly installed and accessible.")
-                self.running = False  # Ensure we stop if capture creation fails
-                raise
-            
-            try:
-                for packet in self._current_capture.sniff_continuously():
-                    if not self.running:
-                        break
-                    if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-                        self.process_packet(packet.tcp.payload.binary_value)
-            except Exception as e:
-                self.logger.error(f"Capture loop error: {e}")
-                # Log additional details for debugging
-                import traceback
-                self.logger.error(f"Full traceback: {traceback.format_exc()}")
-                self.running = False  # Stop capture on error
-            finally:
-                self._cleanup_capture()
+                return
+
+            for packet in self._current_capture.sniff_continuously():
+                if self._stop_event.is_set():
+                    break
+                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                    self.process_packet(packet.tcp.payload.binary_value)
+        except RuntimeError as e:
+            if "Event loop" in str(e) and "stopped" in str(e):
+                self.logger.info("Event loop stopped during capture, exiting cleanly")
+            else:
+                self.logger.error(f"Runtime error in capture loop: {e}", exc_info=True)
         except Exception as e:
-            self.logger.error(f"Fatal error in capture_loop: {e}")
-            import traceback
-            self.logger.error(f"Full traceback: {traceback.format_exc()}")
-            self.running = False  # Ensure we stop on fatal error
-            # Make sure we cleanup even if there's a fatal error
-            try:
-                self._cleanup_capture()
-            except Exception as cleanup_error:
-                self.logger.error(f"Error during cleanup after fatal error: {cleanup_error}")
+            self.logger.error(f"Fatal error in capture loop: {e}", exc_info=True)
+        finally:
+            self._cleanup_capture()
+            with self._state_lock:
+                self.running = False
+            self._stop_event.set()
             
     def _cleanup_capture(self):
         """Clean up capture resources and terminate helper processes."""
@@ -518,68 +512,75 @@ class PacketCapture:
             return True
         return False
 
-    def shutdown(self):
-        """Properly shutdown capture and persist running state."""
+    def shutdown(self, persist_running_state: Optional[bool] = None):
+        """Properly shutdown capture and persist the desired running state."""
         try:
-            if self.running:
-                self.logger.info("Shutting down capture thread...")
-                # Persist that capture should restart on next launch
-                self._save_state(True)
-                self.running = False
-
-                if self.capture_thread is not None:
-                    self.capture_thread.join(timeout=5.0)
-                    if self.capture_thread.is_alive():
-                        self.logger.warning("Capture thread still running after timeout, forcing cleanup")
-            else:
-                self.logger.info("Capture already stopped during shutdown")
+            self.stop_capture_switch(persist_running_state=persist_running_state)
         except Exception as e:
             self.logger.error(f"Error during capture shutdown: {e}")
-        finally:
-            self._cleanup_capture()
+
+    def start_capture_switch(self) -> bool:
+        """Start packet capture in a background thread if not already running."""
+        with self._state_lock:
+            if self.running and self.capture_thread and self.capture_thread.is_alive():
+                self.logger.info("Capture already running, ignoring start request")
+                return True
+
+            self.running = True
+            self._stop_event.clear()
+            self._cleanup_capture_on_exit = True
+            self._save_state(True)
+
+            self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
+            self.capture_thread.start()
+
+        self.logger.info("Capture thread started")
+        return True
+        
+    def stop_capture_switch(self, persist_running_state: Optional[bool] = None) -> bool:
+        """Stop packet capture gracefully.
+
+        Args:
+            persist_running_state: When provided, overrides the persisted running flag
+                saved to disk. This allows the caller to remember user intent across
+                app restarts even though the capture has to stop for cleanup.
+        """
+        with self._state_lock:
+            if not self.running and not (self.capture_thread and self.capture_thread.is_alive()):
+                self.logger.info("Capture already stopped, ignoring stop request")
+                return True
+
+            self.running = False
+            self._stop_event.set()
+            persisted_flag = False if persist_running_state is None else bool(persist_running_state)
+            self._save_state(persisted_flag)
+            thread = self.capture_thread
+
+        capture = getattr(self, '_current_capture', None)
+        if capture:
+            try:
+                capture.close()
+            except Exception as close_error:
+                self.logger.debug(f"Error closing capture during stop: {close_error}")
+
+        if thread and thread.is_alive():
+            for timeout in [1.0, 3.0, 6.0]:
+                self.logger.info(f"Waiting for capture thread to exit (timeout: {timeout}s)...")
+                thread.join(timeout=timeout)
+                if not thread.is_alive():
+                    self.logger.info("Capture thread exited cleanly")
+                    break
+            if thread.is_alive():
+                self.logger.warning("Capture thread still running after timeouts, forcing cleanup")
+
+        self._cleanup_capture()
+
+        with self._state_lock:
             self.capture_thread = None
             self._cleanup_capture_on_exit = False
 
-    def start_capture_switch(self) -> None:
-        """Start packet capture in background thread if not already running."""
-        if self.capture_thread is not None and self.capture_thread.is_alive():
-            self.logger.info("Capture already running, ignoring start request")
-            return
-        self.running = True
-        self._cleanup_capture_on_exit = True
-        self._save_state(True)
-        self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
-        self.capture_thread.start()
-        self.logger.info("Capture thread started")
-        
-    def stop_capture_switch(self) -> None:
-        """Stop packet capture gracefully."""
-        if not self.running:
-            self.logger.info("Capture already stopped, ignoring stop request")
-            return
-            
-        # Set running to False to signal the capture loop to exit
-        self.running = False
-        self._save_state(False)
-        
-        if self.capture_thread is not None and self.capture_thread.is_alive():
-            # Try to join with increasing timeouts to prevent hanging
-            for timeout in [1.0, 3.0, 6.0]:
-                self.logger.info(f"Waiting for capture thread to exit (timeout: {timeout}s)...")
-                self.capture_thread.join(timeout=timeout)
-                if not self.capture_thread.is_alive():
-                    self.logger.info("Capture thread exited cleanly")
-                    break
-            
-            # If thread is still alive after all timeouts, force cleanup
-            if self.capture_thread.is_alive():
-                self.logger.warning("Capture thread still running after timeouts, forcing cleanup")
-                self._cleanup_capture()
-
-        self._cleanup_capture()
-        self.capture_thread = None
-        self._cleanup_capture_on_exit = False
         self.logger.info("Capture switch turned OFF")
+        return True
 
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
