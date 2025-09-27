@@ -108,9 +108,8 @@ For support or questions, please [open an issue](https://github.com/Beelzebub2/d
 
 ## 📝 TODO
 ```diff 
-! Support for other resolutions
+
 - Quest tracking
-- More sorting options
 - Show crafting usage for items
 ```
 ---

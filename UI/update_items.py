@@ -14,7 +14,7 @@ import sys
 
 # API configuration
 API_BASE_URL = "https://api.darkerdb.com/v1/items"
-API_KEY = "133fbf2c0f65011f6fb1"
+API_KEY = os.getenv("API_KEY")  # Use env var, fallback to default
 
 # Path to the items.json file
 ITEMS_FILE = os.path.join(os.path.dirname(__file__), "assets", "items.json")
