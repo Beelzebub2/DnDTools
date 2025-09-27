@@ -1,5 +1,5 @@
 flask==3.1.2
-pywebview==5.4
+pywebview==6.0
 protobuf==6.32.1
 python-dotenv
 pyautogui
