@@ -17,6 +17,14 @@
             height: 10px;
         }
 
+        .closing-overlay-status {
+            margin-top: 6px;
+            font-size: 13px;
+            font-weight: 400;
+            letter-spacing: 0.4px;
+            opacity: 0.85;
+        }
+
         ::-webkit-scrollbar-track {
             background: #222222;
             border-radius: 4px;
@@ -646,6 +654,7 @@
     <div id="closing-overlay" class="closing-overlay">
         <span class="material-icons">hourglass_top</span>
         <div class="closing-overlay-message">Closing application...</div>
+        <div id="closing-overlay-status" class="closing-overlay-status"></div>
     </div>
     <!-- Global modals and notifications -->
     <div id="notifications-container"></div> <!-- Global scripts -->
@@ -737,12 +746,24 @@
             return modal;
         };
 
+        window.updateClosingStatus = function (message) {
+            try {
+                const statusEl = document.getElementById('closing-overlay-status');
+                if (statusEl) {
+                    statusEl.textContent = message || '';
+                }
+            } catch (statusErr) {
+                console.error('Unable to update closing overlay status', statusErr);
+            }
+        };
+
         window.handleWindowClose = function () {
             try {
                 const overlay = document.getElementById('closing-overlay');
                 if (overlay && !overlay.classList.contains('active')) {
                     overlay.classList.add('active');
                 }
+                window.updateClosingStatus('Stopping capture...');
             } catch (err) {
                 console.error('Failed to show closing overlay', err);
             }

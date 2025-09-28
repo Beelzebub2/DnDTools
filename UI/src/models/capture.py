@@ -97,6 +97,7 @@ from typing import Tuple, Optional
 import threading
 import time
 import importlib
+from concurrent.futures import TimeoutError as FutureTimeout
 
 from .appdirs import get_capture_state_file, is_frozen
 from networking.protos import _PacketCommand_pb2
@@ -557,9 +558,45 @@ class PacketCapture:
             thread = self.capture_thread
 
         capture = getattr(self, '_current_capture', None)
+        loop = getattr(self, '_current_loop', None)
+
         if capture:
             try:
-                capture.close()
+                async_close = None
+                loop_running = False
+                if loop:
+                    try:
+                        loop_running = loop.is_running() and not loop.is_closed()
+                    except Exception:
+                        loop_running = False
+
+                if loop_running:
+                    try:
+                        async_close = capture.close_async()
+                    except AttributeError:
+                        async_close = None
+
+                    if asyncio.iscoroutine(async_close):
+                        try:
+                            future = asyncio.run_coroutine_threadsafe(async_close, loop)
+                            future.result(timeout=5)
+                        except FutureTimeout:
+                            self.logger.warning("Timed out waiting for capture to close asynchronously")
+                        except Exception as async_err:
+                            self.logger.debug(f"Error awaiting capture close_async: {async_err}")
+                        finally:
+                            try:
+                                loop.call_soon_threadsafe(loop.stop)
+                            except Exception as stop_err:
+                                self.logger.debug(f"Unable to signal event loop stop: {stop_err}")
+                    else:
+                        # Schedule a simple stop if async close isn't available
+                        try:
+                            loop.call_soon_threadsafe(loop.stop)
+                        except Exception as stop_err:
+                            self.logger.debug(f"Unable to signal event loop stop: {stop_err}")
+                else:
+                    capture.close()
             except Exception as close_error:
                 self.logger.debug(f"Error closing capture during stop: {close_error}")
 

@@ -1,4 +1,5 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
+from src.models.settings import settings_manager, SettingsManager
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file
 import os
@@ -30,6 +31,7 @@ APP_VERSION = "3.3.1"
 # Initialize logging first
 setup_logging()
 logger = logging.getLogger(__name__)
+settings_manager.set_logger(logger)
 
 # Load environment variables
 load_dotenv()
@@ -254,13 +256,12 @@ class CaptureController:
 class Api:
     def __init__(self):
         self.stash_manager = stash_manager
-        # Settings
-        from src.models.appdirs import get_settings_file
-        self.settings_file = get_settings_file()
-        self.settings = self._load_settings()
+        self.settings_manager = settings_manager
+        self.settings_manager.reload()
         # Capture setup
+        interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
         self.capture_settings = {
-            'interface': self.settings.get('interface', os.getenv('CAPTURE_INTERFACE', 'Ethernet')),
+            'interface': interface,
             'port_range': (
                 int(os.getenv('CAPTURE_PORT_LOW', 20200)),
                 int(os.getenv('CAPTURE_PORT_HIGH', 20300))
@@ -283,79 +284,33 @@ class Api:
         self._current_char_id = None
         self._current_stash_id = None
 
-    def _load_settings(self):
-        """Load settings from file with proper error handling"""
-        if os.path.exists(self.settings_file):
-            try:
-                with open(self.settings_file, 'r', encoding='utf-8') as f:
-                    settings = json.load(f)
-                    logger.info("Settings loaded successfully")
-                    return settings
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in settings file: {e}")
-            except IOError as e:
-                logger.error(f"Error reading settings file: {e}")
-            except Exception as e:
-                logger.error(f"Unexpected error loading settings: {e}")
-        
-        # Return default settings if loading fails
-        default_settings = {
-            'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
-            'sortHotkey': 'ctrl+alt+s',
-            'cancelHotkey': 'ctrl+alt+x',
-            'sortSpeed': 0.2,
-            'resolution': 'Auto'
-        }
-        logger.info("Using default settings")
-        return default_settings
+    def _update_closing_overlay(self, message):
+        if not self.window:
+            return
+        try:
+            safe_message = (message or "").replace('\\', '\\\\').replace('"', '\\"')
+            self.window.evaluate_js(
+                f"window.updateClosingStatus && window.updateClosingStatus(\"{safe_message}\");"
+            )
+        except Exception as overlay_err:
+            logger.debug(f"Unable to update closing overlay: {overlay_err}")
 
     def _save_settings(self, settings):
         """Save settings to file with proper error handling and validation"""
         try:
-            # Validate settings structure
-            if not isinstance(settings, dict):
-                raise ValueError("Settings must be a dictionary")
-
-            previous_settings = self.settings if isinstance(self.settings, dict) else {}
-            
-            # Ensure hotkeys are lowercase for keyboard library
-            if 'sortHotkey' in settings:
-                settings['sortHotkey'] = str(settings['sortHotkey']).lower()
-            if 'cancelHotkey' in settings:
-                settings['cancelHotkey'] = str(settings['cancelHotkey']).lower()
-            if 'sortSpeed' not in settings:
-                settings['sortSpeed'] = 0.2
-                
-            # Validate sortSpeed is a valid number
-            try:
-                settings['sortSpeed'] = float(settings['sortSpeed'])
-                if settings['sortSpeed'] <= 0:
-                    settings['sortSpeed'] = 0.2
-            except (ValueError, TypeError):
-                settings['sortSpeed'] = 0.2
-                
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
-            
-            # Save to temporary file first, then rename (atomic operation)
-            temp_file = self.settings_file + '.tmp'
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(settings, f, indent=2, ensure_ascii=False)
-            
-            # Atomic rename
-            os.replace(temp_file, self.settings_file)
-            
-            self.settings = settings
+            previous_settings = self.settings_manager.data
+            updated_settings = self.settings_manager.update(settings)
             self._setup_global_hotkeys()
 
-            interface_changed = (
-                settings.get('interface')
-                and settings.get('interface') != previous_settings.get('interface')
-            )
+            new_interface = updated_settings.get('interface')
+            previous_interface = previous_settings.get('interface') if isinstance(previous_settings, dict) else None
+            interface_changed = new_interface and new_interface != previous_interface
+
+            self.capture_settings['interface'] = new_interface or self.capture_settings.get('interface')
 
             if interface_changed:
                 try:
-                    state = self.capture_controller.update_settings(settings.get('interface'), None, None)
+                    state = self.capture_controller.update_settings(new_interface, None, None)
                     self.capture_settings = {
                         'interface': state['interface'],
                         'port_range': (state['portRange']['low'], state['portRange']['high'])
@@ -396,12 +351,12 @@ class Api:
         keyboard.unhook_all()
         
         # Setup sort hotkey
-        sort_hotkey = self.settings.get('sortHotkey', 'ctrl+alt+s')
+        sort_hotkey = self.settings_manager.get('sortHotkey', 'ctrl+alt+s')
         logger.info(f"Registering sort hotkey: {sort_hotkey}")
         keyboard.add_hotkey(sort_hotkey, self._trigger_sort_current, suppress=True)
         
         # Setup cancel hotkey
-        cancel_hotkey = self.settings.get('cancelHotkey', 'ctrl+alt+x')
+        cancel_hotkey = self.settings_manager.get('cancelHotkey', 'ctrl+alt+x')
         logger.info(f"Registering cancel hotkey: {cancel_hotkey}")
         keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
         
@@ -423,7 +378,7 @@ class Api:
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
-        logger.info(f"Sort hotkey activated: {self.settings.get('sortHotkey')}")
+        logger.info(f"Sort hotkey activated: {self.settings_manager.get('sortHotkey')}")
         current_char_id = self._current_char_id
         current_stash_id = self._current_stash_id
         if current_char_id and current_stash_id:
@@ -443,7 +398,7 @@ class Api:
         
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""
-        logger.info(f"Cancel hotkey activated: {self.settings.get('cancelHotkey')}")
+        logger.info(f"Cancel hotkey activated: {self.settings_manager.get('cancelHotkey')}")
         if self.current_sort_event and not self.current_sort_event.is_set():
             self.current_sort_event.set()
             logger.info("Sort operation cancelled")
@@ -558,6 +513,7 @@ class Api:
     def close_window(self):
         """Properly save capture state before closing the window"""
         try:
+            self._update_closing_overlay("Stopping capture...")
             if hasattr(self, 'capture_controller'):
                 self.capture_controller.shutdown()
             elif hasattr(self, 'packet_capture'):
@@ -565,6 +521,11 @@ class Api:
         except Exception as e:
             logger.error(f"Error during window close: {e}")
         finally:
+            self._update_closing_overlay("Capture stopped. Closing application...")
+            try:
+                time.sleep(0.2)
+            except Exception:
+                pass
             # Close immediately without delays
             self.force_close_window()
             
@@ -584,18 +545,6 @@ class Api:
         """Return the path to the current executable."""
         import sys
         return sys.executable
-        
-    def launch_updater(self, new_exe_path, old_exe_path):
-        """Launch the new exe with /update <old_exe_path> and exit."""
-        import os, subprocess
-        try:
-            subprocess.Popen([os.path.abspath(new_exe_path), "/update", os.path.abspath(old_exe_path)])
-            if self.window:
-                self.window.destroy()
-            os._exit(0)
-        except Exception as e:
-            logger.error(f"Failed to launch updater: {e}")
-            return {"success": False, "error": str(e)}
         
     def check_for_updates(self):
         """
@@ -979,7 +928,7 @@ def search():
 @server.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
     if request.method == 'GET':
-        return jsonify(api.settings)
+        return jsonify(api.settings_manager.data)
     data = request.get_json()
     return jsonify({'success': api._save_settings(data)})
 
@@ -1004,40 +953,6 @@ def api_restart():
     import threading
     threading.Thread(target=restart, daemon=True).start()
     return '', 204
-
-def migrate_settings(defer_heavy_operations=False):
-    """
-    Migrate settings from old location to AppData if they exist
-    
-    Args:
-        defer_heavy_operations: If True, skip intensive operations during startup
-    """
-    from src.models.appdirs import get_settings_file
-    old_settings = resource_path('settings.json')
-    new_settings = get_settings_file()
-    
-    # Only do migration if it's actually needed
-    if os.path.exists(old_settings) and not os.path.exists(new_settings):
-        try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(new_settings), exist_ok=True)
-            # Copy settings
-            with open(old_settings, 'r') as f:
-                settings = json.load(f)
-            with open(new_settings, 'w') as f:
-                json.dump(settings, f, indent=2)
-                
-            # Only do expensive operations if not deferred
-            if not defer_heavy_operations:
-                logger.info("Migrating old settings file to new location")
-                # You could add additional migration steps here
-            else:
-                logger.info("Settings migration scheduled for later")
-                # Schedule migration for later if needed
-                threading.Timer(5.0, lambda: logger.info("Deferred settings migration complete")).start()
-            logger.info(f"Settings migrated to: {new_settings}")
-        except Exception as e:
-            logger.error(f"Error migrating settings: {e}")
 
 def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
@@ -1238,7 +1153,21 @@ def main():
     logger.info("Starting DnDTools application")
     
     # Preload only essential settings for faster startup
-    migrate_settings(defer_heavy_operations=True)
+    SettingsManager.migrate_from_legacy(logger=logger, defer_heavy_operations=True)
+    refreshed_settings = settings_manager.reload()
+
+    interface_after_migration = refreshed_settings.get('interface')
+    if interface_after_migration and interface_after_migration != api.capture_settings.get('interface'):
+        try:
+            state = api.capture_controller.update_settings(interface_after_migration, None, None)
+            api.capture_settings = {
+                'interface': state['interface'],
+                'port_range': (state['portRange']['low'], state['portRange']['high'])
+            }
+        except Exception as capture_err:
+            logger.error(f"Failed to apply migrated capture interface: {capture_err}")
+
+    api._setup_global_hotkeys()
     
     # Only handle immediate restart if capture is in a known running state
     if api.capture_controller.state()["running"] and not api._initial_restart_done:
@@ -1262,7 +1191,7 @@ def main():
         'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_character_stashes', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'get_executable_path', 'launch_updater', 'set_sort_order'
+        'get_capture_state', 'get_executable_path', 'set_sort_order'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))
