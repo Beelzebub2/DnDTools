@@ -672,6 +672,40 @@ async function loadStackModeFromServer() {
     }
 }
 
+async function persistStackMode(stack) {
+    try {
+        const response = await fetch('/api/stack_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ stack })
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to save stack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.stack !== 'undefined') {
+            isStackMode = !!data.stack;
+        }
+    } catch (error) {
+        console.error('Error persisting stack mode:', error);
+    } finally {
+        updateStackToggleUI();
+    }
+}
+
+function updateStackToggleUI() {
+    if (!stackModeToggle) {
+        return;
+    }
+    stackModeToggle.checked = isStackMode;
+    const wrapper = stackModeToggle.closest('label');
+    if (wrapper) {
+        wrapper.classList.toggle('active', isStackMode);
+    }
+}
+
 // Variable to store the equipment slots configuration
 let equipmentSlotConfig = null;
 
@@ -747,16 +781,28 @@ const renderInteractiveGrid = (stashId, items) => {
     grid.className = 'interactive-stash-grid';
 
     // Use explicit sizing for the grid to prevent expansion
-    grid.style.gridTemplateColumns = `repeat(${gridWidth}, 45px)`;
-    grid.style.gridTemplateRows = `repeat(${gridHeight}, 45px)`;
+    const cellSize = 45;
+    const cellGap = 3;
+    const horizontalGaps = Math.max(gridWidth - 1, 0) * cellGap;
+    const verticalGaps = Math.max(gridHeight - 1, 0) * cellGap;
+    const borderAllowance = 4; // 2px border on each side
+    const paddingAllowance = 4; // 2px padding on each side
+
+    grid.style.gridTemplateColumns = `repeat(${gridWidth}, ${cellSize}px)`;
+    grid.style.gridTemplateRows = `repeat(${gridHeight}, ${cellSize}px)`;
 
     // Force zero-sized implicit rows/columns
     grid.style.gridAutoRows = '0px';
     grid.style.gridAutoColumns = '0px';
 
     // Add max-width/max-height constraints based on grid dimensions
-    grid.style.maxWidth = `${gridWidth * 48}px`; // 45px per cell + 3px gap
-    grid.style.maxHeight = `${gridHeight * 48}px`;
+    const totalWidth = (gridWidth * cellSize) + horizontalGaps + borderAllowance + paddingAllowance;
+    const totalHeight = (gridHeight * cellSize) + verticalGaps + borderAllowance + paddingAllowance;
+
+    grid.style.width = `${totalWidth}px`;
+    grid.style.height = `${totalHeight}px`;
+    grid.style.maxWidth = `${totalWidth}px`;
+    grid.style.maxHeight = `${totalHeight}px`;
 
     // Prevent overflow from causing expansion
     grid.style.overflow = 'hidden';

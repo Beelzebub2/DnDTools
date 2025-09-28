@@ -35,35 +35,49 @@
                     <span id="totalStashValue">0</span>
                     <span> coins</span>
                 </div>
-                <button class="stash-action-button sort-button">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                    <!-- Jelly Triangle Animation Container -->
-                    <div class="jelly-triangle-container">
-                        <div class="dot"></div>
-                        <div class="traveler"></div>
+                
+                <div class="stash-actions-row">
+                    <div class="primary-actions">
+                        <button class="stash-action-button sort-button">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            <!-- Jelly Triangle Animation Container -->
+                            <div class="jelly-triangle-container">
+                                <div class="dot"></div>
+                                <div class="traveler"></div>
+                            </div>
+                            Sort Stash
+                        </button>
+                        <button class="stash-action-button preview-button" id="previewToggleButton">
+                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                            <div class="jelly-triangle-container">
+                                <div class="dot"></div>
+                                <div class="traveler"></div>
+                            </div>
+                            Show Sort Preview
+                        </button>
                     </div>
-                    Sort Stash
-                </button>
-                <button class="stash-action-button preview-button" id="previewToggleButton">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                    <div class="jelly-triangle-container">
-                        <div class="dot"></div>
-                        <div class="traveler"></div>
+                    
+                    <div class="sort-options">
+                        <div class="checkbox-group">
+                            <label class="custom-checkbox" for="packItemsToggle">
+                                <input type="checkbox" id="packItemsToggle">
+                                <span class="checkbox-mark"></span>
+                                <span class="checkbox-label">Pack Items</span>
+                            </label>
+                            <label class="custom-checkbox" for="stackItemsToggle">
+                                <input type="checkbox" id="stackItemsToggle">
+                                <span class="checkbox-mark"></span>
+                                <span class="checkbox-label">Stack Items</span>
+                            </label>
+                        </div>
                     </div>
-                    Show Sort Preview
-                </button>
-                <label class="pack-items-toggle" for="packItemsToggle">
-                    <input type="checkbox" id="packItemsToggle">
-                    <span>Pack Items</span>
-                </label>
-                <label class="pack-items-toggle" for="stackItemsToggle">
-                    <input type="checkbox" id="stackItemsToggle">
-                    <span>Stack Items</span>
-                </label>
+                </div>
+                
+                <div class="ordering-actions-row">
                 <div class="ordering-dropdown">
                     <button class="stash-action-button sort-button" id="orderingButton">
                         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -116,6 +130,7 @@
 
                         <!-- Space for future options -->
                     </div>
+                </div>
                 </div>
                 <!-- Replace static image with interactive grid container -->
                 <div id="interactiveStashGrid" class="stash-grid-container"></div>

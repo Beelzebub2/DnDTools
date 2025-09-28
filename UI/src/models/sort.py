@@ -69,8 +69,19 @@ class StashSorter:
                 continue
 
             if not self._ensure_area_available(item, target_point):
-                print("Failed to clear target area; aborting sort")
-                return False
+                print("Failed to clear target area; attempting fallback placement")
+                fallback_point = self._find_direct_empty_slot(item)
+                if fallback_point and fallback_point != target_point:
+                    print(f"Fallback slot located at {fallback_point}")
+                    if self.pack_mode:
+                        self.pack_positions[id(item)] = fallback_point
+                    if not self._ensure_area_available(item, fallback_point):
+                        print("Fallback slot blocked; aborting sort")
+                        return False
+                    target_point = fallback_point
+                else:
+                    print("No suitable fallback slot available; aborting sort")
+                    return False
 
             if self.cancel_event and self.cancel_event.is_set():
                 print("Sort operation cancelled before final placement")
@@ -250,6 +261,23 @@ class StashSorter:
         self.cur_x += item.width
         self.cur_height = max(self.cur_height, item.height)
         return target_point
+
+    def _find_direct_empty_slot(self, item: Item):
+        max_x = self.stash.width - item.width
+        max_y = self.stash.height - item.height
+        for y in range(max_y + 1):
+            for x in range(max_x + 1):
+                fits = True
+                for dx in range(item.width):
+                    for dy in range(item.height):
+                        if self.stash.grid[x + dx][y + dy] != 0:
+                            fits = False
+                            break
+                    if not fits:
+                        break
+                if fits:
+                    return Point(x, y)
+        return None
 
     def _compute_pack_plan(self):
         plan = {}
