@@ -388,6 +388,70 @@ class Api:
         if self.window:
             self.original_size = (self.window.width, self.window.height)
             self.original_position = (self.window.x, self.window.y)
+            self.bring_window_to_front()
+
+    def bring_window_to_front(self):
+        """Attempt to bring the UI window to the foreground across platforms."""
+        if not self.window:
+            return False
+
+        success = False
+
+        try:
+            if hasattr(self.window, 'restore'):
+                self.window.restore()
+        except Exception as exc:
+            logger.debug(f"Failed to restore window before foreground request: {exc}")
+
+        for method_name in ('activate', 'bring_to_front', 'focus'):
+            if hasattr(self.window, method_name):
+                try:
+                    getattr(self.window, method_name)()
+                    success = True
+                    break
+                except Exception as exc:
+                    logger.debug(f"Window.{method_name}() failed: {exc}")
+
+        if not success:
+            try:
+                import pygetwindow as gw  # type: ignore
+
+                title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
+                candidates = gw.getWindowsWithTitle(title)
+                for candidate in candidates:
+                    try:
+                        candidate.restore()
+                        candidate.activate()
+                        success = True
+                        break
+                    except Exception as gw_exc:
+                        logger.debug(f"pygetwindow activate failed: {gw_exc}")
+            except Exception as exc:
+                logger.debug(f"pygetwindow foreground attempt failed: {exc}")
+
+        if not success and sys.platform.startswith('win'):
+            try:
+                import ctypes
+
+                user32 = ctypes.windll.user32
+                hwnd = getattr(self.window, 'hwnd', None)
+
+                if not hwnd:
+                    title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
+                    hwnd = user32.FindWindowW(None, title)
+
+                if hwnd:
+                    SW_RESTORE = 9
+                    user32.ShowWindow(hwnd, SW_RESTORE)
+                    user32.SetForegroundWindow(hwnd)
+                    success = True
+            except Exception as exc:
+                logger.debug(f"Win32 foreground attempt failed: {exc}")
+
+        if not success:
+            logger.debug("Unable to bring window to front; continuing without foreground focus")
+
+        return success
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
