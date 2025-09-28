@@ -715,13 +715,13 @@
     background: rgba(228, 200, 105, 0.05);
 }
 
-.custom-checkbox input[type="checkbox"]:checked + .checkbox-mark {
+.custom-checkbox input[type="checkbox"]:checked+.checkbox-mark {
     background: var(--accent-gold);
     border-color: var(--accent-gold);
     box-shadow: 0 0 10px rgba(228, 200, 105, 0.3);
 }
 
-.custom-checkbox input[type="checkbox"]:checked + .checkbox-mark::after {
+.custom-checkbox input[type="checkbox"]:checked+.checkbox-mark::after {
     opacity: 1;
     transform: scale(1);
     color: var(--bg-dark);
@@ -743,16 +743,16 @@
         align-items: stretch;
         gap: 1rem;
     }
-    
+
     .primary-actions {
         justify-content: center;
         flex-wrap: wrap;
     }
-    
+
     .sort-options {
         justify-content: center;
     }
-    
+
     .checkbox-group {
         justify-content: center;
     }
@@ -763,7 +763,7 @@
         flex-direction: column;
         gap: 0.5rem;
     }
-    
+
     .checkbox-group {
         flex-direction: column;
         gap: 0.75rem;
