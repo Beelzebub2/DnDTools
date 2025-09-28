@@ -31,6 +31,7 @@ class StashSorter:
         if self.stack_mode:
             self._prepare_stack_plan()
         self.pack_positions = {}
+        self._buffered_inventory = {}
         if self.pack_mode:
             self.pack_positions = self._compute_pack_plan()
             if not self.pack_positions:
@@ -46,12 +47,18 @@ class StashSorter:
 
         self._ensure_initial_workspace()
 
-        while self.stash.pq:
+        while self.stash.pq or self._buffered_inventory:
+            if not self.stash.pq and self._buffered_inventory:
+                _, buffered_item = self._buffered_inventory.popitem()
+                heapq.heappush(self.stash.pq, buffered_item)
+                continue
+
             if self.cancel_event and self.cancel_event.is_set():
                 print("Sort operation cancelled")
                 return False
 
             item = heapq.heappop(self.stash.pq)
+            self._buffered_inventory.pop(id(item), None)
             print("Processing item: ", item)
 
             planned_point = self.pack_positions.get(id(item)) if self.pack_mode else None
@@ -116,6 +123,7 @@ class StashSorter:
                 return False
 
             item.stash.move(item, target_point, self.stash)
+            self._unmark_buffered_inventory(item)
             print(f"Current stash state:\n{self.stash}")
 
             if self.cancel_event and self.cancel_event.is_set():
@@ -152,6 +160,7 @@ class StashSorter:
 
             print(f"Buffering item {candidate} to inventory slot {inv_slot} to create workspace")
             candidate.stash.move(candidate, inv_slot, self.inv)
+            self._mark_buffered_inventory(candidate)
             moves += 1
             free_cells += candidate.width * candidate.height
 
@@ -292,11 +301,13 @@ class StashSorter:
                 if new_pos:
                     print(f"Moving {occupying_item} to empty slot in stash")
                     self.stash.move(occupying_item, new_pos, self.stash)
+                    self._unmark_buffered_inventory(occupying_item)
                 else:
                     new_pos = self.inv.find_empty_slot(occupying_item)
                     if new_pos:
                         print(f"Moving {occupying_item} to inventory")
                         self.stash.move(occupying_item, new_pos, self.inv)
+                        self._mark_buffered_inventory(occupying_item)
                     else:
                         print("No immediate positions found; attempting to create workspace")
                         if self._create_workspace_for(item, occupying_item):
@@ -448,12 +459,14 @@ class StashSorter:
 
             print(f"Creating workspace: moving {candidate} to inventory slot {inv_slot}")
             candidate.stash.move(candidate, inv_slot, self.inv)
+            self._mark_buffered_inventory(candidate)
             moves_attempted += 1
 
             reassigned_slot = self.stash.find_empty_slot(blocking_item)
             if reassigned_slot:
                 print(f"Relocating blocking item {blocking_item} to {reassigned_slot}")
                 blocking_item.stash.move(blocking_item, reassigned_slot, self.stash)
+                self._unmark_buffered_inventory(blocking_item)
                 return True
 
         return False
@@ -507,6 +520,7 @@ class StashSorter:
                     self.stash.move(blocker, new_slot, self.stash)
                     if self.pack_mode:
                         self.pack_positions[id(blocker)] = new_slot
+                    self._unmark_buffered_inventory(blocker)
                     continue
 
                 inv_slot = self.inv.find_empty_slot(blocker) if self.inv else None
@@ -515,6 +529,7 @@ class StashSorter:
                     self.stash.move(blocker, inv_slot, self.inv)
                     if self.pack_mode:
                         self.pack_positions.pop(id(blocker), None)
+                    self._mark_buffered_inventory(blocker)
                     continue
 
                 print(f"Blocker {blocker} has no immediate relocation; attempting workspace creation")
@@ -572,6 +587,19 @@ class StashSorter:
                     return candidate
 
         return None
+
+    def _mark_buffered_inventory(self, item: Item):
+        if item is None:
+            return
+        setattr(item, "_buffered_by_sort", True)
+        self._buffered_inventory[id(item)] = item
+
+    def _unmark_buffered_inventory(self, item: Item):
+        if item is None:
+            return
+        self._buffered_inventory.pop(id(item), None)
+        if getattr(item, "_buffered_by_sort", False):
+            setattr(item, "_buffered_by_sort", False)
 
 
 def main():
