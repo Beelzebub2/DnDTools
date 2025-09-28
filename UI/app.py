@@ -271,6 +271,8 @@ class Api:
         except Exception as exc:
             logger.error(f"Failed to restore stash sort order from settings: {exc}")
 
+        self._current_pack_mode = bool(settings.get('stashPackMode', False))
+
         # Capture setup
         interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
         self.capture_settings = {
@@ -468,7 +470,7 @@ class Api:
         """Background worker for sorting current stash"""
         if self.window:
             self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
-        result = self.sort_stash(self._current_char_id, self._current_stash_id)
+        result = self.sort_stash(self._current_char_id, self._current_stash_id, pack_mode=self.get_pack_mode())
         if self.window:
             self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
         # Optionally, communicate result back to UI
@@ -536,16 +538,23 @@ class Api:
         state["initialRestartDone"] = self._initial_restart_done
         return state
 
-    def sort_stash(self, character_id, stash_id):
+    def sort_stash(self, character_id, stash_id, pack_mode=None):
         """Sort a specific stash for a character"""
         try:
             # Create new event for this sort operation
             self.current_sort_event = threading.Event()
+
+            if pack_mode is None:
+                pack_mode = self.get_pack_mode()
+            else:
+                self.set_pack_mode(pack_mode)
+                pack_mode = self.get_pack_mode()
             
             result = self.stash_manager.sort_stash(
                 character_id, 
                 stash_id, 
-                cancel_event=self.current_sort_event
+                cancel_event=self.current_sort_event,
+                pack_mode=pack_mode
             )
             
             # Handle tuple result with error message
@@ -627,6 +636,21 @@ class Api:
 
     def get_sort_order(self):
         return list(Item.sort_order)
+
+    def set_pack_mode(self, pack):
+        pack_bool = bool(pack)
+        previous = getattr(self, '_current_pack_mode', False)
+        self._current_pack_mode = pack_bool
+        if pack_bool != previous:
+            try:
+                self.settings_manager.update({'stashPackMode': pack_bool})
+            except Exception as exc:
+                logger.error(f"Failed to persist pack mode preference: {exc}")
+                return False
+        return True
+
+    def get_pack_mode(self):
+        return bool(getattr(self, '_current_pack_mode', False))
 
 @server.route('/api/download_update')
 def download_update():
@@ -882,9 +906,16 @@ def api_sort_stash(character_id, stash_id):
     stash_id = validate_stash_id(stash_id)
     if stash_id is None:
         return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
-    
+    payload = request.get_json(silent=True) or {}
+    pack_mode = None
+    if isinstance(payload, dict) and 'pack' in payload:
+        raw_pack = payload.get('pack')
+        if isinstance(raw_pack, str):
+            pack_mode = raw_pack.lower() in {'1', 'true', 'yes', 'on'}
+        else:
+            pack_mode = bool(raw_pack)
     try:
-        result = api.sort_stash(character_id, stash_id)
+        result = api.sort_stash(character_id, stash_id, pack_mode=pack_mode)
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error sorting stash: {e}")
@@ -959,6 +990,35 @@ def api_settings():
         return jsonify(api.settings_manager.data)
     data = request.get_json()
     return jsonify({'success': api._save_settings(data)})
+
+
+@server.route('/api/pack_mode', methods=['GET'])
+def api_get_pack_mode():
+    try:
+        return jsonify({'success': True, 'pack': api.get_pack_mode()})
+    except Exception as exc:
+        logger.error(f"Error retrieving pack mode: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to get pack mode'}), 500
+
+
+@server.route('/api/pack_mode', methods=['POST'])
+def api_set_pack_mode_route():
+    payload = request.get_json(silent=True) or {}
+    pack = None
+    if isinstance(payload, dict) and 'pack' in payload:
+        raw_pack = payload.get('pack')
+        if isinstance(raw_pack, str):
+            pack = raw_pack.lower() in {'1', 'true', 'yes', 'on'}
+        else:
+            pack = bool(raw_pack)
+    try:
+        success = api.set_pack_mode(pack)
+        if not success:
+            return jsonify({'success': False, 'error': 'Failed to save pack mode'}), 500
+        return jsonify({'success': True, 'pack': api.get_pack_mode()})
+    except Exception as exc:
+        logger.error(f"Error updating pack mode: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to set pack mode'}), 500
 
 @server.route('/assets/<path:filename>')
 def serve_file(filename):

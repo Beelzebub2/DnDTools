@@ -5,6 +5,7 @@ import heapq
 import keyboard
 import os
 from src.models.point import Point
+from src.models.item import Item
 import pygetwindow as gw
 
 def intersects(pos1, width1, height1, pos2, width2, height2):
@@ -15,96 +16,151 @@ def intersects(pos1, width1, height1, pos2, width2, height2):
     return True
 
 class StashSorter:
-    def __init__(self, stash: Storage, inv: Storage):
+    def __init__(self, stash: Storage, inv: Storage, pack_mode: bool = False):
         self.stash = stash
         self.inv = inv
         self.cur_x = 0
         self.cur_y = 0
         self.cur_height = 0
         self.cancel_event = None
+        self.pack_mode = bool(pack_mode)
+        self.pack_positions = {}
+        if self.pack_mode:
+            self.pack_positions = self._compute_pack_plan()
+            if not self.pack_positions:
+                print("Pack mode plan could not be generated; falling back to sequential layout.")
+                self.pack_mode = False
 
     def sort(self, cancel_event=None):
         self.cancel_event = cancel_event
-        
+
         while self.stash.pq:
-            # Check for cancellation at the start of each item
             if self.cancel_event and self.cancel_event.is_set():
                 print("Sort operation cancelled")
                 return False
-                
+
             item = heapq.heappop(self.stash.pq)
             print("Processing item: ", item)
 
-            if self.cur_height == 0:
-                self.cur_height = item.height
-
-            if self.cur_x + item.width > self.stash.width:
-                self.cur_y += self.cur_height
-                self.cur_height = item.height
-                self.cur_x = 0
-
-            if self.cur_y + item.height > self.stash.height:
-                print("Out of space")
-                return False
-            
-            print(f"Target position: {Point(self.cur_x, self.cur_y)}, Current position: {item.position}")
-            if Point(self.cur_x, self.cur_y) != item.position:
-                for x in range(item.width):
-                    for y in range(item.height):
-                        # Check for cancellation during item placement
-                        if self.cancel_event and self.cancel_event.is_set():
-                            print("Sort operation cancelled during item placement")
-                            return False
-                            
-                        occupying_item = self.stash.grid[self.cur_x + x][self.cur_y + y]
-                        if occupying_item != 0 and occupying_item != item:
-                            new_pos = self.stash.find_empty_slot(occupying_item)
-                            if new_pos:
-                                if not intersects(new_pos, occupying_item.width, occupying_item.height,
-                                              Point(self.cur_x, self.cur_y), item.width, item.height):
-                                    print(f"Moving {occupying_item} to empty slot in stash")
-                                    self.stash.move(occupying_item, new_pos, self.stash)
-                                    continue
-
-                            print(f"Checking inventory for {occupying_item}")
-                            new_pos = self.inv.find_empty_slot(occupying_item)
-                            if new_pos:
-                                print(f"Moving {occupying_item} to inventory")
-                                self.stash.move(occupying_item, new_pos, self.inv)
-                            else:
-                                print("No valid positions found")
-                                return False
-
-                # Check for cancellation before final item placement
-                if self.cancel_event and self.cancel_event.is_set():
-                    print("Sort operation cancelled before final placement")
-                    return False
-                    
-                item.stash.move(item, Point(self.cur_x, self.cur_y), self.stash)
+            if self.pack_mode:
+                target_point = self.pack_positions.get(id(item))
+                if target_point is None:
+                    target_point = self._compute_next_sequential_position(item)
             else:
-                print("Item already in correct position")
+                target_point = self._compute_next_sequential_position(item)
 
-            self.cur_x += item.width
-            self.cur_height = max(self.cur_height, item.height)
+            if target_point is None:
+                print("No valid target position found; aborting sort")
+                return False
+
+            print(f"Target position: {target_point}, Current position: {item.position}")
+            if target_point == item.position:
+                print("Item already in correct position")
+                continue
+
+            if not self._ensure_area_available(item, target_point):
+                print("Failed to clear target area; aborting sort")
+                return False
+
+            if self.cancel_event and self.cancel_event.is_set():
+                print("Sort operation cancelled before final placement")
+                return False
+
+            item.stash.move(item, target_point, self.stash)
             print(f"Current stash state:\n{self.stash}")
 
-            print(f"Current inventory state:\n{self.inv}")
-            
-            # Check for cancellation after item placement
             if self.cancel_event and self.cancel_event.is_set():
                 print("Sort operation cancelled after item placement")
                 return False
 
         return True
-    
-    def pack(self):
-        """
-        Pack items efficiently in the storage grid.
-        This method is not yet implemented but would handle
-        optimal arrangement of items to minimize space usage.
-        """
-        # Implementation needed for optimal item packing algorithm
-        pass
+
+    def _ensure_area_available(self, item: Item, target_point: Point) -> bool:
+        moved_items = set()
+        for dx in range(item.width):
+            for dy in range(item.height):
+                x = target_point.x + dx
+                y = target_point.y + dy
+
+                if x >= self.stash.width or y >= self.stash.height:
+                    print("Target position out of bounds")
+                    return False
+
+                occupying_item = self.stash.grid[x][y]
+                if occupying_item == 0 or occupying_item == item or occupying_item in moved_items:
+                    continue
+
+                if self.cancel_event and self.cancel_event.is_set():
+                    print("Sort operation cancelled during area clearing")
+                    return False
+
+                new_pos = self.stash.find_empty_slot(occupying_item)
+                if new_pos:
+                    print(f"Moving {occupying_item} to empty slot in stash")
+                    self.stash.move(occupying_item, new_pos, self.stash)
+                else:
+                    new_pos = self.inv.find_empty_slot(occupying_item)
+                    if new_pos:
+                        print(f"Moving {occupying_item} to inventory")
+                        self.stash.move(occupying_item, new_pos, self.inv)
+                    else:
+                        print("No valid positions found")
+                        return False
+
+                moved_items.add(occupying_item)
+
+        return True
+
+    def _compute_next_sequential_position(self, item: Item):
+        if self.cur_height == 0:
+            self.cur_height = item.height
+
+        if self.cur_x + item.width > self.stash.width:
+            self.cur_y += self.cur_height
+            self.cur_x = 0
+            self.cur_height = item.height
+
+        if self.cur_y + item.height > self.stash.height:
+            print("Sequential layout ran out of space")
+            return None
+
+        target_point = Point(self.cur_x, self.cur_y)
+        self.cur_x += item.width
+        self.cur_height = max(self.cur_height, item.height)
+        return target_point
+
+    def _compute_pack_plan(self):
+        plan = {}
+        occupancy = [[False for _ in range(self.stash.width)] for _ in range(self.stash.height)]
+        temp_heap = list(self.stash.pq)
+        heapq.heapify(temp_heap)
+
+        while temp_heap:
+            item = heapq.heappop(temp_heap)
+            placed = False
+            for y in range(0, self.stash.height - item.height + 1):
+                for x in range(0, self.stash.width - item.width + 1):
+                    fits = True
+                    for dy in range(item.height):
+                        for dx in range(item.width):
+                            if occupancy[y + dy][x + dx]:
+                                fits = False
+                                break
+                        if not fits:
+                            break
+                    if fits:
+                        plan[id(item)] = Point(x, y)
+                        for dy in range(item.height):
+                            for dx in range(item.width):
+                                occupancy[y + dy][x + dx] = True
+                        placed = True
+                        break
+                if placed:
+                    break
+            if not placed:
+                print(f"Unable to find pack position for item {item}; aborting pack plan")
+                return {}
+        return plan
 
 
 def main():

@@ -66,6 +66,8 @@ let suppressSortPersistence = false;
 let latestStashData = null;
 let isPreviewMode = false;
 let previewToggleButton = null;
+let isPackMode = false;
+let packModeToggle = null;
 
 const rarityRankMap = {
     'none': 0,
@@ -331,7 +333,7 @@ function compareItemsForPreview(itemA, itemB, sortOrder) {
     return (itemA._originalIndex ?? 0) - (itemB._originalIndex ?? 0);
 }
 
-function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder) {
+function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder, packMode = false) {
     if (!Array.isArray(items) || !items.length) {
         return [];
     }
@@ -361,37 +363,79 @@ function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder
 
     preparedItems.sort((a, b) => compareItemsForPreview(a, b, sortOrder));
 
-    let curX = 0;
-    let curY = 0;
-    let rowHeight = 0;
     const placedItems = [];
 
-    for (const item of preparedItems) {
-        if (rowHeight === 0) {
-            rowHeight = item.height;
+    if (packMode) {
+        const occupancy = Array.from({ length: gridHeight }, () => Array(gridWidth).fill(false));
+
+        for (const item of preparedItems) {
+            let placed = false;
+            for (let y = 0; y <= gridHeight - item.height && !placed; y++) {
+                for (let x = 0; x <= gridWidth - item.width; x++) {
+                    let fits = true;
+                    for (let dx = 0; dx < item.width && fits; dx++) {
+                        for (let dy = 0; dy < item.height; dy++) {
+                            if (occupancy[y + dy][x + dx]) {
+                                fits = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (fits) {
+                        const displaySlotId = (y * gridWidth) + x;
+                        placedItems.push({
+                            ...item,
+                            displaySlotId,
+                            displayX: x,
+                            displayY: y
+                        });
+                        for (let dx = 0; dx < item.width; dx++) {
+                            for (let dy = 0; dy < item.height; dy++) {
+                                occupancy[y + dy][x + dx] = true;
+                            }
+                        }
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+            if (!placed) {
+                console.warn('Unable to pack all items without overflow; reverting to sequential preview.');
+                return [];
+            }
         }
+    } else {
+        let curX = 0;
+        let curY = 0;
+        let rowHeight = 0;
 
-        if (curX + item.width > gridWidth) {
-            curY += rowHeight;
-            rowHeight = item.height;
-            curX = 0;
+        for (const item of preparedItems) {
+            if (rowHeight === 0) {
+                rowHeight = item.height;
+            }
+
+            if (curX + item.width > gridWidth) {
+                curY += rowHeight;
+                rowHeight = item.height;
+                curX = 0;
+            }
+
+            if (curY + item.height > gridHeight) {
+                console.warn('Preview layout exceeded grid bounds, falling back to original positions.');
+                return [];
+            }
+
+            const displaySlotId = (curY * gridWidth) + curX;
+            placedItems.push({
+                ...item,
+                displaySlotId,
+                displayX: curX,
+                displayY: curY
+            });
+
+            curX += item.width;
+            rowHeight = Math.max(rowHeight, item.height);
         }
-
-        if (curY + item.height > gridHeight) {
-            console.warn('Preview layout exceeded grid bounds, falling back to original positions.');
-            return [];
-        }
-
-        const displaySlotId = (curY * gridWidth) + curX;
-        placedItems.push({
-            ...item,
-            displaySlotId,
-            displayX: curX,
-            displayY: curY
-        });
-
-        curX += item.width;
-        rowHeight = Math.max(rowHeight, item.height);
     }
 
     return placedItems.map(item => {
@@ -451,6 +495,57 @@ function togglePreviewMode() {
     refreshCurrentStashView();
 }
 
+function updatePackToggleUI() {
+    if (!packModeToggle) {
+        return;
+    }
+    packModeToggle.checked = isPackMode;
+    const wrapper = packModeToggle.closest('label');
+    if (wrapper) {
+        wrapper.classList.toggle('active', isPackMode);
+    }
+}
+
+async function persistPackMode(pack) {
+    try {
+        const response = await fetch('/api/pack_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pack })
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to save pack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.pack !== 'undefined') {
+            isPackMode = !!data.pack;
+        }
+    } catch (error) {
+        console.error('Error persisting pack mode:', error);
+    } finally {
+        updatePackToggleUI();
+    }
+}
+
+async function loadPackModeFromServer() {
+    try {
+        const response = await fetch('/api/pack_mode');
+        if (!response.ok) {
+            throw new Error(`Failed to load pack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.pack !== 'undefined') {
+            isPackMode = !!data.pack;
+        }
+    } catch (error) {
+        console.error('Error loading pack mode:', error);
+    } finally {
+        updatePackToggleUI();
+    }
+}
+
 // Variable to store the equipment slots configuration
 let equipmentSlotConfig = null;
 
@@ -500,7 +595,7 @@ const renderInteractiveGrid = (stashId, items) => {
         totalValueElement.textContent = totalValue.toLocaleString();
     }
 
-    const previewItems = isPreviewMode ? computeSortedPreviewLayout(stashId, items) : [];
+    const previewItems = isPreviewMode ? computeSortedPreviewLayout(stashId, items, currentSortOrder, isPackMode) : [];
     const itemsToRender = (previewItems.length ? previewItems : items) || [];
 
     // Special handling for equipment stashes
@@ -834,7 +929,11 @@ const triggerSort = async () => {
     try {
         const response = await fetch(`/api/character/${charId}/stash/${stashIdToSort}/sort`, {
             method: 'POST',
-            signal: abortController.signal
+            signal: abortController.signal,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pack: isPackMode })
         });
         const result = await response.json();
 
@@ -1205,6 +1304,17 @@ window.addEventListener('DOMContentLoaded', async () => {
         updatePreviewToggleUI();
     }
 
+    packModeToggle = document.getElementById('packItemsToggle');
+    if (packModeToggle) {
+        await loadPackModeFromServer();
+        packModeToggle.addEventListener('change', async (event) => {
+            isPackMode = !!event.target.checked;
+            updatePackToggleUI();
+            await persistPackMode(isPackMode);
+            refreshCurrentStashView();
+        });
+    }
+
     try {
         // Check if there's a stash ID in the URL params (added by search page)
         const urlParams = new URLSearchParams(window.location.search);
@@ -1404,7 +1514,7 @@ const renderCombinedCharacterView = async (stashes) => {
     // Process both equipment (3) and bag (2) stash data
     const equipmentItems = await processStashData(stashes, "3") || [];
     const bagItems = await processStashData(stashes, "2") || [];
-    const bagPreviewItems = isPreviewMode ? computeSortedPreviewLayout("2", bagItems) : [];
+    const bagPreviewItems = isPreviewMode ? computeSortedPreviewLayout("2", bagItems, currentSortOrder, isPackMode) : [];
     const bagItemsToRender = bagPreviewItems.length ? bagPreviewItems : bagItems;
 
     // Calculate total vendor value for all items

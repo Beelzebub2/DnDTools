@@ -395,7 +395,7 @@ class StashManager:
         }
         return response
 
-    def sort_stash(self, character_id, stash_id, cancel_event=None):
+    def sort_stash(self, character_id, stash_id, cancel_event=None, pack_mode=False):
         logger.info(f"Sorting stash {stash_id} for character {character_id}")
         char = self.characters_cache.get(str(character_id))
         if not char:
@@ -423,7 +423,8 @@ class StashManager:
             logger.info("Focused window: Dark and Darker")
         except Exception as e:
             logger.error(f"Error focusing window: {e}")
-        sorter = StashSorter(stash, inventory)
+
+        sorter = StashSorter(stash, inventory, pack_mode=pack_mode)
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"
         success = sorter.sort(cancel_event)
