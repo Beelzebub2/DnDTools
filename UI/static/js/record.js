@@ -242,6 +242,13 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         captureRunningState = running;
+        if (typeof window.__applySidebarState === 'function') {
+            try {
+                window.__applySidebarState(state, options);
+            } catch (proxyErr) {
+                console.warn('Failed to proxy capture state globally:', proxyErr);
+            }
+        }
         return running;
     }
 

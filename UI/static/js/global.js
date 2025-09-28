@@ -1,10 +1,42 @@
 // Global script for updating the sidebar capture indicator across all pages
 let globalPollingInterval = null;
 let lastKnownState = null;
+let sidebarIndicatorEl = null;
+
+function resolveSidebarIndicator() {
+    if (!sidebarIndicatorEl || !document.body.contains(sidebarIndicatorEl)) {
+        sidebarIndicatorEl = document.getElementById('sidebarCaptureIndicator');
+    }
+    return sidebarIndicatorEl;
+}
+
+function applySidebarState(state = {}, options = {}) {
+    const indicator = resolveSidebarIndicator();
+    const running = Boolean(state && state.running);
+
+    if (indicator) {
+        if (options && options.transition === 'stopping' && !running) {
+            indicator.classList.add('stopping');
+            indicator.classList.remove('active');
+        } else if (options && options.transition === 'starting' && running) {
+            indicator.classList.remove('stopping');
+            indicator.classList.add('active');
+        }
+
+        updateSidebarIndicator(indicator, running);
+    }
+
+    lastKnownState = running;
+    return running;
+}
+
+if (typeof window.applyCaptureState !== 'function') {
+    window.applyCaptureState = applySidebarState;
+}
+window.__applySidebarState = applySidebarState;
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Try to find the sidebar capture indicator
-    const sidebarCaptureIndicator = document.getElementById('sidebarCaptureIndicator');
+    const sidebarCaptureIndicator = resolveSidebarIndicator();
 
     if (sidebarCaptureIndicator) {
         try {
@@ -23,9 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 clearTimeout(timeoutId);
                 const state = await response.json();
 
-                // Update sidebar pulse indicator state
-                updateSidebarIndicator(sidebarCaptureIndicator, state.running);
-                lastKnownState = state.running;
+                applySidebarState(state);
 
                 // Set up optimized polling with exponential backoff on errors
                 startOptimizedPolling(sidebarCaptureIndicator);
@@ -33,8 +63,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 clearTimeout(timeoutId);
                 console.warn('Initial capture state fetch failed:', error);
                 // Continue with default state
-                updateSidebarIndicator(sidebarCaptureIndicator, false);
-                lastKnownState = false;
+                applySidebarState({ running: false });
             }
         } catch (error) {
             console.error('Error initializing sidebar capture indicator:', error);
@@ -46,11 +75,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Helper function to update the sidebar indicator
 function updateSidebarIndicator(indicator, isRunning) {
+    const target = indicator || resolveSidebarIndicator();
+    if (!target) return;
+
     if (isRunning) {
-        indicator.classList.add('active');
-        indicator.classList.remove('stopping');
+        target.classList.add('active');
+        target.classList.remove('stopping');
     } else {
-        indicator.classList.remove('active', 'stopping');
+        target.classList.remove('active', 'stopping');
     }
 }
 
@@ -93,6 +125,8 @@ function startOptimizedPolling(indicator) {
     let errorCount = 0;
     let pollingInterval = 10000; // Start with 10 seconds for better performance
 
+    const resolveIndicator = () => indicator || resolveSidebarIndicator();
+
     globalPollingInterval = setInterval(async () => {
         try {
             const controller = new AbortController();
@@ -107,8 +141,7 @@ function startOptimizedPolling(indicator) {
 
             // Only update if state actually changed
             if (state.running !== lastKnownState) {
-                updateSidebarIndicator(indicator, state.running);
-                lastKnownState = state.running;
+                applySidebarState(state);
             }
 
             // Reset error count and interval on success
@@ -126,13 +159,13 @@ function startOptimizedPolling(indicator) {
             if (errorCount > 3) {
                 pollingInterval = Math.min(pollingInterval * 1.5, 60000); // Max 60 seconds
                 clearInterval(globalPollingInterval);
-                startOptimizedPolling(indicator);
+                startOptimizedPolling(resolveIndicator());
                 errorCount = 0;
             }
 
             // On error, keep last known state
             if (lastKnownState !== null) {
-                updateSidebarIndicator(indicator, lastKnownState);
+                applySidebarState({ running: lastKnownState });
             }
         }
     }, pollingInterval);
