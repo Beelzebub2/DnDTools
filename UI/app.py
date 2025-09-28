@@ -1165,7 +1165,11 @@ def main():
     api._setup_global_hotkeys()
     
     # Only handle immediate restart if capture is in a known running state
-    if api.capture_controller.state()["running"] and not api._initial_restart_done:
+    if (
+        api.capture_controller.state()["running"]
+        and not api._initial_restart_done
+        and not api.capture_controller.should_auto_start()
+    ):
         # Schedule restart after UI load instead of doing it now
         threading.Timer(0.5, lambda: api.restart_capture_switch()).start()
     
