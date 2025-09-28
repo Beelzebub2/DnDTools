@@ -261,7 +261,16 @@ class Api:
     def __init__(self):
         self.stash_manager = stash_manager
         self.settings_manager = settings_manager
-        self.settings_manager.reload()
+        settings = self.settings_manager.reload()
+
+        # Apply persisted sort order preference if available
+        try:
+            Item.sort_order = Item.normalize_sort_order(
+                settings.get('stashSortOrder', Item.sort_order)
+            )
+        except Exception as exc:
+            logger.error(f"Failed to restore stash sort order from settings: {exc}")
+
         # Capture setup
         interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
         self.capture_settings = {
@@ -543,8 +552,17 @@ class Api:
         self.window.destroy()
         
     def set_sort_order(self, order):
-        Item.sort_order = order
-        return True
+        try:
+            normalized = Item.normalize_sort_order(order)
+            Item.sort_order = normalized
+            self.settings_manager.update({'stashSortOrder': normalized})
+            return True
+        except Exception as exc:
+            logger.error(f"Failed to update stash sort order: {exc}")
+            return False
+
+    def get_sort_order(self):
+        return list(Item.sort_order)
 
 @server.route('/api/download_update')
 def download_update():
@@ -1040,10 +1058,15 @@ def proxy_market_price(item_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@server.route('/api/sort_order', methods=['POST'])
+@server.route('/api/sort_order', methods=['GET', 'POST'])
 def api_sort_order():
+    if request.method == 'GET':
+        return jsonify({'success': True, 'order': api.get_sort_order()})
+
     data = request.get_json() or {}
-    return jsonify({'success': api.set_sort_order(data.get('order'))})
+    success = api.set_sort_order(data.get('order'))
+    response = {'success': success, 'order': api.get_sort_order()}
+    return (jsonify(response), 200) if success else (jsonify(response), 500)
 
 def main():
     # --- Updater logic ---

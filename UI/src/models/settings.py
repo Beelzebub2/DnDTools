@@ -6,6 +6,7 @@ import threading
 from typing import Any, Dict, Optional
 
 from src.models.appdirs import get_settings_file, resource_path
+from src.models.item import Item
 
 
 class SettingsManager:
@@ -30,6 +31,7 @@ class SettingsManager:
             "cancelHotkey": "ctrl+alt+x",
             "sortSpeed": 0.2,
             "resolution": "Auto",
+            "stashSortOrder": list(Item.SORTABLE_FIELDS),
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -116,6 +118,11 @@ class SettingsManager:
             normalized["resolution"] = str(resolution)
         else:
             normalized["resolution"] = self._defaults["resolution"]
+
+        sort_order = normalized.get("stashSortOrder")
+        normalized["stashSortOrder"] = Item.normalize_sort_order(
+            sort_order or self._defaults["stashSortOrder"]
+        )
 
         return normalized
 
