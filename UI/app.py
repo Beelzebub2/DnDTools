@@ -16,7 +16,6 @@ import time
 import shutil
 import subprocess
 import requests
-import io
 from networking.protos import _PacketCommand_pb2
 
 from src.models.character import save_packet_data
@@ -25,6 +24,11 @@ from src.models.item import Item
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
+
+# Global cache for version check
+version_cache = None
+version_cache_timestamp = 0
+VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
 APP_VERSION = "3.3.1"
 
@@ -408,9 +412,6 @@ class Api:
     def get_characters(self):
         return self.stash_manager.get_characters()
 
-    def get_character_stashes(self, character_id):
-        return self.stash_manager.get_character_stashes(character_id)
-        
     def get_character_details(self, character_id):
         return self.stash_manager.get_character_details(character_id)
 
@@ -541,84 +542,9 @@ class Api:
         # Remove delay - close immediately
         self.window.destroy()
         
-    def get_executable_path(self):
-        """Return the path to the current executable."""
-        import sys
-        return sys.executable
-        
-    def check_for_updates(self):
-        """
-        Check if a newer version is available on GitHub, but only return version info without downloading.
-        """
-        import requests, traceback
-        logger.info("Checking for updates")
-        try:
-            # Try with GitHub API
-            logger.info("Attempting to fetch release information from GitHub API")            
-            response = requests.get(
-                'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
-                headers={'User-Agent': 'DnDTools-Updater'},
-                timeout=15
-            )
-            
-            if not response.ok:
-                error_msg = f"GitHub API request failed with status code: {response.status_code}"
-                logger.error(error_msg)
-                logger.error(f"Response content: {response.text[:500]}")  # Log first 500 chars of response
-                return {"success": False, "error": error_msg}
-                
-            release_data = response.json()
-            logger.info(f"Release data received with keys: {list(release_data.keys())}")
-            
-            # Extract version information
-            version = release_data.get('tag_name', '').replace('v', '')
-            release_url = release_data.get('html_url')
-            
-            logger.info(f"Latest version: {version}, URL: {release_url}")
-            
-            return {
-                "success": True, 
-                "version": version, 
-                "release_url": release_url
-            }
-                
-        except requests.exceptions.Timeout:
-            error_msg = "Connection timed out while fetching update information"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-            
-        except requests.exceptions.ConnectionError as e:
-            error_msg = f"Connection error: {str(e)}"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-            
-        except ValueError as e:
-            error_msg = f"Invalid JSON response: {str(e)}"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-            
-        except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
-            logger.error(error_msg)
-            logger.error(traceback.format_exc())
-            return {"success": False, "error": error_msg}
-            
-        return {"success": True}
-    
     def set_sort_order(self, order):
         Item.sort_order = order
         return True
-
-def download_github_release_asset(asset_url):
-    """Download a GitHub release asset and return it as a file-like object."""
-    headers = {
-        'Accept': 'application/octet-stream',
-        'User-Agent': 'DnDTools-Updater'
-    }
-    response = requests.get(asset_url, headers=headers, stream=True, timeout=30)
-    if response.ok:
-        return io.BytesIO(response.content)
-    return None
 
 @server.route('/api/download_update')
 def download_update():
@@ -646,9 +572,18 @@ def download_update():
         logger.error(error_msg, exc_info=True)
         return jsonify({'error': error_msg}), 500
 
-@server.route('/api/version')
-def api_version():
+def get_version_info():
     """Get the latest version from dndtools.me API with fallback to GitHub API."""
+    global version_cache, version_cache_timestamp
+    
+    current_time = time.time()
+    
+    # Check if we have a valid cached response
+    if version_cache and (current_time - version_cache_timestamp) < VERSION_CACHE_DURATION:
+        logger.info("Returning cached version information")
+        return version_cache
+    
+    # Cache expired or not set, fetch new data
     try:
         # First try dndtools.me API
         logger.info("Attempting to fetch version information from dndtools.me API")
@@ -669,7 +604,7 @@ def api_version():
             if not response.ok:
                 error_msg = f"Both APIs failed. GitHub API status: {response.status_code}"
                 logger.error(error_msg)
-                return jsonify({'version': APP_VERSION, 'error': error_msg}), 400
+                return {'version': APP_VERSION, 'error': error_msg}
                 
         release_data = response.json()
         
@@ -693,30 +628,41 @@ def api_version():
         # Include the release URL for the UI
         release_url = release_data.get('html_url', 'https://github.com/Beelzebub2/DnDTools/releases/latest')
         
-        return jsonify({
+        # Cache the successful result
+        result = {
             'version': version,
             'release_url': release_url
-        })
+        }
+        
+        version_cache = result
+        version_cache_timestamp = current_time
+        
+        return result
         
     except requests.exceptions.Timeout:
         error_msg = "Connection timed out while fetching version information"
         logger.error(error_msg)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 504
+        return {'version': APP_VERSION, 'error': error_msg}
         
     except requests.exceptions.ConnectionError as e:
         error_msg = f"Connection error: {str(e)}"
         logger.error(error_msg)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 503
+        return {'version': APP_VERSION, 'error': error_msg}
         
     except ValueError as e:
         error_msg = f"Invalid JSON response: {str(e)}"
         logger.error(error_msg)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 500
+        return {'version': APP_VERSION, 'error': error_msg}
         
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(error_msg, exc_info=True)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 500
+        return {'version': APP_VERSION, 'error': error_msg}
+
+@server.route('/api/version')
+def api_version():
+    """Get the latest version from dndtools.me API with fallback to GitHub API."""
+    return jsonify(get_version_info())
 
 @server.route('/api/local_version')
 def api_local_version():
@@ -958,6 +904,13 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
+        # Check for updates on startup
+        try:
+            get_version_info()
+            logger.info("Version check completed on startup")
+        except Exception as e:
+            logger.error(f"Failed to check for updates on startup: {e}")
+        
         def load_data_async():
             """Load stash data once in a background thread."""
             if getattr(load_data_async, 'is_loading', False):
@@ -1045,55 +998,10 @@ def check_tshark():
         logger.error(f"❌ tshark was found but failed to run: {e}")
         return False
 
-def install_npcap():
-    """Install Npcap using the bundled installer with admin privileges (UAC prompt)"""
-    try:
-        import win32com.shell.shell as shell  # type: ignore
-        from win32com.shell import shellcon  # type: ignore
-        import win32con
-        import time
-
-        npcap_installer = resource_path('npcap-1.82.exe')
-        if not os.path.exists(npcap_installer):
-            return False, "Npcap installer not found"
-
-        params = '/winpcap_mode=yes'  # Silent install
-        rc = shell.ShellExecuteEx(
-            lpVerb='runas',  # Request elevation
-            lpFile=npcap_installer,
-            lpParameters=params,
-            nShow=win32con.SW_HIDE,
-            fMask=shellcon.SEE_MASK_NOCLOSEPROCESS
-        )
-        process_handle = rc['hProcess']
-
-        # Wait for installation (timeout after 2 minutes)
-        from win32event import WaitForSingleObject, WAIT_OBJECT_0, WAIT_TIMEOUT
-        result = WaitForSingleObject(process_handle, 120 * 1000)
-        if result == WAIT_TIMEOUT:
-            return False, "Installation timed out"
-
-        # Give Windows a moment to complete registry updates
-        time.sleep(2)
-        # Always return success after installer runs
-        return True, "Installation complete!"
-    except Exception as e:
-        if hasattr(e, 'winerror') and e.winerror == 1223:
-            return False, "Installation cancelled by user"
-        return False, f"Installation failed: {str(e)}"
-
-@server.route('/installing')
-def installing():
-    return render_template('installing.html')
 
 @server.route('/api/check_npcap')
 def check_npcap():
     return jsonify({'installed': check_tshark()})
-
-@server.route('/api/install_npcap', methods=['POST'])
-def install_npcap_route():
-    success, message = install_npcap()
-    return jsonify({'success': success, 'error': message if not success else None})
 
 # Cache for market price data
 market_price_cache = {}
@@ -1189,9 +1097,9 @@ def main():
     for method_name in [
         'minimize', 'toggle_maximize', 'close_window', 'sort_stash', '_save_settings',
         'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
-        'search_items', 'get_characters', 'get_character_stashes', 'get_character_details',
+        'search_items', 'get_characters', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'get_executable_path', 'set_sort_order'
+        'get_capture_state', 'set_sort_order'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))

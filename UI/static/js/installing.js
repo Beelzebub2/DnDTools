@@ -120,26 +120,3 @@ async function restartApp() {
     // Show restart popup with countdown
     showRestartPopup();
 }
-
-async function startInstallation() {
-    try {
-        updateProgress(10, 'Starting Npcap installation...');
-        const response = await fetch('/api/install_npcap', {
-            method: 'POST'
-        });
-        const data = await response.json();
-
-        if (data.success) {
-            updateProgress(100, 'Installation complete!');
-            restartApp();
-        } else {
-            updateProgress(0, data.error || 'Installation failed');
-        }
-    } catch (error) {
-        console.error('Error during installation:', error);
-        updateProgress(0, 'Installation failed');
-    }
-}
-
-// Start the process when the page loads
-window.addEventListener('DOMContentLoaded', checkInstallationStatus);
