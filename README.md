@@ -117,4 +117,5 @@ For support or questions, please [open an issue](https://github.com/Beelzebub2/d
 
 ### Support us
 
-<a href="https://www.buymeacoffee.com/DnDTools"><img src="https://img.buymeacoffee.com/button-api/?text=Support DnDTools&emoji=&slug=DnDTools&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" /></a>
+[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" height="80" />](https://www.buymeacoffee.com/DnDTools)
+
