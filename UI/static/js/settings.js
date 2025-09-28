@@ -7,15 +7,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resolutionSelect = document.getElementById('resolution');
     const detectedResolutionSpan = document.querySelector('#detectedResolution');
     const refreshResolutionBtn = document.getElementById('refreshResolution');
-    const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');    // Load data in parallel for faster initialization
-    const loadPromises = [
-        loadInterfaces(),
-        loadSettings(),
-        loadDetectedResolution()
-    ];
-
+    const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');    // Load data sequentially to ensure interfaces are loaded before settings
     try {
-        await Promise.allSettled(loadPromises);
+        await loadInterfaces();
+        await loadSettings();
+        await loadDetectedResolution();
     } catch (error) {
         console.error('Error during settings initialization:', error);
         showNotification('Some settings failed to load', 'warning');
@@ -471,7 +467,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         interfaceSelect.value = defaultSettings.interface;
         sortHotkeyInput.value = defaultSettings.sortHotkey;
         cancelHotkeyInput.value = defaultSettings.cancelHotkey;
-        sortSpeedInput.value = defaultSettings.sortSpeed; resolutionSelect.value = defaultSettings.resolution; showNotification('Settings reset to defaults', 'success');
+        sortSpeedInput.value = defaultSettings.sortSpeed;
+        resolutionSelect.value = defaultSettings.resolution;
+
+        showNotification('Settings reset to defaults', 'success');
     }
 
     // Event listeners
@@ -487,7 +486,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     sortSpeedInput.addEventListener('input', () => {
         const value = parseFloat(sortSpeedInput.value);
         if (value < 0.01) sortSpeedInput.value = 0.01;
-        if (value > 0.5) sortSpeedInput.value = 0.5;
+        if (value > 1.0) sortSpeedInput.value = 1.0;
     });    // Initialize in parallel
     // (already handled above)
 });

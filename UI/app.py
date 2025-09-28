@@ -1,4 +1,5 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
+from src.models.settings import settings_manager, SettingsManager
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file
 import os
@@ -15,7 +16,6 @@ import time
 import shutil
 import subprocess
 import requests
-import io
 from networking.protos import _PacketCommand_pb2
 
 from src.models.character import save_packet_data
@@ -25,11 +25,17 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 
+# Global cache for version check
+version_cache = None
+version_cache_timestamp = 0
+VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
+
 APP_VERSION = "3.3.1"
 
 # Initialize logging first
 setup_logging()
 logger = logging.getLogger(__name__)
+settings_manager.set_logger(logger)
 
 # Load environment variables
 load_dotenv()
@@ -136,33 +142,151 @@ def handle_character(message):
     
     return saved
 
+class CaptureController:
+    """Encapsulates PacketCapture lifecycle and user intent state."""
+
+    def __init__(self, initial_settings, capture_info):
+        self._lock = threading.RLock()
+        self._capture_info = capture_info
+        self._settings = {
+            "interface": initial_settings.get("interface", "Ethernet"),
+            "port_range": initial_settings.get("port_range", (20200, 20300)),
+        }
+        self._packet_capture = self._create_capture()
+        self._desired_running = False
+        self._last_error = None
+
+        if self._packet_capture.should_auto_start():
+            self._desired_running = True
+            self._packet_capture.start_capture_switch()
+
+    def _create_capture(self):
+        capture = PacketCapture(
+            interface=self._settings["interface"],
+            port_range=self._settings["port_range"],
+        )
+        capture.capture_info = self._capture_info
+        return capture
+
+    def _state_dict(self):
+        running = self._packet_capture.is_active()
+        return {
+            "running": running,
+            "interface": self._settings["interface"],
+            "portRange": {
+                "low": self._settings["port_range"][0],
+                "high": self._settings["port_range"][1],
+            },
+            "desired": self._desired_running,
+            "lastError": self._last_error,
+        }
+
+    def start(self):
+        with self._lock:
+            self._desired_running = True
+            self._packet_capture.start_capture_switch()
+            running = self._packet_capture.is_active()
+            self._last_error = None if running else "Capture failed to start"
+            return running, self._state_dict()
+
+    def stop(self):
+        with self._lock:
+            self._desired_running = False
+            self._packet_capture.stop_capture_switch()
+            running = self._packet_capture.is_active()
+            success = not running
+            self._last_error = None if success else "Capture is still running"
+            return success, self._state_dict()
+
+    def restart(self):
+        with self._lock:
+            desired = self._desired_running or self._packet_capture.is_active()
+            self._packet_capture.stop_capture_switch()
+            self._packet_capture.start_capture_switch()
+            self._desired_running = True if desired else self._desired_running
+            running = self._packet_capture.is_active()
+            self._last_error = None if running else "Capture failed to restart"
+            return running, self._state_dict()
+
+    def update_settings(self, interface, port_low, port_high):
+        with self._lock:
+            new_interface = interface or self._settings["interface"]
+            low = port_low if port_low is not None else self._settings["port_range"][0]
+            high = port_high if port_high is not None else self._settings["port_range"][1]
+            new_range = (low, high)
+
+            if (
+                new_interface == self._settings["interface"]
+                and new_range == self._settings["port_range"]
+            ):
+                return self._state_dict()
+
+            should_resume = self._desired_running
+            self._settings = {"interface": new_interface, "port_range": new_range}
+
+            self._packet_capture.stop_capture_switch(persist_running_state=should_resume)
+            self._packet_capture = self._create_capture()
+
+            if should_resume:
+                self._packet_capture.start_capture_switch()
+
+            return self._state_dict()
+
+    def should_auto_start(self):
+        return self._packet_capture.should_auto_start()
+
+    def state(self):
+        with self._lock:
+            return self._state_dict()
+
+    def settings(self):
+        with self._lock:
+            return {
+                "interface": self._settings["interface"],
+                "port_range": self._settings["port_range"],
+            }
+
+    def shutdown(self):
+        with self._lock:
+            desired = self._desired_running or self._packet_capture.is_active()
+            self._desired_running = desired
+
+        self._packet_capture.shutdown(persist_running_state=desired)
+
+    @property
+    def packet_capture(self):
+        return self._packet_capture
+
 class Api:
     def __init__(self):
         self.stash_manager = stash_manager
-        # Settings
-        from src.models.appdirs import get_settings_file
-        self.settings_file = get_settings_file()
-        self.settings = self._load_settings()
+        self.settings_manager = settings_manager
+        settings = self.settings_manager.reload()
+
+        # Apply persisted sort order preference if available
+        try:
+            Item.sort_order = Item.normalize_sort_order(
+                settings.get('stashSortOrder', Item.sort_order)
+            )
+        except Exception as exc:
+            logger.error(f"Failed to restore stash sort order from settings: {exc}")
+
         # Capture setup
+        interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
         self.capture_settings = {
-            'interface': self.settings.get('interface', os.getenv('CAPTURE_INTERFACE', 'Ethernet')),
+            'interface': interface,
             'port_range': (
                 int(os.getenv('CAPTURE_PORT_LOW', 20200)),
                 int(os.getenv('CAPTURE_PORT_HIGH', 20300))
             )
         }
-        self.packet_capture = PacketCapture(
-            interface=self.capture_settings['interface'],
-            port_range=self.capture_settings['port_range'],
-        )
         capture_info = {
             _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
             _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
         }
-        self.packet_capture.capture_info = capture_info
-
-        self.capture_thread = None
-        self.capture_running = self.packet_capture.running
+        self.capture_controller = CaptureController(self.capture_settings, capture_info)
+        # Normalize settings from controller (ensures tuple types)
+        self.capture_settings = self.capture_controller.settings()
         self._initial_restart_done = False
         self.window = None
         self._setup_global_hotkeys()
@@ -173,68 +297,54 @@ class Api:
         self._current_char_id = None
         self._current_stash_id = None
 
-    def _load_settings(self):
-        """Load settings from file with proper error handling"""
-        if os.path.exists(self.settings_file):
-            try:
-                with open(self.settings_file, 'r', encoding='utf-8') as f:
-                    settings = json.load(f)
-                    logger.info("Settings loaded successfully")
-                    return settings
-            except json.JSONDecodeError as e:
-                logger.error(f"Invalid JSON in settings file: {e}")
-            except IOError as e:
-                logger.error(f"Error reading settings file: {e}")
-            except Exception as e:
-                logger.error(f"Unexpected error loading settings: {e}")
-        
-        # Return default settings if loading fails
-        default_settings = {
-            'interface': os.getenv('CAPTURE_INTERFACE', 'Ethernet'),
-            'sortHotkey': 'ctrl+alt+s',
-            'cancelHotkey': 'ctrl+alt+x',
-            'sortSpeed': 0.2,
-            'resolution': 'Auto'
-        }
-        logger.info("Using default settings")
-        return default_settings
+    def _update_closing_overlay(self, message):
+        if not self.window:
+            return
+        try:
+            safe_message = (message or "").replace('\\', '\\\\').replace('"', '\\"')
+            self.window.evaluate_js(
+                f"window.updateClosingStatus && window.updateClosingStatus(\"{safe_message}\");"
+            )
+        except Exception as overlay_err:
+            logger.debug(f"Unable to update closing overlay: {overlay_err}")
 
     def _save_settings(self, settings):
         """Save settings to file with proper error handling and validation"""
         try:
-            # Validate settings structure
-            if not isinstance(settings, dict):
-                raise ValueError("Settings must be a dictionary")
-            
-            # Ensure hotkeys are lowercase for keyboard library
-            if 'sortHotkey' in settings:
-                settings['sortHotkey'] = str(settings['sortHotkey']).lower()
-            if 'cancelHotkey' in settings:
-                settings['cancelHotkey'] = str(settings['cancelHotkey']).lower()
-            if 'sortSpeed' not in settings:
-                settings['sortSpeed'] = 0.2
-                
-            # Validate sortSpeed is a valid number
-            try:
-                settings['sortSpeed'] = float(settings['sortSpeed'])
-                if settings['sortSpeed'] <= 0:
-                    settings['sortSpeed'] = 0.2
-            except (ValueError, TypeError):
-                settings['sortSpeed'] = 0.2
-                
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self.settings_file), exist_ok=True)
-            
-            # Save to temporary file first, then rename (atomic operation)
-            temp_file = self.settings_file + '.tmp'
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(settings, f, indent=2, ensure_ascii=False)
-            
-            # Atomic rename
-            os.replace(temp_file, self.settings_file)
-            
-            self.settings = settings
+            previous_settings = self.settings_manager.data
+            updated_settings = self.settings_manager.update(settings)
             self._setup_global_hotkeys()
+
+            new_interface = updated_settings.get('interface')
+            previous_interface = previous_settings.get('interface') if isinstance(previous_settings, dict) else None
+            interface_changed = new_interface and new_interface != previous_interface
+
+            self.capture_settings['interface'] = new_interface or self.capture_settings.get('interface')
+
+            if interface_changed:
+                try:
+                    state = self.capture_controller.update_settings(new_interface, None, None)
+                    self.capture_settings = {
+                        'interface': state['interface'],
+                        'port_range': (state['portRange']['low'], state['portRange']['high'])
+                    }
+
+                    if self.window:
+                        payload = json.dumps(state)
+                        self.window.evaluate_js(
+                            f"window.applyCaptureState && window.applyCaptureState({payload}, {{ suppressErrorToast: true }});"
+                        )
+                        self.window.evaluate_js(
+                            "showNotification('Capture interface updated', 'info');"
+                        )
+                except Exception as capture_err:
+                    logger.error(f"Failed to apply capture interface change: {capture_err}")
+                    if self.window:
+                        error_msg = str(capture_err).replace('"', '\\"')
+                        self.window.evaluate_js(
+                            f"showNotification('Failed to switch capture interface: {error_msg}', 'error');"
+                        )
+
             logger.info("Settings saved successfully")
             return True
             
@@ -254,14 +364,18 @@ class Api:
         keyboard.unhook_all()
         
         # Setup sort hotkey
-        sort_hotkey = self.settings.get('sortHotkey', 'ctrl+alt+s')
+        sort_hotkey = self.settings_manager.get('sortHotkey', 'ctrl+alt+s')
         logger.info(f"Registering sort hotkey: {sort_hotkey}")
         keyboard.add_hotkey(sort_hotkey, self._trigger_sort_current, suppress=True)
         
         # Setup cancel hotkey
-        cancel_hotkey = self.settings.get('cancelHotkey', 'ctrl+alt+x')
+        cancel_hotkey = self.settings_manager.get('cancelHotkey', 'ctrl+alt+x')
         logger.info(f"Registering cancel hotkey: {cancel_hotkey}")
         keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
+        
+    @property
+    def packet_capture(self):
+        return self.capture_controller.packet_capture
         
     def set_window(self, window):
         """Set the window reference for JavaScript evaluation"""
@@ -274,10 +388,74 @@ class Api:
         if self.window:
             self.original_size = (self.window.width, self.window.height)
             self.original_position = (self.window.x, self.window.y)
+            self.bring_window_to_front()
+
+    def bring_window_to_front(self):
+        """Attempt to bring the UI window to the foreground across platforms."""
+        if not self.window:
+            return False
+
+        success = False
+
+        try:
+            if hasattr(self.window, 'restore'):
+                self.window.restore()
+        except Exception as exc:
+            logger.debug(f"Failed to restore window before foreground request: {exc}")
+
+        for method_name in ('activate', 'bring_to_front', 'focus'):
+            if hasattr(self.window, method_name):
+                try:
+                    getattr(self.window, method_name)()
+                    success = True
+                    break
+                except Exception as exc:
+                    logger.debug(f"Window.{method_name}() failed: {exc}")
+
+        if not success:
+            try:
+                import pygetwindow as gw  # type: ignore
+
+                title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
+                candidates = gw.getWindowsWithTitle(title)
+                for candidate in candidates:
+                    try:
+                        candidate.restore()
+                        candidate.activate()
+                        success = True
+                        break
+                    except Exception as gw_exc:
+                        logger.debug(f"pygetwindow activate failed: {gw_exc}")
+            except Exception as exc:
+                logger.debug(f"pygetwindow foreground attempt failed: {exc}")
+
+        if not success and sys.platform.startswith('win'):
+            try:
+                import ctypes
+
+                user32 = ctypes.windll.user32
+                hwnd = getattr(self.window, 'hwnd', None)
+
+                if not hwnd:
+                    title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
+                    hwnd = user32.FindWindowW(None, title)
+
+                if hwnd:
+                    SW_RESTORE = 9
+                    user32.ShowWindow(hwnd, SW_RESTORE)
+                    user32.SetForegroundWindow(hwnd)
+                    success = True
+            except Exception as exc:
+                logger.debug(f"Win32 foreground attempt failed: {exc}")
+
+        if not success:
+            logger.debug("Unable to bring window to front; continuing without foreground focus")
+
+        return success
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
-        logger.info(f"Sort hotkey activated: {self.settings.get('sortHotkey')}")
+        logger.info(f"Sort hotkey activated: {self.settings_manager.get('sortHotkey')}")
         current_char_id = self._current_char_id
         current_stash_id = self._current_stash_id
         if current_char_id and current_stash_id:
@@ -297,7 +475,7 @@ class Api:
         
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""
-        logger.info(f"Cancel hotkey activated: {self.settings.get('cancelHotkey')}")
+        logger.info(f"Cancel hotkey activated: {self.settings_manager.get('cancelHotkey')}")
         if self.current_sort_event and not self.current_sort_event.is_set():
             self.current_sort_event.set()
             logger.info("Sort operation cancelled")
@@ -307,9 +485,6 @@ class Api:
     def get_characters(self):
         return self.stash_manager.get_characters()
 
-    def get_character_stashes(self, character_id):
-        return self.stash_manager.get_character_stashes(character_id)
-        
     def get_character_details(self, character_id):
         return self.stash_manager.get_character_details(character_id)
 
@@ -321,15 +496,11 @@ class Api:
         return self.stash_manager.search_items(query)
 
     def set_capture_settings(self, interface, port_low, port_high):
-        # Stop current capture if running
-        if self.packet_capture.running:
-            self.packet_capture.stop_capture_switch()
-        # Create new PacketCapture with updated settings and callback
-        self.capture_settings = {'interface': interface, 'port_range': (port_low, port_high)}
-        self.packet_capture = PacketCapture(
-            interface,
-            (port_low, port_high),
-        )
+        state = self.capture_controller.update_settings(interface, port_low, port_high)
+        self.capture_settings = {
+            'interface': state['interface'],
+            'port_range': (state['portRange']['low'], state['portRange']['high'])
+        }
         return True
 
     def start_capture(self):
@@ -346,30 +517,24 @@ class Api:
         return self.stash_manager.get_character_stash_previews(character_id)
 
     def start_capture_switch(self):
-        self.packet_capture.start_capture_switch()
-        return True
+        success, state = self.capture_controller.start()
+        return success, state
 
     def stop_capture_switch(self):
-        self.packet_capture.stop_capture_switch()
-        return True
+        success, state = self.capture_controller.stop()
+        return success, state
 
     def restart_capture_switch(self):
         """Stop capture if running and start it again"""
-        if self.packet_capture.running:
-            self.packet_capture.stop_capture_switch()
-        # Small delay to ensure cleanup
-        import time
-        time.sleep(0.5)
-        self.packet_capture.start_capture_switch()
+        success, state = self.capture_controller.restart()
         self._initial_restart_done = True
-        return True
+        return success, state
 
     def get_capture_state(self):
         """Get current capture state including if initial restart was done"""
-        return {
-            "running": self.packet_capture.is_active(),
-            "initialRestartDone": self._initial_restart_done
-        }
+        state = self.capture_controller.state()
+        state["initialRestartDone"] = self._initial_restart_done
+        return state
 
     def sort_stash(self, character_id, stash_id):
         """Sort a specific stash for a character"""
@@ -422,116 +587,46 @@ class Api:
     def close_window(self):
         """Properly save capture state before closing the window"""
         try:
-            if hasattr(self, 'packet_capture'):
+            self._update_closing_overlay("Stopping capture...")
+            if hasattr(self, 'capture_controller'):
+                self.capture_controller.shutdown()
+            elif hasattr(self, 'packet_capture'):
                 self.packet_capture.shutdown()
         except Exception as e:
             logger.error(f"Error during window close: {e}")
         finally:
+            self._update_closing_overlay("Capture stopped. Closing application...")
+            try:
+                time.sleep(0.2)
+            except Exception:
+                pass
             # Close immediately without delays
             self.force_close_window()
             
     def force_close_window(self):
         # Quick shutdown without delays
         try:
-            if hasattr(self, 'packet_capture') and self.packet_capture.running:
-                # Set running to False immediately, let background thread handle cleanup
+            if hasattr(self, 'capture_controller'):
+                self.capture_controller.packet_capture.running = False
+            elif hasattr(self, 'packet_capture') and self.packet_capture.running:
                 self.packet_capture.running = False
-                # Remove this line: self.packet_capture._save_state()
         except Exception as e:
             logger.error(f"Error stopping packet capture on close: {e}")
         # Remove delay - close immediately
         self.window.destroy()
         
-    def get_executable_path(self):
-        """Return the path to the current executable."""
-        import sys
-        return sys.executable
-        
-    def launch_updater(self, new_exe_path, old_exe_path):
-        """Launch the new exe with /update <old_exe_path> and exit."""
-        import os, subprocess
-        try:
-            subprocess.Popen([os.path.abspath(new_exe_path), "/update", os.path.abspath(old_exe_path)])
-            if self.window:
-                self.window.destroy()
-            os._exit(0)
-        except Exception as e:
-            logger.error(f"Failed to launch updater: {e}")
-            return {"success": False, "error": str(e)}
-        
-    def check_for_updates(self):
-        """
-        Check if a newer version is available on GitHub, but only return version info without downloading.
-        """
-        import requests, traceback
-        logger.info("Checking for updates")
-        try:
-            # Try with GitHub API
-            logger.info("Attempting to fetch release information from GitHub API")            
-            response = requests.get(
-                'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
-                headers={'User-Agent': 'DnDTools-Updater'},
-                timeout=15
-            )
-            
-            if not response.ok:
-                error_msg = f"GitHub API request failed with status code: {response.status_code}"
-                logger.error(error_msg)
-                logger.error(f"Response content: {response.text[:500]}")  # Log first 500 chars of response
-                return {"success": False, "error": error_msg}
-                
-            release_data = response.json()
-            logger.info(f"Release data received with keys: {list(release_data.keys())}")
-            
-            # Extract version information
-            version = release_data.get('tag_name', '').replace('v', '')
-            release_url = release_data.get('html_url')
-            
-            logger.info(f"Latest version: {version}, URL: {release_url}")
-            
-            return {
-                "success": True, 
-                "version": version, 
-                "release_url": release_url
-            }
-                
-        except requests.exceptions.Timeout:
-            error_msg = "Connection timed out while fetching update information"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-            
-        except requests.exceptions.ConnectionError as e:
-            error_msg = f"Connection error: {str(e)}"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-            
-        except ValueError as e:
-            error_msg = f"Invalid JSON response: {str(e)}"
-            logger.error(error_msg)
-            return {"success": False, "error": error_msg}
-            
-        except Exception as e:
-            error_msg = f"Unexpected error: {str(e)}"
-            logger.error(error_msg)
-            logger.error(traceback.format_exc())
-            return {"success": False, "error": error_msg}
-            
-        return {"success": True}
-    
     def set_sort_order(self, order):
-        Item.sort_order = order
-        return True
+        try:
+            normalized = Item.normalize_sort_order(order)
+            Item.sort_order = normalized
+            self.settings_manager.update({'stashSortOrder': normalized})
+            return True
+        except Exception as exc:
+            logger.error(f"Failed to update stash sort order: {exc}")
+            return False
 
-def download_github_release_asset(asset_url):
-    """Download a GitHub release asset and return it as a file-like object."""
-    headers = {
-        'Accept': 'application/octet-stream',
-        'User-Agent': 'DnDTools-Updater'
-    }
-    response = requests.get(asset_url, headers=headers, stream=True, timeout=30)
-    if response.ok:
-        return io.BytesIO(response.content)
-    return None
+    def get_sort_order(self):
+        return list(Item.sort_order)
 
 @server.route('/api/download_update')
 def download_update():
@@ -559,9 +654,18 @@ def download_update():
         logger.error(error_msg, exc_info=True)
         return jsonify({'error': error_msg}), 500
 
-@server.route('/api/version')
-def api_version():
+def get_version_info():
     """Get the latest version from dndtools.me API with fallback to GitHub API."""
+    global version_cache, version_cache_timestamp
+    
+    current_time = time.time()
+    
+    # Check if we have a valid cached response
+    if version_cache and (current_time - version_cache_timestamp) < VERSION_CACHE_DURATION:
+        logger.info("Returning cached version information")
+        return version_cache
+    
+    # Cache expired or not set, fetch new data
     try:
         # First try dndtools.me API
         logger.info("Attempting to fetch version information from dndtools.me API")
@@ -582,7 +686,7 @@ def api_version():
             if not response.ok:
                 error_msg = f"Both APIs failed. GitHub API status: {response.status_code}"
                 logger.error(error_msg)
-                return jsonify({'version': APP_VERSION, 'error': error_msg}), 400
+                return {'version': APP_VERSION, 'error': error_msg}
                 
         release_data = response.json()
         
@@ -606,30 +710,41 @@ def api_version():
         # Include the release URL for the UI
         release_url = release_data.get('html_url', 'https://github.com/Beelzebub2/DnDTools/releases/latest')
         
-        return jsonify({
+        # Cache the successful result
+        result = {
             'version': version,
             'release_url': release_url
-        })
+        }
+        
+        version_cache = result
+        version_cache_timestamp = current_time
+        
+        return result
         
     except requests.exceptions.Timeout:
         error_msg = "Connection timed out while fetching version information"
         logger.error(error_msg)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 504
+        return {'version': APP_VERSION, 'error': error_msg}
         
     except requests.exceptions.ConnectionError as e:
         error_msg = f"Connection error: {str(e)}"
         logger.error(error_msg)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 503
+        return {'version': APP_VERSION, 'error': error_msg}
         
     except ValueError as e:
         error_msg = f"Invalid JSON response: {str(e)}"
         logger.error(error_msg)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 500
+        return {'version': APP_VERSION, 'error': error_msg}
         
     except Exception as e:
         error_msg = f"Unexpected error: {str(e)}"
         logger.error(error_msg, exc_info=True)
-        return jsonify({'version': APP_VERSION, 'error': error_msg}), 500
+        return {'version': APP_VERSION, 'error': error_msg}
+
+@server.route('/api/version')
+def api_version():
+    """Get the latest version from dndtools.me API with fallback to GitHub API."""
+    return jsonify(get_version_info())
 
 @server.route('/api/local_version')
 def api_local_version():
@@ -720,7 +835,8 @@ def api_record_character(character_id):
 @server.route('/api/capture/switch/start', methods=['POST'])
 def capture_switch_start():
     try:
-        return jsonify({'success': api.start_capture_switch()})
+        success, state = api.start_capture_switch()
+        return jsonify({'success': success, 'state': state})
     except Exception as e:
         logger.error(f"Error starting capture switch: {e}")
         return jsonify({'success': False, 'error': 'Failed to start capture'}), 500
@@ -728,7 +844,8 @@ def capture_switch_start():
 @server.route('/api/capture/switch/stop', methods=['POST'])
 def capture_switch_stop():
     try:
-        return jsonify({'success': api.stop_capture_switch()})
+        success, state = api.stop_capture_switch()
+        return jsonify({'success': success, 'state': state})
     except Exception as e:
         logger.error(f"Error stopping capture switch: {e}")
         return jsonify({'success': False, 'error': 'Failed to stop capture'}), 500
@@ -736,7 +853,8 @@ def capture_switch_stop():
 @server.route('/api/capture/switch/restart', methods=['POST'])
 def capture_switch_restart():
     try:
-        return jsonify({'success': api.restart_capture_switch()})
+        success, state = api.restart_capture_switch()
+        return jsonify({'success': success, 'state': state})
     except Exception as e:
         logger.error(f"Error restarting capture switch: {e}")
         return jsonify({'success': False, 'error': 'Failed to restart capture'}), 500
@@ -838,7 +956,7 @@ def search():
 @server.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():
     if request.method == 'GET':
-        return jsonify(api.settings)
+        return jsonify(api.settings_manager.data)
     data = request.get_json()
     return jsonify({'success': api._save_settings(data)})
 
@@ -864,125 +982,76 @@ def api_restart():
     threading.Thread(target=restart, daemon=True).start()
     return '', 204
 
-def migrate_settings(defer_heavy_operations=False):
-    """
-    Migrate settings from old location to AppData if they exist
-    
-    Args:
-        defer_heavy_operations: If True, skip intensive operations during startup
-    """
-    from src.models.appdirs import get_settings_file
-    old_settings = resource_path('settings.json')
-    new_settings = get_settings_file()
-    
-    # Only do migration if it's actually needed
-    if os.path.exists(old_settings) and not os.path.exists(new_settings):
-        try:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(new_settings), exist_ok=True)
-            # Copy settings
-            with open(old_settings, 'r') as f:
-                settings = json.load(f)
-            with open(new_settings, 'w') as f:
-                json.dump(settings, f, indent=2)
-                
-            # Only do expensive operations if not deferred
-            if not defer_heavy_operations:
-                logger.info("Migrating old settings file to new location")
-                # You could add additional migration steps here
-            else:
-                logger.info("Settings migration scheduled for later")
-                # Schedule migration for later if needed
-                threading.Timer(5.0, lambda: logger.info("Deferred settings migration complete")).start()
-            logger.info(f"Settings migrated to: {new_settings}")
-        except Exception as e:
-            logger.error(f"Error migrating settings: {e}")
-
 def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
-        # Make data loading fully asynchronous and non-blocking
+        # Check for updates on startup
+        try:
+            get_version_info()
+            logger.info("Version check completed on startup")
+        except Exception as e:
+            logger.error(f"Failed to check for updates on startup: {e}")
+        
         def load_data_async():
+            """Load stash data once in a background thread."""
+            if getattr(load_data_async, 'is_loading', False):
+                logger.info("Data loading already in progress, skipping")
+                return
+
+            load_data_async.is_loading = True
+            start_time = time.time()
+
             try:
-                # Set a flag to prevent redundant loading
-                if hasattr(load_data_async, 'is_loading') and load_data_async.is_loading:
-                    logger.info("Data loading already in progress, skipping")
-                    return
-                
-                load_data_async.is_loading = True
-                
-                start_time = time.time()
-                
-                # Only load if not already loaded
                 if not api.stash_manager._is_loaded:
                     logger.info("Loading stash manager data...")
                     api.stash_manager._load_data()
-                    logger.info(f"Stash manager data loaded in {time.time() - start_time:.2f} seconds")
-                
-                # Release loading flag
-                load_data_async.is_loading = False
-                
-                # Notify UI that data loading is done
+                    logger.info(
+                        f"Stash manager data loaded in {time.time() - start_time:.2f} seconds"
+                    )
+
                 if api.window:
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
             except Exception as e:
-                # Release loading flag on error
-                load_data_async.is_loading = False
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
                     error_str = str(e).replace('"', '\\"')
                     api.window.evaluate_js(
                         f'window.dispatchEvent(new CustomEvent("dataLoadingFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
                     )
-        
-        # Initialize loading flag
+            finally:
+                load_data_async.is_loading = False
+
         load_data_async.is_loading = False
-        
-        # Start data loading in background thread immediately without waiting
         threading.Thread(target=load_data_async, daemon=True).start()
-            
-        # Check if capture should auto-start based on previous state
+
         try:
-            if api.packet_capture.should_auto_start():
-                logger.info("Auto-starting capture based on previous state")
-                # Start the capture switch which will set running=True and start the thread
-                api.packet_capture.start_capture_switch()
-                
-                # Update UI to reflect running state with minimal delay
-                if api.window:
-                    api.window.evaluate_js('''
-                        setTimeout(() => {
-                            if (document.getElementById('captureSwitch')) {
-                                document.getElementById('captureSwitch').checked = true;
-                            }
-                            if (document.getElementById('sidebarCaptureIndicator')) {
-                                document.getElementById('sidebarCaptureIndicator').classList.add('active');
-                                document.getElementById('sidebarCaptureIndicator').classList.remove('stopping');
-                            }
-                            // Update toggle UI if the function exists
-                            if (typeof updateToggleUI === 'function') {
-                                updateToggleUI(true);
-                            }
-                            // Update status text
-                            const statusIndicator = document.getElementById('statusIndicator');
-                            const captureStatus = document.getElementById('captureStatus');
-                            if (statusIndicator) statusIndicator.className = 'status-indicator capturing';
-                            if (captureStatus) captureStatus.textContent = 'Capture is running';
-                        }, 25); // Even faster startup
-                    ''')
-            else:
-                logger.info("Not auto-starting capture - previous state was stopped or already running")
+            state = api.capture_controller.state()
+
+            if state.get("desired") and not state.get("running"):
+                logger.info("Restoring desired capture state from previous session")
+                started, updated_state = api.capture_controller.start()
+                if started:
+                    state = updated_state
+                else:
+                    logger.warning("Capture auto-start was requested but failed to activate")
+
+            if api.window:
+                state_payload = json.dumps(state)
+                api.window.evaluate_js(
+                    f"window.applyCaptureState && window.applyCaptureState({state_payload});"
+                )
+
+            if state.get("running"):
+                api._initial_restart_done = True
         except Exception as ce:
             logger.error(f"Failed to restore capture state: {ce}")
-            
-        # Notify UI that background loading is done immediately
+
         if api.window:
             api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
         logger.info("Background initialization complete.")
     except Exception as e:
         logger.error(f"Background initialization failed: {e}")
-        # Escape error string for JS
         error_str = str(e).replace('"', '\\"')
         if api.window:
             api.window.evaluate_js(
@@ -1011,55 +1080,10 @@ def check_tshark():
         logger.error(f"❌ tshark was found but failed to run: {e}")
         return False
 
-def install_npcap():
-    """Install Npcap using the bundled installer with admin privileges (UAC prompt)"""
-    try:
-        import win32com.shell.shell as shell  # type: ignore
-        from win32com.shell import shellcon  # type: ignore
-        import win32con
-        import time
-
-        npcap_installer = resource_path('npcap-1.82.exe')
-        if not os.path.exists(npcap_installer):
-            return False, "Npcap installer not found"
-
-        params = '/winpcap_mode=yes'  # Silent install
-        rc = shell.ShellExecuteEx(
-            lpVerb='runas',  # Request elevation
-            lpFile=npcap_installer,
-            lpParameters=params,
-            nShow=win32con.SW_HIDE,
-            fMask=shellcon.SEE_MASK_NOCLOSEPROCESS
-        )
-        process_handle = rc['hProcess']
-
-        # Wait for installation (timeout after 2 minutes)
-        from win32event import WaitForSingleObject, WAIT_OBJECT_0, WAIT_TIMEOUT
-        result = WaitForSingleObject(process_handle, 120 * 1000)
-        if result == WAIT_TIMEOUT:
-            return False, "Installation timed out"
-
-        # Give Windows a moment to complete registry updates
-        time.sleep(2)
-        # Always return success after installer runs
-        return True, "Installation complete!"
-    except Exception as e:
-        if hasattr(e, 'winerror') and e.winerror == 1223:
-            return False, "Installation cancelled by user"
-        return False, f"Installation failed: {str(e)}"
-
-@server.route('/installing')
-def installing():
-    return render_template('installing.html')
 
 @server.route('/api/check_npcap')
 def check_npcap():
     return jsonify({'installed': check_tshark()})
-
-@server.route('/api/install_npcap', methods=['POST'])
-def install_npcap_route():
-    success, message = install_npcap()
-    return jsonify({'success': success, 'error': message if not success else None})
 
 # Cache for market price data
 market_price_cache = {}
@@ -1098,10 +1122,15 @@ def proxy_market_price(item_id):
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@server.route('/api/sort_order', methods=['POST'])
+@server.route('/api/sort_order', methods=['GET', 'POST'])
 def api_sort_order():
+    if request.method == 'GET':
+        return jsonify({'success': True, 'order': api.get_sort_order()})
+
     data = request.get_json() or {}
-    return jsonify({'success': api.set_sort_order(data.get('order'))})
+    success = api.set_sort_order(data.get('order'))
+    response = {'success': success, 'order': api.get_sort_order()}
+    return (jsonify(response), 200) if success else (jsonify(response), 500)
 
 def main():
     # --- Updater logic ---
@@ -1119,12 +1148,26 @@ def main():
     logger.info("Starting DnDTools application")
     
     # Preload only essential settings for faster startup
-    migrate_settings(defer_heavy_operations=True)
+    SettingsManager.migrate_from_legacy(logger=logger, defer_heavy_operations=True)
+    refreshed_settings = settings_manager.reload()
+
+    interface_after_migration = refreshed_settings.get('interface')
+    if interface_after_migration and interface_after_migration != api.capture_settings.get('interface'):
+        try:
+            state = api.capture_controller.update_settings(interface_after_migration, None, None)
+            api.capture_settings = {
+                'interface': state['interface'],
+                'port_range': (state['portRange']['low'], state['portRange']['high'])
+            }
+        except Exception as capture_err:
+            logger.error(f"Failed to apply migrated capture interface: {capture_err}")
+
+    api._setup_global_hotkeys()
     
     # Only handle immediate restart if capture is in a known running state
-    if api.packet_capture.running and not api._initial_restart_done:
+    if api.capture_controller.state()["running"] and not api._initial_restart_done:
         # Schedule restart after UI load instead of doing it now
-        threading.Timer(0.5, api.restart_capture_switch).start()
+        threading.Timer(0.5, lambda: api.restart_capture_switch()).start()
     
     # Create window with minimal startup time
     window = webview.create_window(
@@ -1141,9 +1184,9 @@ def main():
     for method_name in [
         'minimize', 'toggle_maximize', 'close_window', 'sort_stash', '_save_settings',
         'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
-        'search_items', 'get_characters', 'get_character_stashes', 'get_character_details',
+        'search_items', 'get_characters', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'get_executable_path', 'launch_updater', 'set_sort_order'
+        'get_capture_state', 'set_sort_order'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))

@@ -5,26 +5,93 @@ import asyncio
 import tempfile
 import glob
 import logging
+from typing import Tuple, Optional
 
-# 1) Grab the original asyncio.spawn function
-_orig_create = asyncio.create_subprocess_exec
+# 1) Grab the original asyncio.spawn functions
+_orig_create_exec = asyncio.create_subprocess_exec
+_orig_create_shell = asyncio.create_subprocess_shell
 
-# 2) Define a wrapper that injects the Windows "no console" flag
-async def _create_no_window(*args, **kwargs):
-    # send everything to DEVNULL unless you need it
-    kwargs.setdefault('stdin',  subprocess.DEVNULL)
+
+async def _create_no_window_exec(*args, **kwargs):
+    """Wrapper for create_subprocess_exec that suppresses console windows and defaults pipes."""
+    kwargs.setdefault('stdin', subprocess.DEVNULL)
     kwargs.setdefault('stdout', subprocess.DEVNULL)
     kwargs.setdefault('stderr', subprocess.DEVNULL)
 
-    # on Windows, suppress the child console
     if sys.platform == 'win32':
         kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
 
-    # call the real create_subprocess_exec
-    return await _orig_create(*args, **kwargs)
+    proc = await _orig_create_exec(*args, **kwargs)
+    return proc
 
-# 3) Monkey-patch asyncio so PyShark’s captures inherit this behavior
-asyncio.create_subprocess_exec = _create_no_window
+
+async def _create_no_window_shell(*args, **kwargs):
+    """Wrapper for create_subprocess_shell mirroring the exec variant."""
+    kwargs.setdefault('stdin', subprocess.DEVNULL)
+    kwargs.setdefault('stdout', subprocess.DEVNULL)
+    kwargs.setdefault('stderr', subprocess.DEVNULL)
+
+    if sys.platform == 'win32':
+        kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
+
+    proc = await _orig_create_shell(*args, **kwargs)
+    return proc
+
+
+# 3) Monkey-patch asyncio so PyShark’s captures inherit this behaviour
+asyncio.create_subprocess_exec = _create_no_window_exec
+asyncio.create_subprocess_shell = _create_no_window_shell
+
+
+async def _terminate_asyncio_subprocess(proc: asyncio.subprocess.Process):
+    """Gracefully terminate an asyncio subprocess, escalating to kill when needed."""
+    if proc is None or proc.returncode is not None:
+        return
+
+    try:
+        proc.terminate()
+    except ProcessLookupError:
+        return
+    except Exception:
+        pass
+
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=5)
+    except (asyncio.TimeoutError, ProcessLookupError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            return
+        await proc.wait()
+
+
+def _finalize_asyncio_subprocess(proc: asyncio.subprocess.Process, loop: Optional[asyncio.AbstractEventLoop], logger: Optional[logging.Logger] = None) -> None:
+    """Synchronously ensure an asyncio subprocess is terminated, regardless of loop state."""
+    if proc is None or proc.returncode is not None:
+        return
+
+    async def _runner():
+        await _terminate_asyncio_subprocess(proc)
+
+    if loop and not loop.is_closed():
+        try:
+            if loop.is_running():
+                future = asyncio.run_coroutine_threadsafe(_runner(), loop)
+                future.result(timeout=6)
+            else:
+                loop.run_until_complete(_runner())
+        except Exception as exc:
+            if logger:
+                logger.debug(f"Failed to finalize subprocess via existing loop: {exc}")
+    else:
+        temp_loop = asyncio.new_event_loop()
+        try:
+            temp_loop.run_until_complete(_runner())
+        except Exception as exc:
+            if logger:
+                logger.debug(f"Failed to finalize subprocess via temp loop: {exc}")
+        finally:
+            temp_loop.close()
 
 
 import pyshark
@@ -93,10 +160,10 @@ import psutil
 import struct
 import json
 from datetime import datetime
-from typing import Tuple, Optional
 import threading
 import time
 import importlib
+from concurrent.futures import TimeoutError as FutureTimeout
 
 from .appdirs import get_capture_state_file, is_frozen
 from networking.protos import _PacketCommand_pb2
@@ -165,6 +232,8 @@ class PacketCapture:
         self.running = False  # Initialize as False first
         self.capture_thread = None
         self._cleanup_capture_on_exit = False
+        self._state_lock = threading.Lock()
+        self._stop_event = threading.Event()
         self.STATE_FILE = get_capture_state_file()
         
         # Restore state - keep track of what the previous state was
@@ -355,63 +424,55 @@ class PacketCapture:
             self.logger.error(f"Failed to restore capture state: {e}")
             return {"running": False}
     def capture_loop(self) -> None:
-        """Main capture loop that runs in a separate thread"""
+        """Main capture loop that runs in a separate thread."""
         try:
-            # Set up event loop for this thread
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            
+
             local_ip = self.get_local_ip()
             if not local_ip:
                 self.logger.error(f"Could not find IP address for interface {self.interface}")
                 return
-                
-            display_filter = (f'ip.dst == {local_ip} and '
-                              f'tcp.srcport >= {self.port_range[0]} and '
-                              f'tcp.srcport <= {self.port_range[1]}')
-            
+
+            display_filter = (
+                f'ip.dst == {local_ip} and '
+                f'tcp.srcport >= {self.port_range[0]} and '
+                f'tcp.srcport <= {self.port_range[1]}'
+            )
+
             self.logger.info(f"Starting capture on interface: {self.interface}, IP: {local_ip}")
             self.logger.info(f"Display filter: {display_filter}")
-            
-            # Store capture object as instance variable for cleanup
+
+            self._current_loop = loop
             try:
                 self._current_capture = pyshark.LiveCapture(
                     interface=self.interface,
-                    display_filter=display_filter
+                    display_filter=display_filter,
+                    eventloop=loop
                 )
-                self._current_loop = loop
-            except Exception as e:
-                self.logger.error(f"Failed to create LiveCapture: {e}")
-                # Check if this is a tshark/executable issue
-                if "tshark" in str(e).lower():
+            except Exception as capture_error:
+                self.logger.error(f"Failed to create LiveCapture: {capture_error}")
+                if "tshark" in str(capture_error).lower():
                     self.logger.error("This appears to be a tshark-related issue. Make sure tshark is properly installed and accessible.")
-                self.running = False  # Ensure we stop if capture creation fails
-                raise
-            
-            try:
-                for packet in self._current_capture.sniff_continuously():
-                    if not self.running:
-                        break
-                    if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-                        self.process_packet(packet.tcp.payload.binary_value)
-            except Exception as e:
-                self.logger.error(f"Capture loop error: {e}")
-                # Log additional details for debugging
-                import traceback
-                self.logger.error(f"Full traceback: {traceback.format_exc()}")
-                self.running = False  # Stop capture on error
-            finally:
-                self._cleanup_capture()
+                return
+
+            for packet in self._current_capture.sniff_continuously():
+                if self._stop_event.is_set():
+                    break
+                if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
+                    self.process_packet(packet.tcp.payload.binary_value)
+        except RuntimeError as e:
+            if "Event loop" in str(e) and "stopped" in str(e):
+                self.logger.info("Event loop stopped during capture, exiting cleanly")
+            else:
+                self.logger.error(f"Runtime error in capture loop: {e}", exc_info=True)
         except Exception as e:
-            self.logger.error(f"Fatal error in capture_loop: {e}")
-            import traceback
-            self.logger.error(f"Full traceback: {traceback.format_exc()}")
-            self.running = False  # Ensure we stop on fatal error
-            # Make sure we cleanup even if there's a fatal error
-            try:
-                self._cleanup_capture()
-            except Exception as cleanup_error:
-                self.logger.error(f"Error during cleanup after fatal error: {cleanup_error}")
+            self.logger.error(f"Fatal error in capture loop: {e}", exc_info=True)
+        finally:
+            self._cleanup_capture()
+            with self._state_lock:
+                self.running = False
+            self._stop_event.set()
             
     def _cleanup_capture(self):
         """Clean up capture resources and terminate helper processes."""
@@ -444,7 +505,13 @@ class PacketCapture:
                 finally:
                     try:
                         processes = getattr(capture, '_running_processes', None)
-                        if processes is not None:
+                        if processes:
+                            for proc in list(processes):
+                                try:
+                                    _finalize_asyncio_subprocess(proc, loop, self.logger)
+                                except Exception as proc_error:
+                                    self.logger.debug(f"Unable to finalize subprocess cleanly: {proc_error}")
+
                             if hasattr(processes, 'clear'):
                                 processes.clear()
                             else:
@@ -518,68 +585,111 @@ class PacketCapture:
             return True
         return False
 
-    def shutdown(self):
-        """Properly shutdown capture and persist running state."""
+    def shutdown(self, persist_running_state: Optional[bool] = None):
+        """Properly shutdown capture and persist the desired running state."""
         try:
-            if self.running:
-                self.logger.info("Shutting down capture thread...")
-                # Persist that capture should restart on next launch
-                self._save_state(True)
-                self.running = False
-
-                if self.capture_thread is not None:
-                    self.capture_thread.join(timeout=5.0)
-                    if self.capture_thread.is_alive():
-                        self.logger.warning("Capture thread still running after timeout, forcing cleanup")
-            else:
-                self.logger.info("Capture already stopped during shutdown")
+            self.stop_capture_switch(persist_running_state=persist_running_state)
         except Exception as e:
             self.logger.error(f"Error during capture shutdown: {e}")
-        finally:
-            self._cleanup_capture()
+
+    def start_capture_switch(self) -> bool:
+        """Start packet capture in a background thread if not already running."""
+        with self._state_lock:
+            if self.running and self.capture_thread and self.capture_thread.is_alive():
+                self.logger.info("Capture already running, ignoring start request")
+                return True
+
+            self.running = True
+            self._stop_event.clear()
+            self._cleanup_capture_on_exit = True
+            self._save_state(True)
+
+            self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
+            self.capture_thread.start()
+
+        self.logger.info("Capture thread started")
+        return True
+        
+    def stop_capture_switch(self, persist_running_state: Optional[bool] = None) -> bool:
+        """Stop packet capture gracefully.
+
+        Args:
+            persist_running_state: When provided, overrides the persisted running flag
+                saved to disk. This allows the caller to remember user intent across
+                app restarts even though the capture has to stop for cleanup.
+        """
+        with self._state_lock:
+            if not self.running and not (self.capture_thread and self.capture_thread.is_alive()):
+                self.logger.info("Capture already stopped, ignoring stop request")
+                return True
+
+            self.running = False
+            self._stop_event.set()
+            persisted_flag = False if persist_running_state is None else bool(persist_running_state)
+            self._save_state(persisted_flag)
+            thread = self.capture_thread
+
+        capture = getattr(self, '_current_capture', None)
+        loop = getattr(self, '_current_loop', None)
+
+        if capture:
+            try:
+                async_close = None
+                loop_running = False
+                if loop:
+                    try:
+                        loop_running = loop.is_running() and not loop.is_closed()
+                    except Exception:
+                        loop_running = False
+
+                if loop_running:
+                    try:
+                        async_close = capture.close_async()
+                    except AttributeError:
+                        async_close = None
+
+                    if asyncio.iscoroutine(async_close):
+                        try:
+                            future = asyncio.run_coroutine_threadsafe(async_close, loop)
+                            future.result(timeout=5)
+                        except FutureTimeout:
+                            self.logger.warning("Timed out waiting for capture to close asynchronously")
+                        except Exception as async_err:
+                            self.logger.debug(f"Error awaiting capture close_async: {async_err}")
+                        finally:
+                            try:
+                                loop.call_soon_threadsafe(loop.stop)
+                            except Exception as stop_err:
+                                self.logger.debug(f"Unable to signal event loop stop: {stop_err}")
+                    else:
+                        # Schedule a simple stop if async close isn't available
+                        try:
+                            loop.call_soon_threadsafe(loop.stop)
+                        except Exception as stop_err:
+                            self.logger.debug(f"Unable to signal event loop stop: {stop_err}")
+                else:
+                    capture.close()
+            except Exception as close_error:
+                self.logger.debug(f"Error closing capture during stop: {close_error}")
+
+        if thread and thread.is_alive():
+            for timeout in [1.0, 3.0, 6.0]:
+                self.logger.info(f"Waiting for capture thread to exit (timeout: {timeout}s)...")
+                thread.join(timeout=timeout)
+                if not thread.is_alive():
+                    self.logger.info("Capture thread exited cleanly")
+                    break
+            if thread.is_alive():
+                self.logger.warning("Capture thread still running after timeouts, forcing cleanup")
+
+        self._cleanup_capture()
+
+        with self._state_lock:
             self.capture_thread = None
             self._cleanup_capture_on_exit = False
 
-    def start_capture_switch(self) -> None:
-        """Start packet capture in background thread if not already running."""
-        if self.capture_thread is not None and self.capture_thread.is_alive():
-            self.logger.info("Capture already running, ignoring start request")
-            return
-        self.running = True
-        self._cleanup_capture_on_exit = True
-        self._save_state(True)
-        self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
-        self.capture_thread.start()
-        self.logger.info("Capture thread started")
-        
-    def stop_capture_switch(self) -> None:
-        """Stop packet capture gracefully."""
-        if not self.running:
-            self.logger.info("Capture already stopped, ignoring stop request")
-            return
-            
-        # Set running to False to signal the capture loop to exit
-        self.running = False
-        self._save_state(False)
-        
-        if self.capture_thread is not None and self.capture_thread.is_alive():
-            # Try to join with increasing timeouts to prevent hanging
-            for timeout in [1.0, 3.0, 6.0]:
-                self.logger.info(f"Waiting for capture thread to exit (timeout: {timeout}s)...")
-                self.capture_thread.join(timeout=timeout)
-                if not self.capture_thread.is_alive():
-                    self.logger.info("Capture thread exited cleanly")
-                    break
-            
-            # If thread is still alive after all timeouts, force cleanup
-            if self.capture_thread.is_alive():
-                self.logger.warning("Capture thread still running after timeouts, forcing cleanup")
-                self._cleanup_capture()
-
-        self._cleanup_capture()
-        self.capture_thread = None
-        self._cleanup_capture_on_exit = False
         self.logger.info("Capture switch turned OFF")
+        return True
 
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):

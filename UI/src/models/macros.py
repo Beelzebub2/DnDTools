@@ -1,11 +1,11 @@
 import time
 import os
-import json
 import re
 import ctypes
 import random
 from src.models.point import Point
 import win32gui
+from src.models.settings import settings_manager
 
 
 # Note: Jump values may need adjustment for different resolutions
@@ -190,15 +190,7 @@ def get_game_window_mode():
     return None
 
 def get_current_resolution():
-    from src.models.appdirs import get_settings_file
-    settings_file = get_settings_file()
-    user_res = 'Auto'
-    try:
-        with open(settings_file, 'r') as f:
-            settings = json.load(f)
-            user_res = settings.get('resolution', 'Auto')
-    except Exception:
-        pass
+    user_res = settings_manager.get('resolution', 'Auto')
     resolution_str = None
     if user_res == 'Auto':
         resolution_str = get_game_resolution()
@@ -254,14 +246,7 @@ jump = _initial_positions['jump']
 
 def get_sort_delay():
     """Get sort delay from settings"""
-    from src.models.appdirs import get_settings_file
-    settings_file = get_settings_file()
-    try:
-        with open(settings_file, 'r') as f:
-            settings = json.load(f)
-            return float(settings.get('sortSpeed', 0.2))
-    except Exception:
-        return 0.2
+    return settings_manager.get_sort_speed()
 
 def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008):
     """

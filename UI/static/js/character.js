@@ -60,6 +60,10 @@ const rarityColors = {
     'Artifact': '#FF0000'   // Red
 };
 
+const DEFAULT_SORT_ORDER = ['height', 'width', 'name', 'rarity'];
+let currentSortOrder = [...DEFAULT_SORT_ORDER];
+let suppressSortPersistence = false;
+
 // Format functions - same as in search.js for consistency
 function formatPrimaryProps(ppArray) {
     if (!ppArray || !Array.isArray(ppArray)) return '';
@@ -1498,17 +1502,103 @@ const renderCombinedCharacterView = async (stashes) => {
 };
 
 
+function normalizeOrdering(order, menu) {
+    const options = Array.from(menu.querySelectorAll('.ordering-option'));
+    const availableKeys = options.map(option => option.dataset.sort);
+    const allowedKeys = availableKeys.length ? availableKeys : DEFAULT_SORT_ORDER;
+    const normalized = [];
+
+    if (Array.isArray(order)) {
+        order.forEach(key => {
+            if (typeof key !== 'string') return;
+            const cleanKey = key.trim().toLowerCase();
+            if (allowedKeys.includes(cleanKey) && !normalized.includes(cleanKey)) {
+                normalized.push(cleanKey);
+            }
+        });
+    }
+
+    allowedKeys.forEach(key => {
+        if (!normalized.includes(key)) {
+            normalized.push(key);
+        }
+    });
+
+    return normalized;
+}
+
+function applyOrderingToMenu(menu, order) {
+    const optionMap = new Map();
+    menu.querySelectorAll('.ordering-option').forEach(option => {
+        optionMap.set(option.dataset.sort, option);
+    });
+
+    order.forEach(key => {
+        const option = optionMap.get(key);
+        if (option) {
+            menu.appendChild(option);
+        }
+    });
+}
+
+async function loadSavedOrdering(menu) {
+    suppressSortPersistence = true;
+    try {
+        const response = await fetch('/api/sort_order');
+        if (!response.ok) {
+            throw new Error(`Failed to load sort order: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data && Array.isArray(data.order)) {
+            const normalized = normalizeOrdering(data.order, menu);
+            applyOrderingToMenu(menu, normalized);
+            currentSortOrder = [...normalized];
+            return;
+        }
+    } catch (error) {
+        console.error('Error loading saved sort order:', error);
+    } finally {
+        suppressSortPersistence = false;
+    }
+
+    // Fallback to the current order if nothing was returned
+    applyOrderingToMenu(menu, currentSortOrder);
+}
+
+function arraysEqual(a, b) {
+    if (a.length !== b.length) return false;
+    return a.every((value, index) => value === b[index]);
+}
+
 // Stash sort ordering popup
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const button = document.getElementById('orderingButton');
     const menu = document.getElementById('orderingMenu');
+    const resetButton = document.getElementById('resetOrderingButton');
+    if (!button || !menu) {
+        return;
+    }
+
     let dragged = null;
+
+    await loadSavedOrdering(menu);
 
     // Toggle menu visibility
     button.addEventListener('click', (e) => {
         e.stopPropagation();
         menu.classList.toggle('hidden');
     });
+
+    if (resetButton) {
+        resetButton.addEventListener('click', () => {
+            const normalized = normalizeOrdering(DEFAULT_SORT_ORDER, menu);
+            applyOrderingToMenu(menu, normalized);
+            currentSortOrder = [...normalized];
+            persistSortOrder(normalized);
+            menu.classList.add('hidden');
+        });
+    }
 
     // Close menu when clicking outside
     document.addEventListener('click', (e) => {
@@ -1526,7 +1616,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         option.addEventListener('dragend', () => {
             option.classList.remove('dragging');
-            onOrderChange(); // Call onOrderChange when drag ends
+            onOrderChange();
         });
 
         option.addEventListener('dragover', (e) => {
@@ -1563,11 +1653,10 @@ document.addEventListener('DOMContentLoaded', () => {
             moveOptionDown(btn);
         }
 
-        onOrderChange(); // Call onOrderChange when arrow buttons are clicked
+        onOrderChange();
     });
 });
 
-// Add this to where the arrow click handlers are defined
 function animateSwap(element1, element2, direction) {
     const container = element1.parentNode;
     const containerHeight = container.offsetHeight;
@@ -1665,51 +1754,73 @@ function animateSwap(element1, element2, direction) {
     }, 10); // Small delay to ensure positions are calculated correctly
 }
 
-// Function to handle click on up arrow
 function moveOptionUp(button) {
     const option = button.closest('.ordering-option');
     const previousOption = option.previousElementSibling;
 
     if (previousOption && previousOption.classList.contains('ordering-option')) {
         animateSwap(option, previousOption, 'up');
-        updateOrder(); // Update the ordering after animation
     }
 }
 
-// Function to handle click on down arrow
 function moveOptionDown(button) {
     const option = button.closest('.ordering-option');
     const nextOption = option.nextElementSibling;
 
     if (nextOption && nextOption.classList.contains('ordering-option')) {
         animateSwap(option, nextOption, 'down');
-        updateOrder(); // Update the ordering after animation
     }
 }
 
-// Function to handle changes in order
-function onOrderChange() {
-    const order = getOrderingOptions();
-    console.log("Order changed:", order);
-
+function persistSortOrder(order) {
     fetch('/api/sort_order', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ order: order })
+        body: JSON.stringify({ order })
     })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log('Sort order updated successfully');
-            } else {
-                console.error('Failed to update sort order');
+        .then(async (response) => {
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload.success === false) {
+                throw new Error(payload && payload.error ? payload.error : 'Unknown error');
+            }
+            if (payload && Array.isArray(payload.order)) {
+                const menu = document.getElementById('orderingMenu');
+                if (menu) {
+                    const normalized = normalizeOrdering(payload.order, menu);
+                    applyOrderingToMenu(menu, normalized);
+                    currentSortOrder = [...normalized];
+                } else {
+                    currentSortOrder = [...payload.order];
+                }
             }
         })
         .catch(error => {
             console.error('Error during sort order update:', error);
+            if (typeof window.showNotification === 'function') {
+                window.showNotification('Failed to save stash ordering preference', 'error');
+            }
         });
+}
+
+function onOrderChange() {
+    const order = getOrderingOptions();
+    if (!order.length) {
+        return;
+    }
+
+    if (arraysEqual(order, currentSortOrder)) {
+        return;
+    }
+
+    currentSortOrder = [...order];
+
+    if (suppressSortPersistence) {
+        return;
+    }
+
+    persistSortOrder(order);
 }
 
 function getOrderingOptions() {

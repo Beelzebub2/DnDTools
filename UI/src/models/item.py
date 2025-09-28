@@ -1,6 +1,11 @@
 class Item:
+    """Represents an item that can be sorted inside a stash."""
+
+    # Allowed sort fields in their default priority order.
+    SORTABLE_FIELDS = ("height", "width", "name", "rarity")
+
     # Class-level sort key order. Can be modified dynamically at runtime.
-    sort_order = ["height", "width", "name", "rarity"]
+    sort_order = list(SORTABLE_FIELDS)
 
     def __init__(self, name, rarity, position, width, height, stash, vendor_price=None):
         self.name = name
@@ -42,4 +47,30 @@ class Item:
             "height": self.height,
             "vendor_price": self.vendor_price
         }
+
+    @classmethod
+    def normalize_sort_order(cls, order):
+        """Normalize a user-supplied sort order against the allowed fields."""
+        if isinstance(order, str):
+            candidates = [order]
+        elif isinstance(order, (list, tuple)):
+            candidates = list(order)
+        else:
+            candidates = []
+
+        normalized = []
+        allowed = {field for field in cls.SORTABLE_FIELDS}
+
+        for value in candidates:
+            if not isinstance(value, str):
+                continue
+            key = value.strip().lower()
+            if key in allowed and key not in normalized:
+                normalized.append(key)
+
+        for key in cls.SORTABLE_FIELDS:
+            if key not in normalized:
+                normalized.append(key)
+
+        return normalized
 

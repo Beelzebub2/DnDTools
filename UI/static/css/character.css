@@ -892,6 +892,20 @@
     border: 1px dashed var(--accent-gold);
 }
 
+.ordering-menu-footer {
+    border-top: 1px solid var(--border-color);
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+.ordering-reset-button {
+    width: 100%;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.6rem;
+}
+
 /* Style for when an item is moving up */
 .ordering-option.moving-up {
     transform: translateY(-100%);
