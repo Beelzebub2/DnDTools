@@ -30,7 +30,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.3.1"
+APP_VERSION = "3.3.5"
 
 # Initialize logging first
 setup_logging()
