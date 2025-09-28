@@ -85,6 +85,7 @@ class StashSorter:
                 print("Item already in correct position")
 
             self.cur_x += item.width
+            self.cur_height = max(self.cur_height, item.height)
             print(f"Current stash state:\n{self.stash}")
 
             print(f"Current inventory state:\n{self.inv}")

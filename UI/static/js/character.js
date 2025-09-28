@@ -391,6 +391,7 @@ function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder
         });
 
         curX += item.width;
+        rowHeight = Math.max(rowHeight, item.height);
     }
 
     return placedItems.map(item => {
