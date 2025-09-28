@@ -5,26 +5,93 @@ import asyncio
 import tempfile
 import glob
 import logging
+from typing import Tuple, Optional
 
-# 1) Grab the original asyncio.spawn function
-_orig_create = asyncio.create_subprocess_exec
+# 1) Grab the original asyncio.spawn functions
+_orig_create_exec = asyncio.create_subprocess_exec
+_orig_create_shell = asyncio.create_subprocess_shell
 
-# 2) Define a wrapper that injects the Windows "no console" flag
-async def _create_no_window(*args, **kwargs):
-    # send everything to DEVNULL unless you need it
-    kwargs.setdefault('stdin',  subprocess.DEVNULL)
+
+async def _create_no_window_exec(*args, **kwargs):
+    """Wrapper for create_subprocess_exec that suppresses console windows and defaults pipes."""
+    kwargs.setdefault('stdin', subprocess.DEVNULL)
     kwargs.setdefault('stdout', subprocess.DEVNULL)
     kwargs.setdefault('stderr', subprocess.DEVNULL)
 
-    # on Windows, suppress the child console
     if sys.platform == 'win32':
         kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
 
-    # call the real create_subprocess_exec
-    return await _orig_create(*args, **kwargs)
+    proc = await _orig_create_exec(*args, **kwargs)
+    return proc
 
-# 3) Monkey-patch asyncio so PyShark’s captures inherit this behavior
-asyncio.create_subprocess_exec = _create_no_window
+
+async def _create_no_window_shell(*args, **kwargs):
+    """Wrapper for create_subprocess_shell mirroring the exec variant."""
+    kwargs.setdefault('stdin', subprocess.DEVNULL)
+    kwargs.setdefault('stdout', subprocess.DEVNULL)
+    kwargs.setdefault('stderr', subprocess.DEVNULL)
+
+    if sys.platform == 'win32':
+        kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
+
+    proc = await _orig_create_shell(*args, **kwargs)
+    return proc
+
+
+# 3) Monkey-patch asyncio so PyShark’s captures inherit this behaviour
+asyncio.create_subprocess_exec = _create_no_window_exec
+asyncio.create_subprocess_shell = _create_no_window_shell
+
+
+async def _terminate_asyncio_subprocess(proc: asyncio.subprocess.Process):
+    """Gracefully terminate an asyncio subprocess, escalating to kill when needed."""
+    if proc is None or proc.returncode is not None:
+        return
+
+    try:
+        proc.terminate()
+    except ProcessLookupError:
+        return
+    except Exception:
+        pass
+
+    try:
+        await asyncio.wait_for(proc.wait(), timeout=5)
+    except (asyncio.TimeoutError, ProcessLookupError):
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            return
+        await proc.wait()
+
+
+def _finalize_asyncio_subprocess(proc: asyncio.subprocess.Process, loop: Optional[asyncio.AbstractEventLoop], logger: Optional[logging.Logger] = None) -> None:
+    """Synchronously ensure an asyncio subprocess is terminated, regardless of loop state."""
+    if proc is None or proc.returncode is not None:
+        return
+
+    async def _runner():
+        await _terminate_asyncio_subprocess(proc)
+
+    if loop and not loop.is_closed():
+        try:
+            if loop.is_running():
+                future = asyncio.run_coroutine_threadsafe(_runner(), loop)
+                future.result(timeout=6)
+            else:
+                loop.run_until_complete(_runner())
+        except Exception as exc:
+            if logger:
+                logger.debug(f"Failed to finalize subprocess via existing loop: {exc}")
+    else:
+        temp_loop = asyncio.new_event_loop()
+        try:
+            temp_loop.run_until_complete(_runner())
+        except Exception as exc:
+            if logger:
+                logger.debug(f"Failed to finalize subprocess via temp loop: {exc}")
+        finally:
+            temp_loop.close()
 
 
 import pyshark
@@ -93,7 +160,6 @@ import psutil
 import struct
 import json
 from datetime import datetime
-from typing import Tuple, Optional
 import threading
 import time
 import importlib
@@ -439,7 +505,13 @@ class PacketCapture:
                 finally:
                     try:
                         processes = getattr(capture, '_running_processes', None)
-                        if processes is not None:
+                        if processes:
+                            for proc in list(processes):
+                                try:
+                                    _finalize_asyncio_subprocess(proc, loop, self.logger)
+                                except Exception as proc_error:
+                                    self.logger.debug(f"Unable to finalize subprocess cleanly: {proc_error}")
+
                             if hasattr(processes, 'clear'):
                                 processes.clear()
                             else:

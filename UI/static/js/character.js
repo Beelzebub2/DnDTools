@@ -1553,7 +1553,7 @@ async function loadSavedOrdering(menu) {
         if (data && Array.isArray(data.order)) {
             const normalized = normalizeOrdering(data.order, menu);
             applyOrderingToMenu(menu, normalized);
-            currentSortOrder = normalized;
+            currentSortOrder = [...normalized];
             return;
         }
     } catch (error) {
@@ -1575,6 +1575,7 @@ function arraysEqual(a, b) {
 document.addEventListener('DOMContentLoaded', async () => {
     const button = document.getElementById('orderingButton');
     const menu = document.getElementById('orderingMenu');
+    const resetButton = document.getElementById('resetOrderingButton');
     if (!button || !menu) {
         return;
     }
@@ -1588,6 +1589,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         e.stopPropagation();
         menu.classList.toggle('hidden');
     });
+
+    if (resetButton) {
+        resetButton.addEventListener('click', () => {
+            const normalized = normalizeOrdering(DEFAULT_SORT_ORDER, menu);
+            applyOrderingToMenu(menu, normalized);
+            currentSortOrder = [...normalized];
+            persistSortOrder(normalized);
+            menu.classList.add('hidden');
+        });
+    }
 
     // Close menu when clicking outside
     document.addEventListener('click', (e) => {
@@ -1777,10 +1788,11 @@ function persistSortOrder(order) {
             if (payload && Array.isArray(payload.order)) {
                 const menu = document.getElementById('orderingMenu');
                 if (menu) {
-                    currentSortOrder = normalizeOrdering(payload.order, menu);
-                    applyOrderingToMenu(menu, currentSortOrder);
+                    const normalized = normalizeOrdering(payload.order, menu);
+                    applyOrderingToMenu(menu, normalized);
+                    currentSortOrder = [...normalized];
                 } else {
-                    currentSortOrder = payload.order;
+                    currentSortOrder = [...payload.order];
                 }
             }
         })
@@ -1802,7 +1814,7 @@ function onOrderChange() {
         return;
     }
 
-    currentSortOrder = order;
+    currentSortOrder = [...order];
 
     if (suppressSortPersistence) {
         return;
