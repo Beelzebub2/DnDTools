@@ -110926,7 +110926,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Anchor.png"
+    "iconPath": "icons\\Misc\\Anchor.png"
   },
   "AncientStingrayEgg": {
     "id": "AncientStingrayEgg",
@@ -111303,7 +111303,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\AncientStingrayEgg.png"
+    "iconPath": "icons\\Misc\\AncientStingrayEgg.png"
   },
   "AntiquatedCoin": {
     "id": "AntiquatedCoin",
@@ -111680,7 +111680,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\AntiquatedCoin.png"
+    "iconPath": "icons\\Misc\\AntiquatedCoin.png"
   },
   "AquaglowLantern_1001": {
     "id": "AquaglowLantern_1001",
@@ -112057,7 +112057,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\AquaglowLantern_1001.png"
+    "iconPath": "icons\\Utility\\AquaglowLantern_1001.png"
   },
   "AquaglowLantern_2001": {
     "id": "AquaglowLantern_2001",
@@ -112434,7 +112434,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\AquaglowLantern_2001.png"
+    "iconPath": "icons\\Utility\\AquaglowLantern_2001.png"
   },
   "AquaglowLantern_3001": {
     "id": "AquaglowLantern_3001",
@@ -112811,7 +112811,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\AquaglowLantern_3001.png"
+    "iconPath": "icons\\Utility\\AquaglowLantern_3001.png"
   },
   "AquaglowLantern_4001": {
     "id": "AquaglowLantern_4001",
@@ -113188,7 +113188,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\AquaglowLantern_4001.png"
+    "iconPath": "icons\\Utility\\AquaglowLantern_4001.png"
   },
   "AquaglowLantern_5001": {
     "id": "AquaglowLantern_5001",
@@ -113565,7 +113565,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\AquaglowLantern_5001.png"
+    "iconPath": "icons\\Utility\\AquaglowLantern_5001.png"
   },
   "AquaglowLantern_6001": {
     "id": "AquaglowLantern_6001",
@@ -113942,7 +113942,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\AquaglowLantern_6001.png"
+    "iconPath": "icons\\Utility\\AquaglowLantern_6001.png"
   },
   "AquaglowLantern_7001": {
     "id": "AquaglowLantern_7001",
@@ -114319,7 +114319,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\AquaglowLantern_7001.png"
+    "iconPath": "icons\\Utility\\AquaglowLantern_7001.png"
   },
   "ArmillarySphere": {
     "id": "ArmillarySphere",
@@ -114696,7 +114696,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ArmillarySphere.png"
+    "iconPath": "icons\\Misc\\ArmillarySphere.png"
   },
   "Awl": {
     "id": "Awl",
@@ -115073,7 +115073,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Awl.png"
+    "iconPath": "icons\\Misc\\Awl.png"
   },
   "Ball_2001": {
     "id": "Ball_2001",
@@ -115450,7 +115450,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Ball_2001.png"
+    "iconPath": "icons\\Misc\\Ball_2001.png"
   },
   "BarrelHoop": {
     "id": "BarrelHoop",
@@ -115827,7 +115827,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BarrelHoop.png"
+    "iconPath": "icons\\Misc\\BarrelHoop.png"
   },
   "Bavin": {
     "id": "Bavin",
@@ -116204,7 +116204,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Bavin.png"
+    "iconPath": "icons\\Misc\\Bavin.png"
   },
   "Bellows": {
     "id": "Bellows",
@@ -116581,7 +116581,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Bellows.png"
+    "iconPath": "icons\\Misc\\Bellows.png"
   },
   "Billet": {
     "id": "Billet",
@@ -116958,7 +116958,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Billet.png"
+    "iconPath": "icons\\Misc\\Billet.png"
   },
   "Birdcage": {
     "id": "Birdcage",
@@ -117335,7 +117335,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Birdcage.png"
+    "iconPath": "icons\\Misc\\Birdcage.png"
   },
   "BlackThreadSpool": {
     "id": "BlackThreadSpool",
@@ -117712,7 +117712,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BlackThreadSpool.png"
+    "iconPath": "icons\\Misc\\BlackThreadSpool.png"
   },
   "BlacksmithTongs": {
     "id": "BlacksmithTongs",
@@ -118089,7 +118089,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BlacksmithTongs.png"
+    "iconPath": "icons\\Misc\\BlacksmithTongs.png"
   },
   "BlemishedPearl": {
     "id": "BlemishedPearl",
@@ -118466,7 +118466,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BlemishedPearl.png"
+    "iconPath": "icons\\Misc\\BlemishedPearl.png"
   },
   "BlueThreadSpool": {
     "id": "BlueThreadSpool",
@@ -118843,7 +118843,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BlueThreadSpool.png"
+    "iconPath": "icons\\Misc\\BlueThreadSpool.png"
   },
   "Bolas_1001": {
     "id": "Bolas_1001",
@@ -119220,7 +119220,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Bolas_1001.png"
+    "iconPath": "icons\\Utility\\Bolas_1001.png"
   },
   "Bolas_2001": {
     "id": "Bolas_2001",
@@ -119597,7 +119597,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Bolas_2001.png"
+    "iconPath": "icons\\Utility\\Bolas_2001.png"
   },
   "Bolas_3001": {
     "id": "Bolas_3001",
@@ -119974,7 +119974,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Bolas_3001.png"
+    "iconPath": "icons\\Utility\\Bolas_3001.png"
   },
   "Bolas_4001": {
     "id": "Bolas_4001",
@@ -120351,7 +120351,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Bolas_4001.png"
+    "iconPath": "icons\\Utility\\Bolas_4001.png"
   },
   "Bolas_5001": {
     "id": "Bolas_5001",
@@ -120728,7 +120728,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Bolas_5001.png"
+    "iconPath": "icons\\Utility\\Bolas_5001.png"
   },
   "Bolas_6001": {
     "id": "Bolas_6001",
@@ -121105,7 +121105,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Bolas_6001.png"
+    "iconPath": "icons\\Utility\\Bolas_6001.png"
   },
   "Bolas_7001": {
     "id": "Bolas_7001",
@@ -121482,7 +121482,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Bolas_7001.png"
+    "iconPath": "icons\\Utility\\Bolas_7001.png"
   },
   "BoneHelm_1001": {
     "id": "BoneHelm_1001",
@@ -121859,7 +121859,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\BoneHelm_1001.png"
+    "iconPath": "icons\\Armor\\BoneHelm_1001.png"
   },
   "BoneHelm_2001": {
     "id": "BoneHelm_2001",
@@ -122236,7 +122236,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\BoneHelm_2001.png"
+    "iconPath": "icons\\Armor\\BoneHelm_2001.png"
   },
   "BoneHelm_3001": {
     "id": "BoneHelm_3001",
@@ -122613,7 +122613,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\BoneHelm_3001.png"
+    "iconPath": "icons\\Armor\\BoneHelm_3001.png"
   },
   "BoneHelm_4001": {
     "id": "BoneHelm_4001",
@@ -122990,7 +122990,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\BoneHelm_4001.png"
+    "iconPath": "icons\\Armor\\BoneHelm_4001.png"
   },
   "BoneHelm_5001": {
     "id": "BoneHelm_5001",
@@ -123367,7 +123367,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\BoneHelm_5001.png"
+    "iconPath": "icons\\Armor\\BoneHelm_5001.png"
   },
   "BoneHelm_6001": {
     "id": "BoneHelm_6001",
@@ -123744,7 +123744,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\BoneHelm_6001.png"
+    "iconPath": "icons\\Armor\\BoneHelm_6001.png"
   },
   "BoneHelm_7001": {
     "id": "BoneHelm_7001",
@@ -124121,7 +124121,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\BoneHelm_7001.png"
+    "iconPath": "icons\\Armor\\BoneHelm_7001.png"
   },
   "BonePowder": {
     "id": "BonePowder",
@@ -124498,7 +124498,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BonePowder.png"
+    "iconPath": "icons\\Misc\\BonePowder.png"
   },
   "Brimstone": {
     "id": "Brimstone",
@@ -124875,7 +124875,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Brimstone.png"
+    "iconPath": "icons\\Misc\\Brimstone.png"
   },
   "BrokenBoneSpike": {
     "id": "BrokenBoneSpike",
@@ -125252,7 +125252,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenBoneSpike.png"
+    "iconPath": "icons\\Misc\\BrokenBoneSpike.png"
   },
   "BrokenFrame": {
     "id": "BrokenFrame",
@@ -125629,7 +125629,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenFrame.png"
+    "iconPath": "icons\\Misc\\BrokenFrame.png"
   },
   "BrokenGlasses": {
     "id": "BrokenGlasses",
@@ -126006,7 +126006,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenGlasses.png"
+    "iconPath": "icons\\Misc\\BrokenGlasses.png"
   },
   "BrokenJarShard": {
     "id": "BrokenJarShard",
@@ -126383,7 +126383,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenJarShard.png"
+    "iconPath": "icons\\Misc\\BrokenJarShard.png"
   },
   "BrokenPickaxe": {
     "id": "BrokenPickaxe",
@@ -126760,7 +126760,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenPickaxe.png"
+    "iconPath": "icons\\Misc\\BrokenPickaxe.png"
   },
   "BrokenTelescopeHead": {
     "id": "BrokenTelescopeHead",
@@ -127137,7 +127137,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenTelescopeHead.png"
+    "iconPath": "icons\\Misc\\BrokenTelescopeHead.png"
   },
   "BrokenWheel": {
     "id": "BrokenWheel",
@@ -127514,7 +127514,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenWheel.png"
+    "iconPath": "icons\\Misc\\BrokenWheel.png"
   },
   "BrokenWoodenBarrelFragment": {
     "id": "BrokenWoodenBarrelFragment",
@@ -127891,7 +127891,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BrokenWoodenBarrelFragment.png"
+    "iconPath": "icons\\Misc\\BrokenWoodenBarrelFragment.png"
   },
   "BronzeLadle": {
     "id": "BronzeLadle",
@@ -128268,7 +128268,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BronzeLadle.png"
+    "iconPath": "icons\\Misc\\BronzeLadle.png"
   },
   "BronzeScale": {
     "id": "BronzeScale",
@@ -128645,7 +128645,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\BronzeScale.png"
+    "iconPath": "icons\\Misc\\BronzeScale.png"
   },
   "Broom": {
     "id": "Broom",
@@ -129022,7 +129022,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Broom.png"
+    "iconPath": "icons\\Misc\\Broom.png"
   },
   "Bycocket_1001": {
     "id": "Bycocket_1001",
@@ -129399,7 +129399,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Bycocket_1001.png"
+    "iconPath": "icons\\Armor\\Bycocket_1001.png"
   },
   "Bycocket_2001": {
     "id": "Bycocket_2001",
@@ -129776,7 +129776,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Bycocket_2001.png"
+    "iconPath": "icons\\Armor\\Bycocket_2001.png"
   },
   "Bycocket_3001": {
     "id": "Bycocket_3001",
@@ -130153,7 +130153,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Bycocket_3001.png"
+    "iconPath": "icons\\Armor\\Bycocket_3001.png"
   },
   "Bycocket_4001": {
     "id": "Bycocket_4001",
@@ -130530,7 +130530,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Bycocket_4001.png"
+    "iconPath": "icons\\Armor\\Bycocket_4001.png"
   },
   "Bycocket_5001": {
     "id": "Bycocket_5001",
@@ -130907,7 +130907,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Bycocket_5001.png"
+    "iconPath": "icons\\Armor\\Bycocket_5001.png"
   },
   "Bycocket_6001": {
     "id": "Bycocket_6001",
@@ -131284,7 +131284,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Bycocket_6001.png"
+    "iconPath": "icons\\Armor\\Bycocket_6001.png"
   },
   "Bycocket_7001": {
     "id": "Bycocket_7001",
@@ -131661,7 +131661,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Bycocket_7001.png"
+    "iconPath": "icons\\Armor\\Bycocket_7001.png"
   },
   "CaptainsCorrodedKey": {
     "id": "CaptainsCorrodedKey",
@@ -132038,7 +132038,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\CaptainsCorrodedKey.png"
+    "iconPath": "icons\\Utility\\CaptainsCorrodedKey.png"
   },
   "CapturedEnergyFlakes": {
     "id": "CapturedEnergyFlakes",
@@ -132415,7 +132415,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CapturedEnergyFlakes.png"
+    "iconPath": "icons\\Misc\\CapturedEnergyFlakes.png"
   },
   "CaveTrollsPreciousRock": {
     "id": "CaveTrollsPreciousRock",
@@ -132792,7 +132792,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CaveTrollsPreciousRock.png"
+    "iconPath": "icons\\Misc\\CaveTrollsPreciousRock.png"
   },
   "Charcoal": {
     "id": "Charcoal",
@@ -133169,7 +133169,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Charcoal.png"
+    "iconPath": "icons\\Misc\\Charcoal.png"
   },
   "Coal": {
     "id": "Coal",
@@ -133546,7 +133546,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Coal.png"
+    "iconPath": "icons\\Misc\\Coal.png"
   },
   "ConchShell": {
     "id": "ConchShell",
@@ -133923,7 +133923,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ConchShell.png"
+    "iconPath": "icons\\Misc\\ConchShell.png"
   },
   "CoralFragment": {
     "id": "CoralFragment",
@@ -134300,7 +134300,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CoralFragment.png"
+    "iconPath": "icons\\Misc\\CoralFragment.png"
   },
   "CourtlyDress_1001": {
     "id": "CourtlyDress_1001",
@@ -134677,7 +134677,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\CourtlyDress_1001.png"
+    "iconPath": "icons\\Armor\\CourtlyDress_1001.png"
   },
   "CourtlyDress_2001": {
     "id": "CourtlyDress_2001",
@@ -135054,7 +135054,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\CourtlyDress_2001.png"
+    "iconPath": "icons\\Armor\\CourtlyDress_2001.png"
   },
   "CourtlyDress_3001": {
     "id": "CourtlyDress_3001",
@@ -135431,7 +135431,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\CourtlyDress_3001.png"
+    "iconPath": "icons\\Armor\\CourtlyDress_3001.png"
   },
   "CourtlyDress_4001": {
     "id": "CourtlyDress_4001",
@@ -135808,7 +135808,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\CourtlyDress_4001.png"
+    "iconPath": "icons\\Armor\\CourtlyDress_4001.png"
   },
   "CourtlyDress_5001": {
     "id": "CourtlyDress_5001",
@@ -136185,7 +136185,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\CourtlyDress_5001.png"
+    "iconPath": "icons\\Armor\\CourtlyDress_5001.png"
   },
   "CourtlyDress_6001": {
     "id": "CourtlyDress_6001",
@@ -136562,7 +136562,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\CourtlyDress_6001.png"
+    "iconPath": "icons\\Armor\\CourtlyDress_6001.png"
   },
   "CourtlyDress_7001": {
     "id": "CourtlyDress_7001",
@@ -136939,7 +136939,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\CourtlyDress_7001.png"
+    "iconPath": "icons\\Armor\\CourtlyDress_7001.png"
   },
   "CrackedLog": {
     "id": "CrackedLog",
@@ -137316,7 +137316,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CrackedLog.png"
+    "iconPath": "icons\\Misc\\CrackedLog.png"
   },
   "CrimsonThreadSpool": {
     "id": "CrimsonThreadSpool",
@@ -137693,7 +137693,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CrimsonThreadSpool.png"
+    "iconPath": "icons\\Misc\\CrimsonThreadSpool.png"
   },
   "CrocodilianEyeball": {
     "id": "CrocodilianEyeball",
@@ -138070,7 +138070,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CrocodilianEyeball.png"
+    "iconPath": "icons\\Misc\\CrocodilianEyeball.png"
   },
   "CrystalSword_8001": {
     "id": "CrystalSword_8001",
@@ -138447,7 +138447,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\CrystalSword_8001.png"
+    "iconPath": "icons\\Weapon\\CrystalSword_8001.png"
   },
   "CursedBandage": {
     "id": "CursedBandage",
@@ -138824,7 +138824,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CursedBandage.png"
+    "iconPath": "icons\\Misc\\CursedBandage.png"
   },
   "Cutlass_1001": {
     "id": "Cutlass_1001",
@@ -139201,7 +139201,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Cutlass_1001.png"
+    "iconPath": "icons\\Weapon\\Cutlass_1001.png"
   },
   "Cutlass_2001": {
     "id": "Cutlass_2001",
@@ -139578,7 +139578,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Cutlass_2001.png"
+    "iconPath": "icons\\Weapon\\Cutlass_2001.png"
   },
   "Cutlass_3001": {
     "id": "Cutlass_3001",
@@ -139955,7 +139955,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Cutlass_3001.png"
+    "iconPath": "icons\\Weapon\\Cutlass_3001.png"
   },
   "Cutlass_4001": {
     "id": "Cutlass_4001",
@@ -140332,7 +140332,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Cutlass_4001.png"
+    "iconPath": "icons\\Weapon\\Cutlass_4001.png"
   },
   "Cutlass_5001": {
     "id": "Cutlass_5001",
@@ -140709,7 +140709,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Cutlass_5001.png"
+    "iconPath": "icons\\Weapon\\Cutlass_5001.png"
   },
   "Cutlass_6001": {
     "id": "Cutlass_6001",
@@ -141086,7 +141086,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Cutlass_6001.png"
+    "iconPath": "icons\\Weapon\\Cutlass_6001.png"
   },
   "Cutlass_7001": {
     "id": "Cutlass_7001",
@@ -141463,7 +141463,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Cutlass_7001.png"
+    "iconPath": "icons\\Weapon\\Cutlass_7001.png"
   },
   "CuttlefishInkSac": {
     "id": "CuttlefishInkSac",
@@ -141840,7 +141840,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CuttlefishInkSac.png"
+    "iconPath": "icons\\Misc\\CuttlefishInkSac.png"
   },
   "CyclopsPreciousMirror": {
     "id": "CyclopsPreciousMirror",
@@ -142217,7 +142217,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\CyclopsPreciousMirror.png"
+    "iconPath": "icons\\Misc\\CyclopsPreciousMirror.png"
   },
   "DarkCassock_1001": {
     "id": "DarkCassock_1001",
@@ -142594,7 +142594,7 @@
     "primary_max_demon_reduction_mod": 5,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkCassock_1001.png"
+    "iconPath": "icons\\Armor\\DarkCassock_1001.png"
   },
   "DarkCassock_2001": {
     "id": "DarkCassock_2001",
@@ -142971,7 +142971,7 @@
     "primary_max_demon_reduction_mod": 6,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkCassock_2001.png"
+    "iconPath": "icons\\Armor\\DarkCassock_2001.png"
   },
   "DarkCassock_3001": {
     "id": "DarkCassock_3001",
@@ -143348,7 +143348,7 @@
     "primary_max_demon_reduction_mod": 6,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkCassock_3001.png"
+    "iconPath": "icons\\Armor\\DarkCassock_3001.png"
   },
   "DarkCassock_4001": {
     "id": "DarkCassock_4001",
@@ -143725,7 +143725,7 @@
     "primary_max_demon_reduction_mod": 6,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkCassock_4001.png"
+    "iconPath": "icons\\Armor\\DarkCassock_4001.png"
   },
   "DarkCassock_5001": {
     "id": "DarkCassock_5001",
@@ -144102,7 +144102,7 @@
     "primary_max_demon_reduction_mod": 7,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkCassock_5001.png"
+    "iconPath": "icons\\Armor\\DarkCassock_5001.png"
   },
   "DarkCassock_6001": {
     "id": "DarkCassock_6001",
@@ -144479,7 +144479,7 @@
     "primary_max_demon_reduction_mod": 7,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkCassock_6001.png"
+    "iconPath": "icons\\Armor\\DarkCassock_6001.png"
   },
   "DarkCassock_7001": {
     "id": "DarkCassock_7001",
@@ -144856,7 +144856,7 @@
     "primary_max_demon_reduction_mod": 8,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkCassock_7001.png"
+    "iconPath": "icons\\Armor\\DarkCassock_7001.png"
   },
   "DarkPaddedHose_1001": {
     "id": "DarkPaddedHose_1001",
@@ -145233,7 +145233,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkPaddedHose_1001.png"
+    "iconPath": "icons\\Armor\\DarkPaddedHose_1001.png"
   },
   "DarkPaddedHose_2001": {
     "id": "DarkPaddedHose_2001",
@@ -145610,7 +145610,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkPaddedHose_2001.png"
+    "iconPath": "icons\\Armor\\DarkPaddedHose_2001.png"
   },
   "DarkPaddedHose_3001": {
     "id": "DarkPaddedHose_3001",
@@ -145987,7 +145987,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkPaddedHose_3001.png"
+    "iconPath": "icons\\Armor\\DarkPaddedHose_3001.png"
   },
   "DarkPaddedHose_4001": {
     "id": "DarkPaddedHose_4001",
@@ -146364,7 +146364,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkPaddedHose_4001.png"
+    "iconPath": "icons\\Armor\\DarkPaddedHose_4001.png"
   },
   "DarkPaddedHose_5001": {
     "id": "DarkPaddedHose_5001",
@@ -146741,7 +146741,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkPaddedHose_5001.png"
+    "iconPath": "icons\\Armor\\DarkPaddedHose_5001.png"
   },
   "DarkPaddedHose_6001": {
     "id": "DarkPaddedHose_6001",
@@ -147118,7 +147118,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkPaddedHose_6001.png"
+    "iconPath": "icons\\Armor\\DarkPaddedHose_6001.png"
   },
   "DarkPaddedHose_7001": {
     "id": "DarkPaddedHose_7001",
@@ -147495,7 +147495,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DarkPaddedHose_7001.png"
+    "iconPath": "icons\\Armor\\DarkPaddedHose_7001.png"
   },
   "DoctorsBag": {
     "id": "DoctorsBag",
@@ -147872,7 +147872,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\DoctorsBag.png"
+    "iconPath": "icons\\Misc\\DoctorsBag.png"
   },
   "DryadMask_1001": {
     "id": "DryadMask_1001",
@@ -148249,7 +148249,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DryadMask_1001.png"
+    "iconPath": "icons\\Armor\\DryadMask_1001.png"
   },
   "DryadMask_2001": {
     "id": "DryadMask_2001",
@@ -148626,7 +148626,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DryadMask_2001.png"
+    "iconPath": "icons\\Armor\\DryadMask_2001.png"
   },
   "DryadMask_3001": {
     "id": "DryadMask_3001",
@@ -149003,7 +149003,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DryadMask_3001.png"
+    "iconPath": "icons\\Armor\\DryadMask_3001.png"
   },
   "DryadMask_4001": {
     "id": "DryadMask_4001",
@@ -149380,7 +149380,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DryadMask_4001.png"
+    "iconPath": "icons\\Armor\\DryadMask_4001.png"
   },
   "DryadMask_5001": {
     "id": "DryadMask_5001",
@@ -149757,7 +149757,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DryadMask_5001.png"
+    "iconPath": "icons\\Armor\\DryadMask_5001.png"
   },
   "DryadMask_6001": {
     "id": "DryadMask_6001",
@@ -150134,7 +150134,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DryadMask_6001.png"
+    "iconPath": "icons\\Armor\\DryadMask_6001.png"
   },
   "DryadMask_7001": {
     "id": "DryadMask_7001",
@@ -150511,7 +150511,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\DryadMask_7001.png"
+    "iconPath": "icons\\Armor\\DryadMask_7001.png"
   },
   "EtchedWandFragment": {
     "id": "EtchedWandFragment",
@@ -150888,7 +150888,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\EtchedWandFragment.png"
+    "iconPath": "icons\\Misc\\EtchedWandFragment.png"
   },
   "Eyepatch": {
     "id": "Eyepatch",
@@ -151265,7 +151265,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Eyepatch.png"
+    "iconPath": "icons\\Misc\\Eyepatch.png"
   },
   "FabricShears": {
     "id": "FabricShears",
@@ -151642,7 +151642,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\FabricShears.png"
+    "iconPath": "icons\\Misc\\FabricShears.png"
   },
   "FlameGasBag": {
     "id": "FlameGasBag",
@@ -152019,7 +152019,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\FlameGasBag.png"
+    "iconPath": "icons\\Misc\\FlameGasBag.png"
   },
   "GallantOutfit_1001": {
     "id": "GallantOutfit_1001",
@@ -152396,7 +152396,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\GallantOutfit_1001.png"
+    "iconPath": "icons\\Armor\\GallantOutfit_1001.png"
   },
   "GallantOutfit_2001": {
     "id": "GallantOutfit_2001",
@@ -152773,7 +152773,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\GallantOutfit_2001.png"
+    "iconPath": "icons\\Armor\\GallantOutfit_2001.png"
   },
   "GallantOutfit_3001": {
     "id": "GallantOutfit_3001",
@@ -153150,7 +153150,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\GallantOutfit_3001.png"
+    "iconPath": "icons\\Armor\\GallantOutfit_3001.png"
   },
   "GallantOutfit_4001": {
     "id": "GallantOutfit_4001",
@@ -153527,7 +153527,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\GallantOutfit_4001.png"
+    "iconPath": "icons\\Armor\\GallantOutfit_4001.png"
   },
   "GallantOutfit_5001": {
     "id": "GallantOutfit_5001",
@@ -153904,7 +153904,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\GallantOutfit_5001.png"
+    "iconPath": "icons\\Armor\\GallantOutfit_5001.png"
   },
   "GallantOutfit_6001": {
     "id": "GallantOutfit_6001",
@@ -154281,7 +154281,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\GallantOutfit_6001.png"
+    "iconPath": "icons\\Armor\\GallantOutfit_6001.png"
   },
   "GallantOutfit_7001": {
     "id": "GallantOutfit_7001",
@@ -154658,7 +154658,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\GallantOutfit_7001.png"
+    "iconPath": "icons\\Armor\\GallantOutfit_7001.png"
   },
   "GiantHorn": {
     "id": "GiantHorn",
@@ -155035,7 +155035,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\GiantHorn.png"
+    "iconPath": "icons\\Misc\\GiantHorn.png"
   },
   "GlowingOrangeEye": {
     "id": "GlowingOrangeEye",
@@ -155412,7 +155412,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\GlowingOrangeEye.png"
+    "iconPath": "icons\\Misc\\GlowingOrangeEye.png"
   },
   "GoatHideRug": {
     "id": "GoatHideRug",
@@ -155789,7 +155789,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\GoatHideRug.png"
+    "iconPath": "icons\\Misc\\GoatHideRug.png"
   },
   "GreenThreadSpool": {
     "id": "GreenThreadSpool",
@@ -156166,7 +156166,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\GreenThreadSpool.png"
+    "iconPath": "icons\\Misc\\GreenThreadSpool.png"
   },
   "HandCannon_1001": {
     "id": "HandCannon_1001",
@@ -156543,7 +156543,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\HandCannon_1001.png"
+    "iconPath": "icons\\Weapon\\HandCannon_1001.png"
   },
   "HandCannon_2001": {
     "id": "HandCannon_2001",
@@ -156920,7 +156920,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\HandCannon_2001.png"
+    "iconPath": "icons\\Weapon\\HandCannon_2001.png"
   },
   "HandCannon_3001": {
     "id": "HandCannon_3001",
@@ -157297,7 +157297,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\HandCannon_3001.png"
+    "iconPath": "icons\\Weapon\\HandCannon_3001.png"
   },
   "HandCannon_4001": {
     "id": "HandCannon_4001",
@@ -157674,7 +157674,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\HandCannon_4001.png"
+    "iconPath": "icons\\Weapon\\HandCannon_4001.png"
   },
   "HandCannon_5001": {
     "id": "HandCannon_5001",
@@ -158051,7 +158051,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\HandCannon_5001.png"
+    "iconPath": "icons\\Weapon\\HandCannon_5001.png"
   },
   "HandCannon_6001": {
     "id": "HandCannon_6001",
@@ -158428,7 +158428,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\HandCannon_6001.png"
+    "iconPath": "icons\\Weapon\\HandCannon_6001.png"
   },
   "HandCannon_7001": {
     "id": "HandCannon_7001",
@@ -158805,7 +158805,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\HandCannon_7001.png"
+    "iconPath": "icons\\Weapon\\HandCannon_7001.png"
   },
   "HardCrabShell": {
     "id": "HardCrabShell",
@@ -159182,7 +159182,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\HardCrabShell.png"
+    "iconPath": "icons\\Misc\\HardCrabShell.png"
   },
   "Hemostatic_1001": {
     "id": "Hemostatic_1001",
@@ -159559,7 +159559,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Hemostatic_1001.png"
+    "iconPath": "icons\\Utility\\Hemostatic_1001.png"
   },
   "Hemostatic_2001": {
     "id": "Hemostatic_2001",
@@ -159936,7 +159936,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Hemostatic_2001.png"
+    "iconPath": "icons\\Utility\\Hemostatic_2001.png"
   },
   "Hemostatic_3001": {
     "id": "Hemostatic_3001",
@@ -160313,7 +160313,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Hemostatic_3001.png"
+    "iconPath": "icons\\Utility\\Hemostatic_3001.png"
   },
   "Hemostatic_4001": {
     "id": "Hemostatic_4001",
@@ -160690,7 +160690,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Hemostatic_4001.png"
+    "iconPath": "icons\\Utility\\Hemostatic_4001.png"
   },
   "Hemostatic_5001": {
     "id": "Hemostatic_5001",
@@ -161067,7 +161067,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Hemostatic_5001.png"
+    "iconPath": "icons\\Utility\\Hemostatic_5001.png"
   },
   "Hemostatic_6001": {
     "id": "Hemostatic_6001",
@@ -161444,7 +161444,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Hemostatic_6001.png"
+    "iconPath": "icons\\Utility\\Hemostatic_6001.png"
   },
   "Hemostatic_7001": {
     "id": "Hemostatic_7001",
@@ -161821,7 +161821,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Hemostatic_7001.png"
+    "iconPath": "icons\\Utility\\Hemostatic_7001.png"
   },
   "HerbPouch": {
     "id": "HerbPouch",
@@ -162198,7 +162198,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\HerbPouch.png"
+    "iconPath": "icons\\Misc\\HerbPouch.png"
   },
   "HolyRobe_1001": {
     "id": "HolyRobe_1001",
@@ -162575,7 +162575,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\HolyRobe_1001.png"
+    "iconPath": "icons\\Armor\\HolyRobe_1001.png"
   },
   "HolyRobe_2001": {
     "id": "HolyRobe_2001",
@@ -162952,7 +162952,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\HolyRobe_2001.png"
+    "iconPath": "icons\\Armor\\HolyRobe_2001.png"
   },
   "HolyRobe_3001": {
     "id": "HolyRobe_3001",
@@ -163329,7 +163329,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\HolyRobe_3001.png"
+    "iconPath": "icons\\Armor\\HolyRobe_3001.png"
   },
   "HolyRobe_4001": {
     "id": "HolyRobe_4001",
@@ -163706,7 +163706,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\HolyRobe_4001.png"
+    "iconPath": "icons\\Armor\\HolyRobe_4001.png"
   },
   "HolyRobe_5001": {
     "id": "HolyRobe_5001",
@@ -164083,7 +164083,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\HolyRobe_5001.png"
+    "iconPath": "icons\\Armor\\HolyRobe_5001.png"
   },
   "HolyRobe_6001": {
     "id": "HolyRobe_6001",
@@ -164460,7 +164460,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\HolyRobe_6001.png"
+    "iconPath": "icons\\Armor\\HolyRobe_6001.png"
   },
   "HolyRobe_7001": {
     "id": "HolyRobe_7001",
@@ -164837,7 +164837,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\HolyRobe_7001.png"
+    "iconPath": "icons\\Armor\\HolyRobe_7001.png"
   },
   "Horseshoe": {
     "id": "Horseshoe",
@@ -165214,7 +165214,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Horseshoe.png"
+    "iconPath": "icons\\Misc\\Horseshoe.png"
   },
   "Hourglass": {
     "id": "Hourglass",
@@ -165591,7 +165591,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Hourglass.png"
+    "iconPath": "icons\\Misc\\Hourglass.png"
   },
   "HumanRemains": {
     "id": "HumanRemains",
@@ -165968,7 +165968,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\HumanRemains.png"
+    "iconPath": "icons\\Misc\\HumanRemains.png"
   },
   "HuntressGoldEmblem": {
     "id": "HuntressGoldEmblem",
@@ -166345,7 +166345,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\HuntressGoldEmblem.png"
+    "iconPath": "icons\\Misc\\HuntressGoldEmblem.png"
   },
   "HuntressSilverEmblem": {
     "id": "HuntressSilverEmblem",
@@ -166722,7 +166722,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\HuntressSilverEmblem.png"
+    "iconPath": "icons\\Misc\\HuntressSilverEmblem.png"
   },
   "InkwellandQuillPen": {
     "id": "InkwellandQuillPen",
@@ -167099,7 +167099,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\InkwellandQuillPen.png"
+    "iconPath": "icons\\Misc\\InkwellandQuillPen.png"
   },
   "IntricateWoodenFigurine": {
     "id": "IntricateWoodenFigurine",
@@ -167476,7 +167476,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\IntricateWoodenFigurine.png"
+    "iconPath": "icons\\Misc\\IntricateWoodenFigurine.png"
   },
   "IronChain": {
     "id": "IronChain",
@@ -167853,7 +167853,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\IronChain.png"
+    "iconPath": "icons\\Misc\\IronChain.png"
   },
   "JellyfishGlowEssence": {
     "id": "JellyfishGlowEssence",
@@ -168230,7 +168230,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\JellyfishGlowEssence.png"
+    "iconPath": "icons\\Misc\\JellyfishGlowEssence.png"
   },
   "JesterCap_1001": {
     "id": "JesterCap_1001",
@@ -168607,7 +168607,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterCap_1001.png"
+    "iconPath": "icons\\Armor\\JesterCap_1001.png"
   },
   "JesterCap_2001": {
     "id": "JesterCap_2001",
@@ -168984,7 +168984,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterCap_2001.png"
+    "iconPath": "icons\\Armor\\JesterCap_2001.png"
   },
   "JesterCap_3001": {
     "id": "JesterCap_3001",
@@ -169361,7 +169361,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterCap_3001.png"
+    "iconPath": "icons\\Armor\\JesterCap_3001.png"
   },
   "JesterCap_4001": {
     "id": "JesterCap_4001",
@@ -169738,7 +169738,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterCap_4001.png"
+    "iconPath": "icons\\Armor\\JesterCap_4001.png"
   },
   "JesterCap_5001": {
     "id": "JesterCap_5001",
@@ -170115,7 +170115,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterCap_5001.png"
+    "iconPath": "icons\\Armor\\JesterCap_5001.png"
   },
   "JesterCap_6001": {
     "id": "JesterCap_6001",
@@ -170492,7 +170492,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterCap_6001.png"
+    "iconPath": "icons\\Armor\\JesterCap_6001.png"
   },
   "JesterCap_7001": {
     "id": "JesterCap_7001",
@@ -170869,7 +170869,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterCap_7001.png"
+    "iconPath": "icons\\Armor\\JesterCap_7001.png"
   },
   "JesterOutfit_1001": {
     "id": "JesterOutfit_1001",
@@ -171246,7 +171246,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterOutfit_1001.png"
+    "iconPath": "icons\\Armor\\JesterOutfit_1001.png"
   },
   "JesterOutfit_2001": {
     "id": "JesterOutfit_2001",
@@ -171623,7 +171623,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterOutfit_2001.png"
+    "iconPath": "icons\\Armor\\JesterOutfit_2001.png"
   },
   "JesterOutfit_3001": {
     "id": "JesterOutfit_3001",
@@ -172000,7 +172000,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterOutfit_3001.png"
+    "iconPath": "icons\\Armor\\JesterOutfit_3001.png"
   },
   "JesterOutfit_4001": {
     "id": "JesterOutfit_4001",
@@ -172377,7 +172377,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterOutfit_4001.png"
+    "iconPath": "icons\\Armor\\JesterOutfit_4001.png"
   },
   "JesterOutfit_5001": {
     "id": "JesterOutfit_5001",
@@ -172754,7 +172754,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterOutfit_5001.png"
+    "iconPath": "icons\\Armor\\JesterOutfit_5001.png"
   },
   "JesterOutfit_6001": {
     "id": "JesterOutfit_6001",
@@ -173131,7 +173131,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterOutfit_6001.png"
+    "iconPath": "icons\\Armor\\JesterOutfit_6001.png"
   },
   "JesterOutfit_7001": {
     "id": "JesterOutfit_7001",
@@ -173508,7 +173508,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterOutfit_7001.png"
+    "iconPath": "icons\\Armor\\JesterOutfit_7001.png"
   },
   "JesterPants_1001": {
     "id": "JesterPants_1001",
@@ -173885,7 +173885,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPants_1001.png"
+    "iconPath": "icons\\Armor\\JesterPants_1001.png"
   },
   "JesterPants_2001": {
     "id": "JesterPants_2001",
@@ -174262,7 +174262,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPants_2001.png"
+    "iconPath": "icons\\Armor\\JesterPants_2001.png"
   },
   "JesterPants_3001": {
     "id": "JesterPants_3001",
@@ -174639,7 +174639,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPants_3001.png"
+    "iconPath": "icons\\Armor\\JesterPants_3001.png"
   },
   "JesterPants_4001": {
     "id": "JesterPants_4001",
@@ -175016,7 +175016,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPants_4001.png"
+    "iconPath": "icons\\Armor\\JesterPants_4001.png"
   },
   "JesterPants_5001": {
     "id": "JesterPants_5001",
@@ -175393,7 +175393,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPants_5001.png"
+    "iconPath": "icons\\Armor\\JesterPants_5001.png"
   },
   "JesterPants_6001": {
     "id": "JesterPants_6001",
@@ -175770,7 +175770,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPants_6001.png"
+    "iconPath": "icons\\Armor\\JesterPants_6001.png"
   },
   "JesterPants_7001": {
     "id": "JesterPants_7001",
@@ -176147,7 +176147,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPants_7001.png"
+    "iconPath": "icons\\Armor\\JesterPants_7001.png"
   },
   "JesterPoulaines_1001": {
     "id": "JesterPoulaines_1001",
@@ -176524,7 +176524,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPoulaines_1001.png"
+    "iconPath": "icons\\Armor\\JesterPoulaines_1001.png"
   },
   "JesterPoulaines_2001": {
     "id": "JesterPoulaines_2001",
@@ -176901,7 +176901,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPoulaines_2001.png"
+    "iconPath": "icons\\Armor\\JesterPoulaines_2001.png"
   },
   "JesterPoulaines_3001": {
     "id": "JesterPoulaines_3001",
@@ -177278,7 +177278,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPoulaines_3001.png"
+    "iconPath": "icons\\Armor\\JesterPoulaines_3001.png"
   },
   "JesterPoulaines_4001": {
     "id": "JesterPoulaines_4001",
@@ -177655,7 +177655,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPoulaines_4001.png"
+    "iconPath": "icons\\Armor\\JesterPoulaines_4001.png"
   },
   "JesterPoulaines_5001": {
     "id": "JesterPoulaines_5001",
@@ -178032,7 +178032,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPoulaines_5001.png"
+    "iconPath": "icons\\Armor\\JesterPoulaines_5001.png"
   },
   "JesterPoulaines_6001": {
     "id": "JesterPoulaines_6001",
@@ -178409,7 +178409,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPoulaines_6001.png"
+    "iconPath": "icons\\Armor\\JesterPoulaines_6001.png"
   },
   "JesterPoulaines_7001": {
     "id": "JesterPoulaines_7001",
@@ -178786,7 +178786,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\JesterPoulaines_7001.png"
+    "iconPath": "icons\\Armor\\JesterPoulaines_7001.png"
   },
   "KneadBloodBag": {
     "id": "KneadBloodBag",
@@ -179163,7 +179163,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\KneadBloodBag.png"
+    "iconPath": "icons\\Misc\\KneadBloodBag.png"
   },
   "LavishShirt_1001": {
     "id": "LavishShirt_1001",
@@ -179540,7 +179540,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LavishShirt_1001.png"
+    "iconPath": "icons\\Armor\\LavishShirt_1001.png"
   },
   "LavishShirt_2001": {
     "id": "LavishShirt_2001",
@@ -179917,7 +179917,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LavishShirt_2001.png"
+    "iconPath": "icons\\Armor\\LavishShirt_2001.png"
   },
   "LavishShirt_3001": {
     "id": "LavishShirt_3001",
@@ -180294,7 +180294,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LavishShirt_3001.png"
+    "iconPath": "icons\\Armor\\LavishShirt_3001.png"
   },
   "LavishShirt_4001": {
     "id": "LavishShirt_4001",
@@ -180671,7 +180671,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LavishShirt_4001.png"
+    "iconPath": "icons\\Armor\\LavishShirt_4001.png"
   },
   "LavishShirt_5001": {
     "id": "LavishShirt_5001",
@@ -181048,7 +181048,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LavishShirt_5001.png"
+    "iconPath": "icons\\Armor\\LavishShirt_5001.png"
   },
   "LavishShirt_6001": {
     "id": "LavishShirt_6001",
@@ -181425,7 +181425,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LavishShirt_6001.png"
+    "iconPath": "icons\\Armor\\LavishShirt_6001.png"
   },
   "LavishShirt_7001": {
     "id": "LavishShirt_7001",
@@ -181802,7 +181802,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LavishShirt_7001.png"
+    "iconPath": "icons\\Armor\\LavishShirt_7001.png"
   },
   "LeatherBoot": {
     "id": "LeatherBoot",
@@ -182179,7 +182179,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\LeatherBoot.png"
+    "iconPath": "icons\\Misc\\LeatherBoot.png"
   },
   "LeatherLamellar_1001": {
     "id": "LeatherLamellar_1001",
@@ -182556,7 +182556,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LeatherLamellar_1001.png"
+    "iconPath": "icons\\Armor\\LeatherLamellar_1001.png"
   },
   "LeatherLamellar_2001": {
     "id": "LeatherLamellar_2001",
@@ -182933,7 +182933,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LeatherLamellar_2001.png"
+    "iconPath": "icons\\Armor\\LeatherLamellar_2001.png"
   },
   "LeatherLamellar_3001": {
     "id": "LeatherLamellar_3001",
@@ -183310,7 +183310,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LeatherLamellar_3001.png"
+    "iconPath": "icons\\Armor\\LeatherLamellar_3001.png"
   },
   "LeatherLamellar_4001": {
     "id": "LeatherLamellar_4001",
@@ -183687,7 +183687,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LeatherLamellar_4001.png"
+    "iconPath": "icons\\Armor\\LeatherLamellar_4001.png"
   },
   "LeatherLamellar_5001": {
     "id": "LeatherLamellar_5001",
@@ -184064,7 +184064,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LeatherLamellar_5001.png"
+    "iconPath": "icons\\Armor\\LeatherLamellar_5001.png"
   },
   "LeatherLamellar_6001": {
     "id": "LeatherLamellar_6001",
@@ -184441,7 +184441,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LeatherLamellar_6001.png"
+    "iconPath": "icons\\Armor\\LeatherLamellar_6001.png"
   },
   "LeatherLamellar_7001": {
     "id": "LeatherLamellar_7001",
@@ -184818,7 +184818,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\LeatherLamellar_7001.png"
+    "iconPath": "icons\\Armor\\LeatherLamellar_7001.png"
   },
   "LightCassock_1001": {
     "id": "LightCassock_1001",
@@ -185195,7 +185195,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": 5,
     "primary_max_undead_reduction_mod": 5,
-    "iconPath": "assets\\icons\\Armor\\LightCassock_1001.png"
+    "iconPath": "icons\\Armor\\LightCassock_1001.png"
   },
   "LightCassock_2001": {
     "id": "LightCassock_2001",
@@ -185572,7 +185572,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": 6,
     "primary_max_undead_reduction_mod": 6,
-    "iconPath": "assets\\icons\\Armor\\LightCassock_2001.png"
+    "iconPath": "icons\\Armor\\LightCassock_2001.png"
   },
   "LightCassock_3001": {
     "id": "LightCassock_3001",
@@ -185949,7 +185949,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": 6,
     "primary_max_undead_reduction_mod": 6,
-    "iconPath": "assets\\icons\\Armor\\LightCassock_3001.png"
+    "iconPath": "icons\\Armor\\LightCassock_3001.png"
   },
   "LightCassock_4001": {
     "id": "LightCassock_4001",
@@ -186326,7 +186326,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": 6,
     "primary_max_undead_reduction_mod": 6,
-    "iconPath": "assets\\icons\\Armor\\LightCassock_4001.png"
+    "iconPath": "icons\\Armor\\LightCassock_4001.png"
   },
   "LightCassock_5001": {
     "id": "LightCassock_5001",
@@ -186703,7 +186703,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": 7,
     "primary_max_undead_reduction_mod": 7,
-    "iconPath": "assets\\icons\\Armor\\LightCassock_5001.png"
+    "iconPath": "icons\\Armor\\LightCassock_5001.png"
   },
   "LightCassock_6001": {
     "id": "LightCassock_6001",
@@ -187080,7 +187080,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": 7,
     "primary_max_undead_reduction_mod": 7,
-    "iconPath": "assets\\icons\\Armor\\LightCassock_6001.png"
+    "iconPath": "icons\\Armor\\LightCassock_6001.png"
   },
   "LightCassock_7001": {
     "id": "LightCassock_7001",
@@ -187457,7 +187457,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": 8,
     "primary_max_undead_reduction_mod": 8,
-    "iconPath": "assets\\icons\\Armor\\LightCassock_7001.png"
+    "iconPath": "icons\\Armor\\LightCassock_7001.png"
   },
   "Lock": {
     "id": "Lock",
@@ -187834,7 +187834,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Lock.png"
+    "iconPath": "icons\\Misc\\Lock.png"
   },
   "LongPipe": {
     "id": "LongPipe",
@@ -188211,7 +188211,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\LongPipe.png"
+    "iconPath": "icons\\Misc\\LongPipe.png"
   },
   "LukewarmStew": {
     "id": "LukewarmStew",
@@ -188588,7 +188588,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\LukewarmStew.png"
+    "iconPath": "icons\\Misc\\LukewarmStew.png"
   },
   "LuxuryBootRack": {
     "id": "LuxuryBootRack",
@@ -188965,7 +188965,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\LuxuryBootRack.png"
+    "iconPath": "icons\\Misc\\LuxuryBootRack.png"
   },
   "MermaidScale": {
     "id": "MermaidScale",
@@ -189342,7 +189342,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\MermaidScale.png"
+    "iconPath": "icons\\Misc\\MermaidScale.png"
   },
   "MermaidsTear": {
     "id": "MermaidsTear",
@@ -189719,7 +189719,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\MermaidsTear.png"
+    "iconPath": "icons\\Misc\\MermaidsTear.png"
   },
   "Mitre_1001": {
     "id": "Mitre_1001",
@@ -190096,7 +190096,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Mitre_1001.png"
+    "iconPath": "icons\\Armor\\Mitre_1001.png"
   },
   "Mitre_2001": {
     "id": "Mitre_2001",
@@ -190473,7 +190473,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Mitre_2001.png"
+    "iconPath": "icons\\Armor\\Mitre_2001.png"
   },
   "Mitre_3001": {
     "id": "Mitre_3001",
@@ -190850,7 +190850,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Mitre_3001.png"
+    "iconPath": "icons\\Armor\\Mitre_3001.png"
   },
   "Mitre_4001": {
     "id": "Mitre_4001",
@@ -191227,7 +191227,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Mitre_4001.png"
+    "iconPath": "icons\\Armor\\Mitre_4001.png"
   },
   "Mitre_5001": {
     "id": "Mitre_5001",
@@ -191604,7 +191604,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Mitre_5001.png"
+    "iconPath": "icons\\Armor\\Mitre_5001.png"
   },
   "Mitre_6001": {
     "id": "Mitre_6001",
@@ -191981,7 +191981,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Mitre_6001.png"
+    "iconPath": "icons\\Armor\\Mitre_6001.png"
   },
   "Mitre_7001": {
     "id": "Mitre_7001",
@@ -192358,7 +192358,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Mitre_7001.png"
+    "iconPath": "icons\\Armor\\Mitre_7001.png"
   },
   "MysteriousPotion": {
     "id": "MysteriousPotion",
@@ -192735,7 +192735,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\MysteriousPotion.png"
+    "iconPath": "icons\\Misc\\MysteriousPotion.png"
   },
   "NavigationalCompass": {
     "id": "NavigationalCompass",
@@ -193112,7 +193112,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\NavigationalCompass.png"
+    "iconPath": "icons\\Misc\\NavigationalCompass.png"
   },
   "NorthernHalfTunic_1001": {
     "id": "NorthernHalfTunic_1001",
@@ -193489,7 +193489,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\NorthernHalfTunic_1001.png"
+    "iconPath": "icons\\Armor\\NorthernHalfTunic_1001.png"
   },
   "NorthernHalfTunic_2001": {
     "id": "NorthernHalfTunic_2001",
@@ -193866,7 +193866,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\NorthernHalfTunic_2001.png"
+    "iconPath": "icons\\Armor\\NorthernHalfTunic_2001.png"
   },
   "NorthernHalfTunic_3001": {
     "id": "NorthernHalfTunic_3001",
@@ -194243,7 +194243,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\NorthernHalfTunic_3001.png"
+    "iconPath": "icons\\Armor\\NorthernHalfTunic_3001.png"
   },
   "NorthernHalfTunic_4001": {
     "id": "NorthernHalfTunic_4001",
@@ -194620,7 +194620,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\NorthernHalfTunic_4001.png"
+    "iconPath": "icons\\Armor\\NorthernHalfTunic_4001.png"
   },
   "NorthernHalfTunic_5001": {
     "id": "NorthernHalfTunic_5001",
@@ -194997,7 +194997,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\NorthernHalfTunic_5001.png"
+    "iconPath": "icons\\Armor\\NorthernHalfTunic_5001.png"
   },
   "NorthernHalfTunic_6001": {
     "id": "NorthernHalfTunic_6001",
@@ -195374,7 +195374,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\NorthernHalfTunic_6001.png"
+    "iconPath": "icons\\Armor\\NorthernHalfTunic_6001.png"
   },
   "NorthernHalfTunic_7001": {
     "id": "NorthernHalfTunic_7001",
@@ -195751,7 +195751,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\NorthernHalfTunic_7001.png"
+    "iconPath": "icons\\Armor\\NorthernHalfTunic_7001.png"
   },
   "OldNauticalChartFragment": {
     "id": "OldNauticalChartFragment",
@@ -196128,7 +196128,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\OldNauticalChartFragment.png"
+    "iconPath": "icons\\Misc\\OldNauticalChartFragment.png"
   },
   "OldRope": {
     "id": "OldRope",
@@ -196505,7 +196505,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\OldRope.png"
+    "iconPath": "icons\\Misc\\OldRope.png"
   },
   "OnyxGloves_1001": {
     "id": "OnyxGloves_1001",
@@ -196882,7 +196882,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\OnyxGloves_1001.png"
+    "iconPath": "icons\\Armor\\OnyxGloves_1001.png"
   },
   "OnyxGloves_2001": {
     "id": "OnyxGloves_2001",
@@ -197259,7 +197259,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\OnyxGloves_2001.png"
+    "iconPath": "icons\\Armor\\OnyxGloves_2001.png"
   },
   "OnyxGloves_3001": {
     "id": "OnyxGloves_3001",
@@ -197636,7 +197636,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\OnyxGloves_3001.png"
+    "iconPath": "icons\\Armor\\OnyxGloves_3001.png"
   },
   "OnyxGloves_4001": {
     "id": "OnyxGloves_4001",
@@ -198013,7 +198013,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\OnyxGloves_4001.png"
+    "iconPath": "icons\\Armor\\OnyxGloves_4001.png"
   },
   "OnyxGloves_5001": {
     "id": "OnyxGloves_5001",
@@ -198390,7 +198390,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\OnyxGloves_5001.png"
+    "iconPath": "icons\\Armor\\OnyxGloves_5001.png"
   },
   "OnyxGloves_6001": {
     "id": "OnyxGloves_6001",
@@ -198767,7 +198767,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\OnyxGloves_6001.png"
+    "iconPath": "icons\\Armor\\OnyxGloves_6001.png"
   },
   "OnyxGloves_7001": {
     "id": "OnyxGloves_7001",
@@ -199144,7 +199144,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\OnyxGloves_7001.png"
+    "iconPath": "icons\\Armor\\OnyxGloves_7001.png"
   },
   "Paperweight": {
     "id": "Paperweight",
@@ -199521,7 +199521,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Paperweight.png"
+    "iconPath": "icons\\Misc\\Paperweight.png"
   },
   "PastoralTunic_1001": {
     "id": "PastoralTunic_1001",
@@ -199898,7 +199898,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\PastoralTunic_1001.png"
+    "iconPath": "icons\\Armor\\PastoralTunic_1001.png"
   },
   "PastoralTunic_2001": {
     "id": "PastoralTunic_2001",
@@ -200275,7 +200275,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\PastoralTunic_2001.png"
+    "iconPath": "icons\\Armor\\PastoralTunic_2001.png"
   },
   "PastoralTunic_3001": {
     "id": "PastoralTunic_3001",
@@ -200652,7 +200652,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\PastoralTunic_3001.png"
+    "iconPath": "icons\\Armor\\PastoralTunic_3001.png"
   },
   "PastoralTunic_4001": {
     "id": "PastoralTunic_4001",
@@ -201029,7 +201029,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\PastoralTunic_4001.png"
+    "iconPath": "icons\\Armor\\PastoralTunic_4001.png"
   },
   "PastoralTunic_5001": {
     "id": "PastoralTunic_5001",
@@ -201406,7 +201406,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\PastoralTunic_5001.png"
+    "iconPath": "icons\\Armor\\PastoralTunic_5001.png"
   },
   "PastoralTunic_6001": {
     "id": "PastoralTunic_6001",
@@ -201783,7 +201783,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\PastoralTunic_6001.png"
+    "iconPath": "icons\\Armor\\PastoralTunic_6001.png"
   },
   "PastoralTunic_7001": {
     "id": "PastoralTunic_7001",
@@ -202160,7 +202160,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\PastoralTunic_7001.png"
+    "iconPath": "icons\\Armor\\PastoralTunic_7001.png"
   },
   "Pebble": {
     "id": "Pebble",
@@ -202537,7 +202537,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Pebble.png"
+    "iconPath": "icons\\Misc\\Pebble.png"
   },
   "Pigache_1001": {
     "id": "Pigache_1001",
@@ -202914,7 +202914,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Pigache_1001.png"
+    "iconPath": "icons\\Armor\\Pigache_1001.png"
   },
   "Pigache_2001": {
     "id": "Pigache_2001",
@@ -203291,7 +203291,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Pigache_2001.png"
+    "iconPath": "icons\\Armor\\Pigache_2001.png"
   },
   "Pigache_3001": {
     "id": "Pigache_3001",
@@ -203668,7 +203668,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Pigache_3001.png"
+    "iconPath": "icons\\Armor\\Pigache_3001.png"
   },
   "Pigache_4001": {
     "id": "Pigache_4001",
@@ -204045,7 +204045,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Pigache_4001.png"
+    "iconPath": "icons\\Armor\\Pigache_4001.png"
   },
   "Pigache_5001": {
     "id": "Pigache_5001",
@@ -204422,7 +204422,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Pigache_5001.png"
+    "iconPath": "icons\\Armor\\Pigache_5001.png"
   },
   "Pigache_6001": {
     "id": "Pigache_6001",
@@ -204799,7 +204799,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Pigache_6001.png"
+    "iconPath": "icons\\Armor\\Pigache_6001.png"
   },
   "Pigache_7001": {
     "id": "Pigache_7001",
@@ -205176,7 +205176,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Pigache_7001.png"
+    "iconPath": "icons\\Armor\\Pigache_7001.png"
   },
   "Pincushion": {
     "id": "Pincushion",
@@ -205553,7 +205553,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Pincushion.png"
+    "iconPath": "icons\\Misc\\Pincushion.png"
   },
   "Plunderhosen_1001": {
     "id": "Plunderhosen_1001",
@@ -205930,7 +205930,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Plunderhosen_1001.png"
+    "iconPath": "icons\\Armor\\Plunderhosen_1001.png"
   },
   "Plunderhosen_2001": {
     "id": "Plunderhosen_2001",
@@ -206307,7 +206307,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Plunderhosen_2001.png"
+    "iconPath": "icons\\Armor\\Plunderhosen_2001.png"
   },
   "Plunderhosen_3001": {
     "id": "Plunderhosen_3001",
@@ -206684,7 +206684,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Plunderhosen_3001.png"
+    "iconPath": "icons\\Armor\\Plunderhosen_3001.png"
   },
   "Plunderhosen_4001": {
     "id": "Plunderhosen_4001",
@@ -207061,7 +207061,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Plunderhosen_4001.png"
+    "iconPath": "icons\\Armor\\Plunderhosen_4001.png"
   },
   "Plunderhosen_5001": {
     "id": "Plunderhosen_5001",
@@ -207438,7 +207438,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Plunderhosen_5001.png"
+    "iconPath": "icons\\Armor\\Plunderhosen_5001.png"
   },
   "Plunderhosen_6001": {
     "id": "Plunderhosen_6001",
@@ -207815,7 +207815,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Plunderhosen_6001.png"
+    "iconPath": "icons\\Armor\\Plunderhosen_6001.png"
   },
   "Plunderhosen_7001": {
     "id": "Plunderhosen_7001",
@@ -208192,7 +208192,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\Plunderhosen_7001.png"
+    "iconPath": "icons\\Armor\\Plunderhosen_7001.png"
   },
   "PocketWatch": {
     "id": "PocketWatch",
@@ -208569,7 +208569,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\PocketWatch.png"
+    "iconPath": "icons\\Misc\\PocketWatch.png"
   },
   "PotionofWaterBreathing_1001": {
     "id": "PotionofWaterBreathing_1001",
@@ -208946,7 +208946,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\PotionofWaterBreathing_1001.png"
+    "iconPath": "icons\\Utility\\PotionofWaterBreathing_1001.png"
   },
   "PotionofWaterBreathing_2001": {
     "id": "PotionofWaterBreathing_2001",
@@ -209323,7 +209323,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\PotionofWaterBreathing_2001.png"
+    "iconPath": "icons\\Utility\\PotionofWaterBreathing_2001.png"
   },
   "PotionofWaterBreathing_3001": {
     "id": "PotionofWaterBreathing_3001",
@@ -209700,7 +209700,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\PotionofWaterBreathing_3001.png"
+    "iconPath": "icons\\Utility\\PotionofWaterBreathing_3001.png"
   },
   "PotionofWaterBreathing_4001": {
     "id": "PotionofWaterBreathing_4001",
@@ -210077,7 +210077,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\PotionofWaterBreathing_4001.png"
+    "iconPath": "icons\\Utility\\PotionofWaterBreathing_4001.png"
   },
   "PotionofWaterBreathing_5001": {
     "id": "PotionofWaterBreathing_5001",
@@ -210454,7 +210454,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\PotionofWaterBreathing_5001.png"
+    "iconPath": "icons\\Utility\\PotionofWaterBreathing_5001.png"
   },
   "PotionofWaterBreathing_6001": {
     "id": "PotionofWaterBreathing_6001",
@@ -210831,7 +210831,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\PotionofWaterBreathing_6001.png"
+    "iconPath": "icons\\Utility\\PotionofWaterBreathing_6001.png"
   },
   "PotionofWaterBreathing_7001": {
     "id": "PotionofWaterBreathing_7001",
@@ -211208,7 +211208,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\PotionofWaterBreathing_7001.png"
+    "iconPath": "icons\\Utility\\PotionofWaterBreathing_7001.png"
   },
   "ProwlerGloves_1001": {
     "id": "ProwlerGloves_1001",
@@ -211585,7 +211585,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ProwlerGloves_1001.png"
+    "iconPath": "icons\\Armor\\ProwlerGloves_1001.png"
   },
   "ProwlerGloves_2001": {
     "id": "ProwlerGloves_2001",
@@ -211962,7 +211962,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ProwlerGloves_2001.png"
+    "iconPath": "icons\\Armor\\ProwlerGloves_2001.png"
   },
   "ProwlerGloves_3001": {
     "id": "ProwlerGloves_3001",
@@ -212339,7 +212339,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ProwlerGloves_3001.png"
+    "iconPath": "icons\\Armor\\ProwlerGloves_3001.png"
   },
   "ProwlerGloves_4001": {
     "id": "ProwlerGloves_4001",
@@ -212716,7 +212716,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ProwlerGloves_4001.png"
+    "iconPath": "icons\\Armor\\ProwlerGloves_4001.png"
   },
   "ProwlerGloves_5001": {
     "id": "ProwlerGloves_5001",
@@ -213093,7 +213093,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ProwlerGloves_5001.png"
+    "iconPath": "icons\\Armor\\ProwlerGloves_5001.png"
   },
   "ProwlerGloves_6001": {
     "id": "ProwlerGloves_6001",
@@ -213470,7 +213470,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ProwlerGloves_6001.png"
+    "iconPath": "icons\\Armor\\ProwlerGloves_6001.png"
   },
   "ProwlerGloves_7001": {
     "id": "ProwlerGloves_7001",
@@ -213847,7 +213847,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ProwlerGloves_7001.png"
+    "iconPath": "icons\\Armor\\ProwlerGloves_7001.png"
   },
   "RedApple": {
     "id": "RedApple",
@@ -214224,7 +214224,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\RedApple.png"
+    "iconPath": "icons\\Misc\\RedApple.png"
   },
   "RegalMitre_1001": {
     "id": "RegalMitre_1001",
@@ -214601,7 +214601,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RegalMitre_1001.png"
+    "iconPath": "icons\\Armor\\RegalMitre_1001.png"
   },
   "RegalMitre_2001": {
     "id": "RegalMitre_2001",
@@ -214978,7 +214978,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RegalMitre_2001.png"
+    "iconPath": "icons\\Armor\\RegalMitre_2001.png"
   },
   "RegalMitre_3001": {
     "id": "RegalMitre_3001",
@@ -215355,7 +215355,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RegalMitre_3001.png"
+    "iconPath": "icons\\Armor\\RegalMitre_3001.png"
   },
   "RegalMitre_4001": {
     "id": "RegalMitre_4001",
@@ -215732,7 +215732,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RegalMitre_4001.png"
+    "iconPath": "icons\\Armor\\RegalMitre_4001.png"
   },
   "RegalMitre_5001": {
     "id": "RegalMitre_5001",
@@ -216109,7 +216109,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RegalMitre_5001.png"
+    "iconPath": "icons\\Armor\\RegalMitre_5001.png"
   },
   "RegalMitre_6001": {
     "id": "RegalMitre_6001",
@@ -216486,7 +216486,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RegalMitre_6001.png"
+    "iconPath": "icons\\Armor\\RegalMitre_6001.png"
   },
   "RegalMitre_7001": {
     "id": "RegalMitre_7001",
@@ -216863,7 +216863,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RegalMitre_7001.png"
+    "iconPath": "icons\\Armor\\RegalMitre_7001.png"
   },
   "Reins": {
     "id": "Reins",
@@ -217240,7 +217240,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Reins.png"
+    "iconPath": "icons\\Misc\\Reins.png"
   },
   "RottenLump": {
     "id": "RottenLump",
@@ -217617,7 +217617,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\RottenLump.png"
+    "iconPath": "icons\\Misc\\RottenLump.png"
   },
   "RusticTunic_1001": {
     "id": "RusticTunic_1001",
@@ -217994,7 +217994,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RusticTunic_1001.png"
+    "iconPath": "icons\\Armor\\RusticTunic_1001.png"
   },
   "RusticTunic_2001": {
     "id": "RusticTunic_2001",
@@ -218371,7 +218371,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RusticTunic_2001.png"
+    "iconPath": "icons\\Armor\\RusticTunic_2001.png"
   },
   "RusticTunic_3001": {
     "id": "RusticTunic_3001",
@@ -218748,7 +218748,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RusticTunic_3001.png"
+    "iconPath": "icons\\Armor\\RusticTunic_3001.png"
   },
   "RusticTunic_4001": {
     "id": "RusticTunic_4001",
@@ -219125,7 +219125,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RusticTunic_4001.png"
+    "iconPath": "icons\\Armor\\RusticTunic_4001.png"
   },
   "RusticTunic_5001": {
     "id": "RusticTunic_5001",
@@ -219502,7 +219502,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RusticTunic_5001.png"
+    "iconPath": "icons\\Armor\\RusticTunic_5001.png"
   },
   "RusticTunic_6001": {
     "id": "RusticTunic_6001",
@@ -219879,7 +219879,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RusticTunic_6001.png"
+    "iconPath": "icons\\Armor\\RusticTunic_6001.png"
   },
   "RusticTunic_7001": {
     "id": "RusticTunic_7001",
@@ -220256,7 +220256,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\RusticTunic_7001.png"
+    "iconPath": "icons\\Armor\\RusticTunic_7001.png"
   },
   "Saddle": {
     "id": "Saddle",
@@ -220633,7 +220633,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saddle.png"
+    "iconPath": "icons\\Misc\\Saddle.png"
   },
   "SailorsJournal": {
     "id": "SailorsJournal",
@@ -221010,7 +221010,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SailorsJournal.png"
+    "iconPath": "icons\\Misc\\SailorsJournal.png"
   },
   "Saltvine_1001": {
     "id": "Saltvine_1001",
@@ -221387,7 +221387,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saltvine_1001.png"
+    "iconPath": "icons\\Misc\\Saltvine_1001.png"
   },
   "Saltvine_2001": {
     "id": "Saltvine_2001",
@@ -221764,7 +221764,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saltvine_2001.png"
+    "iconPath": "icons\\Misc\\Saltvine_2001.png"
   },
   "Saltvine_3001": {
     "id": "Saltvine_3001",
@@ -222141,7 +222141,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saltvine_3001.png"
+    "iconPath": "icons\\Misc\\Saltvine_3001.png"
   },
   "Saltvine_4001": {
     "id": "Saltvine_4001",
@@ -222518,7 +222518,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saltvine_4001.png"
+    "iconPath": "icons\\Misc\\Saltvine_4001.png"
   },
   "Saltvine_5001": {
     "id": "Saltvine_5001",
@@ -222895,7 +222895,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saltvine_5001.png"
+    "iconPath": "icons\\Misc\\Saltvine_5001.png"
   },
   "Saltvine_6001": {
     "id": "Saltvine_6001",
@@ -223272,7 +223272,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saltvine_6001.png"
+    "iconPath": "icons\\Misc\\Saltvine_6001.png"
   },
   "Saltvine_7001": {
     "id": "Saltvine_7001",
@@ -223649,7 +223649,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Saltvine_7001.png"
+    "iconPath": "icons\\Misc\\Saltvine_7001.png"
   },
   "Scabbard": {
     "id": "Scabbard",
@@ -224026,7 +224026,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Scabbard.png"
+    "iconPath": "icons\\Misc\\Scabbard.png"
   },
   "ScaledArmor_1001": {
     "id": "ScaledArmor_1001",
@@ -224403,7 +224403,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ScaledArmor_1001.png"
+    "iconPath": "icons\\Armor\\ScaledArmor_1001.png"
   },
   "ScaledArmor_2001": {
     "id": "ScaledArmor_2001",
@@ -224780,7 +224780,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ScaledArmor_2001.png"
+    "iconPath": "icons\\Armor\\ScaledArmor_2001.png"
   },
   "ScaledArmor_3001": {
     "id": "ScaledArmor_3001",
@@ -225157,7 +225157,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ScaledArmor_3001.png"
+    "iconPath": "icons\\Armor\\ScaledArmor_3001.png"
   },
   "ScaledArmor_4001": {
     "id": "ScaledArmor_4001",
@@ -225534,7 +225534,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ScaledArmor_4001.png"
+    "iconPath": "icons\\Armor\\ScaledArmor_4001.png"
   },
   "ScaledArmor_5001": {
     "id": "ScaledArmor_5001",
@@ -225911,7 +225911,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ScaledArmor_5001.png"
+    "iconPath": "icons\\Armor\\ScaledArmor_5001.png"
   },
   "ScaledArmor_6001": {
     "id": "ScaledArmor_6001",
@@ -226288,7 +226288,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ScaledArmor_6001.png"
+    "iconPath": "icons\\Armor\\ScaledArmor_6001.png"
   },
   "ScaledArmor_7001": {
     "id": "ScaledArmor_7001",
@@ -226665,7 +226665,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ScaledArmor_7001.png"
+    "iconPath": "icons\\Armor\\ScaledArmor_7001.png"
   },
   "ScrollofFadedShadows": {
     "id": "ScrollofFadedShadows",
@@ -227042,7 +227042,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ScrollofFadedShadows.png"
+    "iconPath": "icons\\Misc\\ScrollofFadedShadows.png"
   },
   "ScrollofForgottenKnowledge": {
     "id": "ScrollofForgottenKnowledge",
@@ -227419,7 +227419,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ScrollofForgottenKnowledge.png"
+    "iconPath": "icons\\Misc\\ScrollofForgottenKnowledge.png"
   },
   "ScrollofLostNames": {
     "id": "ScrollofLostNames",
@@ -227796,7 +227796,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ScrollofLostNames.png"
+    "iconPath": "icons\\Misc\\ScrollofLostNames.png"
   },
   "ScrollofSealedCurse": {
     "id": "ScrollofSealedCurse",
@@ -228173,7 +228173,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ScrollofSealedCurse.png"
+    "iconPath": "icons\\Misc\\ScrollofSealedCurse.png"
   },
   "ScrollofVanishedMemories": {
     "id": "ScrollofVanishedMemories",
@@ -228550,7 +228550,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ScrollofVanishedMemories.png"
+    "iconPath": "icons\\Misc\\ScrollofVanishedMemories.png"
   },
   "SealedLetter": {
     "id": "SealedLetter",
@@ -228927,7 +228927,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SealedLetter.png"
+    "iconPath": "icons\\Misc\\SealedLetter.png"
   },
   "Seashell": {
     "id": "Seashell",
@@ -229304,7 +229304,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Seashell.png"
+    "iconPath": "icons\\Misc\\Seashell.png"
   },
   "SeaweedNecklace": {
     "id": "SeaweedNecklace",
@@ -229681,7 +229681,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SeaweedNecklace.png"
+    "iconPath": "icons\\Misc\\SeaweedNecklace.png"
   },
   "Shackles": {
     "id": "Shackles",
@@ -230058,7 +230058,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Shackles.png"
+    "iconPath": "icons\\Misc\\Shackles.png"
   },
   "SharpSeaUrchinSpine": {
     "id": "SharpSeaUrchinSpine",
@@ -230435,7 +230435,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SharpSeaUrchinSpine.png"
+    "iconPath": "icons\\Misc\\SharpSeaUrchinSpine.png"
   },
   "ShiningPearl": {
     "id": "ShiningPearl",
@@ -230812,7 +230812,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ShiningPearl.png"
+    "iconPath": "icons\\Misc\\ShiningPearl.png"
   },
   "ShipsWheel": {
     "id": "ShipsWheel",
@@ -231189,7 +231189,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ShipsWheel.png"
+    "iconPath": "icons\\Misc\\ShipsWheel.png"
   },
   "SkinnyFinger": {
     "id": "SkinnyFinger",
@@ -231566,7 +231566,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SkinnyFinger.png"
+    "iconPath": "icons\\Misc\\SkinnyFinger.png"
   },
   "Sling_1001": {
     "id": "Sling_1001",
@@ -231943,7 +231943,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Sling_1001.png"
+    "iconPath": "icons\\Utility\\Sling_1001.png"
   },
   "Sling_2001": {
     "id": "Sling_2001",
@@ -232320,7 +232320,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Sling_2001.png"
+    "iconPath": "icons\\Utility\\Sling_2001.png"
   },
   "Sling_3001": {
     "id": "Sling_3001",
@@ -232697,7 +232697,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Sling_3001.png"
+    "iconPath": "icons\\Utility\\Sling_3001.png"
   },
   "Sling_4001": {
     "id": "Sling_4001",
@@ -233074,7 +233074,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Sling_4001.png"
+    "iconPath": "icons\\Utility\\Sling_4001.png"
   },
   "Sling_5001": {
     "id": "Sling_5001",
@@ -233451,7 +233451,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Sling_5001.png"
+    "iconPath": "icons\\Utility\\Sling_5001.png"
   },
   "Sling_6001": {
     "id": "Sling_6001",
@@ -233828,7 +233828,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Sling_6001.png"
+    "iconPath": "icons\\Utility\\Sling_6001.png"
   },
   "Sling_7001": {
     "id": "Sling_7001",
@@ -234205,7 +234205,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\Sling_7001.png"
+    "iconPath": "icons\\Utility\\Sling_7001.png"
   },
   "SmellyVomit": {
     "id": "SmellyVomit",
@@ -234582,7 +234582,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SmellyVomit.png"
+    "iconPath": "icons\\Misc\\SmellyVomit.png"
   },
   "SmokyPoisonPowder": {
     "id": "SmokyPoisonPowder",
@@ -234959,7 +234959,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SmokyPoisonPowder.png"
+    "iconPath": "icons\\Misc\\SmokyPoisonPowder.png"
   },
   "Soap": {
     "id": "Soap",
@@ -235336,7 +235336,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Soap.png"
+    "iconPath": "icons\\Misc\\Soap.png"
   },
   "SpentCandle": {
     "id": "SpentCandle",
@@ -235713,7 +235713,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SpentCandle.png"
+    "iconPath": "icons\\Misc\\SpentCandle.png"
   },
   "SquareCushion": {
     "id": "SquareCushion",
@@ -236090,7 +236090,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SquareCushion.png"
+    "iconPath": "icons\\Misc\\SquareCushion.png"
   },
   "Starfish": {
     "id": "Starfish",
@@ -236467,7 +236467,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Starfish.png"
+    "iconPath": "icons\\Misc\\Starfish.png"
   },
   "StefanBeret_1001": {
     "id": "StefanBeret_1001",
@@ -236844,7 +236844,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\StefanBeret_1001.png"
+    "iconPath": "icons\\Armor\\StefanBeret_1001.png"
   },
   "StefanBeret_2001": {
     "id": "StefanBeret_2001",
@@ -237221,7 +237221,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\StefanBeret_2001.png"
+    "iconPath": "icons\\Armor\\StefanBeret_2001.png"
   },
   "StefanBeret_3001": {
     "id": "StefanBeret_3001",
@@ -237598,7 +237598,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\StefanBeret_3001.png"
+    "iconPath": "icons\\Armor\\StefanBeret_3001.png"
   },
   "StefanBeret_4001": {
     "id": "StefanBeret_4001",
@@ -237975,7 +237975,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\StefanBeret_4001.png"
+    "iconPath": "icons\\Armor\\StefanBeret_4001.png"
   },
   "StefanBeret_5001": {
     "id": "StefanBeret_5001",
@@ -238352,7 +238352,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\StefanBeret_5001.png"
+    "iconPath": "icons\\Armor\\StefanBeret_5001.png"
   },
   "StefanBeret_6001": {
     "id": "StefanBeret_6001",
@@ -238729,7 +238729,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\StefanBeret_6001.png"
+    "iconPath": "icons\\Armor\\StefanBeret_6001.png"
   },
   "StefanBeret_7001": {
     "id": "StefanBeret_7001",
@@ -239106,7 +239106,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\StefanBeret_7001.png"
+    "iconPath": "icons\\Armor\\StefanBeret_7001.png"
   },
   "StickyTongue": {
     "id": "StickyTongue",
@@ -239483,7 +239483,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\StickyTongue.png"
+    "iconPath": "icons\\Misc\\StickyTongue.png"
   },
   "Stirrups": {
     "id": "Stirrups",
@@ -239860,7 +239860,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Stirrups.png"
+    "iconPath": "icons\\Misc\\Stirrups.png"
   },
   "StoneFragment": {
     "id": "StoneFragment",
@@ -240237,7 +240237,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\StoneFragment.png"
+    "iconPath": "icons\\Misc\\StoneFragment.png"
   },
   "StoneMortar": {
     "id": "StoneMortar",
@@ -240614,7 +240614,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\StoneMortar.png"
+    "iconPath": "icons\\Misc\\StoneMortar.png"
   },
   "SturdyBoots_1001": {
     "id": "SturdyBoots_1001",
@@ -240991,7 +240991,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\SturdyBoots_1001.png"
+    "iconPath": "icons\\Armor\\SturdyBoots_1001.png"
   },
   "SturdyBoots_2001": {
     "id": "SturdyBoots_2001",
@@ -241368,7 +241368,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\SturdyBoots_2001.png"
+    "iconPath": "icons\\Armor\\SturdyBoots_2001.png"
   },
   "SturdyBoots_3001": {
     "id": "SturdyBoots_3001",
@@ -241745,7 +241745,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\SturdyBoots_3001.png"
+    "iconPath": "icons\\Armor\\SturdyBoots_3001.png"
   },
   "SturdyBoots_4001": {
     "id": "SturdyBoots_4001",
@@ -242122,7 +242122,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\SturdyBoots_4001.png"
+    "iconPath": "icons\\Armor\\SturdyBoots_4001.png"
   },
   "SturdyBoots_5001": {
     "id": "SturdyBoots_5001",
@@ -242499,7 +242499,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\SturdyBoots_5001.png"
+    "iconPath": "icons\\Armor\\SturdyBoots_5001.png"
   },
   "SturdyBoots_6001": {
     "id": "SturdyBoots_6001",
@@ -242876,7 +242876,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\SturdyBoots_6001.png"
+    "iconPath": "icons\\Armor\\SturdyBoots_6001.png"
   },
   "SturdyBoots_7001": {
     "id": "SturdyBoots_7001",
@@ -243253,7 +243253,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\SturdyBoots_7001.png"
+    "iconPath": "icons\\Armor\\SturdyBoots_7001.png"
   },
   "SturdyCloth": {
     "id": "SturdyCloth",
@@ -243630,7 +243630,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SturdyCloth.png"
+    "iconPath": "icons\\Misc\\SturdyCloth.png"
   },
   "SturdyLog": {
     "id": "SturdyLog",
@@ -244007,7 +244007,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SturdyLog.png"
+    "iconPath": "icons\\Misc\\SturdyLog.png"
   },
   "SturdyRope": {
     "id": "SturdyRope",
@@ -244384,7 +244384,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\SturdyRope.png"
+    "iconPath": "icons\\Misc\\SturdyRope.png"
   },
   "Tar": {
     "id": "Tar",
@@ -244761,7 +244761,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Tar.png"
+    "iconPath": "icons\\Misc\\Tar.png"
   },
   "Telescope": {
     "id": "Telescope",
@@ -245138,7 +245138,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Telescope.png"
+    "iconPath": "icons\\Misc\\Telescope.png"
   },
   "ThickForefoot": {
     "id": "ThickForefoot",
@@ -245515,7 +245515,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\ThickForefoot.png"
+    "iconPath": "icons\\Misc\\ThickForefoot.png"
   },
   "TidestoneIngots_5001": {
     "id": "TidestoneIngots_5001",
@@ -245892,7 +245892,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\TidestoneIngots_5001.png"
+    "iconPath": "icons\\Misc\\TidestoneIngots_5001.png"
   },
   "TidestoneOres_5001": {
     "id": "TidestoneOres_5001",
@@ -246269,7 +246269,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\TidestoneOres_5001.png"
+    "iconPath": "icons\\Misc\\TidestoneOres_5001.png"
   },
   "TidestonePowder_5001": {
     "id": "TidestonePowder_5001",
@@ -246646,7 +246646,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\TidestonePowder_5001.png"
+    "iconPath": "icons\\Misc\\TidestonePowder_5001.png"
   },
   "TidewalkerFin": {
     "id": "TidewalkerFin",
@@ -247023,7 +247023,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\TidewalkerFin.png"
+    "iconPath": "icons\\Misc\\TidewalkerFin.png"
   },
   "TimewornRobe_1001": {
     "id": "TimewornRobe_1001",
@@ -247400,7 +247400,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TimewornRobe_1001.png"
+    "iconPath": "icons\\Armor\\TimewornRobe_1001.png"
   },
   "TimewornRobe_2001": {
     "id": "TimewornRobe_2001",
@@ -247777,7 +247777,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TimewornRobe_2001.png"
+    "iconPath": "icons\\Armor\\TimewornRobe_2001.png"
   },
   "TimewornRobe_3001": {
     "id": "TimewornRobe_3001",
@@ -248154,7 +248154,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TimewornRobe_3001.png"
+    "iconPath": "icons\\Armor\\TimewornRobe_3001.png"
   },
   "TimewornRobe_4001": {
     "id": "TimewornRobe_4001",
@@ -248531,7 +248531,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TimewornRobe_4001.png"
+    "iconPath": "icons\\Armor\\TimewornRobe_4001.png"
   },
   "TimewornRobe_5001": {
     "id": "TimewornRobe_5001",
@@ -248908,7 +248908,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TimewornRobe_5001.png"
+    "iconPath": "icons\\Armor\\TimewornRobe_5001.png"
   },
   "TimewornRobe_6001": {
     "id": "TimewornRobe_6001",
@@ -249285,7 +249285,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TimewornRobe_6001.png"
+    "iconPath": "icons\\Armor\\TimewornRobe_6001.png"
   },
   "TimewornRobe_7001": {
     "id": "TimewornRobe_7001",
@@ -249662,7 +249662,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TimewornRobe_7001.png"
+    "iconPath": "icons\\Armor\\TimewornRobe_7001.png"
   },
   "TornSail": {
     "id": "TornSail",
@@ -250039,7 +250039,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\TornSail.png"
+    "iconPath": "icons\\Misc\\TornSail.png"
   },
   "TracingWheel": {
     "id": "TracingWheel",
@@ -250416,7 +250416,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\TracingWheel.png"
+    "iconPath": "icons\\Misc\\TracingWheel.png"
   },
   "TrapperHat_1001": {
     "id": "TrapperHat_1001",
@@ -250793,7 +250793,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrapperHat_1001.png"
+    "iconPath": "icons\\Armor\\TrapperHat_1001.png"
   },
   "TrapperHat_2001": {
     "id": "TrapperHat_2001",
@@ -251170,7 +251170,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrapperHat_2001.png"
+    "iconPath": "icons\\Armor\\TrapperHat_2001.png"
   },
   "TrapperHat_3001": {
     "id": "TrapperHat_3001",
@@ -251547,7 +251547,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrapperHat_3001.png"
+    "iconPath": "icons\\Armor\\TrapperHat_3001.png"
   },
   "TrapperHat_4001": {
     "id": "TrapperHat_4001",
@@ -251924,7 +251924,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrapperHat_4001.png"
+    "iconPath": "icons\\Armor\\TrapperHat_4001.png"
   },
   "TrapperHat_5001": {
     "id": "TrapperHat_5001",
@@ -252301,7 +252301,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrapperHat_5001.png"
+    "iconPath": "icons\\Armor\\TrapperHat_5001.png"
   },
   "TrapperHat_6001": {
     "id": "TrapperHat_6001",
@@ -252678,7 +252678,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrapperHat_6001.png"
+    "iconPath": "icons\\Armor\\TrapperHat_6001.png"
   },
   "TrapperHat_7001": {
     "id": "TrapperHat_7001",
@@ -253055,7 +253055,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrapperHat_7001.png"
+    "iconPath": "icons\\Armor\\TrapperHat_7001.png"
   },
   "Tripod": {
     "id": "Tripod",
@@ -253432,7 +253432,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Tripod.png"
+    "iconPath": "icons\\Misc\\Tripod.png"
   },
   "TrunkHose_1001": {
     "id": "TrunkHose_1001",
@@ -253809,7 +253809,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrunkHose_1001.png"
+    "iconPath": "icons\\Armor\\TrunkHose_1001.png"
   },
   "TrunkHose_2001": {
     "id": "TrunkHose_2001",
@@ -254186,7 +254186,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrunkHose_2001.png"
+    "iconPath": "icons\\Armor\\TrunkHose_2001.png"
   },
   "TrunkHose_3001": {
     "id": "TrunkHose_3001",
@@ -254563,7 +254563,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrunkHose_3001.png"
+    "iconPath": "icons\\Armor\\TrunkHose_3001.png"
   },
   "TrunkHose_4001": {
     "id": "TrunkHose_4001",
@@ -254940,7 +254940,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrunkHose_4001.png"
+    "iconPath": "icons\\Armor\\TrunkHose_4001.png"
   },
   "TrunkHose_5001": {
     "id": "TrunkHose_5001",
@@ -255317,7 +255317,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrunkHose_5001.png"
+    "iconPath": "icons\\Armor\\TrunkHose_5001.png"
   },
   "TrunkHose_6001": {
     "id": "TrunkHose_6001",
@@ -255694,7 +255694,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrunkHose_6001.png"
+    "iconPath": "icons\\Armor\\TrunkHose_6001.png"
   },
   "TrunkHose_7001": {
     "id": "TrunkHose_7001",
@@ -256071,7 +256071,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\TrunkHose_7001.png"
+    "iconPath": "icons\\Armor\\TrunkHose_7001.png"
   },
   "Twig": {
     "id": "Twig",
@@ -256448,7 +256448,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\Twig.png"
+    "iconPath": "icons\\Misc\\Twig.png"
   },
   "ValiantAttire_1001": {
     "id": "ValiantAttire_1001",
@@ -256825,7 +256825,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ValiantAttire_1001.png"
+    "iconPath": "icons\\Armor\\ValiantAttire_1001.png"
   },
   "ValiantAttire_2001": {
     "id": "ValiantAttire_2001",
@@ -257202,7 +257202,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ValiantAttire_2001.png"
+    "iconPath": "icons\\Armor\\ValiantAttire_2001.png"
   },
   "ValiantAttire_3001": {
     "id": "ValiantAttire_3001",
@@ -257579,7 +257579,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ValiantAttire_3001.png"
+    "iconPath": "icons\\Armor\\ValiantAttire_3001.png"
   },
   "ValiantAttire_4001": {
     "id": "ValiantAttire_4001",
@@ -257956,7 +257956,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ValiantAttire_4001.png"
+    "iconPath": "icons\\Armor\\ValiantAttire_4001.png"
   },
   "ValiantAttire_5001": {
     "id": "ValiantAttire_5001",
@@ -258333,7 +258333,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ValiantAttire_5001.png"
+    "iconPath": "icons\\Armor\\ValiantAttire_5001.png"
   },
   "ValiantAttire_6001": {
     "id": "ValiantAttire_6001",
@@ -258710,7 +258710,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ValiantAttire_6001.png"
+    "iconPath": "icons\\Armor\\ValiantAttire_6001.png"
   },
   "ValiantAttire_7001": {
     "id": "ValiantAttire_7001",
@@ -259087,7 +259087,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\ValiantAttire_7001.png"
+    "iconPath": "icons\\Armor\\ValiantAttire_7001.png"
   },
   "WalkingCane": {
     "id": "WalkingCane",
@@ -259464,7 +259464,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WalkingCane.png"
+    "iconPath": "icons\\Misc\\WalkingCane.png"
   },
   "WantedPoster": {
     "id": "WantedPoster",
@@ -259841,7 +259841,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WantedPoster.png"
+    "iconPath": "icons\\Misc\\WantedPoster.png"
   },
   "WarHorn": {
     "id": "WarHorn",
@@ -260218,7 +260218,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WarHorn.png"
+    "iconPath": "icons\\Misc\\WarHorn.png"
   },
   "WhiteSharkFin": {
     "id": "WhiteSharkFin",
@@ -260595,7 +260595,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WhiteSharkFin.png"
+    "iconPath": "icons\\Misc\\WhiteSharkFin.png"
   },
   "WhiteSharkHide": {
     "id": "WhiteSharkHide",
@@ -260972,7 +260972,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WhiteSharkHide.png"
+    "iconPath": "icons\\Misc\\WhiteSharkHide.png"
   },
   "WhiteSharkTooth": {
     "id": "WhiteSharkTooth",
@@ -261349,7 +261349,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WhiteSharkTooth.png"
+    "iconPath": "icons\\Misc\\WhiteSharkTooth.png"
   },
   "WhiteThreadSpool": {
     "id": "WhiteThreadSpool",
@@ -261726,7 +261726,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WhiteThreadSpool.png"
+    "iconPath": "icons\\Misc\\WhiteThreadSpool.png"
   },
   "WoodenDice": {
     "id": "WoodenDice",
@@ -262103,7 +262103,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WoodenDice.png"
+    "iconPath": "icons\\Misc\\WoodenDice.png"
   },
   "WoodenFigurine": {
     "id": "WoodenFigurine",
@@ -262480,7 +262480,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WoodenFigurine.png"
+    "iconPath": "icons\\Misc\\WoodenFigurine.png"
   },
   "WoodenMask": {
     "id": "WoodenMask",
@@ -262857,7 +262857,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WoodenMask.png"
+    "iconPath": "icons\\Misc\\WoodenMask.png"
   },
   "WoodenPlank": {
     "id": "WoodenPlank",
@@ -263234,7 +263234,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WoodenPlank.png"
+    "iconPath": "icons\\Misc\\WoodenPlank.png"
   },
   "WoodenStake": {
     "id": "WoodenStake",
@@ -263611,7 +263611,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WoodenStake.png"
+    "iconPath": "icons\\Misc\\WoodenStake.png"
   },
   "WoodenStick": {
     "id": "WoodenStick",
@@ -263988,7 +263988,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WoodenStick.png"
+    "iconPath": "icons\\Misc\\WoodenStick.png"
   },
   "WoodsmanAxe_1001": {
     "id": "WoodsmanAxe_1001",
@@ -264365,7 +264365,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\WoodsmanAxe_1001.png"
+    "iconPath": "icons\\Utility\\WoodsmanAxe_1001.png"
   },
   "WoodsmanAxe_2001": {
     "id": "WoodsmanAxe_2001",
@@ -264742,7 +264742,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\WoodsmanAxe_2001.png"
+    "iconPath": "icons\\Utility\\WoodsmanAxe_2001.png"
   },
   "WoodsmanAxe_3001": {
     "id": "WoodsmanAxe_3001",
@@ -265119,7 +265119,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\WoodsmanAxe_3001.png"
+    "iconPath": "icons\\Utility\\WoodsmanAxe_3001.png"
   },
   "WoodsmanAxe_4001": {
     "id": "WoodsmanAxe_4001",
@@ -265496,7 +265496,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\WoodsmanAxe_4001.png"
+    "iconPath": "icons\\Utility\\WoodsmanAxe_4001.png"
   },
   "WoodsmanAxe_5001": {
     "id": "WoodsmanAxe_5001",
@@ -265873,7 +265873,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\WoodsmanAxe_5001.png"
+    "iconPath": "icons\\Utility\\WoodsmanAxe_5001.png"
   },
   "WoodsmanAxe_6001": {
     "id": "WoodsmanAxe_6001",
@@ -266250,7 +266250,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\WoodsmanAxe_6001.png"
+    "iconPath": "icons\\Utility\\WoodsmanAxe_6001.png"
   },
   "WoodsmanAxe_7001": {
     "id": "WoodsmanAxe_7001",
@@ -266627,7 +266627,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Utility\\WoodsmanAxe_7001.png"
+    "iconPath": "icons\\Utility\\WoodsmanAxe_7001.png"
   },
   "WoolenCap_1001": {
     "id": "WoolenCap_1001",
@@ -267004,7 +267004,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\WoolenCap_1001.png"
+    "iconPath": "icons\\Armor\\WoolenCap_1001.png"
   },
   "WoolenCap_2001": {
     "id": "WoolenCap_2001",
@@ -267381,7 +267381,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\WoolenCap_2001.png"
+    "iconPath": "icons\\Armor\\WoolenCap_2001.png"
   },
   "WoolenCap_3001": {
     "id": "WoolenCap_3001",
@@ -267758,7 +267758,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\WoolenCap_3001.png"
+    "iconPath": "icons\\Armor\\WoolenCap_3001.png"
   },
   "WoolenCap_4001": {
     "id": "WoolenCap_4001",
@@ -268135,7 +268135,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\WoolenCap_4001.png"
+    "iconPath": "icons\\Armor\\WoolenCap_4001.png"
   },
   "WoolenCap_5001": {
     "id": "WoolenCap_5001",
@@ -268512,7 +268512,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\WoolenCap_5001.png"
+    "iconPath": "icons\\Armor\\WoolenCap_5001.png"
   },
   "WoolenCap_6001": {
     "id": "WoolenCap_6001",
@@ -268889,7 +268889,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\WoolenCap_6001.png"
+    "iconPath": "icons\\Armor\\WoolenCap_6001.png"
   },
   "WoolenCap_7001": {
     "id": "WoolenCap_7001",
@@ -269266,7 +269266,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Armor\\WoolenCap_7001.png"
+    "iconPath": "icons\\Armor\\WoolenCap_7001.png"
   },
   "WovenRattanBottle": {
     "id": "WovenRattanBottle",
@@ -269643,7 +269643,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\WovenRattanBottle.png"
+    "iconPath": "icons\\Misc\\WovenRattanBottle.png"
   },
   "YellowThreadSpool": {
     "id": "YellowThreadSpool",
@@ -270020,7 +270020,7 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Misc\\YellowThreadSpool.png"
+    "iconPath": "icons\\Misc\\YellowThreadSpool.png"
   },
   "Zweihander_8001": {
     "id": "Zweihander_8001",
@@ -270397,6 +270397,6 @@
     "primary_max_demon_reduction_mod": null,
     "primary_min_undead_reduction_mod": null,
     "primary_max_undead_reduction_mod": null,
-    "iconPath": "assets\\icons\\Weapon\\Zweihander_8001.png"
+    "iconPath": "icons\\Weapon\\Zweihander_8001.png"
   }
 }

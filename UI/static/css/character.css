@@ -620,6 +620,156 @@
     display: none;
 }*/
 
+/* Stash Actions Layout */
+.stash-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.primary-actions {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+}
+
+.sort-options {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.checkbox-group {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.ordering-actions-row {
+    display: flex;
+    justify-content: flex-end;
+    width: 100%;
+    margin-bottom: 1rem;
+}
+
+.ordering-dropdown {
+    position: relative;
+    display: inline-block;
+    margin-left: auto;
+}
+
+/* Custom Checkbox Styles */
+.custom-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    transition: color 0.2s ease;
+    position: relative;
+    padding: 0.25rem;
+}
+
+.custom-checkbox:hover {
+    color: var(--text-primary);
+}
+
+.custom-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.checkbox-mark {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    background: var(--bg-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.checkbox-mark::after {
+    content: '✓';
+    color: var(--accent-gold);
+    font-size: 12px;
+    font-weight: bold;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s ease;
+}
+
+.custom-checkbox:hover .checkbox-mark {
+    border-color: var(--accent-gold);
+    background: rgba(228, 200, 105, 0.05);
+}
+
+.custom-checkbox input[type="checkbox"]:checked+.checkbox-mark {
+    background: var(--accent-gold);
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 10px rgba(228, 200, 105, 0.3);
+}
+
+.custom-checkbox input[type="checkbox"]:checked+.checkbox-mark::after {
+    opacity: 1;
+    transform: scale(1);
+    color: var(--bg-dark);
+}
+
+.custom-checkbox.active {
+    color: var(--accent-gold);
+}
+
+.checkbox-label {
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .stash-actions-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+    }
+
+    .primary-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .sort-options {
+        justify-content: center;
+    }
+
+    .checkbox-group {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .primary-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .checkbox-group {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+}
+
 /* Jelly Triangle Animation for Sorting - Simplified CSS version */
 .jelly-triangle-container {
     --uib-size: 30px;
@@ -840,10 +990,7 @@
     /* Remove containment that might restrict layout */
 }
 
-.ordering-dropdown {
-    position: relative;
-    display: inline-block;
-}
+
 
 .ordering-menu {
     position: absolute;
@@ -995,6 +1142,14 @@
 
     .sorting-text {
         font-size: 16px;
+    }
+
+    .ordering-actions-row {
+        justify-content: center;
+    }
+
+    .ordering-dropdown {
+        margin-left: 0;
     }
 }
 

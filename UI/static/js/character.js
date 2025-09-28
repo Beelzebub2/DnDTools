@@ -63,6 +63,37 @@ const rarityColors = {
 const DEFAULT_SORT_ORDER = ['height', 'width', 'name', 'rarity'];
 let currentSortOrder = [...DEFAULT_SORT_ORDER];
 let suppressSortPersistence = false;
+let latestStashData = null;
+let isPreviewMode = false;
+let previewToggleButton = null;
+let isPackMode = false;
+let packModeToggle = null;
+let isStackMode = false;
+let stackModeToggle = null;
+
+const rarityRankMap = {
+    'none': 0,
+    'poor': 1,
+    'common': 2,
+    'uncommon': 3,
+    'rare': 4,
+    'epic': 5,
+    'legend': 6,
+    'legendary': 6,
+    'unique': 7,
+    'artifact': 8
+};
+
+function getRarityRankValue(rarity) {
+    if (typeof rarity === 'number' && !Number.isNaN(rarity)) {
+        return rarity;
+    }
+    if (!rarity) {
+        return 0;
+    }
+    const key = rarity.toString().toLowerCase();
+    return rarityRankMap.hasOwnProperty(key) ? rarityRankMap[key] : 0;
+}
 
 // Format functions - same as in search.js for consistency
 function formatPrimaryProps(ppArray) {
@@ -202,6 +233,7 @@ const processStashData = async (stashData, stashId) => {
         // Ensure width/height are valid and within bounds
         const width = Math.min(item.width || 1, gridWidth - x);
         const height = Math.min(item.height || 1, gridHeight - y);
+        const maxStack = Math.max(1, Number(item.maxStackSize ?? item.max_stack_size ?? 1));
 
         // Return normalized item with bounded dimensions
         return {
@@ -211,6 +243,7 @@ const processStashData = async (stashData, stashId) => {
             height: height,
             rarity: item.rarity || 'Common',
             itemCount: item.itemCount || 1,
+            maxStackSize: maxStack,
             pp: item.pp || [],
             sp: item.sp || []
         };
@@ -261,6 +294,418 @@ const processStashData = async (stashData, stashId) => {
     return [];
 };
 
+function compareItemsForPreview(itemA, itemB, sortOrder) {
+    const order = Array.isArray(sortOrder) && sortOrder.length ? sortOrder : DEFAULT_SORT_ORDER;
+
+    for (const key of order) {
+        switch (key) {
+            case 'height':
+            case 'width': {
+                const aVal = Number(itemA[key] ?? 0);
+                const bVal = Number(itemB[key] ?? 0);
+                if (aVal !== bVal) {
+                    return bVal - aVal;
+                }
+                break;
+            }
+            case 'name': {
+                const aName = (itemA._normalizedName ?? itemA.name ?? '').toString().toLowerCase();
+                const bName = (itemB._normalizedName ?? itemB.name ?? '').toString().toLowerCase();
+                if (aName !== bName) {
+                    return bName.localeCompare(aName);
+                }
+                break;
+            }
+            case 'rarity': {
+                const aRank = itemA._rarityRank ?? getRarityRankValue(itemA.rarity);
+                const bRank = itemB._rarityRank ?? getRarityRankValue(itemB.rarity);
+                if (aRank !== bRank) {
+                    return bRank - aRank;
+                }
+                break;
+            }
+            default: {
+                const aVal = Number(itemA[key] ?? 0);
+                const bVal = Number(itemB[key] ?? 0);
+                if (aVal !== bVal) {
+                    return bVal - aVal;
+                }
+            }
+        }
+    }
+
+    return (itemA._originalIndex ?? 0) - (itemB._originalIndex ?? 0);
+}
+
+function buildStackedItemsForPreview(items, stackMode) {
+    if (!Array.isArray(items) || !items.length) {
+        return [];
+    }
+
+    if (!stackMode) {
+        return items.map(item => ({ ...item }));
+    }
+
+    const groups = new Map();
+    const order = [];
+
+    items.forEach((item, index) => {
+        const maxStack = Math.max(1, Number(item.maxStackSize ?? item.max_stack_size ?? 1));
+        const itemCount = Math.max(1, Number(item.itemCount ?? 1));
+
+        if (maxStack <= 1) {
+            order.push({ type: 'single', item: { ...item } });
+            return;
+        }
+
+        const key = `${item.itemId || item.item_id || item.name || index}|${item.rarity || ''}`;
+        if (!groups.has(key)) {
+            groups.set(key, {
+                template: { ...item },
+                total: 0,
+                maxStack,
+                orderIndex: index,
+            });
+            order.push({ type: 'group', key });
+        }
+
+        const group = groups.get(key);
+        group.total += itemCount;
+    });
+
+    const aggregated = [];
+
+    order.forEach((entry) => {
+        if (entry.type === 'single') {
+            aggregated.push(entry.item);
+            return;
+        }
+
+        const group = groups.get(entry.key);
+        if (!group) {
+            return;
+        }
+
+        let remaining = group.total;
+        let iteration = 0;
+        while (remaining > 0) {
+            const stackCount = Math.min(group.maxStack, remaining);
+            const clone = { ...group.template };
+            clone.itemCount = stackCount;
+            clone._stackGroupKey = entry.key;
+            clone._stackOrderIndex = group.orderIndex + (iteration * 0.0001);
+            aggregated.push(clone);
+            remaining -= stackCount;
+            iteration += 1;
+        }
+    });
+
+    return aggregated;
+}
+
+function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder, packMode = false, stackMode = false) {
+    if (!Array.isArray(items) || !items.length) {
+        return [];
+    }
+
+    if (stashId === 'character' || stashId === 3 || stashId === '3') {
+        return [];
+    }
+
+    const [gridWidth, gridHeight] = getStashDimensions(stashId);
+    if (!gridWidth || !gridHeight) {
+        return [];
+    }
+
+    const stackedItems = buildStackedItemsForPreview(items, stackMode);
+    const workingItems = stackedItems.length ? stackedItems : items;
+
+    const preparedItems = workingItems.map((item, index) => {
+        const clone = { ...item };
+        const safeWidth = Math.max(1, Math.min(Number(clone.width) || 1, gridWidth));
+        const safeHeight = Math.max(1, Math.min(Number(clone.height) || 1, gridHeight));
+
+        clone.width = safeWidth;
+        clone.height = safeHeight;
+        clone._originalIndex = index;
+        clone._originalSlotId = item.slotId ?? 0;
+        clone._rarityRank = getRarityRankValue(clone.rarity);
+        clone._normalizedName = (clone.name ?? '').toString().toLowerCase();
+        return clone;
+    });
+
+    preparedItems.sort((a, b) => compareItemsForPreview(a, b, sortOrder));
+
+    const placedItems = [];
+
+    if (packMode) {
+        const occupancy = Array.from({ length: gridHeight }, () => Array(gridWidth).fill(false));
+
+        for (const item of preparedItems) {
+            let placed = false;
+            for (let y = 0; y <= gridHeight - item.height && !placed; y++) {
+                for (let x = 0; x <= gridWidth - item.width; x++) {
+                    let fits = true;
+                    for (let dx = 0; dx < item.width && fits; dx++) {
+                        for (let dy = 0; dy < item.height; dy++) {
+                            if (occupancy[y + dy][x + dx]) {
+                                fits = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (fits) {
+                        const displaySlotId = (y * gridWidth) + x;
+                        placedItems.push({
+                            ...item,
+                            displaySlotId,
+                            displayX: x,
+                            displayY: y
+                        });
+                        for (let dx = 0; dx < item.width; dx++) {
+                            for (let dy = 0; dy < item.height; dy++) {
+                                occupancy[y + dy][x + dx] = true;
+                            }
+                        }
+                        placed = true;
+                        break;
+                    }
+                }
+            }
+            if (!placed) {
+                console.warn('Unable to pack all items without overflow; reverting to sequential preview.');
+                return [];
+            }
+        }
+    } else {
+        let curX = 0;
+        let curY = 0;
+        let rowHeight = 0;
+
+        for (const item of preparedItems) {
+            if (rowHeight === 0) {
+                rowHeight = item.height;
+            }
+
+            if (curX + item.width > gridWidth) {
+                curY += rowHeight;
+                rowHeight = item.height;
+                curX = 0;
+            }
+
+            if (curY + item.height > gridHeight) {
+                console.warn('Preview layout exceeded grid bounds, falling back to original positions.');
+                return [];
+            }
+
+            const displaySlotId = (curY * gridWidth) + curX;
+            placedItems.push({
+                ...item,
+                displaySlotId,
+                displayX: curX,
+                displayY: curY
+            });
+
+            curX += item.width;
+            rowHeight = Math.max(rowHeight, item.height);
+        }
+    }
+
+    return placedItems.map(item => {
+        const clone = { ...item };
+        delete clone._normalizedName;
+        delete clone._rarityRank;
+        delete clone._originalIndex;
+        delete clone._originalSlotId;
+        delete clone._stackGroupKey;
+        delete clone._stackOrderIndex;
+        return clone;
+    });
+}
+
+function buildPreviewButtonMarkup() {
+    return `
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        <div class="jelly-triangle-container">
+            <div class="dot"></div>
+            <div class="traveler"></div>
+        </div>
+        ${isPreviewMode ? 'Hide Sort Preview' : 'Show Sort Preview'}
+    `.trim();
+}
+
+function updatePreviewToggleUI() {
+    if (!previewToggleButton) {
+        return;
+    }
+    previewToggleButton.innerHTML = buildPreviewButtonMarkup();
+    previewToggleButton.classList.toggle('active', isPreviewMode);
+    previewToggleButton.setAttribute('aria-pressed', isPreviewMode ? 'true' : 'false');
+}
+
+function refreshCurrentStashView() {
+    if (!latestStashData || !currentStashId) {
+        return;
+    }
+
+    if (currentStashId === 'character') {
+        renderCombinedCharacterView(latestStashData);
+        return;
+    }
+
+    processStashData(latestStashData, currentStashId)
+        .then(items => {
+            renderInteractiveGrid(currentStashId, items);
+        })
+        .catch(error => {
+            console.error('Failed to refresh stash preview:', error);
+        });
+}
+
+function togglePreviewMode() {
+    isPreviewMode = !isPreviewMode;
+    updatePreviewToggleUI();
+    refreshCurrentStashView();
+}
+
+function updatePackToggleUI() {
+    if (!packModeToggle) {
+        return;
+    }
+    packModeToggle.checked = isPackMode;
+    const wrapper = packModeToggle.closest('label');
+    if (wrapper) {
+        wrapper.classList.toggle('active', isPackMode);
+    }
+}
+
+async function persistPackMode(pack) {
+    try {
+        const response = await fetch('/api/pack_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pack })
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to save pack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.pack !== 'undefined') {
+            isPackMode = !!data.pack;
+        }
+    } catch (error) {
+        console.error('Error persisting pack mode:', error);
+    } finally {
+        updatePackToggleUI();
+    }
+}
+
+async function loadPackModeFromServer() {
+    try {
+        const response = await fetch('/api/pack_mode');
+        if (!response.ok) {
+            throw new Error(`Failed to load pack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.pack !== 'undefined') {
+            isPackMode = !!data.pack;
+        }
+    } catch (error) {
+        console.error('Error loading pack mode:', error);
+    } finally {
+        updatePackToggleUI();
+    }
+}
+
+function updateStackToggleUI() {
+    if (!stackModeToggle) {
+        return;
+    }
+    stackModeToggle.checked = isStackMode;
+    const wrapper = stackModeToggle.closest('label');
+    if (wrapper) {
+        wrapper.classList.toggle('active', isStackMode);
+    }
+}
+
+async function persistStackMode(stack) {
+    try {
+        const response = await fetch('/api/stack_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ stack })
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to save stack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.stack !== 'undefined') {
+            isStackMode = !!data.stack;
+        }
+    } catch (error) {
+        console.error('Error persisting stack mode:', error);
+    } finally {
+        updateStackToggleUI();
+    }
+}
+
+async function loadStackModeFromServer() {
+    try {
+        const response = await fetch('/api/stack_mode');
+        if (!response.ok) {
+            throw new Error(`Failed to load stack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.stack !== 'undefined') {
+            isStackMode = !!data.stack;
+        }
+    } catch (error) {
+        console.error('Error loading stack mode:', error);
+    } finally {
+        updateStackToggleUI();
+    }
+}
+
+async function persistStackMode(stack) {
+    try {
+        const response = await fetch('/api/stack_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ stack })
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to save stack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.stack !== 'undefined') {
+            isStackMode = !!data.stack;
+        }
+    } catch (error) {
+        console.error('Error persisting stack mode:', error);
+    } finally {
+        updateStackToggleUI();
+    }
+}
+
+function updateStackToggleUI() {
+    if (!stackModeToggle) {
+        return;
+    }
+    stackModeToggle.checked = isStackMode;
+    const wrapper = stackModeToggle.closest('label');
+    if (wrapper) {
+        wrapper.classList.toggle('active', isStackMode);
+    }
+}
+
 // Variable to store the equipment slots configuration
 let equipmentSlotConfig = null;
 
@@ -308,17 +753,26 @@ const renderInteractiveGrid = (stashId, items) => {
     const totalValueElement = document.getElementById('totalStashValue');
     if (totalValueElement) {
         totalValueElement.textContent = totalValue.toLocaleString();
-    }    // Special handling for equipment stashes
+    }
+
+    const previewItems = isPreviewMode ? computeSortedPreviewLayout(stashId, items, currentSortOrder, isPackMode, isStackMode) : [];
+    const itemsToRender = (previewItems.length ? previewItems : items) || [];
+
+    // Special handling for equipment stashes
     if (stashId === '3') {
         // The renderEquipmentGrid function doesn't seem to exist
-        // Instead, use the renderCombinedCharacterView with dummy bag data
+        // Instead, use the renderCombinedCharacterView with cached data when available
         console.warn("Equipment view requested separately - redirecting to character view");
-        renderCombinedCharacterView({
-            stashData: {
-                "3": items,
-                "2": [] // Empty bag
-            }
-        });
+        if (latestStashData) {
+            renderCombinedCharacterView(latestStashData);
+        } else {
+            renderCombinedCharacterView({
+                stashData: {
+                    "3": items,
+                    "2": [] // Empty bag fallback
+                }
+            });
+        }
         return;
     }
 
@@ -327,16 +781,28 @@ const renderInteractiveGrid = (stashId, items) => {
     grid.className = 'interactive-stash-grid';
 
     // Use explicit sizing for the grid to prevent expansion
-    grid.style.gridTemplateColumns = `repeat(${gridWidth}, 45px)`;
-    grid.style.gridTemplateRows = `repeat(${gridHeight}, 45px)`;
+    const cellSize = 45;
+    const cellGap = 3;
+    const horizontalGaps = Math.max(gridWidth - 1, 0) * cellGap;
+    const verticalGaps = Math.max(gridHeight - 1, 0) * cellGap;
+    const borderAllowance = 4; // 2px border on each side
+    const paddingAllowance = 4; // 2px padding on each side
+
+    grid.style.gridTemplateColumns = `repeat(${gridWidth}, ${cellSize}px)`;
+    grid.style.gridTemplateRows = `repeat(${gridHeight}, ${cellSize}px)`;
 
     // Force zero-sized implicit rows/columns
     grid.style.gridAutoRows = '0px';
     grid.style.gridAutoColumns = '0px';
 
     // Add max-width/max-height constraints based on grid dimensions
-    grid.style.maxWidth = `${gridWidth * 48}px`; // 45px per cell + 3px gap
-    grid.style.maxHeight = `${gridHeight * 48}px`;
+    const totalWidth = (gridWidth * cellSize) + horizontalGaps + borderAllowance + paddingAllowance;
+    const totalHeight = (gridHeight * cellSize) + verticalGaps + borderAllowance + paddingAllowance;
+
+    grid.style.width = `${totalWidth}px`;
+    grid.style.height = `${totalHeight}px`;
+    grid.style.maxWidth = `${totalWidth}px`;
+    grid.style.maxHeight = `${totalHeight}px`;
 
     // Prevent overflow from causing expansion
     grid.style.overflow = 'hidden';
@@ -354,13 +820,14 @@ const renderInteractiveGrid = (stashId, items) => {
 
     // Filter items that are out of bounds before processing them
     const validItems = [];
-    if (items && Array.isArray(items) && items.length > 0) {
-        items.forEach(item => {
+    if (Array.isArray(itemsToRender) && itemsToRender.length > 0) {
+        itemsToRender.forEach(item => {
             if (!item) return;
-            let x = item.slotId % gridWidth;
-            let y = Math.floor(item.slotId / gridWidth);
-            let w = item.width || 1;
-            let h = item.height || 1;
+            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const w = Math.max(1, Math.min(Number(item.width) || 1, gridWidth));
+            const h = Math.max(1, Math.min(Number(item.height) || 1, gridHeight));
+            const x = slotId % gridWidth;
+            const y = Math.floor(slotId / gridWidth);
 
             // Check if item is within bounds
             if (
@@ -377,10 +844,11 @@ const renderInteractiveGrid = (stashId, items) => {
 
         // Now process only the valid items
         validItems.forEach(item => {
-            let x = item.slotId % gridWidth;
-            let y = Math.floor(item.slotId / gridWidth);
-            let w = item.width || 1;
-            let h = item.height || 1;
+            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const w = Math.max(1, Math.min(Number(item.width) || 1, gridWidth));
+            const h = Math.max(1, Math.min(Number(item.height) || 1, gridHeight));
+            const x = slotId % gridWidth;
+            const y = Math.floor(slotId / gridWidth);
 
             // Create item element
             const itemEl = document.createElement('div');
@@ -633,7 +1101,11 @@ const triggerSort = async () => {
     try {
         const response = await fetch(`/api/character/${charId}/stash/${stashIdToSort}/sort`, {
             method: 'POST',
-            signal: abortController.signal
+            signal: abortController.signal,
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ pack: isPackMode, stack: isStackMode })
         });
         const result = await response.json();
 
@@ -793,6 +1265,7 @@ const loadStashes = async () => {
         // Fetch stash data - now the response format might be different
         const response = await fetch(`/api/character/${charId}/stashes`);
         const stashes = await response.json();
+        latestStashData = stashes;
 
         // Detect if we have the new or old API response format
         const isNewFormat = stashes.previewImages && stashes.stashData;
@@ -997,6 +1470,38 @@ window.showCharacterCaptureAnimation = function (characterClass, characterNickna
 
 // Initialize page when DOM is loaded
 window.addEventListener('DOMContentLoaded', async () => {
+    previewToggleButton = document.getElementById('previewToggleButton');
+    if (previewToggleButton) {
+        previewToggleButton.addEventListener('click', () => togglePreviewMode());
+        updatePreviewToggleUI();
+    }
+
+    packModeToggle = document.getElementById('packItemsToggle');
+    stackModeToggle = document.getElementById('stackItemsToggle');
+
+    await Promise.all([
+        loadPackModeFromServer(),
+        loadStackModeFromServer()
+    ]);
+
+    if (packModeToggle) {
+        packModeToggle.addEventListener('change', async (event) => {
+            isPackMode = !!event.target.checked;
+            updatePackToggleUI();
+            await persistPackMode(isPackMode);
+            refreshCurrentStashView();
+        });
+    }
+
+    if (stackModeToggle) {
+        stackModeToggle.addEventListener('change', async (event) => {
+            isStackMode = !!event.target.checked;
+            updateStackToggleUI();
+            await persistStackMode(isStackMode);
+            refreshCurrentStashView();
+        });
+    }
+
     try {
         // Check if there's a stash ID in the URL params (added by search page)
         const urlParams = new URLSearchParams(window.location.search);
@@ -1196,6 +1701,8 @@ const renderCombinedCharacterView = async (stashes) => {
     // Process both equipment (3) and bag (2) stash data
     const equipmentItems = await processStashData(stashes, "3") || [];
     const bagItems = await processStashData(stashes, "2") || [];
+    const bagPreviewItems = isPreviewMode ? computeSortedPreviewLayout("2", bagItems, currentSortOrder, isPackMode, isStackMode) : [];
+    const bagItemsToRender = bagPreviewItems.length ? bagPreviewItems : bagItems;
 
     // Calculate total vendor value for all items
     let totalValue = 0;
@@ -1388,13 +1895,14 @@ const renderCombinedCharacterView = async (stashes) => {
     }
 
     // Add bag items to the grid
-    if (bagItems && bagItems.length) {
-        bagItems.forEach(item => {
+    if (bagItemsToRender && bagItemsToRender.length) {
+        bagItemsToRender.forEach(item => {
             if (!item) return;
-            let x = item.slotId % bagWidth;
-            let y = Math.floor(item.slotId / bagWidth);
-            let w = item.width || 1;
-            let h = item.height || 1;
+            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const w = Math.max(1, Math.min(Number(item.width) || 1, bagWidth));
+            const h = Math.max(1, Math.min(Number(item.height) || 1, bagHeight));
+            const x = slotId % bagWidth;
+            const y = Math.floor(slotId / bagWidth);
 
             // Create item element
             const itemEl = document.createElement('div');
@@ -1501,6 +2009,14 @@ const renderCombinedCharacterView = async (stashes) => {
     gridContainer.appendChild(combinedGrid);
 };
 
+function updatePreviewForCurrentStash() {
+    if (!isPreviewMode) {
+        return;
+    }
+
+    refreshCurrentStashView();
+}
+
 
 function normalizeOrdering(order, menu) {
     const options = Array.from(menu.querySelectorAll('.ordering-option'));
@@ -1554,6 +2070,7 @@ async function loadSavedOrdering(menu) {
             const normalized = normalizeOrdering(data.order, menu);
             applyOrderingToMenu(menu, normalized);
             currentSortOrder = [...normalized];
+            updatePreviewForCurrentStash();
             return;
         }
     } catch (error) {
@@ -1564,6 +2081,7 @@ async function loadSavedOrdering(menu) {
 
     // Fallback to the current order if nothing was returned
     applyOrderingToMenu(menu, currentSortOrder);
+    updatePreviewForCurrentStash();
 }
 
 function arraysEqual(a, b) {
@@ -1595,6 +2113,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const normalized = normalizeOrdering(DEFAULT_SORT_ORDER, menu);
             applyOrderingToMenu(menu, normalized);
             currentSortOrder = [...normalized];
+            updatePreviewForCurrentStash();
             persistSortOrder(normalized);
             menu.classList.add('hidden');
         });
@@ -1785,14 +2304,21 @@ function persistSortOrder(order) {
             if (!response.ok || payload.success === false) {
                 throw new Error(payload && payload.error ? payload.error : 'Unknown error');
             }
+            const previousOrder = [...currentSortOrder];
             if (payload && Array.isArray(payload.order)) {
                 const menu = document.getElementById('orderingMenu');
                 if (menu) {
                     const normalized = normalizeOrdering(payload.order, menu);
                     applyOrderingToMenu(menu, normalized);
                     currentSortOrder = [...normalized];
+                    if (!arraysEqual(normalized, previousOrder)) {
+                        updatePreviewForCurrentStash();
+                    }
                 } else {
                     currentSortOrder = [...payload.order];
+                    if (!arraysEqual(payload.order, previousOrder)) {
+                        updatePreviewForCurrentStash();
+                    }
                 }
             }
         })
@@ -1815,6 +2341,7 @@ function onOrderChange() {
     }
 
     currentSortOrder = [...order];
+    updatePreviewForCurrentStash();
 
     if (suppressSortPersistence) {
         return;

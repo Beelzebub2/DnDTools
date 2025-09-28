@@ -172,13 +172,13 @@ class CaptureController:
         running = self._packet_capture.is_active()
         return {
             "running": running,
+            "desiredRunning": self._desired_running,
+            "lastError": self._last_error,
             "interface": self._settings["interface"],
             "portRange": {
                 "low": self._settings["port_range"][0],
                 "high": self._settings["port_range"][1],
             },
-            "desired": self._desired_running,
-            "lastError": self._last_error,
         }
 
     def start(self):
@@ -270,6 +270,9 @@ class Api:
             )
         except Exception as exc:
             logger.error(f"Failed to restore stash sort order from settings: {exc}")
+
+        self._current_pack_mode = bool(settings.get('stashPackMode', False))
+        self._current_stack_mode = bool(settings.get('stashStackMode', False))
 
         # Capture setup
         interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
@@ -453,6 +456,35 @@ class Api:
 
         return success
 
+    def begin_drag(self):
+        """Initiate a native window drag so Windows snap/maximize works."""
+        if not self.window:
+            return False
+
+        if not sys.platform.startswith('win'):
+            return False
+
+        try:
+            import ctypes
+
+            user32 = ctypes.windll.user32
+            hwnd = getattr(self.window, 'hwnd', None)
+            if not hwnd:
+                # Attempt to resolve window handle by title as a fallback
+                title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
+                hwnd = user32.FindWindowW(None, title)
+                if not hwnd:
+                    return False
+
+            WM_NCLBUTTONDOWN = 0x00A1
+            HTCAPTION = 0x0002
+            user32.ReleaseCapture()
+            user32.SendMessageW(int(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0)
+            return True
+        except Exception as exc:
+            logger.error(f"Failed to initiate native drag: {exc}")
+            return False
+
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
         logger.info(f"Sort hotkey activated: {self.settings_manager.get('sortHotkey')}")
@@ -468,7 +500,12 @@ class Api:
         """Background worker for sorting current stash"""
         if self.window:
             self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
-        result = self.sort_stash(self._current_char_id, self._current_stash_id)
+        result = self.sort_stash(
+            self._current_char_id,
+            self._current_stash_id,
+            pack_mode=self.get_pack_mode(),
+            stack_mode=self.get_stack_mode(),
+        )
         if self.window:
             self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
         # Optionally, communicate result back to UI
@@ -536,16 +573,30 @@ class Api:
         state["initialRestartDone"] = self._initial_restart_done
         return state
 
-    def sort_stash(self, character_id, stash_id):
+    def sort_stash(self, character_id, stash_id, pack_mode=None, stack_mode=None):
         """Sort a specific stash for a character"""
         try:
             # Create new event for this sort operation
             self.current_sort_event = threading.Event()
+
+            if pack_mode is None:
+                pack_mode = self.get_pack_mode()
+            else:
+                self.set_pack_mode(pack_mode)
+                pack_mode = self.get_pack_mode()
+
+            if stack_mode is None:
+                stack_mode = self.get_stack_mode()
+            else:
+                self.set_stack_mode(stack_mode)
+                stack_mode = self.get_stack_mode()
             
             result = self.stash_manager.sort_stash(
                 character_id, 
                 stash_id, 
-                cancel_event=self.current_sort_event
+                cancel_event=self.current_sort_event,
+                pack_mode=pack_mode,
+                stack_mode=stack_mode
             )
             
             # Handle tuple result with error message
@@ -627,6 +678,40 @@ class Api:
 
     def get_sort_order(self):
         return list(Item.sort_order)
+
+    def set_pack_mode(self, pack):
+        if pack is None:
+            return True
+        pack_bool = bool(pack)
+        previous = getattr(self, '_current_pack_mode', False)
+        self._current_pack_mode = pack_bool
+        if pack_bool != previous:
+            try:
+                self.settings_manager.update({'stashPackMode': pack_bool})
+            except Exception as exc:
+                logger.error(f"Failed to persist pack mode preference: {exc}")
+                return False
+        return True
+
+    def get_pack_mode(self):
+        return bool(getattr(self, '_current_pack_mode', False))
+
+    def set_stack_mode(self, stack):
+        if stack is None:
+            return True
+        stack_bool = bool(stack)
+        previous = getattr(self, '_current_stack_mode', False)
+        self._current_stack_mode = stack_bool
+        if stack_bool != previous:
+            try:
+                self.settings_manager.update({'stashStackMode': stack_bool})
+            except Exception as exc:
+                logger.error(f"Failed to persist stack mode preference: {exc}")
+                return False
+        return True
+
+    def get_stack_mode(self):
+        return bool(getattr(self, '_current_stack_mode', False))
 
 @server.route('/api/download_update')
 def download_update():
@@ -882,9 +967,24 @@ def api_sort_stash(character_id, stash_id):
     stash_id = validate_stash_id(stash_id)
     if stash_id is None:
         return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
-    
+    payload = request.get_json(silent=True) or {}
+    pack_mode = None
+    stack_mode = None
+    if isinstance(payload, dict):
+        if 'pack' in payload:
+            raw_pack = payload.get('pack')
+            if isinstance(raw_pack, str):
+                pack_mode = raw_pack.lower() in {'1', 'true', 'yes', 'on'}
+            else:
+                pack_mode = bool(raw_pack)
+        if 'stack' in payload:
+            raw_stack = payload.get('stack')
+            if isinstance(raw_stack, str):
+                stack_mode = raw_stack.lower() in {'1', 'true', 'yes', 'on'}
+            else:
+                stack_mode = bool(raw_stack)
     try:
-        result = api.sort_stash(character_id, stash_id)
+        result = api.sort_stash(character_id, stash_id, pack_mode=pack_mode, stack_mode=stack_mode)
         return jsonify(result)
     except Exception as e:
         logger.error(f"Error sorting stash: {e}")
@@ -959,6 +1059,64 @@ def api_settings():
         return jsonify(api.settings_manager.data)
     data = request.get_json()
     return jsonify({'success': api._save_settings(data)})
+
+
+@server.route('/api/pack_mode', methods=['GET'])
+def api_get_pack_mode():
+    try:
+        return jsonify({'success': True, 'pack': api.get_pack_mode()})
+    except Exception as exc:
+        logger.error(f"Error retrieving pack mode: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to get pack mode'}), 500
+
+
+@server.route('/api/pack_mode', methods=['POST'])
+def api_set_pack_mode_route():
+    payload = request.get_json(silent=True) or {}
+    pack = None
+    if isinstance(payload, dict) and 'pack' in payload:
+        raw_pack = payload.get('pack')
+        if isinstance(raw_pack, str):
+            pack = raw_pack.lower() in {'1', 'true', 'yes', 'on'}
+        else:
+            pack = bool(raw_pack)
+    try:
+        success = api.set_pack_mode(pack)
+        if not success:
+            return jsonify({'success': False, 'error': 'Failed to save pack mode'}), 500
+        return jsonify({'success': True, 'pack': api.get_pack_mode()})
+    except Exception as exc:
+        logger.error(f"Error updating pack mode: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to set pack mode'}), 500
+
+
+@server.route('/api/stack_mode', methods=['GET'])
+def api_get_stack_mode():
+    try:
+        return jsonify({'success': True, 'stack': api.get_stack_mode()})
+    except Exception as exc:
+        logger.error(f"Error retrieving stack mode: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to get stack mode'}), 500
+
+
+@server.route('/api/stack_mode', methods=['POST'])
+def api_set_stack_mode_route():
+    payload = request.get_json(silent=True) or {}
+    stack = None
+    if isinstance(payload, dict) and 'stack' in payload:
+        raw_stack = payload.get('stack')
+        if isinstance(raw_stack, str):
+            stack = raw_stack.lower() in {'1', 'true', 'yes', 'on'}
+        else:
+            stack = bool(raw_stack)
+    try:
+        success = api.set_stack_mode(stack)
+        if not success:
+            return jsonify({'success': False, 'error': 'Failed to save stack mode'}), 500
+        return jsonify({'success': True, 'stack': api.get_stack_mode()})
+    except Exception as exc:
+        logger.error(f"Error updating stack mode: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to set stack mode'}), 500
 
 @server.route('/assets/<path:filename>')
 def serve_file(filename):
@@ -1190,7 +1348,7 @@ def main():
         'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'set_sort_order'
+        'get_capture_state', 'set_sort_order', 'begin_drag'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))
