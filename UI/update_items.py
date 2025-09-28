@@ -87,7 +87,7 @@ def update_items():
 
             # Add iconPath based on the API pattern
             item_copy = item.copy()
-            item_copy['iconPath'] = f"assets\\icons\\{item.get('type', 'Misc')}\\{item_id}.png"
+            item_copy['iconPath'] = f"icons\\{item.get('type', 'Misc')}\\{item_id}.png"
 
             new_items_dict[item_id] = item_copy
 

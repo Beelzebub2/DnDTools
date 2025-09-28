@@ -55,6 +55,12 @@ class ItemDataManager:
         item = self._data.get(item_id, {})
         return item.get("vendor_price", 0)
 
+    def get_item_max_stack_size(self, item_id):
+        """Get maximum stack size for an item"""
+        self._ensure_loaded()
+        item = self._data.get(item_id, {})
+        return item.get("max_stack_size", 1)
+
     def get_item_data(self, item_id):
         """Get full item data for an item"""
         self._ensure_loaded()

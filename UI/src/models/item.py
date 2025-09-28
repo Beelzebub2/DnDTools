@@ -7,7 +7,20 @@ class Item:
     # Class-level sort key order. Can be modified dynamically at runtime.
     sort_order = list(SORTABLE_FIELDS)
 
-    def __init__(self, name, rarity, position, width, height, stash, vendor_price=None):
+    def __init__(
+        self,
+        item_id,
+        name,
+        rarity,
+        position,
+        width,
+        height,
+        stash,
+        vendor_price=None,
+        quantity=1,
+        max_stack_size=1,
+    ):
+        self.item_id = item_id
         self.name = name
         self.rarity = rarity
         self.width = width
@@ -15,6 +28,13 @@ class Item:
         self.position = position
         self.stash = stash
         self.vendor_price = vendor_price
+        self.quantity = int(quantity) if quantity is not None else 1
+        if self.quantity < 1:
+            self.quantity = 1
+        self.max_stack_size = int(max_stack_size) if max_stack_size is not None else 1
+        if self.max_stack_size < 1:
+            self.max_stack_size = 1
+        self.stacked = False
 
     def __lt__(self, other):
         for attr in Item.sort_order:
@@ -33,19 +53,23 @@ class Item:
             return self.name == other.name and self.rarity == other.rarity and self.position == other.position
     
     def __hash__(self):
-        return hash((self.name, self.rarity, self.position))
+        pos = (self.position.x, self.position.y) if self.position else (None, None)
+        return hash((self.item_id, self.rarity, pos))
 
     def __repr__(self):
         return f"{self.rarity} {self.name} {self.position} {self.width}X{self.height}"
     
     def to_dict(self):
         return {
+            "item_id": self.item_id,
             "name": self.name,
             "rarity": self.rarity,
             "position": self.position,
             "width": self.width,
             "height": self.height,
-            "vendor_price": self.vendor_price
+            "vendor_price": self.vendor_price,
+            "itemCount": self.quantity,
+            "maxStackSize": self.max_stack_size,
         }
 
     @classmethod

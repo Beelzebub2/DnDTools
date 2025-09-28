@@ -127,7 +127,22 @@ class Storage:
                     print(rarity_id)
                     exit()
 
-                item = Item(name, rarity_id, position, width, height, self)
+                vendor_price = item_data_manager.get_item_vendor_price(item_id)
+                quantity = obj.get("itemCount", 1)
+                max_stack = item_data_manager.get_item_max_stack_size(item_id)
+
+                item = Item(
+                    item_id,
+                    name,
+                    rarity_id,
+                    position,
+                    width,
+                    height,
+                    self,
+                    vendor_price=vendor_price,
+                    quantity=quantity,
+                    max_stack_size=max_stack,
+                )
 
             except Exception as e:
                 print(f"Error creating item from data: {e}")

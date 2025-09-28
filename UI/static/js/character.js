@@ -68,6 +68,8 @@ let isPreviewMode = false;
 let previewToggleButton = null;
 let isPackMode = false;
 let packModeToggle = null;
+let isStackMode = false;
+let stackModeToggle = null;
 
 const rarityRankMap = {
     'none': 0,
@@ -231,6 +233,7 @@ const processStashData = async (stashData, stashId) => {
         // Ensure width/height are valid and within bounds
         const width = Math.min(item.width || 1, gridWidth - x);
         const height = Math.min(item.height || 1, gridHeight - y);
+        const maxStack = Math.max(1, Number(item.maxStackSize ?? item.max_stack_size ?? 1));
 
         // Return normalized item with bounded dimensions
         return {
@@ -240,6 +243,7 @@ const processStashData = async (stashData, stashId) => {
             height: height,
             rarity: item.rarity || 'Common',
             itemCount: item.itemCount || 1,
+            maxStackSize: maxStack,
             pp: item.pp || [],
             sp: item.sp || []
         };
@@ -333,7 +337,73 @@ function compareItemsForPreview(itemA, itemB, sortOrder) {
     return (itemA._originalIndex ?? 0) - (itemB._originalIndex ?? 0);
 }
 
-function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder, packMode = false) {
+function buildStackedItemsForPreview(items, stackMode) {
+    if (!Array.isArray(items) || !items.length) {
+        return [];
+    }
+
+    if (!stackMode) {
+        return items.map(item => ({ ...item }));
+    }
+
+    const groups = new Map();
+    const order = [];
+
+    items.forEach((item, index) => {
+        const maxStack = Math.max(1, Number(item.maxStackSize ?? item.max_stack_size ?? 1));
+        const itemCount = Math.max(1, Number(item.itemCount ?? 1));
+
+        if (maxStack <= 1) {
+            order.push({ type: 'single', item: { ...item } });
+            return;
+        }
+
+        const key = `${item.itemId || item.item_id || item.name || index}|${item.rarity || ''}`;
+        if (!groups.has(key)) {
+            groups.set(key, {
+                template: { ...item },
+                total: 0,
+                maxStack,
+                orderIndex: index,
+            });
+            order.push({ type: 'group', key });
+        }
+
+        const group = groups.get(key);
+        group.total += itemCount;
+    });
+
+    const aggregated = [];
+
+    order.forEach((entry) => {
+        if (entry.type === 'single') {
+            aggregated.push(entry.item);
+            return;
+        }
+
+        const group = groups.get(entry.key);
+        if (!group) {
+            return;
+        }
+
+        let remaining = group.total;
+        let iteration = 0;
+        while (remaining > 0) {
+            const stackCount = Math.min(group.maxStack, remaining);
+            const clone = { ...group.template };
+            clone.itemCount = stackCount;
+            clone._stackGroupKey = entry.key;
+            clone._stackOrderIndex = group.orderIndex + (iteration * 0.0001);
+            aggregated.push(clone);
+            remaining -= stackCount;
+            iteration += 1;
+        }
+    });
+
+    return aggregated;
+}
+
+function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder, packMode = false, stackMode = false) {
     if (!Array.isArray(items) || !items.length) {
         return [];
     }
@@ -347,7 +417,10 @@ function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder
         return [];
     }
 
-    const preparedItems = items.map((item, index) => {
+    const stackedItems = buildStackedItemsForPreview(items, stackMode);
+    const workingItems = stackedItems.length ? stackedItems : items;
+
+    const preparedItems = workingItems.map((item, index) => {
         const clone = { ...item };
         const safeWidth = Math.max(1, Math.min(Number(clone.width) || 1, gridWidth));
         const safeHeight = Math.max(1, Math.min(Number(clone.height) || 1, gridHeight));
@@ -444,6 +517,8 @@ function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder
         delete clone._rarityRank;
         delete clone._originalIndex;
         delete clone._originalSlotId;
+        delete clone._stackGroupKey;
+        delete clone._stackOrderIndex;
         return clone;
     });
 }
@@ -546,6 +621,57 @@ async function loadPackModeFromServer() {
     }
 }
 
+function updateStackToggleUI() {
+    if (!stackModeToggle) {
+        return;
+    }
+    stackModeToggle.checked = isStackMode;
+    const wrapper = stackModeToggle.closest('label');
+    if (wrapper) {
+        wrapper.classList.toggle('active', isStackMode);
+    }
+}
+
+async function persistStackMode(stack) {
+    try {
+        const response = await fetch('/api/stack_mode', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ stack })
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to save stack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.stack !== 'undefined') {
+            isStackMode = !!data.stack;
+        }
+    } catch (error) {
+        console.error('Error persisting stack mode:', error);
+    } finally {
+        updateStackToggleUI();
+    }
+}
+
+async function loadStackModeFromServer() {
+    try {
+        const response = await fetch('/api/stack_mode');
+        if (!response.ok) {
+            throw new Error(`Failed to load stack mode: ${response.status}`);
+        }
+        const data = await response.json().catch(() => ({}));
+        if (data && typeof data.stack !== 'undefined') {
+            isStackMode = !!data.stack;
+        }
+    } catch (error) {
+        console.error('Error loading stack mode:', error);
+    } finally {
+        updateStackToggleUI();
+    }
+}
+
 // Variable to store the equipment slots configuration
 let equipmentSlotConfig = null;
 
@@ -595,7 +721,7 @@ const renderInteractiveGrid = (stashId, items) => {
         totalValueElement.textContent = totalValue.toLocaleString();
     }
 
-    const previewItems = isPreviewMode ? computeSortedPreviewLayout(stashId, items, currentSortOrder, isPackMode) : [];
+    const previewItems = isPreviewMode ? computeSortedPreviewLayout(stashId, items, currentSortOrder, isPackMode, isStackMode) : [];
     const itemsToRender = (previewItems.length ? previewItems : items) || [];
 
     // Special handling for equipment stashes
@@ -933,7 +1059,7 @@ const triggerSort = async () => {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ pack: isPackMode })
+            body: JSON.stringify({ pack: isPackMode, stack: isStackMode })
         });
         const result = await response.json();
 
@@ -1305,12 +1431,27 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     packModeToggle = document.getElementById('packItemsToggle');
+    stackModeToggle = document.getElementById('stackItemsToggle');
+
+    await Promise.all([
+        loadPackModeFromServer(),
+        loadStackModeFromServer()
+    ]);
+
     if (packModeToggle) {
-        await loadPackModeFromServer();
         packModeToggle.addEventListener('change', async (event) => {
             isPackMode = !!event.target.checked;
             updatePackToggleUI();
             await persistPackMode(isPackMode);
+            refreshCurrentStashView();
+        });
+    }
+
+    if (stackModeToggle) {
+        stackModeToggle.addEventListener('change', async (event) => {
+            isStackMode = !!event.target.checked;
+            updateStackToggleUI();
+            await persistStackMode(isStackMode);
             refreshCurrentStashView();
         });
     }
@@ -1514,7 +1655,7 @@ const renderCombinedCharacterView = async (stashes) => {
     // Process both equipment (3) and bag (2) stash data
     const equipmentItems = await processStashData(stashes, "3") || [];
     const bagItems = await processStashData(stashes, "2") || [];
-    const bagPreviewItems = isPreviewMode ? computeSortedPreviewLayout("2", bagItems, currentSortOrder, isPackMode) : [];
+    const bagPreviewItems = isPreviewMode ? computeSortedPreviewLayout("2", bagItems, currentSortOrder, isPackMode, isStackMode) : [];
     const bagItemsToRender = bagPreviewItems.length ? bagPreviewItems : bagItems;
 
     // Calculate total vendor value for all items

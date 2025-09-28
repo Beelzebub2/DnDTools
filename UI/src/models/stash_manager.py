@@ -356,6 +356,7 @@ class StashManager:
                         if img_path:
                             image_url = f"/assets/{str(img_path)}"
                             image_url = image_url.replace("\\", "/")
+                        max_stack = item_data_manager.get_item_max_stack_size(item_id)
                         enhanced_item = {
                             'name': name,
                             'itemId': item_id,
@@ -367,7 +368,9 @@ class StashManager:
                             'pp': pp,
                             'sp': sp,
                             'imagePath': image_url,
-                            'vendor_price': item_data_manager.get_item_vendor_price(item_id)
+                            'vendor_price': item_data_manager.get_item_vendor_price(item_id),
+                            'maxStackSize': max_stack,
+                            'max_stack_size': max_stack
                         }
                         enhanced_items.append(enhanced_item)
                     except Exception as e:
@@ -395,7 +398,7 @@ class StashManager:
         }
         return response
 
-    def sort_stash(self, character_id, stash_id, cancel_event=None, pack_mode=False):
+    def sort_stash(self, character_id, stash_id, cancel_event=None, pack_mode=False, stack_mode=False):
         logger.info(f"Sorting stash {stash_id} for character {character_id}")
         char = self.characters_cache.get(str(character_id))
         if not char:
@@ -424,7 +427,7 @@ class StashManager:
         except Exception as e:
             logger.error(f"Error focusing window: {e}")
 
-        sorter = StashSorter(stash, inventory, pack_mode=pack_mode)
+        sorter = StashSorter(stash, inventory, pack_mode=pack_mode, stack_mode=stack_mode)
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"
         success = sorter.sort(cancel_event)

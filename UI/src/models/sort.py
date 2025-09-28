@@ -1,12 +1,14 @@
 from src.models.stash_preview import parse_stashes
 import time
 from src.models.storage import Storage, StashType
+from src.models import macros
 import heapq
 import keyboard
 import os
 from src.models.point import Point
 from src.models.item import Item
 import pygetwindow as gw
+import math
 
 def intersects(pos1, width1, height1, pos2, width2, height2):
     if pos1.x + width1 <= pos2.x or pos2.x + width2 <= pos1.x:
@@ -16,7 +18,7 @@ def intersects(pos1, width1, height1, pos2, width2, height2):
     return True
 
 class StashSorter:
-    def __init__(self, stash: Storage, inv: Storage, pack_mode: bool = False):
+    def __init__(self, stash: Storage, inv: Storage, pack_mode: bool = False, stack_mode: bool = False):
         self.stash = stash
         self.inv = inv
         self.cur_x = 0
@@ -24,6 +26,10 @@ class StashSorter:
         self.cur_height = 0
         self.cancel_event = None
         self.pack_mode = bool(pack_mode)
+        self.stack_mode = bool(stack_mode)
+        self._stack_instructions = []
+        if self.stack_mode:
+            self._prepare_stack_plan()
         self.pack_positions = {}
         if self.pack_mode:
             self.pack_positions = self._compute_pack_plan()
@@ -33,6 +39,10 @@ class StashSorter:
 
     def sort(self, cancel_event=None):
         self.cancel_event = cancel_event
+
+        if self.stack_mode:
+            if not self._perform_stacking_phase():
+                return False
 
         while self.stash.pq:
             if self.cancel_event and self.cancel_event.is_set():
@@ -73,6 +83,118 @@ class StashSorter:
                 print("Sort operation cancelled after item placement")
                 return False
 
+        return True
+
+    def _prepare_stack_plan(self):
+        grouped = {}
+        for item in list(self.stash.pq):
+            max_stack = getattr(item, "max_stack_size", 1) or 1
+            if max_stack <= 1:
+                continue
+            key = (getattr(item, "item_id", None), item.rarity)
+            grouped.setdefault(key, []).append(item)
+
+        removal_set = set()
+        instructions = []
+
+        for key, items in grouped.items():
+            if len(items) <= 1:
+                continue
+
+            stackables = sorted(items, key=lambda itm: getattr(itm, "quantity", 1), reverse=True)
+            max_stack = max(1, getattr(stackables[0], "max_stack_size", 1) or 1)
+            total_qty = sum(max(1, getattr(itm, "quantity", 1)) for itm in stackables)
+            required_stacks = min(len(stackables), math.ceil(total_qty / max_stack))
+
+            targets = stackables[:required_stacks]
+            remaining_items = stackables[required_stacks:]
+
+            target_capacity = {
+                target: max(0, max_stack - min(max_stack, getattr(target, "quantity", 1)))
+                for target in targets
+            }
+
+            for extra in remaining_items:
+                if extra in removal_set:
+                    continue
+
+                extra_qty = max(1, getattr(extra, "quantity", 1))
+                chosen_target = None
+                for target, capacity in target_capacity.items():
+                    if capacity >= extra_qty:
+                        chosen_target = target
+                        break
+
+                if chosen_target:
+                    instructions.append((extra, chosen_target))
+                    target_capacity[chosen_target] -= extra_qty
+                    new_quantity = min(
+                        getattr(chosen_target, "max_stack_size", max_stack),
+                        getattr(chosen_target, "quantity", 1) + extra_qty,
+                    )
+                    chosen_target.quantity = new_quantity
+                    removal_set.add(extra)
+                else:
+                    targets.append(extra)
+                    target_capacity[extra] = max(0, max_stack - min(max_stack, getattr(extra, "quantity", 1)))
+                    extra.quantity = min(max_stack, max(1, getattr(extra, "quantity", 1)))
+
+        if instructions:
+            self._stack_instructions = instructions
+            remaining_items = [item for item in self.stash.pq if item not in removal_set]
+            heapq.heapify(remaining_items)
+            self.stash.pq = remaining_items
+
+    def _perform_stacking_phase(self):
+        if not self._stack_instructions:
+            return True
+
+        for item, target in self._stack_instructions:
+            if self.cancel_event and self.cancel_event.is_set():
+                print("Sort operation cancelled during stacking phase")
+                return False
+            if not self._stack_item(item, target):
+                print("Failed to stack items; aborting sort")
+                return False
+        return True
+
+    def _stack_item(self, item: Item, target: Item) -> bool:
+        if not item or not target:
+            return False
+
+        start_stash = item.stash
+        target_stash = target.stash
+        if not start_stash or not target_stash:
+            return False
+
+        start_pos = Point(item.position.x, item.position.y)
+        target_pos = Point(target.position.x, target.position.y)
+
+        try:
+            macros.move_from_to_reliable(
+                start_stash,
+                start_pos,
+                target_stash,
+                target_pos,
+                item.width,
+                item.height,
+                target.width,
+                target.height,
+            )
+        except Exception as exc:
+            print(f"Stacking move failed: {exc}")
+            return False
+
+        for dx in range(item.width):
+            for dy in range(item.height):
+                x = start_pos.x + dx
+                y = start_pos.y + dy
+                if 0 <= x < start_stash.width and 0 <= y < start_stash.height:
+                    start_stash.grid[x][y] = 0
+
+        item.stacked = True
+        item.stash = target_stash
+        item.position = Point(target_pos.x, target_pos.y)
         return True
 
     def _ensure_area_available(self, item: Item, target_point: Point) -> bool:
