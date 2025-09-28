@@ -172,13 +172,13 @@ class CaptureController:
         running = self._packet_capture.is_active()
         return {
             "running": running,
+            "desiredRunning": self._desired_running,
+            "lastError": self._last_error,
             "interface": self._settings["interface"],
             "portRange": {
                 "low": self._settings["port_range"][0],
                 "high": self._settings["port_range"][1],
             },
-            "desired": self._desired_running,
-            "lastError": self._last_error,
         }
 
     def start(self):
@@ -455,6 +455,35 @@ class Api:
             logger.debug("Unable to bring window to front; continuing without foreground focus")
 
         return success
+
+    def begin_drag(self):
+        """Initiate a native window drag so Windows snap/maximize works."""
+        if not self.window:
+            return False
+
+        if not sys.platform.startswith('win'):
+            return False
+
+        try:
+            import ctypes
+
+            user32 = ctypes.windll.user32
+            hwnd = getattr(self.window, 'hwnd', None)
+            if not hwnd:
+                # Attempt to resolve window handle by title as a fallback
+                title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
+                hwnd = user32.FindWindowW(None, title)
+                if not hwnd:
+                    return False
+
+            WM_NCLBUTTONDOWN = 0x00A1
+            HTCAPTION = 0x0002
+            user32.ReleaseCapture()
+            user32.SendMessageW(int(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0)
+            return True
+        except Exception as exc:
+            logger.error(f"Failed to initiate native drag: {exc}")
+            return False
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
@@ -1319,7 +1348,7 @@ def main():
         'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'set_sort_order'
+        'get_capture_state', 'set_sort_order', 'begin_drag'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))

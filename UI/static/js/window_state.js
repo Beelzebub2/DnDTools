@@ -71,28 +71,34 @@
                     };
                 }
 
-                // Drag-to-restore logic with synthetic drag
+                // Drag-to-restore logic using native drag for Windows snap support
                 if (dragRegion) {
-                    dragRegion.addEventListener('mousedown', async (e) => {
+                    dragRegion.addEventListener('mousedown', (e) => {
                         try {
                             if (e.button !== 0) return;
-                            if (
-                                isMaximized &&
-                                window.pywebview && window.pywebview.api && window.pywebview.api.toggle_maximize
-                            ) {
+
+                            const api = window.pywebview && window.pywebview.api;
+                            if (!api || !api.begin_drag) return;
+
+                            const startNativeDrag = () => {
+                                try {
+                                    // Fire and forget; the bridge call is async but we don't need to await it
+                                    api.begin_drag();
+                                } catch (callErr) {
+                                    console.error('Failed to start native drag:', callErr);
+                                }
+                            };
+
+                            const needsRestore = isMaximized && api.toggle_maximize;
+
+                            if (needsRestore) {
                                 e.preventDefault();
-                                await window.pywebview.api.toggle_maximize();
-                                setTimeout(() => {
-                                    const evt = new MouseEvent('mousedown', {
-                                        bubbles: true,
-                                        cancelable: true,
-                                        view: window,
-                                        button: 0,
-                                        clientX: e.clientX,
-                                        clientY: e.clientY
-                                    });
-                                    dragRegion.dispatchEvent(evt);
-                                }, 50);
+                                Promise.resolve(api.toggle_maximize())
+                                    .then(() => setTimeout(startNativeDrag, 20))
+                                    .catch((toggleErr) => console.error('Failed to restore window before drag:', toggleErr));
+                            } else {
+                                e.preventDefault();
+                                startNativeDrag();
                             }
                         } catch (error) {
                             console.error('Error handling drag region:', error);
