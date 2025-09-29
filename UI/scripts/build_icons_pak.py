@@ -250,6 +250,8 @@ def parse_args(argv: Iterable[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH, help="Destination .pak file (default: %(default)s)")
     parser.add_argument("--quality", type=int, default=85, help="WebP quality setting (0-100, default: %(default)s)")
     parser.add_argument("--check", action="store_true", help="Only verify that the existing .pak matches freshly generated output")
+    parser.add_argument("--skip-convert", action="store_true", help="Skip converting PNG sources to WebP")
+    parser.add_argument("--force-convert", action="store_true", help="Force PNG conversion even when running in --check mode")
     return parser.parse_args(argv)
 
 
@@ -260,6 +262,9 @@ def ensure_parent(path: Path) -> None:
 def main(argv: Iterable[str] | None = None) -> int:
     args = parse_args(argv)
 
+    if args.check and not args.force_convert:
+        args.skip_convert = True
+
     logging.basicConfig(level=logging.INFO, format="[%(levelname)s] %(message)s")
     logger.info("Starting icon pack build...")
 
@@ -267,7 +272,10 @@ def main(argv: Iterable[str] | None = None) -> int:
     output_path = args.output.resolve()
 
     try:
-        convert_png_sources(icons_dir, args.quality)
+        if args.skip_convert:
+            logger.info("Skipping PNG conversion step")
+        else:
+            convert_png_sources(icons_dir, args.quality)
 
         entries = discover_icons(icons_dir)
         logger.info("Discovered %s icons under %s", len(entries), icons_dir)

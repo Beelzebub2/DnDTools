@@ -33,4 +33,4 @@ jobs:
         run: pip install Pillow
 
       - name: Verify icons.pak is current
-        run: python UI/scripts/build_icons_pak.py --check
+        run: python UI/scripts/build_icons_pak.py --check --skip-convert

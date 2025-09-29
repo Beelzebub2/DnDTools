@@ -18,6 +18,12 @@ REM Ensure the icon pack is up to date before building
 python UI\scripts\build_icons_pak.py
 if %ERRORLEVEL% NEQ 0 goto :error
 
+REM Stage assets without the raw icons directory for inclusion in the build
+set ASSET_STAGING=build\assets_no_icons
+if exist "%ASSET_STAGING%" rmdir /s /q "%ASSET_STAGING%"
+robocopy "UI\assets" "%ASSET_STAGING%" /E /XD icons >nul
+if %ERRORLEVEL% GEQ 8 goto :error
+
 REM Run Nuitka to compile the application into a single-file executable
 pyinstaller ^
   --onefile ^
@@ -26,8 +32,7 @@ pyinstaller ^
   --add-data "UI\networking\protos;networking/protos" ^
   --add-data "UI\templates;templates" ^
   --add-data "UI\static;static" ^
-  --add-data "UI\assets;assets" ^
-  --add-data "UI\assets\equipment_slots.json;assets" ^
+  --add-data "%ASSET_STAGING%;assets" ^
   --name DnDTools ^
   --distpath dist ^
   --hidden-import=clr ^

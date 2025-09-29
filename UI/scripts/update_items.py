@@ -23,8 +23,9 @@ logger = logging.getLogger(__name__)
 API_BASE_URL = "https://api.darkerdb.com/v1/items"
 API_KEY = os.getenv("API_KEY")  # Use env var
 
-# Path to the items.json file
-BASE_DIR = Path(__file__).resolve().parent
+# Resolve important paths relative to the UI root
+SCRIPT_DIR = Path(__file__).resolve().parent
+BASE_DIR = SCRIPT_DIR.parent
 ITEMS_FILE = BASE_DIR / "assets" / "items.json"
 
 def update_items():
