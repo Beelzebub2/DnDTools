@@ -50,7 +50,7 @@ jobs:
         uses: crazy-max/ghaction-upx@v3
         with:
           files: dist/DnDTools.exe
-          args: --best --lzma
+          args: --best --lzma --force
 
       - name: Create GitHub Pre-Release and Upload executable
         uses: softprops/action-gh-release@v2
