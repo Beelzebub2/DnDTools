@@ -7,10 +7,14 @@ Note: Update the API_URL if the actual endpoint is different.
 Check https://darkerdb.com/documentation/items for the correct API endpoint.
 """
 
-import requests
 import json
+import logging
 import os
 import sys
+
+import requests
+
+logger = logging.getLogger(__name__)
 
 # API configuration
 API_BASE_URL = "https://api.darkerdb.com/v1/items"
@@ -27,10 +31,10 @@ def update_items():
         if os.path.exists(ITEMS_FILE):
             with open(ITEMS_FILE, 'r', encoding='utf-8') as f:
                 existing_items = json.load(f)
-        
-        print(f"Loaded {len(existing_items)} existing items")
-        print("Fetching new items data from DarkerDB API...")
-        
+
+        logger.info("Loaded %s existing items", len(existing_items))
+        logger.info("Fetching new items data from DarkerDB API...")
+
         headers = {
             "Authorization": f"Bearer {API_KEY}",
             "User-Agent": "DnDTools-Updater/1.0"
@@ -42,7 +46,7 @@ def update_items():
         max_pages = 100  # Safety limit
 
         while page <= max_pages:
-            print(f"Fetching page {page}...")
+            logger.info("Fetching page %s...", page)
             response = requests.get(next_url, headers=headers, timeout=30)
             response.raise_for_status()
 
@@ -50,22 +54,22 @@ def update_items():
             items = data.get('body', [])
             
             if not items:
-                print("No more items found, stopping pagination")
+                logger.info("No more items found, stopping pagination")
                 break
                 
             all_new_items.extend(items)
-            print(f"  Got {len(items)} items")
+            logger.info("  Got %s items", len(items))
 
             # Check for pagination - stop when 'next' field disappears
             pagination = data.get('pagination', {})
             if 'next' not in pagination:
-                print("No more pages available")
+                logger.info("No more pages available")
                 break
                 
             next_url = pagination['next']
             page += 1
 
-        print(f"Total items fetched from API: {len(all_new_items)}")
+        logger.info("Total items fetched from API: %s", len(all_new_items))
 
         # Filter to only new items
         new_items_dict = {}
@@ -91,22 +95,22 @@ def update_items():
 
             new_items_dict[item_id] = item_copy
 
-        print(f"Skipped {skipped_existing} existing items")
-        print(f"Adding {len(new_items_dict)} new items")
+        logger.info("Skipped %s existing items", skipped_existing)
+        logger.info("Adding %s new items", len(new_items_dict))
 
         if not new_items_dict:
-            print("No new items to add")
+            logger.info("No new items to add")
             return True
 
         # First update the JSON file with new items
-        print(f"Updating {ITEMS_FILE} with {len(existing_items) + len(new_items_dict)} total items...")
+        logger.info("Updating %s with %s total items...", ITEMS_FILE, len(existing_items) + len(new_items_dict))
         existing_items.update(new_items_dict)
         with open(ITEMS_FILE, 'w', encoding='utf-8') as f:
             json.dump(existing_items, f, indent=2, ensure_ascii=False)
-        print("Items data updated successfully!")
+        logger.info("Items data updated successfully!")
 
         # Then download images for new items
-        print("Downloading images for new items...")
+        logger.info("Downloading images for new items...")
         images_downloaded = 0
         for item_id, item_data in new_items_dict.items():
             # Use the item_id (which is now the API ID) for the icon URL
@@ -125,37 +129,39 @@ def update_items():
                         f.write(response.content)
                     images_downloaded += 1
                 else:
-                    print(f"Failed to download image for {item_id}: HTTP {response.status_code}")
+                    logger.warning("Failed to download image for %s: HTTP %s", item_id, response.status_code)
             except Exception as e:
-                print(f"Error downloading image for {item_id}: {e}")
+                logger.error("Error downloading image for %s: %s", item_id, e)
 
-        print(f"Downloaded {images_downloaded} images")
+        logger.info("Downloaded %s images", images_downloaded)
         return True
 
     except requests.exceptions.RequestException as e:
-        print(f"Error fetching data from API: {e}")
+        logger.error("Error fetching data from API: %s", e)
         return False
     except json.JSONDecodeError as e:
-        print(f"Error parsing API response: {e}")
+        logger.error("Error parsing API response: %s", e)
         return False
     except Exception as e:
-        print(f"Unexpected error: {e}")
+        logger.error("Unexpected error: %s", e)
         return False
 
 if __name__ == "__main__":
-    print("DarkerDB Items Updater")
-    print("=" * 30)
-    print(f"API URL: {API_BASE_URL}")
-    print(f"Using API Key: {API_KEY[:8]}...")  # Show first 8 chars for security
-    print(f"Target file: {ITEMS_FILE}")
-    print()
+    logging.basicConfig(level=logging.INFO)
+    masked_key = (API_KEY[:8] + "...") if API_KEY else "<missing>"
+    logger.info("DarkerDB Items Updater")
+    logger.info("%s", "=" * 30)
+    logger.info("API URL: %s", API_BASE_URL)
+    logger.info("Using API Key: %s", masked_key)
+    logger.info("Target file: %s", ITEMS_FILE)
+    logger.info("")
 
     success = update_items()
     if success:
-        print("\nUpdate completed successfully!")
-        print("You can now restart the application to use the updated items data.")
+        logger.info("\nUpdate completed successfully!")
+        logger.info("You can now restart the application to use the updated items data.")
         sys.exit(0)
     else:
-        print("\nUpdate failed!")
-        print("Please check the API URL and try again.")
+        logger.error("\nUpdate failed!")
+        logger.error("Please check the API URL and try again.")
         sys.exit(1)

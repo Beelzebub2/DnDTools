@@ -1,7 +1,10 @@
 import json
+import logging
+import threading
 from pathlib import Path
 from typing import Dict, Optional
-import threading
+
+logger = logging.getLogger(__name__)
 
 class ItemDataManager:
     def __init__(self):
@@ -122,13 +125,13 @@ def main():
     manager = ItemDataManager()
 
     width, height = manager.get_item_dimensions_from_id("WizardShoes_6001")
-    print("Dimensions:", width, height)
+    logger.info("Dimensions: %s x %s", width, height)
 
     rarity = manager.get_item_rarity_from_id("WizardShoes_6001")
-    print("Rarity:", rarity)
+    logger.info("Rarity: %s", rarity)
 
     icon_path = manager.get_item_image_path_from_id("WizardShoes_6001")
-    print(icon_path)
+    logger.info("Icon path: %s", icon_path)
 
 
 if __name__ == "__main__":

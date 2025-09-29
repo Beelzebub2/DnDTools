@@ -1,14 +1,19 @@
-from src.models.stash_preview import parse_stashes
+import logging
+import math
 import time
-from src.models.storage import Storage, StashType
-from src.models import macros
 import heapq
 import keyboard
 import os
-from src.models.point import Point
-from src.models.item import Item
+
 import pygetwindow as gw
-import math
+
+from src.models import macros
+from src.models.item import Item
+from src.models.point import Point
+from src.models.stash_preview import parse_stashes
+from src.models.storage import Storage, StashType
+
+logger = logging.getLogger(__name__)
 
 def intersects(pos1, width1, height1, pos2, width2, height2):
     if pos1.x + width1 <= pos2.x or pos2.x + width2 <= pos1.x:
@@ -35,7 +40,7 @@ class StashSorter:
         if self.pack_mode:
             self.pack_positions = self._compute_pack_plan()
             if not self.pack_positions:
-                print("Pack mode plan could not be generated; falling back to sequential layout.")
+                logger.warning("Pack mode plan could not be generated; falling back to sequential layout.")
                 self.pack_mode = False
 
     def sort(self, cancel_event=None):
@@ -54,18 +59,18 @@ class StashSorter:
                 continue
 
             if self.cancel_event and self.cancel_event.is_set():
-                print("Sort operation cancelled")
+                logger.info("Sort operation cancelled")
                 return False
 
             item = heapq.heappop(self.stash.pq)
             self._buffered_inventory.pop(id(item), None)
-            print("Processing item: ", item)
+            logger.debug("Processing item: %s", item)
 
             planned_point = self.pack_positions.get(id(item)) if self.pack_mode else None
             target_point = planned_point
 
             if target_point is not None and not self._is_within_bounds(item, target_point):
-                print("Planned target position out of bounds; recalculating")
+                logger.warning("Planned target position out of bounds; recalculating")
                 if self.pack_mode:
                     self.pack_positions.pop(id(item), None)
                 target_point = None
@@ -76,58 +81,58 @@ class StashSorter:
                     target_point = sequential_point
                 else:
                     if sequential_point is None:
-                        print("Sequential planner could not provide a position; searching alternatives")
+                        logger.info("Sequential planner could not provide a position; searching alternatives")
                     else:
-                        print("Sequential planner returned out-of-bounds position; searching alternatives")
+                        logger.warning("Sequential planner returned out-of-bounds position; searching alternatives")
 
                     target_point = self._find_next_fittable_slot(item)
                     if target_point is None:
                         target_point = self._find_direct_empty_slot(item)
 
             if target_point is None or not self._is_within_bounds(item, target_point):
-                print("No valid target position found after adjustments; aborting sort")
+                logger.error("No valid target position found after adjustments; aborting sort")
                 return False
 
             if self.pack_mode:
                 self.pack_positions[id(item)] = target_point
 
-            print(f"Target position: {target_point}, Current position: {item.position}")
+            logger.debug("Target position: %s, Current position: %s", target_point, item.position)
             if target_point == item.position:
-                print("Item already in correct position")
+                logger.debug("Item already in correct position")
                 continue
 
             if not self._ensure_area_available(item, target_point):
-                print("Failed to clear target area; attempting fallback placement")
+                logger.warning("Failed to clear target area; attempting fallback placement")
                 fallback_point = self._find_direct_empty_slot(item)
                 if fallback_point and fallback_point != target_point:
-                    print(f"Fallback slot located at {fallback_point}")
+                    logger.info("Fallback slot located at %s", fallback_point)
                     if self.pack_mode:
                         self.pack_positions[id(item)] = fallback_point
                     if not self._ensure_area_available(item, fallback_point):
-                        print("Fallback slot blocked; aborting sort")
+                        logger.error("Fallback slot blocked; aborting sort")
                         return False
                     target_point = fallback_point
                 else:
-                    print("No suitable fallback slot available; aborting sort")
+                    logger.error("No suitable fallback slot available; aborting sort")
                     return False
             else:
                 blockers = self._collect_blocking_items(item, target_point)
                 if blockers:
-                    print(f"Target area still obstructed after clearing by {[repr(b) for b in blockers]}")
+                    logger.warning("Target area still obstructed after clearing by %s", [repr(b) for b in blockers])
                     if not self._force_clear_blockers(item, blockers, target_point):
-                        print("Unable to relocate remaining blockers; aborting sort")
+                        logger.error("Unable to relocate remaining blockers; aborting sort")
                         return False
 
             if self.cancel_event and self.cancel_event.is_set():
-                print("Sort operation cancelled before final placement")
+                logger.info("Sort operation cancelled before final placement")
                 return False
 
             item.stash.move(item, target_point, self.stash)
             self._unmark_buffered_inventory(item)
-            print(f"Current stash state:\n{self.stash}")
+            logger.debug("Current stash state:\n%s", self.stash)
 
             if self.cancel_event and self.cancel_event.is_set():
-                print("Sort operation cancelled after item placement")
+                logger.info("Sort operation cancelled after item placement")
                 return False
 
         return True
@@ -140,7 +145,7 @@ class StashSorter:
         if free_cells >= min_free_cells:
             return
 
-        print(f"Preparing workspace: current free cells {free_cells}, target {min_free_cells}")
+        logger.info("Preparing workspace: current free cells %s, target %s", free_cells, min_free_cells)
 
         candidates = [
             itm for itm in list(self.stash.pq)
@@ -158,13 +163,13 @@ class StashSorter:
             if inv_slot is None:
                 continue
 
-            print(f"Buffering item {candidate} to inventory slot {inv_slot} to create workspace")
+            logger.debug("Buffering item %s to inventory slot %s to create workspace", candidate, inv_slot)
             candidate.stash.move(candidate, inv_slot, self.inv)
             self._mark_buffered_inventory(candidate)
             moves += 1
             free_cells += candidate.width * candidate.height
 
-        print(f"Workspace preparation complete. Free cells: {free_cells}, items buffered: {moves}")
+        logger.info("Workspace preparation complete. Free cells: %s, items buffered: %s", free_cells, moves)
 
     def _prepare_stack_plan(self):
         grouped = {}
@@ -232,10 +237,10 @@ class StashSorter:
 
         for item, target in self._stack_instructions:
             if self.cancel_event and self.cancel_event.is_set():
-                print("Sort operation cancelled during stacking phase")
+                logger.info("Sort operation cancelled during stacking phase")
                 return False
             if not self._stack_item(item, target):
-                print("Failed to stack items; aborting sort")
+                logger.error("Failed to stack items; aborting sort")
                 return False
         return True
 
@@ -263,7 +268,7 @@ class StashSorter:
                 target.height,
             )
         except Exception as exc:
-            print(f"Stacking move failed: {exc}")
+            logger.error("Stacking move failed: %s", exc)
             return False
 
         for dx in range(item.width):
@@ -286,7 +291,7 @@ class StashSorter:
                 y = target_point.y + dy
 
                 if x >= self.stash.width or y >= self.stash.height:
-                    print("Target position out of bounds")
+                    logger.warning("Target position out of bounds")
                     return False
 
                 occupying_item = self.stash.grid[x][y]
@@ -294,25 +299,25 @@ class StashSorter:
                     continue
 
                 if self.cancel_event and self.cancel_event.is_set():
-                    print("Sort operation cancelled during area clearing")
+                    logger.info("Sort operation cancelled during area clearing")
                     return False
 
                 new_pos = self.stash.find_empty_slot(occupying_item)
                 if new_pos:
-                    print(f"Moving {occupying_item} to empty slot in stash")
+                    logger.debug("Moving %s to empty slot in stash", occupying_item)
                     self.stash.move(occupying_item, new_pos, self.stash)
                     self._unmark_buffered_inventory(occupying_item)
                 else:
                     new_pos = self.inv.find_empty_slot(occupying_item)
                     if new_pos:
-                        print(f"Moving {occupying_item} to inventory")
+                        logger.debug("Moving %s to inventory", occupying_item)
                         self.stash.move(occupying_item, new_pos, self.inv)
                         self._mark_buffered_inventory(occupying_item)
                     else:
-                        print("No immediate positions found; attempting to create workspace")
+                        logger.info("No immediate positions found; attempting to create workspace")
                         if self._create_workspace_for(item, occupying_item):
                             return self._ensure_area_available(item, target_point)
-                        print("Workspace creation failed; aborting")
+                        logger.error("Workspace creation failed; aborting")
                         return False
 
                 moved_items.add(occupying_item)
@@ -329,7 +334,7 @@ class StashSorter:
             self.cur_height = item.height
 
         if self.cur_y + item.height > self.stash.height:
-            print("Sequential layout ran out of space")
+            logger.warning("Sequential layout ran out of space")
             return None
 
         target_point = Point(self.cur_x, self.cur_y)
@@ -383,7 +388,7 @@ class StashSorter:
                 if placed:
                     break
             if not placed:
-                print(f"Unable to find pack position for item {item}; aborting pack plan")
+                logger.warning("Unable to find pack position for item %s; aborting pack plan", item)
                 return {}
         return plan
 
@@ -457,14 +462,14 @@ class StashSorter:
             if not inv_slot:
                 continue
 
-            print(f"Creating workspace: moving {candidate} to inventory slot {inv_slot}")
+            logger.debug("Creating workspace: moving %s to inventory slot %s", candidate, inv_slot)
             candidate.stash.move(candidate, inv_slot, self.inv)
             self._mark_buffered_inventory(candidate)
             moves_attempted += 1
 
             reassigned_slot = self.stash.find_empty_slot(blocking_item)
             if reassigned_slot:
-                print(f"Relocating blocking item {blocking_item} to {reassigned_slot}")
+                logger.debug("Relocating blocking item %s to %s", blocking_item, reassigned_slot)
                 blocking_item.stash.move(blocking_item, reassigned_slot, self.stash)
                 self._unmark_buffered_inventory(blocking_item)
                 return True
@@ -516,7 +521,7 @@ class StashSorter:
                     forbidden_height,
                 )
                 if new_slot:
-                    print(f"Relocating blocker {blocker} to {new_slot}")
+                    logger.debug("Relocating blocker %s to %s", blocker, new_slot)
                     self.stash.move(blocker, new_slot, self.stash)
                     if self.pack_mode:
                         self.pack_positions[id(blocker)] = new_slot
@@ -525,14 +530,14 @@ class StashSorter:
 
                 inv_slot = self.inv.find_empty_slot(blocker) if self.inv else None
                 if inv_slot:
-                    print(f"Relocating blocker {blocker} to inventory slot {inv_slot}")
+                    logger.debug("Relocating blocker %s to inventory slot %s", blocker, inv_slot)
                     self.stash.move(blocker, inv_slot, self.inv)
                     if self.pack_mode:
                         self.pack_positions.pop(id(blocker), None)
                     self._mark_buffered_inventory(blocker)
                     continue
 
-                print(f"Blocker {blocker} has no immediate relocation; attempting workspace creation")
+                logger.warning("Blocker %s has no immediate relocation; attempting workspace creation", blocker)
                 if not self._create_workspace_for(target_item, blocker):
                     return False
             elif blocker.stash is self.inv:
@@ -604,7 +609,7 @@ class StashSorter:
 
 def main():
     def force_exit():
-        print("F7 pressed. Exiting...")
+        logger.info("F7 pressed. Exiting...")
         os._exit(0)
     keyboard.add_hotkey('F7', force_exit)
 
@@ -613,11 +618,11 @@ def main():
     if windows:
         try:
             windows[0].activate()
-            print("Focused window: Dark and Darker")
+            logger.info("Focused window: Dark and Darker")
         except Exception as e:
-            print(f"Error focusing window: {e}")
+            logger.error("Error focusing window: %s", e)
     else:
-        print("No window with exact title 'Dark and Darker' found.")
+        logger.warning("No window with exact title 'Dark and Darker' found.")
 
     time.sleep(2)
 
@@ -630,8 +635,8 @@ def main():
 
     sorter = StashSorter(stash, inv)
 
-    print(stash)
-    print(inv)
+    logger.debug("%s", stash)
+    logger.debug("%s", inv)
     #exit()
     sorter.sort()
 

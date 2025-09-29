@@ -1,12 +1,18 @@
-import pyautogui
-import win32api
+import logging
 import time
 
+import pyautogui
+import win32api
+
+
+logger = logging.getLogger(__name__)
+
 if __name__ == "__main__":
-    print("Mouse position capture utility")
+    logging.basicConfig(level=logging.INFO)
+    logger.info("Mouse position capture utility")
     res = input("Enter your screen resolution (e.g., 1920×1080): ")
-    print(f"Resolution entered: {res}")
-    print("Press F7 to get mouse position (will capture 2 positions)")
+    logger.info("Resolution entered: %s", res)
+    logger.info("Press F7 to get mouse position (will capture 2 positions)")
 
     count = 0
     a = -1
@@ -17,7 +23,7 @@ if __name__ == "__main__":
         
         if a < 0:
             output = f"Position {count + 1}: ({x}, {y})"
-            print(output)
+            logger.info(output)
             count += 1
             
         time.sleep(0.1)

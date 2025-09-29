@@ -1,10 +1,14 @@
 import heapq
+import logging
+from enum import Enum
+
 from src.models import macros
+from src.models.appdirs import resource_path
+from src.models.game_data import item_data_manager
 from src.models.item import Item
 from src.models.point import Point
-from src.models.game_data import item_data_manager
-from enum import Enum
-from src.models.appdirs import resource_path
+
+logger = logging.getLogger(__name__)
 
 class StashType(Enum):
     NONE = 0
@@ -68,7 +72,7 @@ class Storage:
         return []
 
     def move(self, item, end_pos, end_stash):
-        print(f"Moving: {item} to {end_pos}")
+        logger.debug("Moving %s to %s", item, end_pos)
 
         # Clear old location
         for dx in range(item.width):
@@ -122,9 +126,7 @@ class Storage:
                 rarity_id = item_data_manager.rarity_to_id(rarity)
 
                 if (rarity_id == None):
-                    print(item_id)
-                    print(rarity)
-                    print(rarity_id)
+                    logger.error("Invalid rarity data for item %s (rarity=%s, rarity_id=%s)", item_id, rarity, rarity_id)
                     exit()
 
                 vendor_price = item_data_manager.get_item_vendor_price(item_id)
@@ -145,7 +147,7 @@ class Storage:
                 )
 
             except Exception as e:
-                print(f"Error creating item from data: {e}")
+                logger.error("Error creating item from data: %s", e)
                 continue
 
             # Verify placement within bounds
@@ -155,7 +157,7 @@ class Storage:
                     x = item.position.x + dx
                     y = item.position.y + dy
                     if not (0 <= x < self.width and 0 <= y < self.height):
-                        print(f"Warning: item {item} position out of bounds at ({x}, {y}), skipping")
+                        logger.warning("Item %s position out of bounds at (%s, %s), skipping", item, x, y)
                         out_of_bounds = True
                         break
                 if out_of_bounds:

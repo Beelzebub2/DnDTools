@@ -1,11 +1,16 @@
-import time
-import os
-import re
 import ctypes
+import logging
+import os
 import random
-from src.models.point import Point
+import re
+import time
+
 import win32gui
+
+from src.models.point import Point
 from src.models.settings import settings_manager
+
+logger = logging.getLogger(__name__)
 
 try:
     ctypes.windll.user32.SetProcessDPIAware()
@@ -222,7 +227,7 @@ def get_current_resolution():
 def get_window_area_pos(window_title="Dark and Darker  "):
     hwnd = win32gui.FindWindow(None, window_title)
     if hwnd == 0:
-        print(f"No window found with title: '{window_title}'")
+        logger.warning("No window found with title: '%s'", window_title)
         return None
 
     # Get client area (content) coordinates relative to the screen
