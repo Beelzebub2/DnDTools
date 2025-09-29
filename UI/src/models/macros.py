@@ -7,6 +7,11 @@ from src.models.point import Point
 import win32gui
 from src.models.settings import settings_manager
 
+try:
+    ctypes.windll.user32.SetProcessDPIAware()
+except Exception:
+    pass
+
 
 # Note: Jump values may need adjustment for different resolutions
 # Currently optimized for common gaming resolutions
@@ -58,15 +63,21 @@ def _scaled_layout(resolution):
                        int(round(BASE_LAYOUT['stash'].y * scale_y))),
         'inv': Point(int(round(BASE_LAYOUT['inv'].x * scale_x)),
                      int(round(BASE_LAYOUT['inv'].y * scale_y))),
-        'jump': max(1, int(round(BASE_LAYOUT['jump'] * scale_y)))
+        'jump': max(BASE_LAYOUT['jump'] * scale_y, 1.0)
     }
 
 
 def get_positions_for_resolution(resolution):
     """Return stash/inventory/jump positions for the requested resolution."""
     if resolution in MANUAL_OVERRIDES:
-        return _clone_layout(MANUAL_OVERRIDES[resolution])
-    return _scaled_layout(resolution)
+        layout = _clone_layout(MANUAL_OVERRIDES[resolution])
+    else:
+        layout = _scaled_layout(resolution)
+
+    if 'jump' in layout:
+        layout['jump'] = float(layout['jump'])
+
+    return layout
 
 
 RESOLUTION_POSITIONS = {
@@ -127,8 +138,8 @@ def move_mouse(x, y):
     screen_width = ctypes.windll.user32.GetSystemMetrics(0)
     screen_height = ctypes.windll.user32.GetSystemMetrics(1)
 
-    abs_x = int(x * 65535 / (screen_width - 1))
-    abs_y = int(y * 65535 / (screen_height - 1))
+    abs_x = int(round(x * 65535 / max(1, (screen_width - 1))))
+    abs_y = int(round(y * 65535 / max(1, (screen_height - 1))))
 
     mouse_input = INPUT(type=0)
     mouse_input.union.mi = MOUSEINPUT(
@@ -235,14 +246,14 @@ def get_screen_positions():
                 base_pos = _ensure_positions(res)
                 stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
                 inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
-                return {'stash': stash, 'inv': inv, 'jump': base_pos["jump"]}
+                return {'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"]) }
 
     return _clone_layout(_ensure_positions(res))
 
 _initial_positions = get_screen_positions()
 stash_screen_pos = _initial_positions['stash']
 inv_screen_pos = _initial_positions['inv']
-jump = _initial_positions['jump']
+jump = float(_initial_positions['jump'])
 
 def get_sort_delay():
     """Get sort delay from settings"""
@@ -255,9 +266,9 @@ def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008
     for i in range(1, steps + 1):
         t = i / steps
         # Linear interpolation
-        x = int(x1 + (x2 - x1) * t)
-        y = int(y1 + (y2 - y1) * t)
-        move_mouse(x, y)
+        x = x1 + (x2 - x1) * t
+        y = y1 + (y2 - y1) * t
+        move_mouse(round(x), round(y))
         time.sleep(random.uniform(min_delay, max_delay))
 
 def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
@@ -275,15 +286,15 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     end_y = end_stash.base_screen_pos.y + (jump * end_pos.y) + (jump * end_height) / 2
 
     # Add random jitter (±3 pixels)
-    sx = int(start_x + random.uniform(-3, 3))
-    sy = int(start_y + random.uniform(-3, 3))
-    ex = int(end_x + random.uniform(-3, 3))
-    ey = int(end_y + random.uniform(-3, 3))
+    sx = start_x + random.uniform(-3, 3)
+    sy = start_y + random.uniform(-3, 3)
+    ex = end_x + random.uniform(-3, 3)
+    ey = end_y + random.uniform(-3, 3)
 
     # Move to start position smoothly from current mouse position
     pt = POINT()
     ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-    move_mouse_smooth(pt.x, pt.y, sx, sy, steps=20)
+    move_mouse_smooth(float(pt.x), float(pt.y), sx, sy, steps=20)
     time.sleep(DELAY + random.uniform(0, 0.07))
 
     # Mouse down (hold item)

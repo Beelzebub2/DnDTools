@@ -46,6 +46,12 @@ jobs:
         run: |
           build_app.bat
 
+      - name: Compress executable with UPX
+        uses: crazy-max/ghaction-upx@v3
+        with:
+          files: dist/DnDTools.exe
+          args: --best --lzma
+
       - name: Create GitHub Pre-Release and Upload executable
         uses: softprops/action-gh-release@v2
         with:
