@@ -14,6 +14,10 @@ rmdir /s /q dist 2>nul
 REM Create dist directory and copy initial data
 mkdir dist
 
+REM Ensure the icon pack is up to date before building
+python UI\scripts\build_icons_pak.py
+if %ERRORLEVEL% NEQ 0 goto :error
+
 REM Run Nuitka to compile the application into a single-file executable
 pyinstaller ^
   --onefile ^
@@ -37,3 +41,8 @@ pyinstaller ^
   UI\app.py
 
 echo Build complete. Executable is in the dist folder.
+goto :eof
+
+:error
+echo Build failed. Please review the log above for details.
+exit /b 1

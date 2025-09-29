@@ -11,6 +11,7 @@ from .sort import StashSorter
 from src.models.game_data import item_data_manager
 import pygetwindow as gw
 from .appdirs import get_data_dir, get_output_dir, resource_path
+from src.models.icon_pak import canonical_icon_path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 import logging
@@ -314,7 +315,7 @@ class StashManager:
                                     'rarity': rarity,
                                     'pp': pp,
                                     'sp': sp,
-                                    'iconPath': str(icon_path) if icon_path else None
+                                    'iconPath': canonical_icon_path(icon_path)
                                 },
                                 'stash_id': stash_id
                             }
@@ -354,8 +355,9 @@ class StashManager:
                                 sp.append([prop_name, p["propertyValue"]])
                         image_url = None
                         if img_path:
-                            image_url = f"/assets/{str(img_path)}"
-                            image_url = image_url.replace("\\", "/")
+                            image_url_path = canonical_icon_path(img_path)
+                            if image_url_path:
+                                image_url = f"/assets/{image_url_path}"
                         max_stack = item_data_manager.get_item_max_stack_size(item_id)
                         enhanced_item = {
                             'name': name,

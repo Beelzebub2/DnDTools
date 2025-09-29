@@ -1,0 +1,36 @@
+name: Verify icon pack
+
+on:
+  push:
+    paths:
+      - 'UI/assets/icons/**'
+      - 'UI/scripts/build_icons_pak.py'
+      - 'UI/scripts/update_items.py'
+      - 'UI/src/models/icon_pak.py'
+      - '.github/workflows/build-icons-pak.yml'
+  pull_request:
+    paths:
+      - 'UI/assets/icons/**'
+      - 'UI/scripts/build_icons_pak.py'
+      - 'UI/scripts/update_items.py'
+      - 'UI/src/models/icon_pak.py'
+      - '.github/workflows/build-icons-pak.yml'
+
+jobs:
+  build-icon-pack:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install Pillow
+
+      - name: Verify icons.pak is current
+        run: python UI/scripts/build_icons_pak.py --check

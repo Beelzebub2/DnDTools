@@ -4,6 +4,8 @@ import threading
 from pathlib import Path
 from typing import Dict, Optional
 
+from .icon_pak import canonical_icon_path
+
 logger = logging.getLogger(__name__)
 
 class ItemDataManager:
@@ -44,8 +46,9 @@ class ItemDataManager:
         item = self._data.get(item_id, {})
         icon_path = item.get("iconPath", None)
         if icon_path:
-            # Return just the icon path without 'assets/' prefix
-            return Path(icon_path)
+            canonical = canonical_icon_path(icon_path)
+            if canonical:
+                return Path(canonical)
         return None
 
     def get_item_id_from_design_str(self, item_id):
