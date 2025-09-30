@@ -264,9 +264,12 @@ def get_sort_delay():
     """Get sort delay from settings"""
     return settings_manager.get_sort_speed()
 
-def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008):
+def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008, no_delay=False):
     """
-    Move the mouse smoothly from (x1, y1) to (x2, y2) in a number of small steps.
+    Move the mouse smoothly from (x1, y1) to (x2, y2).
+
+    When ``no_delay`` is True we still interpolate the path but skip the per-step sleep
+    to keep movement nearly instantaneous.
     """
     for i in range(1, steps + 1):
         t = i / steps
@@ -274,7 +277,10 @@ def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008
         x = x1 + (x2 - x1) * t
         y = y1 + (y2 - y1) * t
         move_mouse(round(x), round(y))
-        time.sleep(random.uniform(min_delay, max_delay))
+        if not no_delay:
+            sleep_floor = max(0.0, min_delay)
+            sleep_ceiling = max(sleep_floor, max_delay)
+            time.sleep(random.uniform(sleep_floor, sleep_ceiling))
 
 def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
     """
@@ -283,6 +289,16 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     Now uses smooth mouse movement.
     """
     DELAY = get_sort_delay()
+    no_delay_mode = DELAY <= 0
+
+    def maybe_sleep(base_delay: float, jitter: float = 0.0) -> None:
+        if no_delay_mode:
+            return
+        jitter_component = random.uniform(0, jitter) if jitter > 0 else 0.0
+        total = max(0.0, base_delay + jitter_component)
+        if total > 0:
+            time.sleep(total)
+
     # Calculate center of the item at start
     start_x = start_stash.base_screen_pos.x + (jump * start_pos.x) + (jump * start_width) / 2
     start_y = start_stash.base_screen_pos.y + (jump * start_pos.y) + (jump * start_height) / 2
@@ -299,28 +315,55 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     # Move to start position smoothly from current mouse position
     pt = POINT()
     ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-    move_mouse_smooth(float(pt.x), float(pt.y), sx, sy, steps=20)
-    time.sleep(DELAY + random.uniform(0, 0.07))
+    move_mouse_smooth(
+        float(pt.x),
+        float(pt.y),
+        sx,
+        sy,
+        steps=12 if no_delay_mode else 20,
+        min_delay=0.001,
+        max_delay=0.003,
+        no_delay=no_delay_mode,
+    )
+    maybe_sleep(DELAY, 0.07)
 
     # Mouse down (hold item)
     mouse_down()
-    time.sleep(DELAY + random.uniform(0, 0.07))
+    maybe_sleep(DELAY, 0.07)
 
     # Move to end position smoothly
-    move_mouse_smooth(sx, sy, ex, ey, steps=25)
-    time.sleep(DELAY + random.uniform(0, 0.07))
+    move_mouse_smooth(
+        sx,
+        sy,
+        ex,
+        ey,
+        steps=15 if no_delay_mode else 25,
+        min_delay=0.001,
+        max_delay=0.003,
+        no_delay=no_delay_mode,
+    )
+    maybe_sleep(DELAY, 0.07)
 
     # Mouse up (drop item)
     mouse_up()
-    time.sleep(DELAY + random.uniform(0, 0.07))
+    maybe_sleep(DELAY, 0.07)
 
     # Extra click at end for reliability
-    move_mouse_smooth(ex, ey, ex, ey, steps=5)
-    time.sleep((DELAY / 2) + random.uniform(0, 0.04))
+    move_mouse_smooth(
+        ex,
+        ey,
+        ex,
+        ey,
+        steps=3 if no_delay_mode else 5,
+        min_delay=0.0005,
+        max_delay=0.0015,
+        no_delay=no_delay_mode,
+    )
+    maybe_sleep(DELAY / 2, 0.04)
     mouse_down()
-    time.sleep((DELAY / 4) + random.uniform(0, 0.03))
+    maybe_sleep(DELAY / 4, 0.03)
     mouse_up()
-    time.sleep((DELAY / 2) + random.uniform(0, 0.04))
+    maybe_sleep(DELAY / 2, 0.04)
 
 def send_key(vk_code, key_up=False):
     flags = KEYEVENTF_KEYUP if key_up else 0

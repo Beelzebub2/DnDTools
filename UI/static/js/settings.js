@@ -4,13 +4,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const sortHotkeyInput = document.getElementById('sortHotkey');
     const cancelHotkeyInput = document.getElementById('cancelHotkey');
     const sortSpeedInput = document.getElementById('sortSpeed');
+    const noDelayCheckbox = document.getElementById('noDelay');
     const resolutionSelect = document.getElementById('resolution');
     const wiresharkPathInput = document.getElementById('wiresharkPath');
     const browseWiresharkButton = document.getElementById('browseWiresharkPath');
     const detectWiresharkButton = document.getElementById('detectWiresharkPath');
     const detectedResolutionSpan = document.querySelector('#detectedResolution');
     const refreshResolutionBtn = document.getElementById('refreshResolution');
-    const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');    // Load data sequentially to ensure interfaces are loaded before settings
+    const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');
+
+    let currentSettings = {};
+    let lastManualSortSpeed = 0.01;
+
+    // Load data sequentially to ensure interfaces are loaded before settings
     try {
         await loadInterfaces();
         await loadSettings();
@@ -57,9 +63,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 interfaceSelect.value = currentSettings.interface;
             }
 
-            sortHotkeyInput.value = currentSettings.sortHotkey || 'ctrl+alt+s';
-            cancelHotkeyInput.value = currentSettings.cancelHotkey || 'ctrl+alt+x';
-            sortSpeedInput.value = currentSettings.sortSpeed || 0.2;
+            sortHotkeyInput.value = currentSettings.sortHotkey || 'ctrl+f11';
+            cancelHotkeyInput.value = currentSettings.cancelHotkey || 'ctrl+f12';
+
+            const parsedSpeed = parseSortSpeed(currentSettings.sortSpeed, 0.2);
+            if (parsedSpeed > 0) {
+                lastManualSortSpeed = parsedSpeed;
+            }
+            sortSpeedInput.value = toDisplaySpeed(parsedSpeed);
+            if (noDelayCheckbox) {
+                noDelayCheckbox.checked = parsedSpeed <= 0;
+                applyNoDelayUIState();
+            }
+
             resolutionSelect.value = currentSettings.resolution || 'Auto';
             if (wiresharkPathInput) {
                 const detectedPath = currentSettings.wiresharkPath || '';
@@ -146,6 +162,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         } finally {
             detectWiresharkButton.disabled = false;
             detectWiresharkButton.classList.remove('loading');
+        }
+    }
+
+    function parseSortSpeed(value, fallback = 0.2) {
+        const numeric = parseFloat(value);
+        if (!Number.isFinite(numeric)) {
+            return fallback;
+        }
+        return numeric;
+    }
+
+    function toDisplaySpeed(value, fallback = 0.2) {
+        if (!Number.isFinite(value)) {
+            return fallback.toFixed(2);
+        }
+        return value.toFixed(2);
+    }
+
+    function enableNoDelayMode() {
+        sortSpeedInput.value = '0.00';
+        sortSpeedInput.disabled = true;
+        sortSpeedInput.classList.add('input-disabled');
+    }
+
+    function disableNoDelayMode() {
+        sortSpeedInput.disabled = false;
+        sortSpeedInput.classList.remove('input-disabled');
+        const restore = lastManualSortSpeed > 0 ? lastManualSortSpeed : 0.2;
+        sortSpeedInput.value = toDisplaySpeed(restore);
+    }
+
+    function applyNoDelayUIState() {
+        if (!noDelayCheckbox) {
+            return;
+        }
+        if (noDelayCheckbox.checked) {
+            enableNoDelayMode();
+        } else {
+            disableNoDelayMode();
         }
     }
 
@@ -366,11 +421,22 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }    // Enhanced save settings with animations
     async function saveSettings() {
+        let sortSpeedValue = noDelayCheckbox?.checked ? 0 : parseSortSpeed(
+            sortSpeedInput.value,
+            lastManualSortSpeed > 0 ? lastManualSortSpeed : 0.2
+        );
+
+        if (sortSpeedValue > 0) {
+            sortSpeedValue = Math.min(1.0, Math.max(0.01, sortSpeedValue));
+        } else {
+            sortSpeedValue = 0;
+        }
+
         const newSettings = {
             interface: interfaceSelect.value,
             sortHotkey: sortHotkeyInput.value,
             cancelHotkey: cancelHotkeyInput.value,
-            sortSpeed: parseFloat(sortSpeedInput.value),
+            sortSpeed: sortSpeedValue,
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : ''
         };
@@ -402,6 +468,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (result.success) {
                 currentSettings = newSettings;
+                if (!noDelayCheckbox?.checked && sortSpeedValue > 0) {
+                    lastManualSortSpeed = sortSpeedValue;
+                }
                 if (wiresharkPathInput) {
                     wiresharkPathInput.dataset.defaultValue = wiresharkPathInput.value;
                 }
@@ -535,8 +604,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const defaultSettings = {
             interface: '',
-            sortHotkey: 'ctrl+alt+s',
-            cancelHotkey: 'ctrl+alt+x',
+            sortHotkey: 'ctrl+f11',
+            cancelHotkey: 'ctrl+f12',
             sortSpeed: 0.2,
             resolution: 'Auto',
             wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : ''
@@ -546,10 +615,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         interfaceSelect.value = defaultSettings.interface;
         sortHotkeyInput.value = defaultSettings.sortHotkey;
         cancelHotkeyInput.value = defaultSettings.cancelHotkey;
-        sortSpeedInput.value = defaultSettings.sortSpeed;
+        lastManualSortSpeed = defaultSettings.sortSpeed;
+        sortSpeedInput.value = toDisplaySpeed(defaultSettings.sortSpeed);
         resolutionSelect.value = defaultSettings.resolution;
         if (wiresharkPathInput) {
             wiresharkPathInput.value = defaultSettings.wiresharkPath;
+        }
+
+        if (noDelayCheckbox) {
+            noDelayCheckbox.checked = false;
+            applyNoDelayUIState();
         }
 
         showNotification('Settings reset to defaults', 'success');
@@ -567,10 +642,46 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupHotkeyRecording(cancelHotkeyInput);
 
     // Form validation
+    noDelayCheckbox?.addEventListener('change', () => {
+        if (noDelayCheckbox.checked) {
+            const currentValue = parseSortSpeed(
+                sortSpeedInput.value,
+                lastManualSortSpeed > 0 ? lastManualSortSpeed : 0.2
+            );
+            if (currentValue > 0) {
+                lastManualSortSpeed = currentValue;
+            }
+        }
+        applyNoDelayUIState();
+    });
+
     sortSpeedInput.addEventListener('input', () => {
-        const value = parseFloat(sortSpeedInput.value);
-        if (value < 0.01) sortSpeedInput.value = 0.01;
-        if (value > 1.0) sortSpeedInput.value = 1.0;
-    });    // Initialize in parallel
+        let value = parseSortSpeed(
+            sortSpeedInput.value,
+            lastManualSortSpeed > 0 ? lastManualSortSpeed : 0.2
+        );
+
+        if (value <= 0) {
+            if (noDelayCheckbox) {
+                noDelayCheckbox.checked = true;
+                applyNoDelayUIState();
+            } else {
+                sortSpeedInput.value = toDisplaySpeed(0.01);
+                lastManualSortSpeed = 0.01;
+            }
+            return;
+        }
+
+        value = Math.min(1.0, Math.max(0.01, value));
+        lastManualSortSpeed = value;
+        sortSpeedInput.value = toDisplaySpeed(value);
+
+        if (noDelayCheckbox && noDelayCheckbox.checked) {
+            noDelayCheckbox.checked = false;
+            applyNoDelayUIState();
+        }
+    });
+
+    // Initialize in parallel
     // (already handled above)
 });

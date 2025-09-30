@@ -134,6 +134,12 @@
     margin-bottom: 0;
 }
 
+.form-group-inline {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
 .form-group label {
     display: block;
     color: var(--text-primary);
@@ -178,6 +184,64 @@
     background-size: 16px;
     padding-right: 3rem;
     transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+}
+
+.form-group input:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.form-group-inline .checkbox-label {
+    align-self: flex-start;
+}
+
+.checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--text-primary);
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+    appearance: none;
+    width: 0.9rem;
+    height: 0.9rem;
+    border: 2px solid var(--accent-gold);
+    border-radius: 4px;
+    background: transparent;
+    display: grid;
+    place-items: center;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.checkbox-label input[type="checkbox"]::after {
+    content: '';
+    width: 0.45rem;
+    height: 0.45rem;
+    transform: scale(0);
+    transition: transform 0.2s ease;
+    background: var(--accent-gold);
+    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 18%, 80% 0, 43% 62%);
+}
+
+.checkbox-label input[type="checkbox"]:checked {
+    background: rgba(228, 200, 105, 0.15);
+}
+
+.checkbox-label input[type="checkbox"]:checked::after {
+    transform: scale(1);
+}
+
+.checkbox-label input[type="checkbox"]:focus-visible {
+    outline: 2px solid var(--accent-gold);
+    outline-offset: 2px;
+}
+
+.form-help.warning-text {
+    color: var(--warning);
 }
 
 /* Hotkey Input Special Styling */

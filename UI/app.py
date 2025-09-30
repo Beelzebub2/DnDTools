@@ -421,12 +421,12 @@ class Api:
         keyboard.unhook_all()
         
         # Setup sort hotkey
-        sort_hotkey = self.settings_manager.get('sortHotkey', 'ctrl+alt+s')
+        sort_hotkey = self.settings_manager.get('sortHotkey', 'ctrl+f11')
         logger.info(f"Registering sort hotkey: {sort_hotkey}")
         keyboard.add_hotkey(sort_hotkey, self._trigger_sort_current, suppress=True)
         
         # Setup cancel hotkey
-        cancel_hotkey = self.settings_manager.get('cancelHotkey', 'ctrl+alt+x')
+        cancel_hotkey = self.settings_manager.get('cancelHotkey', 'ctrl+f12')
         logger.info(f"Registering cancel hotkey: {cancel_hotkey}")
         keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
         
