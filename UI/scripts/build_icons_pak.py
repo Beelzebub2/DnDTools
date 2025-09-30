@@ -230,6 +230,24 @@ def build_zip(entries: Iterable[IconEntry], output_path: Path, quality: int) -> 
     return manifest
 
 
+def read_existing_manifest(pak_path: Path) -> Dict[str, object] | None:
+    """Load the manifest.json from an existing icons.pak archive."""
+
+    if not pak_path.exists():
+        return None
+
+    try:
+        with zipfile.ZipFile(pak_path, mode="r") as archive:
+            with archive.open("manifest.json") as manifest_file:
+                return json.load(manifest_file)
+    except KeyError:
+        logger.error("manifest.json not found inside %s", pak_path)
+        return None
+    except Exception as exc:
+        logger.error("Failed to read manifest from %s: %s", pak_path, exc)
+        return None
+
+
 def files_identical(path_a: Path, path_b: Path) -> bool:
     if not path_a.exists() or not path_b.exists():
         return False
@@ -290,13 +308,17 @@ def main(argv: Iterable[str] | None = None) -> int:
 
             if args.check:
                 logger.info("Verifying existing icon pack at %s", output_path)
-                if not output_path.exists():
-                    logger.error("icons.pak is missing at %s", output_path)
+                existing_manifest = read_existing_manifest(output_path)
+                if existing_manifest is None:
+                    logger.error("icons.pak is missing or invalid at %s", output_path)
                     return 1
-                if files_identical(temp_output, output_path):
-                    logger.info("icons.pak is up-to-date")
+
+                existing_icons = existing_manifest.get("icons")
+                if existing_icons == manifest:
+                    logger.info("icons.pak manifest matches existing archive; no update required")
                     return 0
-                logger.error("icons.pak is out-of-date. Run this script locally and commit the result.")
+
+                logger.error("icons.pak manifest differs from the newly generated pack. Run this script locally and commit the updated icons.pak.")
                 return 1
 
             os.replace(temp_output, output_path)
