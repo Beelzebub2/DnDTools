@@ -302,7 +302,7 @@ def main(argv: Iterable[str] | None = None) -> int:
 
         ensure_parent(output_path)
 
-        with tempfile.TemporaryDirectory() as tmpdir:
+        with tempfile.TemporaryDirectory(dir=output_path.parent) as tmpdir:
             temp_output = Path(tmpdir) / "icons.pak"
             manifest = build_zip(entries.values(), temp_output, args.quality)
 
