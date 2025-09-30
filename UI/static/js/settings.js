@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const resolutionSelect = document.getElementById('resolution');
     const wiresharkPathInput = document.getElementById('wiresharkPath');
     const browseWiresharkButton = document.getElementById('browseWiresharkPath');
+    const detectWiresharkButton = document.getElementById('detectWiresharkPath');
     const detectedResolutionSpan = document.querySelector('#detectedResolution');
     const refreshResolutionBtn = document.getElementById('refreshResolution');
     const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');    // Load data sequentially to ensure interfaces are loaded before settings
@@ -113,6 +114,38 @@ document.addEventListener('DOMContentLoaded', async () => {
         } finally {
             browseWiresharkButton.disabled = false;
             browseWiresharkButton.classList.remove('loading');
+        }
+    }
+
+    async function autoDetectWireshark() {
+        if (!detectWiresharkButton || !wiresharkPathInput) {
+            return;
+        }
+
+        if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.detect_wireshark_path) {
+            showNotification('Auto-detect requires the desktop app. Enter the path manually.', 'warning');
+            return;
+        }
+
+        detectWiresharkButton.disabled = true;
+        detectWiresharkButton.classList.add('loading');
+
+        try {
+            const result = await window.pywebview.api.detect_wireshark_path();
+            if (result && result.success && result.path) {
+                wiresharkPathInput.value = result.path;
+                showNotification('Wireshark installation detected.', 'success');
+            } else if (result && result.error) {
+                showNotification(result.error, 'error');
+            } else {
+                showNotification('Unable to locate Wireshark automatically.', 'warning');
+            }
+        } catch (error) {
+            console.error('Auto-detect error:', error);
+            showNotification('Wireshark auto-detect failed.', 'error');
+        } finally {
+            detectWiresharkButton.disabled = false;
+            detectWiresharkButton.classList.remove('loading');
         }
     }
 
@@ -527,6 +560,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     resetButton.addEventListener('click', resetSettings);
     refreshResolutionBtn?.addEventListener('click', loadDetectedResolution);
     browseWiresharkButton?.addEventListener('click', pickWiresharkPath);
+    detectWiresharkButton?.addEventListener('click', autoDetectWireshark);
 
     // Setup hotkey recording
     setupHotkeyRecording(sortHotkeyInput);

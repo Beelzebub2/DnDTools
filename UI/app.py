@@ -501,6 +501,39 @@ class Api:
             logger.error(f"Wireshark path dialog failed: {exc}")
             return {"success": False, "error": str(exc)}
 
+    def detect_wireshark_path(self):
+        candidates = [
+            r"C:\Program Files\Wireshark",
+            r"C:\Program Files (x86)\Wireshark",
+            r"D:\Program Files\Wireshark",
+            r"D:\Program Files (x86)\Wireshark",
+            r"E:\Program Files\Wireshark",
+            r"E:\Program Files (x86)\Wireshark",
+        ]
+
+        env_path = os.environ.get('WIRESHARK_PATH') or os.environ.get('WINDIR', '')
+        if env_path:
+            env_candidate = os.path.join(env_path, 'Wireshark')
+            candidates.append(env_candidate)
+
+        detected = None
+        for path in candidates:
+            expanded = os.path.expandvars(os.path.expanduser(path))
+            tshark_path = resolve_tshark_executable(expanded)
+            if tshark_path:
+                detected = os.path.dirname(tshark_path)
+                break
+
+        if not detected:
+            on_path = shutil.which('tshark') or shutil.which('wireshark')
+            if on_path:
+                detected = os.path.dirname(on_path)
+
+        if detected:
+            return {"success": True, "path": detected}
+
+        return {"success": False, "error": "Wireshark installation not found in common locations."}
+
     @property
     def packet_capture(self):
         return self.capture_controller.packet_capture
@@ -1491,7 +1524,7 @@ def main():
         'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path'
+        'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))
