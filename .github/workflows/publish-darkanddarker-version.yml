@@ -2,7 +2,7 @@ name: Publish DarkAndDarker version
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "0 */6 * * *"
   workflow_dispatch:
 
 jobs:
@@ -20,7 +20,9 @@ jobs:
         env:
           APP_ID: 2016590
         run: |
-          $out = & "C:\Program Files (x86)\SteamCMD\steamcmd.exe" +app_info_print $env:APP_ID +quit 2>&1
+          $steamcmd = (Get-Command steamcmd.exe -ErrorAction Stop).Source
+          Write-Host "Using SteamCMD at $steamcmd"
+          $out = & $steamcmd +app_info_print $env:APP_ID +quit 2>&1
           $m = [regex]::Match($out, '"buildid"\s+"(\d+)"')
           if (-not $m.Success) { throw "buildid not found in app_info_print output" }
           "BUILDID=$($m.Groups[1].Value)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
