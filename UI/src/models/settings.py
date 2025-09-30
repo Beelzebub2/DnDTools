@@ -91,8 +91,8 @@ class SettingsManager:
     def _build_defaults(self) -> Dict[str, Any]:
         return {
             "interface": os.getenv("CAPTURE_INTERFACE", "Ethernet"),
-            "sortHotkey": "ctrl+alt+s",
-            "cancelHotkey": "ctrl+alt+x",
+            "sortHotkey": "ctrl+f11",
+            "cancelHotkey": "ctrl+f12",
             "sortSpeed": 0.2,
             "resolution": "Auto",
             "stashSortOrder": list(Item.SORTABLE_FIELDS),
@@ -120,8 +120,8 @@ class SettingsManager:
         value = self.get("sortSpeed", self._defaults["sortSpeed"])
         try:
             speed = float(value)
-            if speed <= 0:
-                raise ValueError("sortSpeed must be positive")
+            if speed < 0:
+                raise ValueError("sortSpeed must be non-negative")
             return speed
         except (TypeError, ValueError):
             return float(self._defaults["sortSpeed"])
@@ -169,9 +169,12 @@ class SettingsManager:
         sort_speed = normalized.get("sortSpeed", self._defaults["sortSpeed"])
         try:
             sort_speed_value = float(sort_speed)
-            if sort_speed_value <= 0:
+            if sort_speed_value < 0:
                 raise ValueError
-            normalized["sortSpeed"] = sort_speed_value
+            if sort_speed_value == 0:
+                normalized["sortSpeed"] = 0.0
+            else:
+                normalized["sortSpeed"] = min(sort_speed_value, 1.0)
         except (TypeError, ValueError):
             normalized["sortSpeed"] = self._defaults["sortSpeed"]
 

@@ -118,6 +118,7 @@
             height: 100%;
             -webkit-app-region: drag;
             app-region: drag;
+            /* stylelint-disable-line property-no-unknown */
         }
 
         /* Add the pywebview drag region class directly */
@@ -125,6 +126,7 @@
         .pywebview-drag-region {
             -webkit-app-region: drag;
             app-region: drag;
+            /* stylelint-disable-line property-no-unknown */
         }
 
         .titlebar-logo {
@@ -700,50 +702,170 @@
         });
 
         // Create modal for unsaved changes prompt
-        window.createUnsavedChangesModal = function (onSave, onDiscard, onCancel) {
-            // Remove any existing modal
-            const existingModal = document.querySelector('.modal');
-            if (existingModal) {
-                document.body.removeChild(existingModal);
+        window.createUnsavedChangesModal = function (configOrOnSave, onDiscard, onCancel) {
+            const defaults = {
+                title: 'Unsaved changes',
+                message: 'You have unsaved changes. Save before leaving?',
+                saveLabel: 'Exit and Save',
+                discardLabel: 'Exit Anyway',
+                cancelLabel: 'Stay Here',
+                onSave: null,
+                onDiscard: null,
+                onCancel: null
+            };
+
+            const config = (typeof configOrOnSave === 'object' && configOrOnSave !== null && !Array.isArray(configOrOnSave))
+                ? { ...defaults, ...configOrOnSave }
+                : { ...defaults, onSave: configOrOnSave, onDiscard, onCancel };
+
+            const existingModal = document.querySelector('.modal.unsaved-modal');
+            if (existingModal && existingModal.parentNode) {
+                existingModal.parentNode.removeChild(existingModal);
             }
 
-            // Create custom modal for better UX
             const modal = document.createElement('div');
-            modal.className = 'modal';
+            modal.className = 'modal unsaved-modal';
             modal.innerHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2>Unsaved Changes</h2>
+                <div class="modal-content unsaved-modal-card" role="dialog" aria-modal="true" aria-labelledby="unsaved-modal-title">
+                    <div class="unsaved-modal-header">
+                        <div class="unsaved-modal-header-icon">
+                            <span class="material-icons" aria-hidden="true">warning_amber</span>
+                        </div>
+                        <div class="unsaved-modal-header-text">
+                            <h2 id="unsaved-modal-title"></h2>
+                            <p class="unsaved-modal-message"></p>
+                        </div>
+                        <button type="button" class="unsaved-modal-close" aria-label="Cancel">&times;</button>
                     </div>
-                    <div class="modal-body">
-                        <p>You have unsaved changes. What would you like to do?</p>
+                    <div class="unsaved-modal-body">
+                        <p class="unsaved-modal-body-text">Choose how you want to leave this page:</p>
+                        <ul class="unsaved-modal-list">
+                            <li><span class="material-icons" aria-hidden="true">task_alt</span><span>Exit and save keeps your latest changes.</span></li>
+                            <li><span class="material-icons" aria-hidden="true">logout</span><span>Exit anyway discards anything unsaved.</span></li>
+                        </ul>
                     </div>
-                    <div class="modal-footer">
-                        <button id="modal-discard" class="btn-secondary">Discard Changes</button>
-                        <button id="modal-save" class="btn-primary">Save Changes</button>
-                        <button id="modal-cancel" class="btn">Cancel</button>
+                    <div class="unsaved-modal-actions">
+                        <button type="button" class="modal-btn modal-btn-cancel" data-action="cancel"></button>
+                        <button type="button" class="modal-btn modal-btn-discard" data-action="discard"></button>
+                        <button type="button" class="modal-btn modal-btn-save" data-action="save"></button>
                     </div>
                 </div>
             `;
 
             document.body.appendChild(modal);
 
-            // Add event listeners to modal buttons
-            document.getElementById('modal-discard').addEventListener('click', () => {
-                document.body.removeChild(modal);
-                if (onDiscard) onDiscard();
+            const card = modal.querySelector('.unsaved-modal-card');
+            const messageEl = modal.querySelector('.unsaved-modal-message');
+            const cancelButton = modal.querySelector('[data-action="cancel"]');
+            const discardButton = modal.querySelector('[data-action="discard"]');
+            const saveButton = modal.querySelector('[data-action="save"]');
+            const closeButton = modal.querySelector('.unsaved-modal-close');
+
+            card.querySelector('#unsaved-modal-title').textContent = config.title;
+            messageEl.textContent = config.message;
+            cancelButton.textContent = config.cancelLabel;
+            discardButton.textContent = config.discardLabel;
+            saveButton.textContent = config.saveLabel;
+            closeButton.setAttribute('aria-label', config.cancelLabel || 'Cancel');
+
+            const actionButtons = [cancelButton, discardButton, saveButton, closeButton];
+            let isClosing = false;
+
+            const onKeyDown = (event) => {
+                if (event.key === 'Escape' && !modal.classList.contains('unsaved-modal--busy')) {
+                    event.preventDefault();
+                    triggerCancel();
+                }
+            };
+
+            document.addEventListener('keydown', onKeyDown);
+
+            function setBusy(state) {
+                modal.classList.toggle('unsaved-modal--busy', state);
+                actionButtons.forEach(btn => {
+                    if (btn) {
+                        btn.disabled = state;
+                    }
+                });
+                if (state) {
+                    saveButton.dataset.originalLabel = saveButton.textContent;
+                    saveButton.innerHTML = `<span class="modal-btn-spinner" aria-hidden="true"></span>${config.saveLabel}`;
+                } else if (saveButton.dataset.originalLabel) {
+                    saveButton.textContent = saveButton.dataset.originalLabel;
+                    delete saveButton.dataset.originalLabel;
+                }
+            }
+
+            function closeModal() {
+                if (isClosing) {
+                    return;
+                }
+                isClosing = true;
+                document.removeEventListener('keydown', onKeyDown);
+                modal.classList.add('closing');
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
+                }, 220);
+            }
+
+            function triggerCancel() {
+                if (typeof config.onCancel === 'function') {
+                    config.onCancel();
+                }
+                closeModal();
+            }
+
+            cancelButton.addEventListener('click', triggerCancel);
+            closeButton.addEventListener('click', triggerCancel);
+
+            discardButton.addEventListener('click', () => {
+                if (typeof config.onDiscard === 'function') {
+                    config.onDiscard();
+                }
+                closeModal();
             });
 
-            document.getElementById('modal-save').addEventListener('click', async () => {
-                if (onSave) onSave();
+            saveButton.addEventListener('click', async () => {
+                if (modal.classList.contains('unsaved-modal--busy')) {
+                    return;
+                }
+
+                if (typeof config.onSave !== 'function') {
+                    closeModal();
+                    return;
+                }
+
+                setBusy(true);
+                let shouldClose = true;
+                try {
+                    const result = await config.onSave();
+                    if (result === false) {
+                        shouldClose = false;
+                    }
+                } catch (error) {
+                    console.error('Unsaved changes modal save handler failed', error);
+                    shouldClose = false;
+                }
+
+                if (shouldClose) {
+                    closeModal();
+                } else {
+                    setBusy(false);
+                }
             });
 
-            document.getElementById('modal-cancel').addEventListener('click', () => {
-                document.body.removeChild(modal);
-                if (onCancel) onCancel();
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal && !modal.classList.contains('unsaved-modal--busy')) {
+                    triggerCancel();
+                }
             });
 
-            return modal;
+            return {
+                close: closeModal,
+                setBusy
+            };
         };
 
         window.updateClosingStatus = function (message) {
@@ -758,31 +880,43 @@
         };
 
         window.handleWindowClose = function () {
-            try {
-                const overlay = document.getElementById('closing-overlay');
-                if (overlay && !overlay.classList.contains('active')) {
-                    overlay.classList.add('active');
-                }
-                window.updateClosingStatus('Stopping capture...');
-            } catch (err) {
-                console.error('Failed to show closing overlay', err);
-            }
-
-            const triggerClose = () => {
+            const proceedWithClose = () => {
                 try {
-                    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
-                        window.pywebview.api.close_window();
+                    const overlay = document.getElementById('closing-overlay');
+                    if (overlay && !overlay.classList.contains('active')) {
+                        overlay.classList.add('active');
                     }
-                } catch (closeErr) {
-                    console.error('Failed to invoke close_window()', closeErr);
+                    window.updateClosingStatus('Stopping capture...');
+                } catch (err) {
+                    console.error('Failed to show closing overlay', err);
+                }
+
+                const triggerClose = () => {
+                    try {
+                        if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
+                            window.pywebview.api.close_window();
+                        }
+                    } catch (closeErr) {
+                        console.error('Failed to invoke close_window()', closeErr);
+                    }
+                };
+
+                if (window.requestAnimationFrame) {
+                    window.requestAnimationFrame(() => setTimeout(triggerClose, 60));
+                } else {
+                    setTimeout(triggerClose, 60);
                 }
             };
 
-            if (window.requestAnimationFrame) {
-                window.requestAnimationFrame(() => setTimeout(triggerClose, 60));
-            } else {
-                setTimeout(triggerClose, 60);
+            const guard = window.unsavedChangesGuard;
+            const shouldPrompt = guard && typeof guard.shouldPrompt === 'function' && guard.shouldPrompt();
+
+            if (shouldPrompt && typeof guard.requestClose === 'function') {
+                guard.requestClose(proceedWithClose);
+                return;
             }
+
+            proceedWithClose();
         };
     </script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>

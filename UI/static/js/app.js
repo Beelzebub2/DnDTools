@@ -65,6 +65,21 @@ function setLoading(element, isLoading) {
     }
 }
 
+window.navigateWithTransition = function (href) {
+    const content = document.querySelector('.content');
+    if (content) {
+        content.style.opacity = '0';
+        content.style.transform = 'translateY(5px)';
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                window.location.href = href;
+            }, 50);
+        });
+    } else {
+        window.location.href = href;
+    }
+};
+
 // Add active class to current navigation link
 document.addEventListener('DOMContentLoaded', () => {
     const currentPath = window.location.pathname;
@@ -78,15 +93,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const links = document.querySelectorAll('.nav-link');
     links.forEach(link => {
         link.addEventListener('click', (e) => {
+            if (link.classList.contains('disabled')) {
+                e.preventDefault();
+                return;
+            }
+
+            const guard = window.unsavedChangesGuard;
+            const shouldPrompt = guard && typeof guard.shouldPrompt === 'function' && guard.shouldPrompt();
+            if (shouldPrompt && typeof guard.requestNavigation === 'function') {
+                e.preventDefault();
+                guard.requestNavigation(link.href);
+                return;
+            }
+
             e.preventDefault();
-            const content = document.querySelector('.content');
-            content.style.opacity = '0';
-            content.style.transform = 'translateY(5px)';            // Reduced delay to 50ms and only apply if the transition is visible
-            requestAnimationFrame(() => {
-                setTimeout(() => {
-                    window.location.href = link.href;
-                }, 50); // Reduced from 80ms
-            });
+            window.navigateWithTransition(link.href);
         });
     });
 
