@@ -11,9 +11,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch build via Steam Store API
+        id: store
+        continue-on-error: true
+        shell: pwsh
+        env:
+          APP_ID: 2016590
+        run: |
+          $uri = "https://store.steampowered.com/api/appdetails?appids=$($env:APP_ID)&cc=us&l=en&filters=depots"
+          $headers = @{ "User-Agent" = "Mozilla/5.0 (GitHubActions)" }
+          Write-Host "Querying Steam Store API: $uri"
+          $resp = Invoke-RestMethod -Uri $uri -Headers $headers -ErrorAction Stop
+          $app = $resp.$($env:APP_ID)
+          if (-not $app) { throw "App $env:APP_ID not found in response" }
+          if (-not $app.success) { throw "Steam Store returned success=$($app.success)" }
+          $buildId = $app.data.depots.branches.public.buildid
+          if ([string]::IsNullOrWhiteSpace($buildId)) { throw "Build id missing in store response" }
+          Write-Host "Store API build id: $buildId"
+          "BUILDID=$buildId" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Cache SteamCMD
         id: cache-steamcmd
         uses: actions/cache@v4
+        if: steps.store.outcome == 'failure' || steps.store.outputs.BUILDID == ''
         with:
           path: |
             C:\ProgramData\chocolatey\bin\steamcmd.exe
@@ -22,11 +42,12 @@ jobs:
           key: steamcmd-${{ runner.os }}-v1
 
       - name: Install SteamCMD
-        if: steps.cache-steamcmd.outputs.cache-hit != 'true'
+        if: (steps.store.outcome == 'failure' || steps.store.outputs.BUILDID == '') && steps.cache-steamcmd.outputs.cache-hit != 'true'
         run: choco install steamcmd -y
 
       - name: Query app_info (anonymous)
         id: appinfo
+        if: steps.store.outcome == 'failure' || steps.store.outputs.BUILDID == ''
         continue-on-error: true
         shell: pwsh
         env:
@@ -47,7 +68,7 @@ jobs:
 
       - name: Query app_info (authenticated fallback)
         id: appinfo_auth
-        if: steps.appinfo.outcome == 'failure' || steps.appinfo.outputs.BUILDID == ''
+        if: (steps.store.outcome == 'failure' || steps.store.outputs.BUILDID == '') && (steps.appinfo.outcome == 'failure' || steps.appinfo.outputs.BUILDID == '')
         shell: pwsh
         env:
           APP_ID: 2016590
@@ -73,9 +94,9 @@ jobs:
       - name: Write JSON
         shell: pwsh
         run: |
-          $buildId = "${{ steps.appinfo.outputs.BUILDID || steps.appinfo_auth.outputs.BUILDID }}"
+          $buildId = "${{ steps.store.outputs.BUILDID || steps.appinfo.outputs.BUILDID || steps.appinfo_auth.outputs.BUILDID }}"
           if ([string]::IsNullOrWhiteSpace($buildId)) {
-            throw "Unable to determine build id from SteamCMD"
+            throw "Unable to determine build id from Steam Store API or SteamCMD"
           }
           $obj = [ordered]@{
             app_id  = 2016590
