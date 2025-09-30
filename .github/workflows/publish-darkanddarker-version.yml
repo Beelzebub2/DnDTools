@@ -1,0 +1,51 @@
+name: Publish DarkAndDarker version
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+jobs:
+  check-version:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install SteamCMD
+        run: choco install steamcmd -y
+
+      - name: Query app_info (anonymous)
+        id: appinfo
+        shell: pwsh
+        env:
+          APP_ID: 2016590
+        run: |
+          $out = & "C:\Program Files (x86)\SteamCMD\steamcmd.exe" +app_info_print $env:APP_ID +quit 2>&1
+          $m = [regex]::Match($out, '"buildid"\s+"(\d+)"')
+          if (-not $m.Success) { throw "buildid not found in app_info_print output" }
+          "BUILDID=$($m.Groups[1].Value)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Write JSON
+        shell: pwsh
+        run: |
+          $obj = [ordered]@{
+            app_id  = 2016590
+            buildid = "${{ steps.appinfo.outputs.BUILDID }}"
+            checked = (Get-Date).ToUniversalTime().ToString("o")
+          }
+          $json = ($obj | ConvertTo-Json -Depth 5)
+          Set-Content -Path DnDversion.json -Value $json -Encoding UTF8
+
+      - name: Commit JSON
+        shell: pwsh
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add DnDversion.json
+          if (git diff --cached --quiet) {
+            Write-Host "No changes to commit"
+          }
+          else {
+            git commit -m "Update Dark and Darker buildid"
+            git push
+          }
