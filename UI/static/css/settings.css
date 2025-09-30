@@ -260,7 +260,7 @@
     cursor: progress;
 }
 
-.btn-small + .btn-small {
+.btn-small+.btn-small {
     margin-left: 0;
 }
 
