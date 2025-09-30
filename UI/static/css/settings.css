@@ -25,8 +25,6 @@
 .settings-header {
     background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(36, 28, 23, 0.8) 100%);
     border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 2rem;
     margin-bottom: 2rem;
     position: relative;
     overflow: hidden;
@@ -137,7 +135,8 @@
 .form-group-inline {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    align-items: flex-start;
+    gap: 0.35rem;
 }
 
 .form-group label {
@@ -203,36 +202,54 @@
     font-weight: 500;
     cursor: pointer;
     user-select: none;
+    line-height: 1.2;
 }
 
+.form-group .checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.checkbox-label span {
+    display: inline;
+    white-space: nowrap;
+}
+
+
 .checkbox-label input[type="checkbox"] {
+    --checkbox-size: 0.9rem;
+    --checkbox-border: 2px;
     appearance: none;
-    width: 0.9rem;
-    height: 0.9rem;
-    border: 2px solid var(--accent-gold);
-    border-radius: 4px;
+    width: var(--checkbox-size);
+    height: var(--checkbox-size);
+    border: var(--checkbox-border) solid var(--accent-gold);
+    border-radius: 3px;
     background: transparent;
     display: grid;
     place-items: center;
-    transition: background 0.2s ease, border-color 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    flex-shrink: 0;
+    position: relative;
 }
 
 .checkbox-label input[type="checkbox"]::after {
     content: '';
-    width: 0.45rem;
-    height: 0.45rem;
-    transform: scale(0);
-    transition: transform 0.2s ease;
-    background: var(--accent-gold);
-    clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 18%, 80% 0, 43% 62%);
+    position: absolute;
+    inset: 22%;
+    border: solid var(--bg-dark);
+    border-width: 0 0 0.18rem 0.18rem;
+    transform: rotate(-45deg) scale(0);
+    transition: transform 0.18s ease-out;
 }
 
 .checkbox-label input[type="checkbox"]:checked {
-    background: rgba(228, 200, 105, 0.15);
+    background: var(--accent-gold);
+    border-color: var(--accent-gold);
 }
 
 .checkbox-label input[type="checkbox"]:checked::after {
-    transform: scale(1);
+    transform: rotate(-45deg) scale(1);
 }
 
 .checkbox-label input[type="checkbox"]:focus-visible {
@@ -242,6 +259,12 @@
 
 .form-help.warning-text {
     color: var(--warning);
+    margin-top: 0.1rem;
+    margin-left: 0;
+}
+
+.form-group-inline .form-help {
+    margin-top: 0.2rem;
 }
 
 /* Hotkey Input Special Styling */
