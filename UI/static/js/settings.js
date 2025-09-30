@@ -5,6 +5,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cancelHotkeyInput = document.getElementById('cancelHotkey');
     const sortSpeedInput = document.getElementById('sortSpeed');
     const resolutionSelect = document.getElementById('resolution');
+    const wiresharkPathInput = document.getElementById('wiresharkPath');
+    const browseWiresharkButton = document.getElementById('browseWiresharkPath');
     const detectedResolutionSpan = document.querySelector('#detectedResolution');
     const refreshResolutionBtn = document.getElementById('refreshResolution');
     const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');    // Load data sequentially to ensure interfaces are loaded before settings
@@ -58,6 +60,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkeyInput.value = currentSettings.cancelHotkey || 'ctrl+alt+x';
             sortSpeedInput.value = currentSettings.sortSpeed || 0.2;
             resolutionSelect.value = currentSettings.resolution || 'Auto';
+            if (wiresharkPathInput) {
+                const detectedPath = currentSettings.wiresharkPath || '';
+                wiresharkPathInput.value = detectedPath;
+                wiresharkPathInput.dataset.defaultValue = detectedPath;
+            }
         } catch (error) {
             console.error('Failed to load settings:', error);
             showNotification('Failed to load settings', 'error');
@@ -78,7 +85,38 @@ document.addEventListener('DOMContentLoaded', async () => {
                 detectedResolutionSpan.textContent = 'Detection failed';
             }
         }
-    }    // Enhanced hotkey recording functionality
+    }
+
+    async function pickWiresharkPath() {
+        if (!browseWiresharkButton || !wiresharkPathInput) {
+            return;
+        }
+
+        if (!window.pywebview || !window.pywebview.api || !window.pywebview.api.select_wireshark_path) {
+            showNotification('Desktop path picker is unavailable. Enter the path manually.', 'warning');
+            return;
+        }
+
+        browseWiresharkButton.disabled = true;
+        browseWiresharkButton.classList.add('loading');
+
+        try {
+            const result = await window.pywebview.api.select_wireshark_path();
+            if (result && result.success && result.path) {
+                wiresharkPathInput.value = result.path;
+            } else if (result && result.error) {
+                showNotification(result.error, 'error');
+            }
+        } catch (error) {
+            console.error('Wireshark picker error:', error);
+            showNotification('Failed to select Wireshark path', 'error');
+        } finally {
+            browseWiresharkButton.disabled = false;
+            browseWiresharkButton.classList.remove('loading');
+        }
+    }
+
+    // Enhanced hotkey recording functionality
     function setupHotkeyRecording(input) {
         let pressedKeys = new Set();
         let isRecording = false;
@@ -300,7 +338,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortHotkey: sortHotkeyInput.value,
             cancelHotkey: cancelHotkeyInput.value,
             sortSpeed: parseFloat(sortSpeedInput.value),
-            resolution: resolutionSelect.value
+            resolution: resolutionSelect.value,
+            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : ''
         };
 
         // Validate settings before saving
@@ -330,6 +369,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (result.success) {
                 currentSettings = newSettings;
+                if (wiresharkPathInput) {
+                    wiresharkPathInput.dataset.defaultValue = wiresharkPathInput.value;
+                }
                 await showSaveSuccess();
                 showNotification('Settings saved successfully!', 'success');
             } else {
@@ -463,7 +505,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortHotkey: 'ctrl+alt+s',
             cancelHotkey: 'ctrl+alt+x',
             sortSpeed: 0.2,
-            resolution: 'Auto'
+            resolution: 'Auto',
+            wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : ''
         };
 
         // Update form fields
@@ -472,6 +515,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         cancelHotkeyInput.value = defaultSettings.cancelHotkey;
         sortSpeedInput.value = defaultSettings.sortSpeed;
         resolutionSelect.value = defaultSettings.resolution;
+        if (wiresharkPathInput) {
+            wiresharkPathInput.value = defaultSettings.wiresharkPath;
+        }
 
         showNotification('Settings reset to defaults', 'success');
     }
@@ -480,6 +526,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     saveButton.addEventListener('click', saveSettings);
     resetButton.addEventListener('click', resetSettings);
     refreshResolutionBtn?.addEventListener('click', loadDetectedResolution);
+    browseWiresharkButton?.addEventListener('click', pickWiresharkPath);
 
     // Setup hotkey recording
     setupHotkeyRecording(sortHotkeyInput);

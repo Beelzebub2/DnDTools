@@ -33,6 +33,18 @@
                     </select>
                     <div class="form-help">Select the network interface that Dark and Darker uses</div>
                 </div>
+                <div class="form-group">
+                    <label for="wiresharkPath">Wireshark Installation:</label>
+                    <div class="file-picker">
+                        <input type="text" id="wiresharkPath" placeholder="Auto-detected Wireshark folder">
+                        <button id="browseWiresharkPath" type="button" class="btn-small">
+                            <span class="material-icons">folder_open</span>
+                            Browse
+                        </button>
+                    </div>
+                    <div class="form-help">Select the folder where Wireshark is installed (the folder that contains
+                        <code>tshark.exe</code>)</div>
+                </div>
             </div>
         </div>
 

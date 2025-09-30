@@ -2,11 +2,75 @@ import copy
 import json
 import logging
 import os
+import shutil
 import threading
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from src.models.appdirs import get_settings_file, resource_path
 from src.models.item import Item
+
+
+def _expand_path(candidate: Optional[str]) -> Optional[Path]:
+    if not candidate:
+        return None
+    try:
+        expanded = os.path.expandvars(os.path.expanduser(str(candidate))).strip().strip('"')
+        if not expanded:
+            return None
+        return Path(expanded)
+    except Exception:
+        return None
+
+
+def resolve_tshark_executable(selected_path: Optional[str]) -> Optional[str]:
+    expanded = _expand_path(selected_path)
+    if not expanded:
+        return None
+
+    if expanded.is_file():
+        # If the user picked Wireshark.exe, assume tshark resides alongside it
+        if expanded.name.lower() == "wireshark.exe":
+            candidate = expanded.with_name("tshark.exe")
+            return str(candidate) if candidate.is_file() else None
+        # If they selected tshark.exe directly, we're done
+        if expanded.name.lower() == "tshark.exe":
+            return str(expanded)
+        # Otherwise assume the executable resides next to the selected file
+        candidate = expanded.with_name("tshark.exe")
+        return str(candidate) if candidate.is_file() else None
+
+    if expanded.is_dir():
+        candidate = expanded / "tshark.exe"
+        return str(candidate) if candidate.is_file() else None
+
+    return None
+
+
+def detect_wireshark_installation() -> str:
+    # Prefer tshark when it is already on PATH
+    tshark_on_path = shutil.which("tshark")
+    if tshark_on_path and Path(tshark_on_path).is_file():
+        return str(Path(tshark_on_path))
+
+    # Check common installation directories on Windows
+    default_dirs = [
+        r"C:\\Program Files\\Wireshark",
+        r"C:\\Program Files (x86)\\Wireshark",
+    ]
+
+    for directory in default_dirs:
+        resolved = resolve_tshark_executable(directory)
+        if resolved:
+            return resolved
+
+    # Some users may prefer to point to Wireshark.exe directly
+    wireshark_on_path = shutil.which("wireshark")
+    resolved = resolve_tshark_executable(wireshark_on_path)
+    if resolved:
+        return resolved
+
+    return ""
 
 
 class SettingsManager:
@@ -32,6 +96,7 @@ class SettingsManager:
             "sortSpeed": 0.2,
             "resolution": "Auto",
             "stashSortOrder": list(Item.SORTABLE_FIELDS),
+            "wiresharkPath": detect_wireshark_installation(),
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -123,6 +188,16 @@ class SettingsManager:
         normalized["stashSortOrder"] = Item.normalize_sort_order(
             sort_order or self._defaults["stashSortOrder"]
         )
+
+        wireshark_path = normalized.get("wiresharkPath") or ""
+        expanded = _expand_path(wireshark_path)
+        if expanded and expanded.exists():
+            normalized["wiresharkPath"] = str(expanded)
+        elif wireshark_path:
+            # Keep user-entered value even if it does not currently exist
+            normalized["wiresharkPath"] = str(wireshark_path)
+        else:
+            normalized["wiresharkPath"] = ""
 
         return normalized
 
