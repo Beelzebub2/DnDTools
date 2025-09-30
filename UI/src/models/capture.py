@@ -448,7 +448,8 @@ class PacketCapture:
                 self._current_capture = pyshark.LiveCapture(
                     interface=self.interface,
                     display_filter=display_filter,
-                    eventloop=loop
+                    eventloop=loop,
+                    keep_packets=False
                 )
             except Exception as capture_error:
                 self.logger.error(f"Failed to create LiveCapture: {capture_error}")
