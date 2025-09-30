@@ -166,6 +166,7 @@ import importlib
 from concurrent.futures import TimeoutError as FutureTimeout
 
 from .appdirs import get_capture_state_file, is_frozen
+from src.models.settings import settings_manager, resolve_tshark_executable
 from networking.protos import _PacketCommand_pb2
 
 # Determine paths
@@ -220,7 +221,7 @@ if is_frozen():
     subprocess.Popen = hidden_popen
 
 class PacketCapture:
-    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300)):
+    def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), wireshark_path: Optional[str] = None):
         self.interface = interface
         self.port_range = port_range
         self.packet_data = b""
@@ -235,6 +236,8 @@ class PacketCapture:
         self._state_lock = threading.Lock()
         self._stop_event = threading.Event()
         self.STATE_FILE = get_capture_state_file()
+        self.tshark_path = resolve_tshark_executable(wireshark_path) or resolve_tshark_executable(settings_manager.get('wiresharkPath'))
+        self._apply_tshark_environment()
         
         # Restore state - keep track of what the previous state was
         self.saved_state = self._restore_state()
@@ -251,6 +254,32 @@ class PacketCapture:
     def _delayed_start(self):
         """Start capture after a brief delay to ensure full initialization"""
         self.start_capture_switch()
+
+    def _apply_tshark_environment(self):
+        if not self.tshark_path:
+            return
+        try:
+            os.environ['PYSHARK_TSHARK_PATH'] = self.tshark_path
+            bin_dir = os.path.dirname(self.tshark_path)
+            if bin_dir and os.path.isdir(bin_dir):
+                current_path = os.environ.get('PATH', '')
+                segments = current_path.split(os.pathsep) if current_path else []
+                if bin_dir not in segments:
+                    os.environ['PATH'] = os.pathsep.join([bin_dir] + segments) if segments else bin_dir
+        except Exception as exc:
+            self.logger.debug(f"Failed to update environment for tshark: {exc}")
+
+    def set_wireshark_path(self, wireshark_path: Optional[str]) -> bool:
+        resolved = resolve_tshark_executable(wireshark_path)
+        if resolved == self.tshark_path:
+            return False
+        self.tshark_path = resolved
+        if self.tshark_path:
+            self.logger.info(f"Using tshark at: {self.tshark_path}")
+        else:
+            self.logger.warning("Cleared custom tshark path; relying on system PATH")
+        self._apply_tshark_environment()
+        return True
 
     def background_init(self):
         """Initialize capture in background, restoring previous state if needed"""
@@ -448,7 +477,8 @@ class PacketCapture:
                 self._current_capture = pyshark.LiveCapture(
                     interface=self.interface,
                     display_filter=display_filter,
-                    eventloop=loop
+                    eventloop=loop,
+                    tshark_path=self.tshark_path
                 )
 
                 # Prevent pyshark from retaining every packet in memory (older versions don't

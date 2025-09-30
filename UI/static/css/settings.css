@@ -255,6 +255,19 @@
     transform: translateY(-1px);
 }
 
+.btn-small.loading {
+    opacity: 0.7;
+    cursor: progress;
+}
+
+.btn-small+.btn-small {
+    margin-left: 0;
+}
+
+.btn-small .material-icons {
+    font-size: 1rem;
+}
+
 /* Action Buttons */
 .settings-actions {
     display: flex;
@@ -1408,4 +1421,21 @@
         flex: 1;
         justify-content: center;
     }
+}
+
+.form-group .file-picker {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.file-picker input {
+    flex: 1;
+}
+
+.file-picker .btn-small {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    white-space: nowrap;
 }

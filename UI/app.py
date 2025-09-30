@@ -1,5 +1,9 @@
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
-from src.models.settings import settings_manager, SettingsManager
+from src.models.settings import (
+    settings_manager,
+    SettingsManager,
+    resolve_tshark_executable,
+)
 import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file
 import os
@@ -147,13 +151,14 @@ def handle_character(message):
 class CaptureController:
     """Encapsulates PacketCapture lifecycle and user intent state."""
 
-    def __init__(self, initial_settings, capture_info):
+    def __init__(self, initial_settings, capture_info, wireshark_path=None):
         self._lock = threading.RLock()
         self._capture_info = capture_info
         self._settings = {
             "interface": initial_settings.get("interface", "Ethernet"),
             "port_range": initial_settings.get("port_range", (20200, 20300)),
         }
+        self._wireshark_path = wireshark_path
         self._packet_capture = self._create_capture()
         self._desired_running = False
         self._last_error = None
@@ -166,6 +171,7 @@ class CaptureController:
         capture = PacketCapture(
             interface=self._settings["interface"],
             port_range=self._settings["port_range"],
+            wireshark_path=self._wireshark_path,
         )
         capture.capture_info = self._capture_info
         return capture
@@ -248,6 +254,35 @@ class CaptureController:
                 "port_range": self._settings["port_range"],
             }
 
+    def set_wireshark_path(self, wireshark_path):
+        with self._lock:
+            normalized_new = wireshark_path or ""
+            normalized_old = self._wireshark_path or ""
+            if normalized_new == normalized_old:
+                return self._state_dict()
+
+            self._wireshark_path = normalized_new
+            should_resume = self._desired_running or self._packet_capture.is_active()
+            try:
+                self._packet_capture.stop_capture_switch(persist_running_state=False)
+            except Exception as exc:
+                logger.debug(f"Failed stopping capture for tshark path change: {exc}")
+
+            self._packet_capture = self._create_capture()
+
+            if should_resume:
+                try:
+                    self._packet_capture.start_capture_switch()
+                except Exception as exc:
+                    self._last_error = f"Capture restart failed: {exc}"
+                    logger.error(self._last_error)
+                else:
+                    self._last_error = None
+            else:
+                self._last_error = None
+
+            return self._state_dict()
+
     def shutdown(self):
         with self._lock:
             desired = self._desired_running or self._packet_capture.is_active()
@@ -275,6 +310,7 @@ class Api:
 
         self._current_pack_mode = bool(settings.get('stashPackMode', False))
         self._current_stack_mode = bool(settings.get('stashStackMode', False))
+        self._wireshark_path = settings.get('wiresharkPath') or ''
 
         # Capture setup
         interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
@@ -289,9 +325,10 @@ class Api:
             _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
             _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
         }
-        self.capture_controller = CaptureController(self.capture_settings, capture_info)
+        self.capture_controller = CaptureController(self.capture_settings, capture_info, wireshark_path=self._wireshark_path)
         # Normalize settings from controller (ensures tuple types)
         self.capture_settings = self.capture_controller.settings()
+        self._apply_wireshark_path(self._wireshark_path)
         self._initial_restart_done = False
         self.window = None
         self._setup_global_hotkeys()
@@ -350,6 +387,21 @@ class Api:
                             f"showNotification('Failed to switch capture interface: {error_msg}', 'error');"
                         )
 
+            previous_wireshark_path = previous_settings.get('wiresharkPath') if isinstance(previous_settings, dict) else None
+            new_wireshark_path = updated_settings.get('wiresharkPath')
+            if (new_wireshark_path or '') != (previous_wireshark_path or ''):
+                resolved = self._apply_wireshark_path(new_wireshark_path, update_capture=True, propagate_state=True)
+                if self.window:
+                    if resolved:
+                        safe_path = resolved.replace('\\', '\\\\').replace('"', '\"')
+                        self.window.evaluate_js(
+                            f"showNotification('Wireshark path updated: {safe_path}', 'info');"
+                        )
+                    else:
+                        self.window.evaluate_js(
+                            "showNotification('Wireshark path cleared. Using system PATH settings.', 'warning');"
+                        )
+
             logger.info("Settings saved successfully")
             return True
             
@@ -378,6 +430,110 @@ class Api:
         logger.info(f"Registering cancel hotkey: {cancel_hotkey}")
         keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
         
+    def _apply_wireshark_path(self, wireshark_path, update_capture=False, propagate_state=False):
+        resolved = resolve_tshark_executable(wireshark_path)
+        if resolved:
+            try:
+                os.environ['PYSHARK_TSHARK_PATH'] = resolved
+                bin_dir = os.path.dirname(resolved)
+                if bin_dir and os.path.isdir(bin_dir):
+                    current_path = os.environ.get('PATH', '')
+                    segments = current_path.split(os.pathsep) if current_path else []
+                    if bin_dir not in segments:
+                        os.environ['PATH'] = os.pathsep.join([bin_dir] + segments) if segments else bin_dir
+            except Exception as exc:
+                logger.debug(f"Failed to update PATH for tshark: {exc}")
+        else:
+            os.environ.pop('PYSHARK_TSHARK_PATH', None)
+
+        state = None
+        if update_capture and hasattr(self, 'capture_controller') and self.capture_controller:
+            state = self.capture_controller.set_wireshark_path(wireshark_path)
+            if state:
+                try:
+                    self.capture_settings = {
+                        'interface': state['interface'],
+                        'port_range': (state['portRange']['low'], state['portRange']['high'])
+                    }
+                except Exception:
+                    pass
+                if self.window and propagate_state:
+                    try:
+                        payload = json.dumps(state)
+                        self.window.evaluate_js(
+                            f"window.applyCaptureState && window.applyCaptureState({payload}, {{ suppressErrorToast: true }});"
+                        )
+                    except Exception as exc:
+                        logger.debug(f"Unable to propagate capture state to UI: {exc}")
+
+        self._wireshark_path = wireshark_path or ''
+        return resolved
+
+    def select_wireshark_path(self):
+        if not self.window:
+            return {"success": False, "error": "Window not initialized"}
+
+        current_setting = self.settings_manager.get('wiresharkPath') or ''
+        initial_dir = None
+        expanded = os.path.expandvars(os.path.expanduser(current_setting)).strip().strip('"') if current_setting else ''
+        if expanded:
+            if os.path.isdir(expanded):
+                initial_dir = expanded
+            elif os.path.isfile(expanded):
+                initial_dir = os.path.dirname(expanded)
+
+        if not initial_dir:
+            default_candidate = os.path.expandvars(r'%ProgramFiles%\Wireshark')
+            if os.path.isdir(default_candidate):
+                initial_dir = default_candidate
+
+        try:
+            selection = self.window.create_file_dialog(
+                getattr(webview, "FileDialog", webview).FOLDER if hasattr(webview, "FileDialog") else webview.FOLDER_DIALOG,
+                directory=initial_dir,
+                allow_multiple=False
+            )
+            if selection and len(selection) > 0:
+                chosen = selection[0]
+                return {"success": True, "path": chosen}
+            return {"success": False}
+        except Exception as exc:
+            logger.error(f"Wireshark path dialog failed: {exc}")
+            return {"success": False, "error": str(exc)}
+
+    def detect_wireshark_path(self):
+        candidates = [
+            r"C:\Program Files\Wireshark",
+            r"C:\Program Files (x86)\Wireshark",
+            r"D:\Program Files\Wireshark",
+            r"D:\Program Files (x86)\Wireshark",
+            r"E:\Program Files\Wireshark",
+            r"E:\Program Files (x86)\Wireshark",
+        ]
+
+        env_path = os.environ.get('WIRESHARK_PATH') or os.environ.get('WINDIR', '')
+        if env_path:
+            env_candidate = os.path.join(env_path, 'Wireshark')
+            candidates.append(env_candidate)
+
+        detected = None
+        for path in candidates:
+            expanded = os.path.expandvars(os.path.expanduser(path))
+            tshark_path = resolve_tshark_executable(expanded)
+            if tshark_path:
+                detected = os.path.dirname(tshark_path)
+                break
+
+        if not detected:
+            on_path = shutil.which('tshark') or shutil.which('wireshark')
+            if on_path:
+                detected = os.path.dirname(on_path)
+
+        if detected:
+            return {"success": True, "path": detected}
+
+        return {"success": False, "error": "Wireshark installation not found in common locations."}
+
     @property
     def packet_capture(self):
         return self.capture_controller.packet_capture
@@ -1236,6 +1392,10 @@ def check_tshark():
     # Check if tshark is in PATH
     tshark_path = shutil.which("tshark")
     if not tshark_path:
+        custom_path = resolve_tshark_executable(settings_manager.get('wiresharkPath'))
+        if custom_path:
+            tshark_path = custom_path
+    if not tshark_path:
         logger.error("❌ tshark is NOT in the system PATH.")
         return False
     logger.info(f"✅ tshark is found at: {tshark_path}")
@@ -1364,7 +1524,7 @@ def main():
         'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'set_sort_order', 'begin_drag'
+        'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))
