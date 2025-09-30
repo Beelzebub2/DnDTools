@@ -24,7 +24,7 @@ if exist "%ASSET_STAGING%" rmdir /s /q "%ASSET_STAGING%"
 robocopy "UI\assets" "%ASSET_STAGING%" /E /XD icons >nul
 if %ERRORLEVEL% GEQ 8 goto :error
 
-REM Run Nuitka to compile the application into a single-file executable
+REM Run pyinstaller to compile the application into a single-file executable
 pyinstaller ^
   --onefile ^
   --noconsole ^
