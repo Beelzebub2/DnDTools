@@ -27,6 +27,7 @@ jobs:
 
       - name: Query app_info (anonymous)
         id: appinfo
+        continue-on-error: true
         shell: pwsh
         env:
           APP_ID: 2016590
@@ -44,12 +45,41 @@ jobs:
           if (-not $m.Success) { throw "buildid not found in app_info_print output" }
           "BUILDID=$($m.Groups[1].Value)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
+      - name: Query app_info (authenticated fallback)
+        id: appinfo_auth
+        if: steps.appinfo.outcome == 'failure' || steps.appinfo.outputs.BUILDID == ''
+        shell: pwsh
+        env:
+          APP_ID: 2016590
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_PASSWORD: ${{ secrets.STEAM_PASSWORD }}
+        run: |
+          if (-not $env:STEAM_USERNAME -or -not $env:STEAM_PASSWORD) {
+            throw "STEAM_USERNAME or STEAM_PASSWORD secrets are not set"
+          }
+          $steamcmd = (Get-Command steamcmd.exe -ErrorAction Stop).Source
+          Write-Host "Using SteamCMD at $steamcmd"
+          $args = @(
+            "+login", $env:STEAM_USERNAME, $env:STEAM_PASSWORD,
+            "+app_info_update", "1",
+            "+app_info_print", $env:APP_ID,
+            "+quit"
+          )
+          $out = & $steamcmd $args 2>&1
+          $m = [regex]::Match($out, '"buildid"\s+"(\d+)"')
+          if (-not $m.Success) { throw "buildid not found in authenticated app_info_print output" }
+          "BUILDID=$($m.Groups[1].Value)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
       - name: Write JSON
         shell: pwsh
         run: |
+          $buildId = "${{ steps.appinfo.outputs.BUILDID || steps.appinfo_auth.outputs.BUILDID }}"
+          if ([string]::IsNullOrWhiteSpace($buildId)) {
+            throw "Unable to determine build id from SteamCMD"
+          }
           $obj = [ordered]@{
             app_id  = 2016590
-            buildid = "${{ steps.appinfo.outputs.BUILDID }}"
+            buildid = $buildId
             checked = (Get-Date).ToUniversalTime().ToString("o")
           }
           $json = ($obj | ConvertTo-Json -Depth 5)
