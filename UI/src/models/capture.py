@@ -450,6 +450,15 @@ class PacketCapture:
                     display_filter=display_filter,
                     eventloop=loop
                 )
+
+                # Prevent pyshark from retaining every packet in memory (older versions don't
+                # accept the keep_packets kwarg during construction, so configure it afterwards).
+                if hasattr(self._current_capture, "keep_packets"):
+                    try:
+                        self._current_capture.keep_packets = False
+                        self.logger.debug("LiveCapture configured with keep_packets=False")
+                    except Exception as keep_err:
+                        self.logger.debug(f"Unable to set keep_packets flag: {keep_err}")
             except Exception as capture_error:
                 self.logger.error(f"Failed to create LiveCapture: {capture_error}")
                 if "tshark" in str(capture_error).lower():

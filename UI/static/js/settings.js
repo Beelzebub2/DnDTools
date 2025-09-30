@@ -353,9 +353,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         saveButton.setAttribute('data-original-content', originalContent);
 
         saveButton.innerHTML = `
-            <div class="save-loading">
-                <div class="loading-spinner"></div>
-                <span>Saving...</span>
+            <div class="save-loading" role="status" aria-live="polite">
+                <svg class="loading-spinner" viewBox="0 0 50 50">
+                    <circle class="loading-path" cx="25" cy="25" r="20" fill="none" stroke-width="6"></circle>
+                </svg>
+                <span class="save-loading-text">Saving</span>
+                <span class="saving-dots" aria-hidden="true">...</span>
             </div>
         `;
 

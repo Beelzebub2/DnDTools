@@ -9,3 +9,4 @@ pygetwindow
 pyshark
 pywin32
 requests
+Pillow

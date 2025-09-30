@@ -18,6 +18,8 @@ import subprocess
 import requests
 from networking.protos import _PacketCommand_pb2
 
+from src.models.icon_pak import icon_store, canonical_icon_path
+
 from src.models.character import save_packet_data
 from src.models.item import Item
 
@@ -1120,6 +1122,20 @@ def api_set_stack_mode_route():
 
 @server.route('/assets/<path:filename>')
 def serve_file(filename):
+    canonical = canonical_icon_path(filename)
+    if canonical and canonical.startswith('icons/'):
+        stream = icon_store.stream(canonical)
+        if stream:
+            response = send_file(
+                stream,
+                mimetype='image/webp',
+                download_name=canonical.split('/')[-1],
+                conditional=True
+            )
+            response.cache_control.public = True
+            response.cache_control.max_age = 60 * 60 * 24 * 30  # 30 days
+            return response
+
     assets_dir = get_resource_dir()
     return send_from_directory(assets_dir, filename)
 
