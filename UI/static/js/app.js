@@ -50,6 +50,41 @@ function formatNumber(num) {
     return new Intl.NumberFormat().format(num);
 }
 
+const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const UPDATE_LAST_CHECK_KEY = 'dndtools:update:lastCheck';
+const UPDATE_RESULT_KEY = 'dndtools:update:lastResult';
+const UPDATE_DISMISSED_VERSION_KEY = 'dndtools:update:dismissedVersion';
+const UPDATE_SESSION_CHECKED_KEY = 'dndtools:update:sessionChecked';
+
+function safeStorageGet(storage, key) {
+    try {
+        return storage.getItem(key);
+    } catch (err) {
+        console.warn('Storage get failed', err);
+        return null;
+    }
+}
+
+function safeStorageSet(storage, key, value) {
+    try {
+        storage.setItem(key, value);
+    } catch (err) {
+        console.warn('Storage set failed', err);
+    }
+}
+
+function safeStorageRemove(storage, key) {
+    try {
+        storage.removeItem(key);
+    } catch (err) {
+        console.warn('Storage remove failed', err);
+    }
+}
+
+function normalizeVersionTag(value = '') {
+    return (value || '').toString().replace(/^v/i, '').trim();
+}
+
 // Loading state helper
 function setLoading(element, isLoading) {
     if (isLoading) {
@@ -122,44 +157,112 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Version check and update notification
-async function checkForUpdates() {
+function maybeShowCachedUpdate() {
+    const cached = safeStorageGet(window.localStorage, UPDATE_RESULT_KEY);
+    if (!cached) {
+        return;
+    }
+
+    try {
+        const data = JSON.parse(cached);
+        maybeShowUpdatePopup(data, { fromCache: true });
+    } catch (error) {
+        console.warn('Failed to parse cached update info', error);
+        safeStorageRemove(window.localStorage, UPDATE_RESULT_KEY);
+    }
+}
+
+function maybeShowUpdatePopup(data, { fromCache = false } = {}) {
+    if (!data || !data.updateAvailable) {
+        if (!fromCache) {
+            safeStorageRemove(window.localStorage, UPDATE_RESULT_KEY);
+            safeStorageRemove(window.localStorage, UPDATE_DISMISSED_VERSION_KEY);
+        }
+        return;
+    }
+
+    const remoteVersionRaw = data.latestVersion || '';
+    const localVersionRaw = data.currentVersion || '';
+    const remoteVersionNormalized = normalizeVersionTag(remoteVersionRaw);
+    if (!remoteVersionNormalized) {
+        return;
+    }
+
+    const dismissedVersion = safeStorageGet(window.localStorage, UPDATE_DISMISSED_VERSION_KEY);
+    if (dismissedVersion && dismissedVersion === remoteVersionNormalized) {
+        return;
+    }
+
+    if (document.getElementById('update-popup')) {
+        return;
+    }
+
+    const releaseUrl = data.downloadUrl || 'https://github.com/Beelzebub2/DnDTools/releases/latest';
+    const notes = data.notes || '';
+
+    showUpdatePopup(
+        normalizeVersionTag(remoteVersionRaw) || remoteVersionRaw,
+        normalizeVersionTag(localVersionRaw) || localVersionRaw,
+        releaseUrl,
+        notes,
+        remoteVersionNormalized
+    );
+}
+
+async function checkForUpdates(force = false) {
+    const now = Date.now();
+    const sessionChecked = safeStorageGet(window.sessionStorage, UPDATE_SESSION_CHECKED_KEY) === '1';
+    const lastCheck = Number(safeStorageGet(window.localStorage, UPDATE_LAST_CHECK_KEY) || '0');
+
+    if (!force && sessionChecked) {
+        maybeShowCachedUpdate();
+        return;
+    }
+
+    if (!force && lastCheck && now - lastCheck < UPDATE_CHECK_INTERVAL_MS) {
+        safeStorageSet(window.sessionStorage, UPDATE_SESSION_CHECKED_KEY, '1');
+        maybeShowCachedUpdate();
+        return;
+    }
+
+    let responseOk = false;
+    let data = null;
+
     try {
         const response = await fetch('/api/update/check', { cache: 'no-store' });
-        let data = null;
+
         try {
             data = await response.json();
         } catch (parseError) {
             console.warn('Update check response was not valid JSON', parseError);
         }
 
-        if (!response.ok || !data) {
-            if (data && data.error) {
-                console.warn('Update check failed:', data.error);
-            }
-            return;
+        responseOk = !!data && response.ok;
+
+        if (!responseOk && data && data.error) {
+            console.warn('Update check failed:', data.error);
         }
 
-        if (!data.updateAvailable) {
-            return;
-        }
-
-        const remoteVersion = (data.latestVersion || '').replace(/^v/, '').trim();
-        const localVersion = (data.currentVersion || '').replace(/^v/, '').trim();
-        const releaseUrl = data.downloadUrl || 'https://github.com/Beelzebub2/DnDTools/releases/latest';
-        const notes = data.notes || '';
-
-        if (remoteVersion) {
-            showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes);
+        if (responseOk) {
+            safeStorageSet(window.localStorage, UPDATE_RESULT_KEY, JSON.stringify(data));
+            maybeShowUpdatePopup(data);
         }
     } catch (error) {
         console.warn('Automatic update check failed', error);
+    } finally {
+        safeStorageSet(window.sessionStorage, UPDATE_SESSION_CHECKED_KEY, '1');
+        safeStorageSet(window.localStorage, UPDATE_LAST_CHECK_KEY, String(now));
+
+        if (!responseOk) {
+            maybeShowCachedUpdate();
+        }
     }
 }
 
 // Version comparison now handled by utils.js
 // Remove duplicate function that's now in utils.js
 
-function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '') {
+function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '', trackingVersion = null) {
     // Remove any existing popup
     const existing = document.getElementById('update-popup');
     if (existing) existing.remove();
@@ -301,16 +404,26 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '') {
 
     const closeBtn = popup.querySelector('.update-popup-close');
     if (closeBtn) {
-        closeBtn.addEventListener('click', () => popup.remove());
+        closeBtn.addEventListener('click', () => {
+            popup.remove();
+            if (trackingVersion) {
+                safeStorageSet(window.localStorage, UPDATE_DISMISSED_VERSION_KEY, trackingVersion);
+            }
+        });
     }
 
     const autoUpdateBtn = popup.querySelector('#trigger-auto-update');
     if (autoUpdateBtn) {
-        autoUpdateBtn.addEventListener('click', () => startAutomaticUpdate(autoUpdateBtn, releaseUrl));
+        autoUpdateBtn.addEventListener('click', () => startAutomaticUpdate(autoUpdateBtn, releaseUrl, trackingVersion));
+    }
+
+    const manualBtn = popup.querySelector('a.update-popup-btn');
+    if (manualBtn && trackingVersion) {
+        manualBtn.addEventListener('click', () => safeStorageSet(window.localStorage, UPDATE_DISMISSED_VERSION_KEY, trackingVersion), { once: true });
     }
 }
 
-async function startAutomaticUpdate(button, fallbackUrl) {
+async function startAutomaticUpdate(button, fallbackUrl, trackingVersion = null) {
     if (!button) {
         return;
     }
@@ -341,6 +454,9 @@ async function startAutomaticUpdate(button, fallbackUrl) {
             const popup = document.getElementById('update-popup');
             if (popup) {
                 popup.remove();
+            }
+            if (trackingVersion) {
+                safeStorageSet(window.localStorage, UPDATE_DISMISSED_VERSION_KEY, trackingVersion);
             }
         }, 1000);
     } catch (error) {

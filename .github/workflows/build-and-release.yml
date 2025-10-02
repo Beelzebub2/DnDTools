@@ -41,17 +41,7 @@ jobs:
           pip install -r UI/requirements.txt
           pip install pyinstaller
 
-      - name: Cache Inno Setup
-        id: cache-innosetup
-        uses: actions/cache@v3
-        with:
-          path: |
-            C:\ProgramData\chocolatey\lib\innosetup
-            C:\ProgramData\chocolatey\bin
-          key: ${{ runner.os }}-innosetup-${{ hashFiles('installer/DnDTools.iss') }}
-
       - name: Install Inno Setup
-        if: steps.cache-innosetup.outputs.cache-hit != 'true'
         shell: powershell
         run: |
           choco install innosetup --no-progress -y
