@@ -47,9 +47,10 @@ VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 APP_VERSION = "3.4.6"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
-    "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
+    "https://github.com/Beelzebub2/DnDTools/releases/download/v3.4.6/update-manifest.json",
 )
 UPDATE_CACHE_DURATION = 5 * 60
+AUTO_UPDATE_SILENT = os.environ.get("DND_UPDATE_SILENT", "1").lower() not in {"0", "false", "no", "off"}
 
 # Update state tracking
 _update_cache = None
@@ -218,17 +219,46 @@ def _download_installer(manifest: dict) -> Path:
 
 
 def _run_installer(installer_path: Path) -> None:
-    logger.info(f"Launching installer for update: {installer_path}")
-    args = [
-        str(installer_path),
-        "/VERYSILENT",
-        "/SUPPRESSMSGBOXES",
-        "/NORESTART",
-        "/SP-",
-        "/CLOSEAPPLICATIONS",
-        "/RESTARTAPPLICATIONS",
-    ]
-    subprocess.Popen(args, close_fds=False)
+    launch_mode = "silent" if AUTO_UPDATE_SILENT else "interactive"
+    logger.info(
+        "Launching installer for update: %s (mode=%s)",
+        installer_path,
+        launch_mode,
+    )
+    args = [str(installer_path)]
+    if AUTO_UPDATE_SILENT:
+        args.extend(
+            [
+                "/VERYSILENT",
+                "/SUPPRESSMSGBOXES",
+                "/NORESTART",
+                "/SP-",
+                "/CLOSEAPPLICATIONS",
+                "/RESTARTAPPLICATIONS",
+            ]
+        )
+    else:
+        args.extend(
+            [
+                "/SILENT",
+                "/SUPPRESSMSGBOXES",
+                "/NORESTART",
+                "/SP-",
+            ]
+        )
+
+    popen_kwargs = {
+        "close_fds": False,
+        "cwd": str(installer_path.parent),
+    }
+    if os.name == "nt":
+        creation_flags = 0
+        for flag_name in ("DETACHED_PROCESS", "CREATE_NEW_PROCESS_GROUP"):
+            creation_flags |= getattr(subprocess, flag_name, 0)
+        popen_kwargs["creationflags"] = creation_flags
+
+    proc = subprocess.Popen(args, **popen_kwargs)
+    logger.info("Installer process started (pid=%s)", proc.pid)
 
 
 def _perform_update(manifest: dict) -> None:
@@ -253,7 +283,7 @@ def _perform_update(manifest: dict) -> None:
             try:
                 installer_path.unlink()
             except OSError:
-                logger.warning(f"Unable to clean up installer at {installer_path}")
+                logger.debug("Installer still in use, leaving behind temporary file %s", installer_path)
 
     if should_exit:
         logger.info("Update installer launched. Exiting application in 3 seconds.")
