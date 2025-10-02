@@ -4,10 +4,12 @@ import time
 import heapq
 import keyboard
 import os
+from typing import Optional, Union
 
 import pygetwindow as gw
 
 from src.models import macros
+from src.models.game_overlay import NullOverlaySession, SortOverlaySession
 from src.models.item import Item
 from src.models.point import Point
 from src.models.stash_preview import parse_stashes
@@ -33,6 +35,7 @@ class StashSorter:
         self.pack_mode = bool(pack_mode)
         self.stack_mode = bool(stack_mode)
         self._stack_instructions = []
+        self.overlay_session: Optional[Union[SortOverlaySession, NullOverlaySession]] = None
         if self.stack_mode:
             self._prepare_stack_plan()
         self.pack_positions = {}
@@ -43,14 +46,27 @@ class StashSorter:
                 logger.warning("Pack mode plan could not be generated; falling back to sequential layout.")
                 self.pack_mode = False
 
-    def sort(self, cancel_event=None):
+    def sort(
+        self,
+        cancel_event=None,
+        overlay_session: Optional[Union[SortOverlaySession, NullOverlaySession]] = None,
+    ):
         self.cancel_event = cancel_event
+        self.overlay_session = overlay_session or NullOverlaySession()
+        total_items = len(self.stash.pq)
+        processed = 0
+
+        if self.stack_mode and self._stack_instructions:
+            self._overlay_update("Merging stackable items before sorting...", status="info")
 
         if self.stack_mode:
             if not self._perform_stacking_phase():
+                self._overlay_log("Stacking phase failed; aborting sort.")
                 return False
 
+        self._overlay_update("Preparing workspace...", status="info")
         self._ensure_initial_workspace()
+        self._overlay_update("Sorting stash items...", status="info")
 
         while self.stash.pq or self._buffered_inventory:
             if not self.stash.pq and self._buffered_inventory:
@@ -60,6 +76,7 @@ class StashSorter:
 
             if self.cancel_event and self.cancel_event.is_set():
                 logger.info("Sort operation cancelled")
+                self._overlay_log("Sort cancelled by user.")
                 return False
 
             item = heapq.heappop(self.stash.pq)
@@ -82,8 +99,10 @@ class StashSorter:
                 else:
                     if sequential_point is None:
                         logger.info("Sequential planner could not provide a position; searching alternatives")
+                        self._overlay_log("Sequential planner yielded no slot; scanning for alternatives.")
                     else:
                         logger.warning("Sequential planner returned out-of-bounds position; searching alternatives")
+                        self._overlay_log("Sequential slot was invalid; recalculating placement.")
 
                     target_point = self._find_next_fittable_slot(item)
                     if target_point is None:
@@ -91,6 +110,7 @@ class StashSorter:
 
             if target_point is None or not self._is_within_bounds(item, target_point):
                 logger.error("No valid target position found after adjustments; aborting sort")
+                self._overlay_log("No valid placement found for an item; aborting sort.")
                 return False
 
             if self.pack_mode:
@@ -99,32 +119,40 @@ class StashSorter:
             logger.debug("Target position: %s, Current position: %s", target_point, item.position)
             if target_point == item.position:
                 logger.debug("Item already in correct position")
+                self._overlay_log("Item already positioned correctly; skipping move.")
                 continue
 
             if not self._ensure_area_available(item, target_point):
                 logger.warning("Failed to clear target area; attempting fallback placement")
+                self._overlay_log("Primary slot blocked; attempting fallback placement.")
                 fallback_point = self._find_direct_empty_slot(item)
                 if fallback_point and fallback_point != target_point:
                     logger.info("Fallback slot located at %s", fallback_point)
+                    self._overlay_log(f"Using fallback slot at ({fallback_point.x}, {fallback_point.y}).")
                     if self.pack_mode:
                         self.pack_positions[id(item)] = fallback_point
                     if not self._ensure_area_available(item, fallback_point):
                         logger.error("Fallback slot blocked; aborting sort")
+                        self._overlay_log("Fallback slot also blocked; aborting sort.")
                         return False
                     target_point = fallback_point
                 else:
                     logger.error("No suitable fallback slot available; aborting sort")
+                    self._overlay_log("No fallback slot available; aborting sort.")
                     return False
             else:
                 blockers = self._collect_blocking_items(item, target_point)
                 if blockers:
                     logger.warning("Target area still obstructed after clearing by %s", [repr(b) for b in blockers])
+                    self._overlay_log("Remaining blockers detected; attempting to relocate.")
                     if not self._force_clear_blockers(item, blockers, target_point):
                         logger.error("Unable to relocate remaining blockers; aborting sort")
+                        self._overlay_log("Unable to relocate blocking items; aborting sort.")
                         return False
 
             if self.cancel_event and self.cancel_event.is_set():
                 logger.info("Sort operation cancelled before final placement")
+                self._overlay_log("Sort cancelled before final placement.")
                 return False
 
             item.stash.move(item, target_point, self.stash)
@@ -133,9 +161,34 @@ class StashSorter:
 
             if self.cancel_event and self.cancel_event.is_set():
                 logger.info("Sort operation cancelled after item placement")
+                self._overlay_log("Sort cancelled after item placement.")
                 return False
 
+            processed += 1
+            if total_items and (processed == total_items or processed == 1 or processed % 5 == 0):
+                self._overlay_update(
+                    f"Sorting stash items... ({processed}/{total_items})",
+                    status="info",
+                )
+
         return True
+
+    # ------------------------------------------------------------------ overlay helpers
+    def _overlay_update(self, subtitle: str, status: str = "info") -> None:
+        if not self.overlay_session:
+            return
+        try:
+            self.overlay_session.update_status(subtitle, status=status)
+        except Exception:
+            pass
+
+    def _overlay_log(self, message: str) -> None:
+        if not self.overlay_session:
+            return
+        try:
+            self.overlay_session.add_log(message)
+        except Exception:
+            pass
 
     def _ensure_initial_workspace(self, min_free_cells: int = 6, max_buffer_moves: int = 8):
         if not self.inv:
