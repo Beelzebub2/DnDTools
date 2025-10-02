@@ -454,6 +454,8 @@ class SortOverlaySession:
         self.heading = self._build_heading()
         self._finished = False
         self._cancel_event = threading.Event()
+        self._last_log_message = None  # type: Optional[str]
+        self._last_log_count = 0
 
     # ------------------------------------------------------------------ helpers
     def _build_heading(self) -> str:
@@ -530,9 +532,16 @@ class SortOverlaySession:
             return
         if len(clean) > 160:
             clean = clean[:157] + "…"
-        self.logs.append(clean)
-        if len(self.logs) > self.max_logs:
-            self.logs = self.logs[-self.max_logs :]
+        if clean == self._last_log_message and self.logs:
+            self._last_log_count += 1
+            display = f"{clean} (x{self._last_log_count})"
+            self.logs[-1] = display
+        else:
+            self._last_log_message = clean
+            self._last_log_count = 1
+            self.logs.append(clean)
+            if len(self.logs) > self.max_logs:
+                self.logs = self.logs[-self.max_logs :]
         self._refresh_overlay()
 
     def finish(self, success: bool = True, message: Optional[str] = None) -> None:
