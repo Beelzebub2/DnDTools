@@ -109,7 +109,6 @@ For support or questions, please [open an issue](https://github.com/Beelzebub2/d
 ## 📝 TODO
 ```diff 
 
-- Add overlay when sorting
 - Add wipe all character data option to seetings
 - Run in background popout when game opens
 - Quest tracking
