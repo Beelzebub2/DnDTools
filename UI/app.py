@@ -1470,7 +1470,7 @@ def index():
 
 @server.route('/settings')
 def settings():
-    return render_template('settings.html')
+    return render_template('settings.html', app_version=APP_VERSION)
 
 @server.route('/record')
 def record():

@@ -1737,3 +1737,25 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     gap: 0.35rem;
     white-space: nowrap;
 }
+
+.settings-footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.settings-footer .material-icons {
+    font-size: 1.1rem;
+    color: var(--accent-gold);
+}
+
+.settings-footer .app-version {
+    color: var(--accent-gold);
+    font-weight: 500;
+}
