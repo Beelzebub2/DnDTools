@@ -93,7 +93,7 @@ class GameOverlayManager:
     # ------------------------------------------------------------------ public
     def begin_sort_session(
         self,
-        countdown_seconds: float = 2.0,
+        countdown_seconds: float = 1.0,
         context: Optional[dict] = None,
     ) -> "SortOverlaySession | NullOverlaySession":
         if not self.enabled:
@@ -204,7 +204,7 @@ class GameOverlayManager:
         self._window_thread = thread
         thread.start()
         # Wait briefly for window creation to avoid race conditions
-        self._ready_event.wait(timeout=2.0)
+        self._ready_event.wait(timeout=1.0)
 
     def _thread_main(self) -> None:  # pragma: no cover - GUI thread
         if not self.enabled or win32gui is None or win32con is None or win32api is None:

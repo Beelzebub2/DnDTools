@@ -133,9 +133,16 @@ class KEYBDINPUT(ctypes.Structure):
 
 class INPUT(ctypes.Structure):
     class _INPUT_UNION(ctypes.Union):
-        _fields_ = [("mi", MOUSEINPUT)]
-    _fields_ = [("type", ctypes.c_ulong),
-                ("union", _INPUT_UNION)]
+        _fields_ = [
+            ("mi", MOUSEINPUT),
+            ("ki", KEYBDINPUT),
+        ]
+
+    _anonymous_ = ("union",)
+    _fields_ = [
+        ("type", ctypes.c_ulong),
+        ("union", _INPUT_UNION),
+    ]
 
 SendInput = ctypes.windll.user32.SendInput
 
@@ -383,11 +390,18 @@ def send_alt_up():
 def send_ctrl_up():
     send_key(VK_CONTROL, True)  # Ctrl up
 
+def tap_alt(delay: float = 0.035) -> None:
+    """Press and release the Alt key to clear lingering modifier state."""
+    send_key(VK_MENU, False)
+    if delay > 0:
+        time.sleep(delay)
+    send_key(VK_MENU, True)
+
+
 def release_modifiers():
-    # send_alt_up()
-    # send_ctrl_up()
-    # I dont think this is a solution, might do more harm then good.
-    pass
+    """Release common modifier keys that may be stuck down."""
+    send_alt_up()
+    send_ctrl_up()
 
 # Call release_modifiers() at the start of your macro/sort operation
 # For example, in your sort.py before starting the sort:

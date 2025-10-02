@@ -9,6 +9,7 @@ from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
 from .storage import Storage, StashType
 from .sort import StashSorter
 from src.models.game_data import item_data_manager
+from src.models import macros
 import pygetwindow as gw
 from .appdirs import get_data_dir, get_output_dir, resource_path
 from src.models.icon_pak import canonical_icon_path
@@ -450,6 +451,8 @@ class StashManager:
         try:
             windows[0].activate()
             logger.info("Focused window: Dark and Darker")
+            session.update_status("Game window focused. Resetting modifiers...", status="info")
+            self._reset_modifier_state(session)
             session.update_status("Game window focused. Executing sort...", status="info")
         except Exception as e:
             logger.error(f"Error focusing window: {e}")
@@ -468,6 +471,17 @@ class StashManager:
             session.update_status("Refreshing stash data...", status="success")
             self._generate_previews(character_id)
         return success, None
+
+    def _reset_modifier_state(self, session: Union[SortOverlaySession, NullOverlaySession]) -> None:
+        if not hasattr(macros, "tap_alt"):
+            logger.debug("tap_alt helper unavailable; skipping modifier reset")
+            return
+        try:
+            macros.tap_alt()
+        except Exception as exc:
+            logger.debug("Failed to reset modifier state via Alt tap: %s", exc)
+        else:
+            session.add_log("Tapped Alt to clear any stuck modifier state.")
 
     def _get_character(self, character_id):
         try:

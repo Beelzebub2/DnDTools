@@ -757,7 +757,7 @@ class Api:
             logger.debug(f"Unable to resolve character details for overlay: {exc}")
 
         overlay_session = self.overlay_manager.begin_sort_session(
-            countdown_seconds=2.0,
+            countdown_seconds=1.0,
             context=overlay_context,
         )
 
