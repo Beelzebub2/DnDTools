@@ -41,6 +41,13 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 
 ## 🔧 Installation
 
+### Windows (recommended)
+
+1. Download the latest `DnDTools-Setup-<version>.exe` from the [releases page](https://github.com/Beelzebub2/DnDTools/releases).
+2. Run the installer and follow the prompts. The application will be available from the Start Menu (and optionally on the desktop).
+
+### Development setup
+
 1. Clone the repository:
 ```bash
 git clone https://github.com/Beelzebub2/DnDTools.git
@@ -61,6 +68,21 @@ python app.py
 3. Make sure packet capture is enabled.
 4. From the character selection screen, select the character you want to capture.
 5. Open your stash in-game. Your character’s stash and inventory will appear in the Characters tab.
+
+## 📦 Building the Windows Installer
+
+You can produce a signed-ready Windows installer using Inno Setup:
+
+1. Install [Inno Setup 6](https://jrsoftware.org/isinfo.php) and ensure `ISCC.exe` is on your `PATH` or set the `ISCC_PATH` environment variable.
+2. From the project root, run:
+
+```cmd
+installer\build_installer.bat
+```
+
+This command will rebuild the standalone executable with PyInstaller, synchronize the installer metadata with the application version, and emit `DnDTools-Setup-<version>.exe` in the `dist\` directory.
+
+> The GitHub Actions release pipeline invokes the same script and attaches the generated installer to each tagged pre-release.
 
 ## ⚙️ Configuration
 ### Updating Protobuf Files After a Game Update
