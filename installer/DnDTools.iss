@@ -1,6 +1,6 @@
 ; Inno Setup script for packaging the DnDTools application
 #define MyAppName "DnDTools"
-#define MyAppPublisher "DnDTools Team"
+#define MyAppPublisher "Beelzebub2"
 #define MyAppURL "https://github.com/Beelzebub2/DnDTools"
 #define MyAppExeName "DnDTools.exe"
 
@@ -20,7 +20,7 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={userpf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
@@ -33,7 +33,10 @@ OutputBaseFilename={#MyAppName}-Setup-{#MyAppVersion}
 OutputDir=..\dist
 ArchitecturesInstallIn64BitMode=x64compatible
 ArchitecturesAllowed=x64compatible
-PrivilegesRequired=admin
+PrivilegesRequired=lowest
+CloseApplications=yes
+RestartApplications=yes
+AllowNoIcons=yes
 ChangesAssociations=no
 
 [Languages]

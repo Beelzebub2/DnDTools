@@ -124,29 +124,42 @@ document.addEventListener('DOMContentLoaded', () => {
 // Version check and update notification
 async function checkForUpdates() {
     try {
-        // Fetch local version
-        const localRes = await fetch('/api/local_version');
-        const localData = await localRes.json();
-        const localVersion = localData.version;
-
-        // Fetch latest online version
-        const remoteRes = await fetch('/api/version');
-        const remoteData = await remoteRes.json();
-        const remoteVersion = (remoteData.version || '').replace(/^v/, '').trim();
-        const releaseUrl = remoteData.release_url || 'https://github.com/Beelzebub2/DnDTools/releases/latest';
-
-        if (remoteVersion && isNewerVersion(remoteVersion, localVersion)) {
-            showUpdatePopup(remoteVersion, localVersion, releaseUrl);
+        const response = await fetch('/api/update/check', { cache: 'no-store' });
+        let data = null;
+        try {
+            data = await response.json();
+        } catch (parseError) {
+            console.warn('Update check response was not valid JSON', parseError);
         }
-    } catch (e) {
-        // Silently ignore update check errors
+
+        if (!response.ok || !data) {
+            if (data && data.error) {
+                console.warn('Update check failed:', data.error);
+            }
+            return;
+        }
+
+        if (!data.updateAvailable) {
+            return;
+        }
+
+        const remoteVersion = (data.latestVersion || '').replace(/^v/, '').trim();
+        const localVersion = (data.currentVersion || '').replace(/^v/, '').trim();
+        const releaseUrl = data.downloadUrl || 'https://github.com/Beelzebub2/DnDTools/releases/latest';
+        const notes = data.notes || '';
+
+        if (remoteVersion) {
+            showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes);
+        }
+    } catch (error) {
+        console.warn('Automatic update check failed', error);
     }
 }
 
 // Version comparison now handled by utils.js
 // Remove duplicate function that's now in utils.js
 
-function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
+function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '') {
     // Remove any existing popup
     const existing = document.getElementById('update-popup');
     if (existing) existing.remove();
@@ -263,23 +276,80 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl) {
                         <span style="color: var(--accent-gold, #e4c869); font-weight: 600;">v${remoteVersion}</span>
                     </div>
                 </div>
+                ${notes ? `<div style="margin-top: 12px; padding: 12px; background: rgba(255, 255, 255, 0.04); border-radius: 6px; border: 1px solid rgba(228, 200, 105, 0.2); font-size: 13px; line-height: 1.6; color: var(--text-secondary, #c0b18a); white-space: pre-line;">${notes}</div>` : ''}
             </div>
             <button id="close-update-popup" class="update-popup-close" title="Close">✕</button>
         </div>
         <div style="
             display: flex;
             justify-content: flex-end;
+            gap: 12px;
             padding-top: 12px;
             border-top: 1px solid var(--border-color, #392e24);
         ">
+            <button class="update-popup-btn" id="trigger-auto-update" type="button">
+                <span class="material-icons" style="font-size: 18px;">bolt</span>
+                Install update
+            </button>
             <a href="${releaseUrl}" target="_blank" class="update-popup-btn">
                 <span class="material-icons" style="font-size: 18px;">open_in_new</span>
-                View Release
+                Download manually
             </a>
         </div>
     `;
     document.body.appendChild(popup);
-    document.getElementById('close-update-popup').onclick = () => popup.remove();
+
+    const closeBtn = popup.querySelector('.update-popup-close');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', () => popup.remove());
+    }
+
+    const autoUpdateBtn = popup.querySelector('#trigger-auto-update');
+    if (autoUpdateBtn) {
+        autoUpdateBtn.addEventListener('click', () => startAutomaticUpdate(autoUpdateBtn, releaseUrl));
+    }
+}
+
+async function startAutomaticUpdate(button, fallbackUrl) {
+    if (!button) {
+        return;
+    }
+
+    button.disabled = true;
+    const originalText = button.textContent;
+    button.textContent = 'Starting update...';
+
+    try {
+        const response = await fetch('/api/update/apply', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            const data = await response.json().catch(() => ({}));
+            const error = data.error || 'Unable to start automatic update.';
+            showNotification(error, 'error');
+            button.disabled = false;
+            button.textContent = originalText;
+            return;
+        }
+
+        showNotification('Update is installing. The app will close shortly.', 'success');
+        setTimeout(() => {
+            const popup = document.getElementById('update-popup');
+            if (popup) {
+                popup.remove();
+            }
+        }, 1000);
+    } catch (error) {
+        console.error('Failed to start automatic update:', error);
+        showNotification('Automatic update failed to start. Opening download page...', 'error');
+        window.open(fallbackUrl, '_blank', 'noopener');
+        button.disabled = false;
+        button.textContent = originalText;
+    }
 }
 
 // Helper to fetch market price via backend proxy to avoid CORS

@@ -46,17 +46,24 @@ jobs:
         run: |
           choco install innosetup --no-progress -y
 
-      - name: Run installer build script
+      - name: Build installer package
         shell: cmd
         run: |
           installer\build_installer.bat
+
+      - name: Generate update manifest
+        shell: powershell
+        run: |
+          python scripts/generate_update_manifest.py --release-tag "${{ github.event.inputs.tag }}"
 
       - name: Create GitHub Pre-Release and Upload installer
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: Test-Release ${{ github.event.inputs.tag }}
-          files: dist/DnDTools-Setup-*.exe
+          files: |
+            dist/DnDTools-Setup-*.exe
+            dist/update-manifest.json
           fail_on_unmatched_files: false
           prerelease: true
         env:

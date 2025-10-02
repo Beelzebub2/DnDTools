@@ -16,11 +16,16 @@ import psutil
 import json
 import sys
 import logging
+import re
+from pathlib import Path
+from urllib.parse import urlparse
 from utils.logging_setup import setup_logging
 import secrets
 import time
 import shutil
 import subprocess
+import tempfile
+import hashlib
 import requests
 from networking.protos import _PacketCommand_pb2
 
@@ -39,7 +44,21 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.4.6"
+APP_VERSION = "3.4.5"
+UPDATE_MANIFEST_URL = os.environ.get(
+    "DND_UPDATE_MANIFEST",
+    "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
+)
+UPDATE_CACHE_DURATION = 5 * 60
+
+# Update state tracking
+_update_cache = None
+_update_cache_timestamp = 0
+_update_state = {
+    "in_progress": False,
+    "last_error": None,
+}
+_update_lock = threading.RLock()
 
 # Initialize logging first
 setup_logging()
@@ -110,6 +129,136 @@ def validate_stash_id(stash_id):
         return stash_id
     except (ValueError, TypeError):
         return None
+
+
+def _normalize_version(value: Optional[str]) -> tuple[int, ...]:
+    if not value:
+        return ()
+    parts = [p for p in re.split(r"[^0-9]+", str(value)) if p]
+    normalized = []
+    for part in parts:
+        try:
+            normalized.append(int(part))
+        except ValueError:
+            continue
+    return tuple(normalized)
+
+
+def _is_remote_newer(remote: str, local: str) -> bool:
+    remote_tuple = _normalize_version(remote)
+    local_tuple = _normalize_version(local)
+    # Pad tuples to the same length for comparison
+    length = max(len(remote_tuple), len(local_tuple))
+    remote_padded = remote_tuple + (0,) * (length - len(remote_tuple))
+    local_padded = local_tuple + (0,) * (length - len(local_tuple))
+    return remote_padded > local_padded
+
+
+def _fetch_update_manifest(force: bool = False) -> Optional[dict]:
+    global _update_cache, _update_cache_timestamp
+
+    now = time.time()
+    if not force and _update_cache and (now - _update_cache_timestamp) < UPDATE_CACHE_DURATION:
+        return _update_cache
+
+    try:
+        response = requests.get(
+            UPDATE_MANIFEST_URL,
+            headers={'User-Agent': 'DnDTools-Updater'},
+            timeout=15,
+        )
+        response.raise_for_status()
+        manifest = response.json()
+        if not isinstance(manifest, dict):
+            raise ValueError('Manifest JSON must be an object')
+
+        # Basic validation
+        for key in ('version', 'url'):
+            if not manifest.get(key):
+                raise ValueError(f'Manifest missing required field: {key}')
+
+        _update_cache = manifest
+        _update_cache_timestamp = now
+        return manifest
+    except Exception as exc:
+        logger.error(f"Failed to fetch update manifest: {exc}", exc_info=True)
+        with _update_lock:
+            _update_state['last_error'] = str(exc)
+        return None
+
+
+def _download_installer(manifest: dict) -> Path:
+    url = manifest['url']
+    parsed = urlparse(url)
+    filename = Path(parsed.path).name or f"DnDTools-Setup-{manifest['version']}.exe"
+    target_dir = Path(tempfile.gettempdir()) / "DnDToolsUpdater"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    target_path = target_dir / filename
+
+    logger.info(f"Downloading installer from {url} to {target_path}")
+
+    sha256 = hashlib.sha256()
+    with requests.get(url, stream=True, timeout=60) as response:
+        response.raise_for_status()
+        with target_path.open('wb') as fh:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                if not chunk:
+                    continue
+                fh.write(chunk)
+                sha256.update(chunk)
+
+    expected_sha = manifest.get('sha256')
+    if expected_sha:
+        digest = sha256.hexdigest()
+        if digest.lower() != expected_sha.lower():
+            target_path.unlink(missing_ok=True)
+            raise ValueError('Downloaded installer checksum mismatch')
+
+    return target_path
+
+
+def _run_installer(installer_path: Path) -> None:
+    logger.info(f"Launching installer for update: {installer_path}")
+    args = [
+        str(installer_path),
+        "/VERYSILENT",
+        "/SUPPRESSMSGBOXES",
+        "/NORESTART",
+        "/SP-",
+        "/CLOSEAPPLICATIONS",
+        "/RESTARTAPPLICATIONS",
+    ]
+    subprocess.Popen(args, close_fds=False)
+
+
+def _perform_update(manifest: dict) -> None:
+    installer_path: Optional[Path] = None
+    should_exit = False
+    try:
+        with _update_lock:
+            _update_state['in_progress'] = True
+            _update_state['last_error'] = None
+
+        installer_path = _download_installer(manifest)
+        _run_installer(installer_path)
+        should_exit = True
+    except Exception as exc:
+        logger.error(f"Automatic update failed: {exc}", exc_info=True)
+        with _update_lock:
+            _update_state['last_error'] = str(exc)
+    finally:
+        with _update_lock:
+            _update_state['in_progress'] = False
+        if installer_path and installer_path.exists():
+            try:
+                installer_path.unlink()
+            except OSError:
+                logger.warning(f"Unable to clean up installer at {installer_path}")
+
+    if should_exit:
+        logger.info("Update installer launched. Exiting application in 3 seconds.")
+        time.sleep(3)
+        os._exit(0)
 
 def handle_alive_packet(message):
     """Handle S2C_ALIVE_RES packets to trigger traffic animation"""
@@ -1022,6 +1171,72 @@ def api_version():
 def api_local_version():
     """Return the local version of the app."""
     return jsonify({'version': APP_VERSION})
+
+
+def _snapshot_update_state() -> dict:
+    with _update_lock:
+        return {
+            'in_progress': _update_state['in_progress'],
+            'last_error': _update_state['last_error'],
+        }
+
+
+@server.route('/api/update/check')
+def api_update_check():
+    manifest = _fetch_update_manifest()
+    if not manifest:
+        state = _snapshot_update_state()
+        state.update(
+            {
+                'currentVersion': APP_VERSION,
+                'latestVersion': APP_VERSION,
+                'updateAvailable': False,
+                'notes': '',
+                'downloadUrl': '',
+                'sha256': '',
+                'error': 'Unable to retrieve update manifest',
+            }
+        )
+        return jsonify(state), 503
+
+    remote_version = str(manifest.get('version', APP_VERSION))
+    update_available = _is_remote_newer(remote_version, APP_VERSION)
+    state = _snapshot_update_state()
+    state.update(
+        {
+            'currentVersion': APP_VERSION,
+            'latestVersion': remote_version,
+            'updateAvailable': update_available,
+            'notes': manifest.get('notes', ''),
+            'downloadUrl': manifest.get('url', ''),
+            'sha256': manifest.get('sha256', ''),
+        }
+    )
+    return jsonify(state)
+
+
+@server.route('/api/update/status')
+def api_update_status():
+    return jsonify(_snapshot_update_state())
+
+
+@server.route('/api/update/apply', methods=['POST'])
+def api_update_apply():
+    with _update_lock:
+        if _update_state['in_progress']:
+            return jsonify({'started': False, 'error': 'Update already in progress'}), 409
+        _update_state['last_error'] = None
+
+    manifest = _fetch_update_manifest(force=True)
+    if not manifest:
+        return jsonify({'started': False, 'error': 'Unable to retrieve update manifest'}), 503
+
+    remote_version = str(manifest.get('version', APP_VERSION))
+    if not _is_remote_newer(remote_version, APP_VERSION):
+        return jsonify({'started': False, 'error': 'Already up to date'}), 400
+
+    threading.Thread(target=_perform_update, args=(manifest,), daemon=True).start()
+    return jsonify({'started': True})
 
 # Initialize API
 api = Api()
