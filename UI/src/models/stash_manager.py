@@ -2,19 +2,21 @@ from pathlib import Path
 import json
 import os
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
 from .storage import Storage, StashType
 from .sort import StashSorter
 from src.models.game_data import item_data_manager
+from src.models import macros
 import pygetwindow as gw
 from .appdirs import get_data_dir, get_output_dir, resource_path
 from src.models.icon_pak import canonical_icon_path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 import logging
+from src.models.game_overlay import NullOverlaySession, SortOverlaySession
 
 logger = logging.getLogger(__name__)
 
@@ -400,14 +402,33 @@ class StashManager:
         }
         return response
 
-    def sort_stash(self, character_id, stash_id, cancel_event=None, pack_mode=False, stack_mode=False):
+    def sort_stash(
+        self,
+        character_id,
+        stash_id,
+        cancel_event=None,
+        pack_mode=False,
+        stack_mode=False,
+        overlay_session: Union[SortOverlaySession, NullOverlaySession, None] = None,
+    ):
         logger.info(f"Sorting stash {stash_id} for character {character_id}")
+        session: Union[SortOverlaySession, NullOverlaySession]
+        session = overlay_session or NullOverlaySession()
+
+        session.update_status("Validating inventory data...", status="info")
         char = self.characters_cache.get(str(character_id))
         if not char:
+            session.update_status("Character not found in cache.", status="error")
+            session.add_log("No packet data available for selected character.")
+            logger.warning("Character %s not found in cache", character_id)
             return False, "Character not found"
         stash_items = char.get('stashes', {}).get(str(stash_id))
         if not stash_items:
+            session.update_status("Selected stash is empty or missing.", status="error")
+            session.add_log(f"Stash {stash_id} could not be found for this character.")
+            logger.warning("Stash %s not found for character %s", stash_id, character_id)
             return False, "Stash not found"
+        session.update_status("Loading character inventory...", status="info")
         file_path = os.path.join(self.data_dir, f"{character_id}.json")
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -417,27 +438,50 @@ class StashManager:
         except Exception as e:
             logger.error(f"Error loading inventory items: {str(e)}")
             inv_items = []
+            session.add_log("Unable to read latest inventory snapshot; continuing with empty inventory.")
         stash = Storage(StashType.STORAGE.value, stash_items)
         inventory = Storage(StashType.BAG.value, inv_items)
+        session.update_status("Locating Dark and Darker window...", status="info")
         windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker  "]
         if not windows:
             logger.warning("Game window 'Dark and Darker' not found. Sorting cancelled.")
+            session.update_status("Game window not found. Please bring Dark and Darker to the foreground.", status="error")
+            session.add_log("Window titled 'Dark and Darker  ' was not detected.")
             return False, "Game window not found. Please make sure Dark and Darker is running."
         try:
             windows[0].activate()
             logger.info("Focused window: Dark and Darker")
+            session.update_status("Game window focused. Resetting modifiers...", status="info")
+            self._reset_modifier_state(session)
+            session.update_status("Game window focused. Executing sort...", status="info")
         except Exception as e:
             logger.error(f"Error focusing window: {e}")
+            session.add_log("Unable to focus the game window automatically – please ensure it is active.")
 
         sorter = StashSorter(stash, inventory, pack_mode=pack_mode, stack_mode=stack_mode)
+        session.add_log(
+            f"Pack mode: {'On' if sorter.pack_mode else 'Off'} · Stack mode: {'On' if sorter.stack_mode else 'Off'}"
+        )
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"
-        success = sorter.sort(cancel_event)
+        success = sorter.sort(cancel_event, overlay_session=session)
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled"
         if success:
+            session.update_status("Refreshing stash data...", status="success")
             self._generate_previews(character_id)
         return success, None
+
+    def _reset_modifier_state(self, session: Union[SortOverlaySession, NullOverlaySession]) -> None:
+        if not hasattr(macros, "tap_alt"):
+            logger.debug("tap_alt helper unavailable; skipping modifier reset")
+            return
+        try:
+            macros.tap_alt()
+        except Exception as exc:
+            logger.debug("Failed to reset modifier state via Alt tap: %s", exc)
+        else:
+            session.add_log("Tapped Alt to clear any stuck modifier state.")
 
     def _get_character(self, character_id):
         try:

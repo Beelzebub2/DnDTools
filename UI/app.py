@@ -1,3 +1,5 @@
+from typing import Optional
+
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir
 from src.models.settings import (
     settings_manager,
@@ -26,6 +28,7 @@ from src.models.icon_pak import icon_store, canonical_icon_path
 
 from src.models.character import save_packet_data
 from src.models.item import Item
+from src.models.game_overlay import overlay_manager, register_overlay_logging
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -36,10 +39,11 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.4.4"
+APP_VERSION = "3.4.5"
 
 # Initialize logging first
 setup_logging()
+register_overlay_logging()
 logger = logging.getLogger(__name__)
 settings_manager.set_logger(logger)
 
@@ -298,6 +302,7 @@ class Api:
     def __init__(self):
         self.stash_manager = stash_manager
         self.settings_manager = settings_manager
+        self.overlay_manager = overlay_manager
         settings = self.settings_manager.reload()
 
         # Apply persisted sort order preference if available
@@ -733,10 +738,30 @@ class Api:
 
     def sort_stash(self, character_id, stash_id, pack_mode=None, stack_mode=None):
         """Sort a specific stash for a character"""
-        try:
-            # Create new event for this sort operation
-            self.current_sort_event = threading.Event()
+        self.current_sort_event = threading.Event()
+        success = False
+        error_msg: Optional[str] = None
 
+        # Resolve context information for overlay heading
+        overlay_context = {
+            "character": None,
+            "character_id": character_id,
+            "stash": stash_id,
+        }
+        try:
+            char_details = self.stash_manager.get_character_details(str(character_id))
+            if char_details:
+                overlay_context["character"] = char_details.get("nickname")
+                overlay_context["character_class"] = char_details.get("class")
+        except Exception as exc:
+            logger.debug(f"Unable to resolve character details for overlay: {exc}")
+
+        overlay_session = self.overlay_manager.begin_sort_session(
+            countdown_seconds=1.0,
+            context=overlay_context,
+        )
+
+        try:
             if pack_mode is None:
                 pack_mode = self.get_pack_mode()
             else:
@@ -748,29 +773,33 @@ class Api:
             else:
                 self.set_stack_mode(stack_mode)
                 stack_mode = self.get_stack_mode()
-            
+
+            if overlay_session.wait_for_countdown():
+                overlay_session.update_status(
+                    "Preparing stash data...", status="info"
+                )
+
             result = self.stash_manager.sort_stash(
-                character_id, 
-                stash_id, 
+                character_id,
+                stash_id,
                 cancel_event=self.current_sort_event,
                 pack_mode=pack_mode,
-                stack_mode=stack_mode
+                stack_mode=stack_mode,
+                overlay_session=overlay_session,
             )
-            
-            # Handle tuple result with error message
+
             if isinstance(result, tuple):
                 success, error_msg = result
-                return {"success": success, "error": error_msg}
-            
-            # Handle boolean result
-            return {"success": bool(result)}
-            
-        except Exception as e:
-            logger.error(f"Error in sort_stash: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return {"success": False, "error": str(e)}
+            else:
+                success = bool(result)
+
+            return {"success": success, "error": error_msg}
+        except Exception as exc:
+            error_msg = str(exc)
+            logger.error(f"Error in sort_stash: {error_msg}", exc_info=True)
+            return {"success": False, "error": error_msg}
         finally:
+            overlay_session.finish(success, error_msg)
             self.current_sort_event = None
 
     def minimize(self):
