@@ -9,7 +9,6 @@
 <p align="center">
   <img src="https://img.shields.io/badge/python-3.7+-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License">
-  <img src="https://img.shields.io/badge/status-beta-orange.svg" alt="Status">
   <a href="https://github.com/Beelzebub2/DnDTools/releases/"><img src="https://img.shields.io/github/v/release/Beelzebub2/DnDTools?include_prereleases&label=version" alt="Version"></a>
   <a href="https://github.com/Beelzebub2/DnDTools/actions/workflows/build-and-release.yml"><img src="https://github.com/Beelzebub2/DnDTools/actions/workflows/build-and-release.yml/badge.svg" alt="Build Status"></a>
 </p>
