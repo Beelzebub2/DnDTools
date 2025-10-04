@@ -42,6 +42,23 @@
                         </button>
                     </div>
                 </div>
+                <div class="control-group prerequisite-control">
+                    <label for="prerequisiteFilter">Prerequisites</label>
+                    <div class="prerequisite-toggle-wrapper">
+                        <input type="checkbox" id="prerequisiteFilter" role="switch" aria-checked="false"
+                            aria-describedby="prerequisiteFilterHint">
+                        <label class="quest-toggle" for="prerequisiteFilter">
+                            <span class="quest-toggle-track" aria-hidden="true">
+                                <span class="quest-toggle-thumb"></span>
+                            </span>
+                            <span class="quest-toggle-text">
+                                <span class="quest-toggle-title">Hide locked quests</span>
+                                <span class="quest-toggle-hint" id="prerequisiteFilterHint">Only show quests with
+                                    prerequisites met</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
                 <div class="merchant-stats" id="merchantStats"></div>
                 <div class="merchant-view-toggle" role="tablist" aria-label="Quest objective filter">
                     <button type="button" class="view-toggle-btn active" data-mode="active" role="tab"

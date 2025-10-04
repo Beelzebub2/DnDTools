@@ -239,7 +239,8 @@
         itemHoldingsCache: {},
         activeHoldingsItemId: null,
         activeHoldingsAnchor: null,
-        bodyScrollLock: null
+        bodyScrollLock: null,
+        hideLockedQuests: false
     };
 
     const elements = {
@@ -268,8 +269,13 @@
         itemHoldingsTitle: document.getElementById('itemHoldingsTitle'),
         itemHoldingsSummary: document.getElementById('itemHoldingsSummary'),
         itemHoldingsBody: document.getElementById('itemHoldingsBody'),
-        itemHoldingsClose: document.getElementById('itemHoldingsClose')
+        itemHoldingsClose: document.getElementById('itemHoldingsClose'),
+        prerequisiteToggle: document.getElementById('prerequisiteFilter')
     };
+
+    const questAliasIndex = new Map();
+    let questAliasEntries = [];
+    const questTitleIndex = new Map();
 
     if (!elements.questList || !elements.itemsList) {
         return;
@@ -311,6 +317,17 @@
     };
 
     updateItemsOwnedToggleUI();
+
+    const updatePrerequisiteToggleUI = () => {
+        if (!elements.prerequisiteToggle) {
+            return;
+        }
+        const isChecked = Boolean(state.hideLockedQuests);
+        elements.prerequisiteToggle.checked = isChecked;
+        elements.prerequisiteToggle.setAttribute('aria-checked', isChecked ? 'true' : 'false');
+    };
+
+    updatePrerequisiteToggleUI();
 
     const runWithButtonLoading = async (button, task) => {
         const target = button instanceof HTMLElement ? button : null;
@@ -640,6 +657,195 @@
         return result;
     };
 
+    const questKeyFor = (quest) => {
+        if (!quest) {
+            return '';
+        }
+        const key = quest.id || quest.title || '';
+        return key ? String(key) : '';
+    };
+
+    const generateAliasVariants = (value) => {
+        if (value === undefined || value === null) {
+            return [];
+        }
+        const stringValue = String(value)
+            .replace(/[“”"‘’]/g, '')
+            .replace(/[\u2013\u2014]/g, '-')
+            .toLowerCase();
+        const normalized = stringValue
+            .replace(/[^a-z0-9]+/g, ' ')
+            .replace(/\s{2,}/g, ' ')
+            .trim();
+        if (!normalized) {
+            return [];
+        }
+        const variants = new Set([normalized]);
+        const words = normalized.split(' ').filter(Boolean);
+        if (words.length > 1) {
+            const withoutArticles = words.filter(word => !['the', 'a', 'an'].includes(word));
+            if (withoutArticles.length) {
+                variants.add(withoutArticles.join(' '));
+            }
+            const withoutFiller = words.filter(word => !['the', 'a', 'an', 'complete', 'completed', 'finish', 'finished', 'quest', 'quests', 'mission', 'missions', 'chapter', 'chapters', 'task', 'tasks'].includes(word));
+            if (withoutFiller.length) {
+                variants.add(withoutFiller.join(' '));
+            }
+        }
+        return Array.from(variants).map(entry => entry.trim()).filter(Boolean);
+    };
+
+    const collectAliasesForQuest = (quest) => {
+        const aliases = new Set();
+        const pushVariants = (value) => {
+            generateAliasVariants(value).forEach(alias => aliases.add(alias));
+        };
+        pushVariants(quest.title);
+        pushVariants(quest.id);
+        if (quest && quest.title && quest.title.includes(':')) {
+            quest.title.split(':').forEach(part => pushVariants(part));
+        }
+        if (quest && quest.title && quest.title.includes('—')) {
+            quest.title.split('—').forEach(part => pushVariants(part));
+        }
+        if (quest && quest.chapter) {
+            pushVariants(quest.chapter);
+        }
+        return Array.from(aliases).filter(Boolean);
+    };
+
+    const extractPrerequisiteReferences = (raw) => {
+        if (!raw) {
+            return [];
+        }
+        if (Array.isArray(raw)) {
+            return raw.map(value => String(value).trim()).filter(Boolean);
+        }
+        let working = String(raw).trim();
+        if (!working) {
+            return [];
+        }
+        working = working.replace(/[\u2013\u2014]/g, ',');
+        working = working.replace(/\b(?:then|after|followed by|next|until)\b/gi, ',');
+        working = working.replace(/\b(?:and|or)\b/gi, ',');
+        working = working.replace(/[&+/;]/g, ',');
+        const segments = working.split(',').map(segment => segment.trim()).filter(Boolean);
+        if (!segments.length) {
+            return [String(raw).trim()];
+        }
+        return segments;
+    };
+
+    const resolvePrerequisiteReferences = (quest) => {
+        const references = extractPrerequisiteReferences(quest && quest.prerequisite);
+        if (!references.length) {
+            return [];
+        }
+        const questKey = questKeyFor(quest);
+        const resolved = [];
+        references.forEach((reference) => {
+            const variants = generateAliasVariants(reference);
+            if (!variants.length) {
+                return;
+            }
+            let matchedId = null;
+            for (const variant of variants) {
+                const direct = questAliasIndex.get(variant);
+                if (direct && direct.length) {
+                    matchedId = direct.find(id => id !== questKey) || direct[0];
+                    if (matchedId) {
+                        break;
+                    }
+                }
+            }
+            if (!matchedId) {
+                const fallbackVariant = variants.find(variant => variant.length >= 3);
+                if (fallbackVariant) {
+                    for (const [alias, ids] of questAliasEntries) {
+                        if ((alias.length >= 3 && alias.includes(fallbackVariant)) || (fallbackVariant.length >= 3 && fallbackVariant.includes(alias))) {
+                            matchedId = ids.find(id => id !== questKey) || null;
+                            if (matchedId) {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            if (matchedId && !resolved.includes(matchedId)) {
+                resolved.push(matchedId);
+            }
+        });
+        return resolved;
+    };
+
+    const rebuildQuestDependencyIndex = () => {
+        questAliasIndex.clear();
+        questAliasEntries = [];
+        questTitleIndex.clear();
+
+        state.quests.forEach((quest) => {
+            const questKey = questKeyFor(quest);
+            if (!questKey) {
+                quest.__resolvedPrerequisites = [];
+                quest.__resolvedPrerequisiteTitles = [];
+                return;
+            }
+            questTitleIndex.set(questKey, quest.title || quest.id || questKey);
+            const aliases = collectAliasesForQuest(quest);
+            aliases.forEach((alias) => {
+                if (!questAliasIndex.has(alias)) {
+                    questAliasIndex.set(alias, []);
+                }
+                const bucket = questAliasIndex.get(alias);
+                if (!bucket.includes(questKey)) {
+                    bucket.push(questKey);
+                }
+            });
+        });
+
+        questAliasEntries = Array.from(questAliasIndex.entries());
+
+        state.quests.forEach((quest) => {
+            const resolved = resolvePrerequisiteReferences(quest);
+            quest.__resolvedPrerequisites = resolved;
+            quest.__resolvedPrerequisiteTitles = resolved.map(id => questTitleIndex.get(id) || id);
+        });
+    };
+
+    const computeQuestCompletionIndex = () => {
+        const completion = new Map();
+        state.quests.forEach((quest) => {
+            const partitions = partitionQuestObjectives(quest);
+            const totalObjectives = Number(partitions.totalCount) || 0;
+            const completedObjectives = partitions.completed.length;
+            const activeObjectives = partitions.active.length;
+            const allCompleted = totalObjectives > 0
+                ? completedObjectives === totalObjectives
+                : activeObjectives === 0 && completedObjectives === 0;
+            const key = questKeyFor(quest);
+            if (key) {
+                completion.set(key, allCompleted);
+            }
+        });
+        return completion;
+    };
+
+    const areQuestPrerequisitesMet = (quest, completionIndex) => {
+        const dependencies = Array.isArray(quest && quest.__resolvedPrerequisites) ? quest.__resolvedPrerequisites : [];
+        if (!dependencies.length) {
+            return true;
+        }
+        return dependencies.every((dependencyId) => {
+            if (!dependencyId) {
+                return true;
+            }
+            if (!completionIndex.has(dependencyId)) {
+                return true;
+            }
+            return completionIndex.get(dependencyId) === true;
+        });
+    };
+
     const buildMerchantView = (quests, viewMode = 'active') => {
         const questsForView = [];
         let questsCount = 0;
@@ -647,6 +853,10 @@
         let itemObjectiveCount = 0;
         let totalActive = 0;
         let totalCompleted = 0;
+        let hiddenByPrerequisite = 0;
+        let lockedVisible = 0;
+
+        const completionIndex = computeQuestCompletionIndex();
 
         quests.forEach((quest) => {
             const partitions = partitionQuestObjectives(quest);
@@ -656,6 +866,14 @@
             const allObjectivesCompleted = totalObjectives > 0
                 ? completedObjectives === totalObjectives
                 : activeObjectives === 0 && completedObjectives === 0;
+
+            const prerequisitesMet = areQuestPrerequisitesMet(quest, completionIndex);
+            if (!prerequisitesMet) {
+                hiddenByPrerequisite += 1;
+                if (state.hideLockedQuests) {
+                    return;
+                }
+            }
 
             totalActive += partitions.active.length;
             totalCompleted += partitions.completed.length;
@@ -683,7 +901,15 @@
             itemObjectiveCount += objectivesForStatistics.filter(obj => obj.type === 'Fetch').length;
 
             const objectivesWithIndex = relevantObjectives.map(obj => ({ ...obj }));
-            questsForView.push({ quest, objectives: objectivesWithIndex });
+            if (!prerequisitesMet) {
+                lockedVisible += 1;
+            }
+            questsForView.push({
+                quest,
+                objectives: objectivesWithIndex,
+                isLocked: !prerequisitesMet,
+                lockedPrerequisites: Array.isArray(quest.__resolvedPrerequisiteTitles) ? quest.__resolvedPrerequisiteTitles : []
+            });
         });
 
         return {
@@ -695,7 +921,9 @@
                 itemObjectiveCount,
                 totalFiltered: quests.length,
                 totalActive,
-                totalCompleted
+                totalCompleted,
+                lockedHidden: hiddenByPrerequisite,
+                lockedVisible
             }
         };
     };
@@ -747,11 +975,36 @@
     }
 
     function createQuestCard(quest, options = {}) {
-        const { viewMode = 'active', objectivesOverride } = options;
+        const {
+            viewMode = 'active',
+            objectivesOverride,
+            isLocked = false,
+            lockedPrerequisites = []
+        } = options;
         const objectivesToRender = objectivesOverride || quest.objectives || [];
 
         const card = document.createElement('article');
         card.className = 'quest-card';
+
+        if (isLocked) {
+            card.classList.add('quest-card--locked');
+            const lockBanner = document.createElement('div');
+            lockBanner.className = 'quest-card-lock';
+            const lockIcon = document.createElement('span');
+            lockIcon.className = 'material-icons';
+            lockIcon.setAttribute('aria-hidden', 'true');
+            lockIcon.textContent = 'lock';
+            lockBanner.appendChild(lockIcon);
+            const lockText = document.createElement('span');
+            const requirements = (lockedPrerequisites || []).filter(Boolean);
+            if (requirements.length) {
+                lockText.textContent = `Requires ${requirements.join(', ')}`;
+            } else {
+                lockText.textContent = 'Prerequisites incomplete';
+            }
+            lockBanner.appendChild(lockText);
+            card.appendChild(lockBanner);
+        }
 
         const header = document.createElement('header');
         const title = document.createElement('h3');
@@ -1094,6 +1347,14 @@
         const itemObjectives = Number(prepared.itemObjectiveCount) || 0;
         const totalFiltered = Number(prepared.totalFiltered) || 0;
         const totalObjectives = Number(prepared.totalActive || 0) + Number(prepared.totalCompleted || 0);
+        const lockedHidden = Number(prepared.lockedHidden) || 0;
+        const lockedVisible = Number(prepared.lockedVisible) || 0;
+
+        if ((!objectiveCount || !questsCount) && state.hideLockedQuests && lockedHidden > 0) {
+            const noun = lockedHidden === 1 ? 'quest' : 'quests';
+            elements.merchantStats.innerHTML = `Filtering out <strong>${lockedHidden}</strong> prerequisite-locked ${noun}.`;
+            return;
+        }
 
         if (!objectiveCount || !questsCount) {
             if (!totalFiltered) {
@@ -1109,10 +1370,16 @@
         }
 
         const label = viewMode === 'completed' ? 'completed' : 'active';
+        const hiddenNote = state.hideLockedQuests && lockedHidden > 0
+            ? ` <span class="quest-stats-note">Hiding ${lockedHidden} locked ${lockedHidden === 1 ? 'quest' : 'quests'}</span>`
+            : (lockedVisible > 0
+                ? ` <span class="quest-stats-note">${lockedVisible} locked ${lockedVisible === 1 ? 'quest needs' : 'quests need'} prerequisites</span>`
+                : '');
+
         elements.merchantStats.innerHTML = `
             <strong>${questsCount}</strong> quests •
             <strong>${objectiveCount}</strong> ${label} objectives •
-            <strong>${itemObjectives}</strong> item turn-ins
+            <strong>${itemObjectives}</strong> item turn-ins${hiddenNote ? hiddenNote : ''}
         `;
     }
 
@@ -1166,6 +1433,16 @@
         }
 
         if (!questsForView.length) {
+            if (state.hideLockedQuests && Number(summary.lockedHidden) > 0) {
+                renderEmpty(
+                    elements.questList,
+                    'lock',
+                    'Prerequisites not met',
+                    'Complete earlier quests or disable the prerequisite filter to view them.'
+                );
+                updateMerchantStats(summary);
+                return;
+            }
             const isCompletedView = viewMode === 'completed';
             renderEmpty(
                 elements.questList,
@@ -1180,8 +1457,13 @@
         }
 
         const fragment = document.createDocumentFragment();
-        questsForView.forEach(({ quest, objectives }) => {
-            fragment.appendChild(createQuestCard(quest, { viewMode, objectivesOverride: objectives }));
+        questsForView.forEach(({ quest, objectives, isLocked, lockedPrerequisites }) => {
+            fragment.appendChild(createQuestCard(quest, {
+                viewMode,
+                objectivesOverride: objectives,
+                isLocked,
+                lockedPrerequisites
+            }));
         });
         elements.questList.innerHTML = '';
         elements.questList.appendChild(fragment);
@@ -1877,7 +2159,9 @@
                 throw new Error(data.error || 'Failed to fetch quest data');
             }
 
-            state.quests = data.quests || [];
+            const rawQuests = Array.isArray(data.quests) ? data.quests : [];
+            state.quests = rawQuests.map(quest => ({ ...quest }));
+            rebuildQuestDependencyIndex();
             state.merchants = data.merchants || [];
             state.questsLoaded = true;
             renderMerchantOptions();
@@ -2031,6 +2315,14 @@
                 state.itemsOwnedFirst = Boolean(event.target.checked);
                 updateItemsOwnedToggleUI();
                 renderItemsList();
+            });
+        }
+
+        if (elements.prerequisiteToggle) {
+            elements.prerequisiteToggle.addEventListener('change', (event) => {
+                state.hideLockedQuests = Boolean(event.target.checked);
+                updatePrerequisiteToggleUI();
+                renderMerchantView();
             });
         }
 
