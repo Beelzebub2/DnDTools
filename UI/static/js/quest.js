@@ -4,6 +4,7 @@
     const PROGRESS_SYNC_ENDPOINT = '/api/quests/progress';
     const SERVER_SYNC_DEBOUNCE = 400;
     const HOLDINGS_CACHE_TTL = 5 * 60 * 1000;
+    const HOLDINGS_BULK_CHUNK_SIZE = 20;
 
     const createDefaultProgress = () => ({
         objectives: {},
@@ -230,6 +231,7 @@
         aggregatedItems: [],
         selectedMerchant: '',
         itemSearch: '',
+        itemsOwnedFirst: false,
         questsLoaded: false,
         itemsLoaded: false,
         merchantViewMode: 'active',
@@ -258,6 +260,7 @@
         clearItemSearch: document.getElementById('clearItemSearch'),
         itemsMeta: document.getElementById('itemsMeta'),
         itemsRefresh: document.getElementById('itemsRefresh'),
+        itemsOwnedFirst: document.getElementById('itemsOwnedFirst'),
         merchantViewToggle: document.querySelectorAll('.merchant-view-toggle .view-toggle-btn'),
         itemHoldingsOverlay: document.getElementById('itemHoldingsOverlay'),
         itemHoldingsModal: document.getElementById('itemHoldingsModal'),
@@ -272,6 +275,15 @@
         return;
     }
 
+    const ensureItemsLoaderAttached = () => {
+        if (!elements.itemsList || !elements.itemsLoading) {
+            return;
+        }
+        if (elements.itemsLoading.parentElement !== elements.itemsList) {
+            elements.itemsList.insertBefore(elements.itemsLoading, elements.itemsList.firstChild || null);
+        }
+    };
+
     const ensureHoldingsElementsInBody = () => {
         if (!document || !document.body) {
             return;
@@ -285,6 +297,40 @@
     };
 
     ensureHoldingsElementsInBody();
+    const updateItemsOwnedToggleUI = () => {
+        if (!elements.itemsOwnedFirst) {
+            return;
+        }
+        const isChecked = Boolean(state.itemsOwnedFirst);
+        elements.itemsOwnedFirst.checked = isChecked;
+        elements.itemsOwnedFirst.setAttribute('aria-checked', isChecked ? 'true' : 'false');
+        const wrapper = elements.itemsOwnedFirst.closest('.custom-checkbox');
+        if (wrapper) {
+            wrapper.classList.toggle('active', isChecked);
+        }
+    };
+
+    updateItemsOwnedToggleUI();
+
+    const runWithButtonLoading = async (button, task) => {
+        const target = button instanceof HTMLElement ? button : null;
+        if (target) {
+            target.classList.add('is-loading');
+            if ('disabled' in target) {
+                target.disabled = true;
+            }
+        }
+        try {
+            return await Promise.resolve().then(() => task && task());
+        } finally {
+            if (target) {
+                target.classList.remove('is-loading');
+                if ('disabled' in target) {
+                    target.disabled = false;
+                }
+            }
+        }
+    };
 
     if (elements.itemHoldingsClose) {
         elements.itemHoldingsClose.addEventListener('click', hideItemHoldingsModal);
@@ -334,6 +380,116 @@
             node.textContent = sanitizedTotal;
         });
     };
+
+    const holdingsPrefetchQueue = new Set();
+    let holdingsPrefetchInFlight = false;
+
+    const getCachedHoldingsTotal = (itemId) => {
+        if (!itemId) {
+            return null;
+        }
+        const cached = state.itemHoldingsCache[itemId];
+        if (!cached || !cached.data) {
+            return null;
+        }
+        const total = Number(cached.data.total);
+        return Number.isFinite(total) ? total : 0;
+    };
+
+    const isHoldingsCacheFresh = (itemId) => {
+        const cached = state.itemHoldingsCache[itemId];
+        if (!cached) {
+            return false;
+        }
+        const timestamp = Number(cached.timestamp);
+        if (!Number.isFinite(timestamp)) {
+            return false;
+        }
+        return (Date.now() - timestamp) < HOLDINGS_CACHE_TTL;
+    };
+
+    const getOwnedTotalForItem = (item) => {
+        if (!item) {
+            return 0;
+        }
+        const itemId = item.item_id || item.itemId || '';
+        const total = getCachedHoldingsTotal(itemId);
+        return total !== null ? total : 0;
+    };
+
+    const enqueueHoldingsPrefetch = (ids) => {
+        if (!Array.isArray(ids) || !ids.length) {
+            return;
+        }
+        ids.forEach((rawId) => {
+            const normalized = (rawId || '').toString().trim();
+            if (!normalized) {
+                return;
+            }
+            const cachedTotal = getCachedHoldingsTotal(normalized);
+            if (cachedTotal !== null) {
+                updateOwnedLabels(normalized, cachedTotal);
+            }
+            if (isHoldingsCacheFresh(normalized)) {
+                return;
+            }
+            holdingsPrefetchQueue.add(normalized);
+        });
+        if (!holdingsPrefetchInFlight) {
+            processHoldingsPrefetchQueue();
+        }
+    };
+
+    async function processHoldingsPrefetchQueue() {
+        if (holdingsPrefetchInFlight || holdingsPrefetchQueue.size === 0 || typeof fetch !== 'function') {
+            return;
+        }
+        let shouldRerenderItems = false;
+        holdingsPrefetchInFlight = true;
+        try {
+            while (holdingsPrefetchQueue.size) {
+                const batch = Array.from(holdingsPrefetchQueue).slice(0, HOLDINGS_BULK_CHUNK_SIZE);
+                batch.forEach(id => holdingsPrefetchQueue.delete(id));
+                try {
+                    const response = await fetch(`/api/quests/items/holdings?ids=${encodeURIComponent(batch.join(','))}`, {
+                        cache: 'no-store'
+                    });
+                    let payload = null;
+                    try {
+                        payload = await response.json();
+                    } catch (parseError) {
+                        console.warn('Failed to parse holdings response', parseError);
+                    }
+                    if (!response.ok || !payload || payload.success === false || !payload.items) {
+                        console.warn('Failed to load holdings batch', response.status, payload && payload.error);
+                        continue;
+                    }
+                    const now = Date.now();
+                    batch.forEach((id) => {
+                        const summary = payload.items[id] || { total: 0, characters: [] };
+                        state.itemHoldingsCache[id] = {
+                            data: summary,
+                            timestamp: now
+                        };
+                        updateOwnedLabels(id, Number(summary.total) || 0);
+                        if (state.itemsOwnedFirst) {
+                            shouldRerenderItems = true;
+                        }
+                    });
+                } catch (error) {
+                    console.warn('Error prefetching holdings batch', error);
+                }
+            }
+        } finally {
+            holdingsPrefetchInFlight = false;
+            if (holdingsPrefetchQueue.size) {
+                processHoldingsPrefetchQueue();
+            }
+            if (shouldRerenderItems) {
+                renderItemsList();
+            }
+        }
+    }
 
     const updateMerchantViewToggle = () => {
         if (!elements.merchantViewToggle || !elements.merchantViewToggle.length) {
@@ -1454,6 +1610,16 @@
             return;
         }
 
+        ensureItemsLoaderAttached();
+        const container = elements.itemsList;
+        if (!container) {
+            return;
+        }
+        const loader = elements.itemsLoading;
+        if (loader) {
+            loader.style.display = 'none';
+        }
+
         const searchTerm = state.itemSearch.trim().toLowerCase();
         const filtered = state.aggregatedItems.filter(item => {
             if (!searchTerm) {
@@ -1469,12 +1635,29 @@
         }
 
         if (!filtered.length) {
-            renderEmpty(elements.itemsList, 'checklist_rtl', 'No matching items', 'Try a different search term or refresh the data.');
+            renderEmpty(container, 'checklist_rtl', 'No matching items', 'Try a different search term or refresh the data.');
+            ensureItemsLoaderAttached();
+            if (loader) {
+                loader.style.display = 'none';
+            }
             return;
         }
 
+        const itemsWithIndex = filtered.map((item, index) => ({ item, index }));
+        if (state.itemsOwnedFirst) {
+            itemsWithIndex.sort((a, b) => {
+                const ownedDiff = getOwnedTotalForItem(b.item) - getOwnedTotalForItem(a.item);
+                if (ownedDiff !== 0) {
+                    return ownedDiff;
+                }
+                return a.index - b.index;
+            });
+        }
+
         const fragment = document.createDocumentFragment();
-        filtered.forEach(item => {
+        const visibleItemIds = [];
+
+        itemsWithIndex.forEach(({ item }) => {
             const itemIdentifier = item.item_id || item.itemId || '';
             const normalizedItem = { ...item, item_id: itemIdentifier };
             const row = document.createElement('div');
@@ -1568,10 +1751,12 @@
             ownedLabel.textContent = 'Owned: ';
             const ownedValue = document.createElement('span');
             ownedValue.className = 'item-owned-value';
+            let cachedOwnedTotal = null;
             if (itemIdentifier) {
                 ownedValue.dataset.itemId = itemIdentifier;
+                cachedOwnedTotal = getCachedHoldingsTotal(itemIdentifier);
             }
-            ownedValue.textContent = '—';
+            ownedValue.textContent = cachedOwnedTotal !== null ? cachedOwnedTotal : '—';
             ownedLabel.appendChild(ownedValue);
             holdingsBar.appendChild(ownedLabel);
 
@@ -1591,9 +1776,9 @@
             required.appendChild(holdingsBar);
 
             if (itemIdentifier) {
-                const cachedHoldings = state.itemHoldingsCache[itemIdentifier];
-                if (cachedHoldings && cachedHoldings.data) {
-                    updateOwnedLabels(itemIdentifier, Number(cachedHoldings.data.total) || 0);
+                visibleItemIds.push(itemIdentifier);
+                if (cachedOwnedTotal !== null) {
+                    updateOwnedLabels(itemIdentifier, cachedOwnedTotal);
                 }
             }
 
@@ -1673,8 +1858,14 @@
             fragment.appendChild(row);
         });
 
-        elements.itemsList.innerHTML = '';
-        elements.itemsList.appendChild(fragment);
+        container.innerHTML = '';
+        ensureItemsLoaderAttached();
+        if (loader) {
+            loader.style.display = 'none';
+        }
+        container.appendChild(fragment);
+
+        enqueueHoldingsPrefetch(visibleItemIds);
     }
 
     async function fetchQuests({ force = false, silent = false } = {}) {
@@ -1737,6 +1928,7 @@
     }
 
     async function fetchItems({ force = false } = {}) {
+        ensureItemsLoaderAttached();
         toggleLoading(elements.itemsLoading, true);
         try {
             const response = await fetch(force ? '/api/quests/items?refresh=1' : '/api/quests/items');
@@ -1752,6 +1944,10 @@
             console.error(error);
             state.itemsLoaded = false;
             renderError(elements.itemsList, error.message);
+            ensureItemsLoaderAttached();
+            if (elements.itemsLoading) {
+                elements.itemsLoading.style.display = 'none';
+            }
         } finally {
             toggleLoading(elements.itemsLoading, false);
         }
@@ -1789,15 +1985,15 @@
         }
 
         if (elements.merchantRefresh) {
-            elements.merchantRefresh.addEventListener('click', () => refreshAll({ force: true }));
+            elements.merchantRefresh.addEventListener('click', () => runWithButtonLoading(elements.merchantRefresh, () => refreshAll({ force: true })));
         }
 
         if (elements.itemsRefresh) {
-            elements.itemsRefresh.addEventListener('click', () => fetchItems({ force: true }));
+            elements.itemsRefresh.addEventListener('click', () => runWithButtonLoading(elements.itemsRefresh, () => fetchItems({ force: true })));
         }
 
         if (elements.refreshAll) {
-            elements.refreshAll.addEventListener('click', () => refreshAll({ force: true }));
+            elements.refreshAll.addEventListener('click', () => runWithButtonLoading(elements.refreshAll, () => refreshAll({ force: true })));
         }
 
         if (elements.questTabs.length) {
@@ -1826,6 +2022,14 @@
                 if (elements.clearItemSearch) {
                     elements.clearItemSearch.classList.toggle('visible', Boolean(state.itemSearch));
                 }
+                renderItemsList();
+            });
+        }
+
+        if (elements.itemsOwnedFirst) {
+            elements.itemsOwnedFirst.addEventListener('change', (event) => {
+                state.itemsOwnedFirst = Boolean(event.target.checked);
+                updateItemsOwnedToggleUI();
                 renderItemsList();
             });
         }

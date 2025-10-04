@@ -205,6 +205,27 @@
     background: rgba(228, 200, 105, 0.18);
 }
 
+.icon-button.is-loading,
+.refresh-all.is-loading {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+.icon-button.is-loading .material-icons,
+.refresh-all.is-loading .material-icons {
+    animation: quest-refresh-spin 0.85s linear infinite;
+}
+
+@keyframes quest-refresh-spin {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .merchant-stats {
     flex: 1;
     min-width: 220px;
@@ -649,6 +670,99 @@
 }
 
 .items-meta strong {
+    color: var(--accent-gold);
+}
+
+.items-owned-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 200px;
+}
+
+.items-owned-toggle .custom-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    user-select: none;
+    font-size: 0.9rem;
+    color: var(--quest-muted);
+    transition: color 0.2s ease;
+    position: relative;
+    padding: 0.25rem 0.4rem;
+}
+
+.items-owned-toggle .custom-checkbox:hover {
+    color: var(--accent-gold);
+}
+
+.items-owned-toggle .custom-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.items-owned-toggle .checkbox-mark {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(228, 200, 105, 0.35);
+    border-radius: 4px;
+    background: rgba(19, 13, 10, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+    flex-shrink: 0;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.items-owned-toggle .checkbox-mark::after {
+    content: '✓';
+    color: var(--accent-gold);
+    font-size: 12px;
+    font-weight: 700;
+    opacity: 0;
+    transform: scale(0.5);
+    transition: all 0.2s ease;
+}
+
+.items-owned-toggle .custom-checkbox:hover .checkbox-mark {
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 10px rgba(228, 200, 105, 0.25);
+}
+
+.items-owned-toggle .custom-checkbox input[type="checkbox"]:checked+.checkbox-mark {
+    background: var(--accent-gold);
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 12px rgba(228, 200, 105, 0.35);
+}
+
+.items-owned-toggle .custom-checkbox input[type="checkbox"]:checked+.checkbox-mark::after {
+    opacity: 1;
+    transform: scale(1);
+    color: rgba(18, 12, 9, 0.95);
+}
+
+.items-owned-toggle .custom-checkbox input[type="checkbox"]:focus-visible+.checkbox-mark {
+    outline: 2px solid rgba(228, 200, 105, 0.6);
+    outline-offset: 2px;
+}
+
+.items-owned-toggle .checkbox-label {
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    color: var(--quest-muted);
+    transition: color 0.2s ease;
+}
+
+.items-owned-toggle .custom-checkbox input[type="checkbox"]:checked~.checkbox-label {
+    color: var(--accent-gold);
+}
+
+.items-owned-toggle .custom-checkbox.active {
     color: var(--accent-gold);
 }
 

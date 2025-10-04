@@ -45,7 +45,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.4.6"
+APP_VERSION = "3.4.7"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/download/latest/update-manifest.json",
@@ -65,7 +65,9 @@ _update_lock = threading.RLock()
 # Quest tracking cache
 QUESTS_API_URL = "https://api.darkerdb.com/v1/quests"
 QUESTS_PAGE_SIZE = 100
-QUESTS_CACHE_DURATION = 10 * 60  # 10 minutes
+# Quest data should persist until explicitly refreshed or cleared.
+# Using None disables automatic expiration.
+QUESTS_CACHE_DURATION = None
 QUESTS_CACHE_FILE = os.path.join(get_data_dir(), 'quests_cache.json')
 QUESTS_PROGRESS_FILE = os.path.join(get_data_dir(), 'quests_progress.json')
 DATA_DIR = Path(get_data_dir())
@@ -462,11 +464,7 @@ def _fetch_quests_data(force: bool = False) -> list[dict]:
     now = time.time()
 
     with _quests_lock:
-        if (
-            not force
-            and _quests_cache is not None
-            and (now - _quests_cache_timestamp) < QUESTS_CACHE_DURATION
-        ):
+        if not force and _quests_cache is not None:
             return list(_quests_cache)
 
     disk_snapshot: Optional[tuple[float, list[dict]]] = None
@@ -477,8 +475,7 @@ def _fetch_quests_data(force: bool = False) -> list[dict]:
             with _quests_lock:
                 _quests_cache = list(disk_quests)
                 _quests_cache_timestamp = disk_timestamp
-            if (now - disk_timestamp) < QUESTS_CACHE_DURATION:
-                return list(disk_quests)
+            return list(disk_quests)
 
     quests: list[dict] = []
     next_url = f"{QUESTS_API_URL}?limit={QUESTS_PAGE_SIZE}"
