@@ -5,7 +5,7 @@ import asyncio
 import tempfile
 import glob
 import logging
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 
 # 1) Grab the original asyncio.spawn functions
 _orig_create_exec = asyncio.create_subprocess_exec
@@ -164,8 +164,9 @@ import threading
 import time
 import importlib
 from concurrent.futures import TimeoutError as FutureTimeout
+from google.protobuf.json_format import MessageToDict
 
-from .appdirs import get_capture_state_file, is_frozen
+from .appdirs import get_capture_state_file, get_data_dir, is_frozen
 from src.models.settings import settings_manager, resolve_tshark_executable
 from networking.protos import _PacketCommand_pb2
 
@@ -220,6 +221,21 @@ if is_frozen():
     # Replace the subprocess.Popen with our modified version
     subprocess.Popen = hidden_popen
 
+
+def _format_hexdump(data: bytes, width: int = 16) -> List[str]:
+    lines: List[str] = []
+    if width <= 0:
+        width = 16
+
+    for offset in range(0, len(data), width):
+        chunk = data[offset:offset + width]
+        hex_bytes = ' '.join(f"{byte:02X}" for byte in chunk)
+        ascii_repr = ''.join(chr(byte) if 32 <= byte <= 126 else '.' for byte in chunk)
+        pad = (width - len(chunk)) * 3
+        lines.append(f"{offset:04X}  {hex_bytes}{' ' * pad}  {ascii_repr}")
+
+    return lines
+
 class PacketCapture:
     def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), wireshark_path: Optional[str] = None):
         self.interface = interface
@@ -233,11 +249,30 @@ class PacketCapture:
         self.running = False  # Initialize as False first
         self.capture_thread = None
         self._cleanup_capture_on_exit = False
+        self.capture_info = {}
         self._state_lock = threading.Lock()
         self._stop_event = threading.Event()
         self.STATE_FILE = get_capture_state_file()
         self.tshark_path = resolve_tshark_executable(wireshark_path) or resolve_tshark_executable(settings_manager.get('wiresharkPath'))
         self._apply_tshark_environment()
+
+        quests_dir = os.path.join(get_data_dir(), "quests")
+        try:
+            os.makedirs(quests_dir, exist_ok=True)
+        except Exception as exc:
+            self.logger.warning(f"Unable to create quests data directory at {quests_dir}: {exc}")
+        self.quests_dir = quests_dir
+        self._quest_packet_types = {}
+        for packet_name in (
+            'S2C_MERCHANT_LIST_RES',
+            'S2C_MERCHANT_QUEST_LIST_INFO_RES',
+            'S2C_MERCHANT_QUEST_LOG_LIST_RES',
+        ):
+            try:
+                value = _PacketCommand_pb2.PacketCommand.Value(packet_name)
+                self._quest_packet_types[value] = packet_name
+            except ValueError:
+                self.logger.debug(f"Quest packet {packet_name} not present in PacketCommand enum")
         
         # Restore state - keep track of what the previous state was
         self.saved_state = self._restore_state()
@@ -736,8 +771,12 @@ class PacketCapture:
     
     def handle_packet(self, packet_data, proto_type):
         name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
+        message = self.parse_proto(packet_data, proto_type)
+
+        if proto_type in self._quest_packet_types:
+            self._persist_quest_packet(packet_data, proto_type, name, message)
+
         if self.capture_info:
-            message = self.parse_proto(packet_data, proto_type)
             if proto_type in self.capture_info:
                 self.logger.info(f"Parsing: {name} {proto_type}")
                 if message:
@@ -750,6 +789,88 @@ class PacketCapture:
                     self.logger.info("Valid Packet")
                 else:
                     self.logger.warning("Invalid Packet")
+
+    def _persist_quest_packet(self, packet_data: bytes, proto_type: int, packet_name: str, message) -> None:
+        now = datetime.utcnow()
+        timestamp_safe = now.strftime('%Y-%m-%dT%H-%M-%S.%fZ')
+        iso_timestamp = now.isoformat() + 'Z'
+        base_name = f"{timestamp_safe}_{packet_name}"
+        json_path = os.path.join(self.quests_dir, f"{base_name}.json")
+        bin_path = os.path.join(self.quests_dir, f"{base_name}.bin")
+        hexdump_path = os.path.join(self.quests_dir, f"{base_name}.hexdump.txt")
+
+        payload = None
+        if message is not None:
+            try:
+                payload = MessageToDict(
+                    message,
+                    preserving_proto_field_name=True,
+                    including_default_value_fields=True
+                )
+            except TypeError:
+                payload = MessageToDict(
+                    message,
+                    preserving_proto_field_name=True
+                )
+            except Exception as exc:
+                self.logger.warning(f"Failed to serialize {packet_name} payload: {exc}")
+                payload = None
+
+        header_bytes = packet_data[:8]
+        payload_bytes = packet_data[8:]
+        header_hex = ' '.join(f"{byte:02X}" for byte in header_bytes)
+        hexdump_lines = _format_hexdump(payload_bytes)
+
+        binary_filename = None
+        try:
+            with open(bin_path, 'wb') as handle:
+                handle.write(packet_data)
+            binary_filename = os.path.basename(bin_path)
+        except Exception as exc:
+            self.logger.error(f"Failed to write quest packet binary {packet_name}: {exc}")
+
+        hexdump_filename = None
+        try:
+            with open(hexdump_path, 'w', encoding='utf-8') as handle:
+                handle.write(f"Packet {packet_name} (type={proto_type}, length={len(packet_data)})\n")
+                handle.write(f"Captured at {iso_timestamp}\n")
+                handle.write(f"Header bytes: {header_hex}\n")
+                handle.write(f"Payload length: {len(payload_bytes)} bytes\n\n")
+                handle.write("Offset  Hex bytes                                       ASCII\n")
+                handle.write("------  ----------------------------------------------  ----------------\n")
+                for line in hexdump_lines:
+                    handle.write(line + '\n')
+            hexdump_filename = os.path.basename(hexdump_path)
+        except Exception as exc:
+            self.logger.error(f"Failed to write quest packet hexdump {packet_name}: {exc}")
+
+        hexdump_preview = hexdump_lines[:min(len(hexdump_lines), 32)]
+
+        record = {
+            "captured_at": iso_timestamp,
+            "packet": {
+                "name": packet_name,
+                "type": proto_type,
+                "length": len(packet_data),
+            },
+            "payload_length": len(payload_bytes),
+            "payload": payload,
+            "raw": {
+                "header_hex": header_hex,
+                "payload_hexdump_preview": hexdump_preview,
+                "payload_hexdump_line_count": len(hexdump_lines),
+                "binary_file": binary_filename,
+                "hexdump_file": hexdump_filename,
+                "files_relative_to": self.quests_dir,
+            },
+        }
+
+        try:
+            with open(json_path, 'w', encoding='utf-8') as handle:
+                json.dump(record, handle, indent=2, ensure_ascii=False)
+            self.logger.info(f"Saved quest packet to {json_path}")
+        except Exception as exc:
+            self.logger.error(f"Failed to persist quest packet {packet_name}: {exc}")
 
 def main():
     from src.models.character import policy

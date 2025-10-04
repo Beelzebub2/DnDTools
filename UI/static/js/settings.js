@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const detectWiresharkButton = document.getElementById('detectWiresharkPath');
     const detectedResolutionSpan = document.querySelector('#detectedResolution');
     const refreshResolutionBtn = document.getElementById('refreshResolution');
+    const clearQuestDataButton = document.getElementById('clearQuestData');
     const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');
 
     let currentSettings = {};
@@ -19,6 +20,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isApplyingSettings = false;
     let isDirty = false;
     let changeCheckScheduled = false;
+    const QUEST_PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
 
     const beforeUnloadHandler = (event) => {
         if (!isDirty) {
@@ -339,6 +341,67 @@ document.addEventListener('DOMContentLoaded', async () => {
             detectWiresharkButton.disabled = false;
             detectWiresharkButton.classList.remove('loading');
         }
+    }
+
+    function handleClearQuestData() {
+        if (!clearQuestDataButton) {
+            return;
+        }
+
+        createUnsavedChangesModal({
+            title: 'Clear quest tracker data?',
+            message: 'This will delete cached quest information and your saved quest progress. The tracker will download fresh data next time you open it.',
+            saveLabel: 'Clear Data',
+            discardLabel: 'Keep Data',
+            cancelLabel: 'Cancel',
+            onSave: async () => {
+                if (typeof setLoading === 'function') {
+                    setLoading(clearQuestDataButton, true);
+                }
+                try {
+                    const response = await fetch('/api/quests/cache', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (parseError) {
+                        /* ignore */
+                    }
+
+                    if (!response.ok || (data && data.success === false)) {
+                        const message = data && data.error ? data.error : 'Failed to clear quest data';
+                        throw new Error(message);
+                    }
+
+                    try {
+                        window.localStorage?.removeItem(QUEST_PROGRESS_STORAGE_KEY);
+                    } catch (storageError) {
+                        console.warn('Failed to clear local quest progress', storageError);
+                    }
+
+                    try {
+                        window.dispatchEvent(new CustomEvent('questDataCleared'));
+                    } catch (dispatchError) {
+                        console.warn('Failed to dispatch questDataCleared event', dispatchError);
+                    }
+
+                    showNotification('Quest tracker cache cleared.', 'success');
+                    return true;
+                } catch (error) {
+                    console.error('Failed to clear quest cache', error);
+                    showNotification(error.message || 'Failed to clear quest data', 'error');
+                    return false;
+                } finally {
+                    if (typeof setLoading === 'function') {
+                        setLoading(clearQuestDataButton, false);
+                    }
+                }
+            }
+        });
     }
 
     function parseSortSpeed(value, fallback = 0.2) {
@@ -886,6 +949,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     refreshResolutionBtn?.addEventListener('click', loadDetectedResolution);
     browseWiresharkButton?.addEventListener('click', pickWiresharkPath);
     detectWiresharkButton?.addEventListener('click', autoDetectWireshark);
+    clearQuestDataButton?.addEventListener('click', handleClearQuestData);
 
     // Setup hotkey recording
     setupHotkeyRecording(sortHotkeyInput);

@@ -1,5 +1,228 @@
 /* global showNotification */
 (() => {
+    const PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
+    const PROGRESS_SYNC_ENDPOINT = '/api/quests/progress';
+    const SERVER_SYNC_DEBOUNCE = 400;
+
+    const createDefaultProgress = () => ({
+        objectives: {},
+        items: {}
+    });
+
+    const loadProgress = () => {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return createDefaultProgress();
+        }
+        try {
+            const raw = window.localStorage.getItem(PROGRESS_STORAGE_KEY);
+            if (!raw) {
+                return createDefaultProgress();
+            }
+            const parsed = JSON.parse(raw);
+            if (!parsed || typeof parsed !== 'object') {
+                return createDefaultProgress();
+            }
+            return {
+                objectives: parsed.objectives && typeof parsed.objectives === 'object' ? parsed.objectives : {},
+                items: parsed.items && typeof parsed.items === 'object' ? parsed.items : {}
+            };
+        } catch (error) {
+            console.warn('Failed to load quest progress from local storage', error);
+            return createDefaultProgress();
+        }
+    };
+
+    let persistTimeout = null;
+    let serverPersistTimeout = null;
+    let lastServerSyncPayload = '';
+    let progressSyncInFlight = false;
+    const schedulePersistProgress = (progress) => {
+        if (typeof window === 'undefined' || !window.localStorage) {
+            return;
+        }
+        if (persistTimeout) {
+            window.clearTimeout(persistTimeout);
+        }
+        persistTimeout = window.setTimeout(() => {
+            try {
+                window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(progress));
+            } catch (error) {
+                console.warn('Failed to persist quest progress', error);
+            }
+        }, 150);
+    };
+
+    const sanitizeProgressData = (raw) => {
+        const sanitized = {
+            objectives: {},
+            items: {}
+        };
+
+        if (!raw || typeof raw !== 'object') {
+            return sanitized;
+        }
+
+        if (raw.objectives && typeof raw.objectives === 'object') {
+            Object.entries(raw.objectives).forEach(([key, value]) => {
+                if (!value || typeof value !== 'object') {
+                    return;
+                }
+                let objectiveIndex = null;
+                if (value.objective_index !== null && value.objective_index !== undefined && value.objective_index !== '') {
+                    const numericIndex = Number(value.objective_index);
+                    if (Number.isFinite(numericIndex)) {
+                        objectiveIndex = numericIndex;
+                    }
+                }
+                const submittedValue = Number(value.submitted);
+                const entry = {
+                    quest_id: value.quest_id ? String(value.quest_id) : null,
+                    objective_index: objectiveIndex,
+                    type: value.type ? String(value.type) : null,
+                    item_id: value.item_id ? String(value.item_id) : null,
+                    submitted: Number.isFinite(submittedValue) ? Math.max(0, Math.round(submittedValue)) : 0,
+                    completed: Boolean(value.completed)
+                };
+                sanitized.objectives[String(key)] = entry;
+            });
+        }
+
+        if (raw.items && typeof raw.items === 'object') {
+            Object.entries(raw.items).forEach(([key, value]) => {
+                const numeric = Number(value);
+                if (Number.isFinite(numeric) && numeric >= 0) {
+                    sanitized.items[String(key)] = Math.max(0, Math.round(numeric));
+                }
+            });
+        }
+
+        return sanitized;
+    };
+
+    const mergeProgressData = (base, incoming) => {
+        const resultObjectives = { ...(base && base.objectives ? base.objectives : {}) };
+        const incomingObjectives = incoming && incoming.objectives ? incoming.objectives : {};
+        Object.entries(incomingObjectives).forEach(([key, value]) => {
+            const existing = resultObjectives[key] || {};
+            const merged = { ...existing, ...value };
+            const existingSubmitted = Number(existing.submitted);
+            const incomingSubmitted = Number(value && value.submitted);
+            if (Number.isFinite(existingSubmitted) || Number.isFinite(incomingSubmitted)) {
+                const maxSubmitted = Math.max(
+                    Number.isFinite(existingSubmitted) ? existingSubmitted : 0,
+                    Number.isFinite(incomingSubmitted) ? incomingSubmitted : 0
+                );
+                merged.submitted = Math.max(0, Math.round(maxSubmitted));
+            }
+            if ((existing && existing.completed) || (value && value.completed)) {
+                merged.completed = Boolean((existing && existing.completed) || (value && value.completed));
+            }
+            resultObjectives[key] = merged;
+        });
+
+        const resultItems = { ...(base && base.items ? base.items : {}) };
+        const incomingItems = incoming && incoming.items ? incoming.items : {};
+        Object.entries(incomingItems).forEach(([key, value]) => {
+            const existingValue = Number(resultItems[key]);
+            const incomingValue = Number(value);
+            if (Number.isFinite(existingValue) || Number.isFinite(incomingValue)) {
+                resultItems[key] = Math.max(
+                    0,
+                    Math.round(
+                        Math.max(
+                            Number.isFinite(existingValue) ? existingValue : 0,
+                            Number.isFinite(incomingValue) ? incomingValue : 0
+                        )
+                    )
+                );
+            } else {
+                resultItems[key] = value;
+            }
+        });
+
+        return {
+            objectives: resultObjectives,
+            items: resultItems
+        };
+    };
+
+    const progressPayloadForServer = () => {
+    const sourceProgress = state && state.progress ? state.progress : { objectives: {}, items: {} };
+        return sanitizeProgressData({
+            objectives: sourceProgress.objectives,
+            items: sourceProgress.items
+        });
+    };
+
+    const sendProgressToServer = async ({ keepalive = false } = {}) => {
+        if (typeof fetch !== 'function') {
+            return;
+        }
+
+        const normalized = progressPayloadForServer();
+        const payload = JSON.stringify({ progress: normalized });
+        if (payload === lastServerSyncPayload) {
+            return;
+        }
+
+        const attemptSendBeacon = () => {
+            if (!keepalive || typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') {
+                return false;
+            }
+            try {
+                const blob = new Blob([payload], { type: 'application/json' });
+                const sent = navigator.sendBeacon(PROGRESS_SYNC_ENDPOINT, blob);
+                if (sent) {
+                    lastServerSyncPayload = payload;
+                }
+                return sent;
+            } catch (error) {
+                console.warn('Failed to persist quest progress via sendBeacon', error);
+                return false;
+            }
+        };
+
+        if (attemptSendBeacon()) {
+            return;
+        }
+
+        try {
+            const response = await fetch(PROGRESS_SYNC_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: payload,
+                keepalive
+            });
+            if (!response.ok) {
+                throw new Error(`Server responded with ${response.status}`);
+            }
+            lastServerSyncPayload = payload;
+        } catch (error) {
+            console.warn('Failed to persist quest progress to backend', error);
+        }
+    };
+
+    const scheduleServerPersistProgress = ({ immediate = false } = {}) => {
+        if (immediate) {
+            if (serverPersistTimeout) {
+                window.clearTimeout(serverPersistTimeout);
+                serverPersistTimeout = null;
+            }
+            sendProgressToServer({ keepalive: true });
+            return;
+        }
+
+        if (serverPersistTimeout) {
+            window.clearTimeout(serverPersistTimeout);
+        }
+        serverPersistTimeout = window.setTimeout(() => {
+            serverPersistTimeout = null;
+            sendProgressToServer();
+        }, SERVER_SYNC_DEBOUNCE);
+    };
+
     const state = {
         quests: [],
         merchants: [],
@@ -7,7 +230,9 @@
         selectedMerchant: '',
         itemSearch: '',
         questsLoaded: false,
-        itemsLoaded: false
+        itemsLoaded: false,
+        merchantViewMode: 'active',
+        progress: sanitizeProgressData(loadProgress())
     };
 
     const elements = {
@@ -27,12 +252,214 @@
         itemsSearch: document.getElementById('itemSearch'),
         clearItemSearch: document.getElementById('clearItemSearch'),
         itemsMeta: document.getElementById('itemsMeta'),
-        itemsRefresh: document.getElementById('itemsRefresh')
+        itemsRefresh: document.getElementById('itemsRefresh'),
+        merchantViewToggle: document.querySelectorAll('.merchant-view-toggle .view-toggle-btn')
     };
 
     if (!elements.questList || !elements.itemsList) {
         return;
     }
+
+    const clampNumber = (value, min, max) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) {
+            return min;
+        }
+        if (Number.isFinite(min) && numeric < min) {
+            return min;
+        }
+        if (Number.isFinite(max) && numeric > max) {
+            return max;
+        }
+        return numeric;
+    };
+
+    const updateMerchantViewToggle = () => {
+        if (!elements.merchantViewToggle || !elements.merchantViewToggle.length) {
+            return;
+        }
+        elements.merchantViewToggle.forEach(button => {
+            const mode = button.dataset.mode || 'active';
+            const isActive = mode === state.merchantViewMode;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+        });
+    };
+
+    const makeObjectiveKey = (quest, index, objective) => {
+        const questId = quest.id || quest.title || `quest-${index}`;
+        const parts = [questId, objective.type || 'Objective', index];
+        if (objective.item_id) {
+            parts.push(objective.item_id);
+        } else if (objective.monster) {
+            parts.push(objective.monster);
+        } else if (objective.module) {
+            parts.push(objective.module);
+        } else if (objective.interact) {
+            parts.push(objective.interact);
+        }
+        return parts.join('::');
+    };
+
+    const getObjectiveProgress = (key) => state.progress.objectives[key] || null;
+
+    const setObjectiveProgress = (key, payload) => {
+        const current = state.progress.objectives[key] || {};
+        const questId = payload.quest_id ?? current.quest_id;
+        const objectiveIndex = payload.objective_index ?? current.objective_index;
+        const type = payload.type ?? current.type;
+        const rawItemId = payload.item_id !== undefined ? payload.item_id : current.item_id;
+
+        let submitted = payload.submitted;
+        if (submitted === undefined) {
+            submitted = current.submitted;
+        }
+        submitted = Number(submitted);
+        if (!Number.isFinite(submitted) || submitted < 0) {
+            submitted = 0;
+        }
+
+        const completed = payload.completed !== undefined ? Boolean(payload.completed) : Boolean(current.completed);
+
+        const record = {
+            quest_id: questId,
+            objective_index: objectiveIndex,
+            type,
+            submitted,
+            completed,
+        };
+
+        if (rawItemId) {
+            record.item_id = rawItemId;
+        }
+
+        if (!record.completed && submitted <= 0 && !record.item_id) {
+            delete state.progress.objectives[key];
+        } else {
+            state.progress.objectives[key] = record;
+        }
+
+    schedulePersistProgress(state.progress);
+    scheduleServerPersistProgress();
+    };
+
+    const getObjectiveSubmissionsForItem = (itemId) => {
+        if (!itemId) {
+            return 0;
+        }
+        return Object.values(state.progress.objectives).reduce((total, entry) => {
+            if (!entry || entry.item_id !== itemId) {
+                return total;
+            }
+            const amount = Number(entry.submitted) || 0;
+            return total + (amount > 0 ? amount : 0);
+        }, 0);
+    };
+
+    const getManualItemProgress = (itemId) => {
+        if (!itemId || !state.progress.items) {
+            return undefined;
+        }
+        const value = state.progress.items[itemId];
+        return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+    };
+
+    const setItemProgress = (itemId, value) => {
+        if (!itemId) {
+            return;
+        }
+        if (!state.progress.items) {
+            state.progress.items = {};
+        }
+
+        if (value === null || value === undefined || value === '') {
+            delete state.progress.items[itemId];
+        } else {
+            const sanitized = Number(value);
+            if (Number.isFinite(sanitized) && sanitized >= 0) {
+                state.progress.items[itemId] = sanitized;
+            } else {
+                delete state.progress.items[itemId];
+            }
+        }
+
+    schedulePersistProgress(state.progress);
+    scheduleServerPersistProgress();
+    };
+
+    const getSubmittedForItem = (itemId) => {
+        const manual = getManualItemProgress(itemId);
+        if (manual !== undefined) {
+            return manual;
+        }
+        return getObjectiveSubmissionsForItem(itemId);
+    };
+
+    const isObjectiveCompleted = (quest, objective, originalIndex) => {
+        const indexToUse = typeof originalIndex === 'number' ? originalIndex : 0;
+        const key = makeObjectiveKey(quest, indexToUse, objective);
+        const stored = getObjectiveProgress(key);
+        return Boolean(stored && stored.completed);
+    };
+
+    const partitionQuestObjectives = (quest) => {
+        const result = {
+            active: [],
+            completed: []
+        };
+
+        (quest.objectives || []).forEach((objective, index) => {
+            const annotated = { ...objective, __originalIndex: index };
+            if (isObjectiveCompleted(quest, objective, index)) {
+                result.completed.push(annotated);
+            } else {
+                result.active.push(annotated);
+            }
+        });
+
+        return result;
+    };
+
+    const buildMerchantView = (quests, viewMode = 'active') => {
+        const questsForView = [];
+        let questsCount = 0;
+        let objectiveCount = 0;
+        let itemObjectiveCount = 0;
+        let totalActive = 0;
+        let totalCompleted = 0;
+
+        quests.forEach((quest) => {
+            const partitions = partitionQuestObjectives(quest);
+            const relevantObjectives = viewMode === 'completed' ? partitions.completed : partitions.active;
+
+            totalActive += partitions.active.length;
+            totalCompleted += partitions.completed.length;
+
+            if (!relevantObjectives.length) {
+                return;
+            }
+
+            questsCount += 1;
+            objectiveCount += relevantObjectives.length;
+            itemObjectiveCount += relevantObjectives.filter(obj => obj.type === 'Fetch').length;
+
+            const objectivesWithIndex = relevantObjectives.map(obj => ({ ...obj }));
+            questsForView.push({ quest, objectives: objectivesWithIndex });
+        });
+
+        return {
+            questsForView,
+            summary: {
+                viewMode,
+                questsCount,
+                objectiveCount,
+                itemObjectiveCount,
+                totalFiltered: quests.length,
+                totalActive,
+                totalCompleted
+            }
+        };
+    };
 
     function toggleLoading(el, isLoading) {
         if (!el) {
@@ -80,7 +507,10 @@
         return span;
     }
 
-    function createQuestCard(quest) {
+    function createQuestCard(quest, options = {}) {
+        const { viewMode = 'active', objectivesOverride } = options;
+        const objectivesToRender = objectivesOverride || quest.objectives || [];
+
         const card = document.createElement('article');
         card.className = 'quest-card';
 
@@ -111,12 +541,17 @@
             card.appendChild(description);
         }
 
-        const objectives = document.createElement('div');
-        objectives.innerHTML = '<h4>Objectives</h4>';
+        const objectivesContainer = document.createElement('div');
+        objectivesContainer.innerHTML = '<h4>Objectives</h4>';
         const objectiveList = document.createElement('ul');
         objectiveList.className = 'objective-list';
 
-        (quest.objectives || []).forEach(obj => {
+        objectivesToRender.forEach((obj, index) => {
+            const originalIndex = typeof obj.__originalIndex === 'number' ? obj.__originalIndex : index;
+            const objectiveKey = makeObjectiveKey(quest, originalIndex, obj);
+            const storedProgress = getObjectiveProgress(objectiveKey) || {};
+            const objectiveCompleted = isObjectiveCompleted(quest, obj, originalIndex);
+
             const item = document.createElement('li');
             item.className = 'objective-item';
 
@@ -168,18 +603,155 @@
 
             item.appendChild(icon);
             item.appendChild(content);
+
+            const progressContainer = document.createElement('div');
+            progressContainer.className = 'objective-progress';
+
+            const toggleLabel = document.createElement('label');
+            toggleLabel.className = 'objective-progress-toggle';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = objectiveCompleted;
+            const toggleText = document.createElement('span');
+            toggleText.textContent = 'Completed';
+            toggleLabel.appendChild(checkbox);
+            toggleLabel.appendChild(toggleText);
+            progressContainer.appendChild(toggleLabel);
+
+            const updateCompletionClass = () => {
+                item.classList.toggle('completed', checkbox.checked);
+            };
+            updateCompletionClass();
+
+            const persistObjective = () => {
+                setObjectiveProgress(objectiveKey, {
+                    quest_id: quest.id,
+                    objective_index: originalIndex,
+                    type: obj.type,
+                    item_id: obj.item_id,
+                    submitted: submittedValue,
+                    completed: checkbox.checked
+                });
+            };
+
+            let fetchInput = null;
+            let updateRemainingLabel = null;
+
+            let submittedValue = obj.type === 'Fetch' && obj.count ? clampNumber(storedProgress.submitted ?? 0, 0, obj.count) : 0;
+
+            if (obj.type === 'Fetch' && obj.count) {
+                const countWrapper = document.createElement('div');
+                countWrapper.className = 'objective-progress-count';
+
+                const countLabel = document.createElement('span');
+                countLabel.className = 'objective-progress-label';
+                countLabel.textContent = 'Turned in';
+                countWrapper.appendChild(countLabel);
+
+                fetchInput = document.createElement('input');
+                fetchInput.type = 'number';
+                fetchInput.min = '0';
+                fetchInput.step = '1';
+                fetchInput.max = String(obj.count);
+                fetchInput.value = submittedValue;
+                countWrapper.appendChild(fetchInput);
+
+                const remainingLabel = document.createElement('span');
+                remainingLabel.className = 'objective-remaining';
+                updateRemainingLabel = () => {
+                    const remaining = Math.max(0, (obj.count || 0) - submittedValue);
+                    remainingLabel.textContent = `${remaining} remaining`;
+                };
+                updateRemainingLabel();
+                countWrapper.appendChild(remainingLabel);
+
+                const handleFetchInput = (rawValue) => {
+                    if (rawValue === '') {
+                        submittedValue = 0;
+                        fetchInput.value = '';
+                        checkbox.checked = false;
+                        delete checkbox.dataset.autoComplete;
+                        if (updateRemainingLabel) {
+                            updateRemainingLabel();
+                        }
+                        updateCompletionClass();
+                        persistObjective();
+                        if (state.itemsLoaded) {
+                            renderItemsList();
+                        }
+                        renderMerchantView();
+                        return;
+                    }
+
+                    const clamped = clampNumber(rawValue, 0, obj.count || 0);
+                    if (!Number.isFinite(clamped)) {
+                        return;
+                    }
+                    submittedValue = clamped;
+                    fetchInput.value = clamped;
+                    const shouldComplete = obj.count && clamped >= obj.count;
+                    if (shouldComplete) {
+                        checkbox.checked = true;
+                        checkbox.dataset.autoComplete = 'true';
+                    } else if (checkbox.dataset.autoComplete) {
+                        checkbox.checked = false;
+                        delete checkbox.dataset.autoComplete;
+                    }
+                    if (updateRemainingLabel) {
+                        updateRemainingLabel();
+                    }
+                    updateCompletionClass();
+                    persistObjective();
+                    if (state.itemsLoaded) {
+                        renderItemsList();
+                    }
+                    renderMerchantView();
+                };
+
+                fetchInput.addEventListener('change', (event) => handleFetchInput(event.target.value));
+                fetchInput.addEventListener('input', (event) => handleFetchInput(event.target.value));
+
+                progressContainer.appendChild(countWrapper);
+            }
+
+            checkbox.addEventListener('change', () => {
+                delete checkbox.dataset.autoComplete;
+                if (checkbox.checked && obj.type === 'Fetch' && obj.count && submittedValue < obj.count) {
+                    submittedValue = obj.count;
+                    if (fetchInput) {
+                        fetchInput.value = submittedValue;
+                    }
+                }
+                if (!checkbox.checked && obj.type === 'Fetch' && obj.count && submittedValue >= obj.count) {
+                    submittedValue = Math.max(0, obj.count - 1);
+                    if (fetchInput) {
+                        fetchInput.value = submittedValue > 0 ? submittedValue : '';
+                    }
+                }
+                if (updateRemainingLabel) {
+                    updateRemainingLabel();
+                }
+                updateCompletionClass();
+                persistObjective();
+                if (state.itemsLoaded) {
+                    renderItemsList();
+                }
+                renderMerchantView();
+            });
+
+            item.appendChild(progressContainer);
             objectiveList.appendChild(item);
         });
 
         if (!objectiveList.children.length) {
             const emptyObjective = document.createElement('li');
             emptyObjective.className = 'objective-item';
-            emptyObjective.innerHTML = '<div class="objective-content">No specific objectives listed.</div>';
+            emptyObjective.innerHTML = '<div class="objective-content">No specific objectives for this view.</div>';
             objectiveList.appendChild(emptyObjective);
         }
 
-        objectives.appendChild(objectiveList);
-        card.appendChild(objectives);
+        objectivesContainer.appendChild(objectiveList);
+        card.appendChild(objectivesContainer);
 
         if (quest.rewards && quest.rewards.length) {
             const rewardSection = document.createElement('div');
@@ -225,21 +797,51 @@
         return card;
     }
 
-    function updateMerchantStats(quests) {
+    function updateMerchantStats(summary) {
         if (!elements.merchantStats) {
             return;
         }
-        if (!quests.length) {
-            elements.merchantStats.innerHTML = 'No quests available for this merchant.';
+
+        let prepared = summary;
+        if (Array.isArray(prepared)) {
+            prepared = buildMerchantView(prepared, state.merchantViewMode || 'active').summary;
+        }
+        if (!prepared) {
+            prepared = {
+                viewMode: state.merchantViewMode || 'active',
+                questsCount: 0,
+                objectiveCount: 0,
+                itemObjectiveCount: 0,
+                totalFiltered: 0,
+                totalActive: 0,
+                totalCompleted: 0
+            };
+        }
+
+        const viewMode = prepared.viewMode || state.merchantViewMode || 'active';
+        const questsCount = Number(prepared.questsCount) || 0;
+        const objectiveCount = Number(prepared.objectiveCount) || 0;
+        const itemObjectives = Number(prepared.itemObjectiveCount) || 0;
+        const totalFiltered = Number(prepared.totalFiltered) || 0;
+        const totalObjectives = Number(prepared.totalActive || 0) + Number(prepared.totalCompleted || 0);
+
+        if (!objectiveCount || !questsCount) {
+            if (!totalFiltered) {
+                elements.merchantStats.textContent = 'No quests available for this selection.';
+            } else if (!totalObjectives) {
+                elements.merchantStats.textContent = 'No objectives recorded for these quests yet.';
+            } else if (viewMode === 'completed') {
+                elements.merchantStats.textContent = 'No completed objectives recorded yet.';
+            } else {
+                elements.merchantStats.textContent = 'All objectives completed for this selection.';
+            }
             return;
         }
 
-        const objectiveCount = quests.reduce((total, quest) => total + (quest.objectives ? quest.objectives.length : 0), 0);
-        const itemObjectives = quests.reduce((total, quest) => total + (quest.objectives || []).filter(obj => obj.item_id).length, 0);
-
+        const label = viewMode === 'completed' ? 'completed' : 'active';
         elements.merchantStats.innerHTML = `
-            <strong>${quests.length}</strong> quests •
-            <strong>${objectiveCount}</strong> objectives •
+            <strong>${questsCount}</strong> quests •
+            <strong>${objectiveCount}</strong> ${label} objectives •
             <strong>${itemObjectives}</strong> item turn-ins
         `;
     }
@@ -280,19 +882,40 @@
         if (!state.questsLoaded) {
             return;
         }
-        const questsToRender = getFilteredQuests();
 
-        if (!questsToRender.length) {
+        const filteredQuests = getFilteredQuests();
+        const viewMode = state.merchantViewMode || 'active';
+        const { questsForView, summary } = buildMerchantView(filteredQuests, viewMode);
+
+        updateMerchantViewToggle();
+
+        if (!filteredQuests.length) {
             renderEmpty(elements.questList, 'inventory', 'No quests yet', 'Try refreshing or selecting another merchant.');
-            updateMerchantStats([]);
+            updateMerchantStats(summary);
+            return;
+        }
+
+        if (!questsForView.length) {
+            const isCompletedView = viewMode === 'completed';
+            renderEmpty(
+                elements.questList,
+                isCompletedView ? 'sentiment_satisfied' : 'celebration',
+                isCompletedView ? 'Nothing completed yet' : 'All caught up!',
+                isCompletedView
+                    ? 'Complete objectives to see them here.'
+                    : 'All objectives are completed for this merchant.'
+            );
+            updateMerchantStats(summary);
             return;
         }
 
         const fragment = document.createDocumentFragment();
-        questsToRender.forEach(quest => fragment.appendChild(createQuestCard(quest)));
+        questsForView.forEach(({ quest, objectives }) => {
+            fragment.appendChild(createQuestCard(quest, { viewMode, objectivesOverride: objectives }));
+        });
         elements.questList.innerHTML = '';
         elements.questList.appendChild(fragment);
-        updateMerchantStats(questsToRender);
+        updateMerchantStats(summary);
     }
 
     function renderItemsList() {
@@ -323,6 +946,9 @@
         filtered.forEach(item => {
             const row = document.createElement('div');
             row.className = 'quest-item';
+
+            const totalRequired = Number(item.total_required) || 0;
+            const maxValue = totalRequired > 0 ? totalRequired : Number.MAX_SAFE_INTEGER;
 
             const main = document.createElement('div');
             main.className = 'item-main';
@@ -365,7 +991,83 @@
 
             const required = document.createElement('div');
             required.className = 'item-required';
-            required.innerHTML = `Total needed: <span>${item.total_required || 0}</span>`;
+            const totalLabel = document.createElement('div');
+            totalLabel.className = 'item-total';
+            totalLabel.innerHTML = `Need: <span>${totalRequired}</span>`;
+            required.appendChild(totalLabel);
+
+            const progressBlock = document.createElement('div');
+            progressBlock.className = 'item-progress';
+            const progressControl = document.createElement('div');
+            progressControl.className = 'item-progress-control';
+
+            const progressLabel = document.createElement('span');
+            progressLabel.className = 'item-progress-label';
+            progressLabel.textContent = 'Submitted';
+            progressControl.appendChild(progressLabel);
+
+            const progressInput = document.createElement('input');
+            progressInput.type = 'number';
+            progressInput.min = '0';
+            progressInput.step = '1';
+            if (Number.isFinite(maxValue) && maxValue !== Number.MAX_SAFE_INTEGER) {
+                progressInput.max = String(maxValue);
+            }
+            progressControl.appendChild(progressInput);
+
+            const remainingSpan = document.createElement('span');
+            remainingSpan.className = 'item-remaining';
+            progressControl.appendChild(remainingSpan);
+
+            progressBlock.appendChild(progressControl);
+
+            const progressHint = document.createElement('div');
+            progressHint.className = 'item-progress-hint';
+            progressBlock.appendChild(progressHint);
+
+            required.appendChild(progressBlock);
+
+            const updateRowClasses = (remainingValue) => {
+                remainingSpan.textContent = `Remaining: ${remainingValue}`;
+                row.classList.toggle('quest-item-complete', totalRequired > 0 && remainingValue === 0);
+            };
+
+            const refreshFromState = () => {
+                const manual = getManualItemProgress(item.item_id);
+                const auto = getObjectiveSubmissionsForItem(item.item_id);
+                const autoDisplay = totalRequired > 0 ? Math.min(auto, totalRequired) : auto;
+                const effective = manual !== undefined ? clampNumber(manual, 0, maxValue) : clampNumber(auto, 0, maxValue);
+                const submittedValue = Number.isFinite(effective) ? effective : 0;
+                if (manual !== undefined) {
+                    progressInput.value = submittedValue;
+                    progressHint.textContent = `Manual override • Auto-tracked: ${autoDisplay}`;
+                } else {
+                    progressInput.value = submittedValue > 0 ? submittedValue : '';
+                    progressHint.textContent = `Auto-tracked from objectives: ${autoDisplay}`;
+                }
+                const remainingValue = Math.max(0, totalRequired - submittedValue);
+                updateRowClasses(remainingValue);
+                return submittedValue;
+            };
+
+            refreshFromState();
+
+            const handleItemInput = (rawValue) => {
+                if (rawValue === '') {
+                    setItemProgress(item.item_id, '');
+                    refreshFromState();
+                    return;
+                }
+                const clamped = clampNumber(rawValue, 0, maxValue);
+                if (!Number.isFinite(clamped)) {
+                    return;
+                }
+                setItemProgress(item.item_id, clamped);
+                refreshFromState();
+            };
+
+            progressInput.addEventListener('input', (event) => handleItemInput(event.target.value));
+            progressInput.addEventListener('change', (event) => handleItemInput(event.target.value));
 
             const quests = document.createElement('div');
             quests.className = 'item-quests';
@@ -419,16 +1121,48 @@
             state.questsLoaded = true;
             renderMerchantOptions();
             renderMerchantView();
-
-            if (!silent) {
-                updateMerchantStats(getFilteredQuests());
-            }
         } catch (error) {
             console.error(error);
             state.questsLoaded = false;
             renderError(elements.questList, error.message);
         } finally {
             toggleLoading(elements.questLoading, false);
+        }
+    }
+
+    async function syncProgressFromServer() {
+        if (progressSyncInFlight || typeof fetch !== 'function') {
+            return;
+        }
+
+        progressSyncInFlight = true;
+        try {
+            const response = await fetch(PROGRESS_SYNC_ENDPOINT, { cache: 'no-store' });
+            if (!response.ok) {
+                return;
+            }
+            const data = await response.json();
+            if (!data || data.success === false || !data.progress) {
+                return;
+            }
+
+            const incoming = sanitizeProgressData(data.progress);
+            const merged = mergeProgressData(state.progress, incoming);
+            const normalized = sanitizeProgressData(merged);
+            state.progress = normalized;
+            lastServerSyncPayload = JSON.stringify({ progress: normalized });
+            schedulePersistProgress(state.progress);
+
+            if (state.questsLoaded) {
+                renderMerchantView();
+            }
+            if (state.itemsLoaded) {
+                renderItemsList();
+            }
+        } catch (error) {
+            console.warn('Failed to synchronize quest progress from backend', error);
+        } finally {
+            progressSyncInFlight = false;
         }
     }
 
@@ -502,6 +1236,20 @@
             });
         }
 
+        if (elements.merchantViewToggle && elements.merchantViewToggle.length) {
+            elements.merchantViewToggle.forEach(button => {
+                button.addEventListener('click', () => {
+                    const mode = button.dataset.mode || 'active';
+                    if (state.merchantViewMode === mode) {
+                        return;
+                    }
+                    state.merchantViewMode = mode;
+                    updateMerchantViewToggle();
+                    renderMerchantView();
+                });
+            });
+        }
+
         if (elements.itemsSearch) {
             elements.itemsSearch.addEventListener('input', (event) => {
                 state.itemSearch = event.target.value;
@@ -522,6 +1270,27 @@
         }
     }
 
+    updateMerchantViewToggle();
     registerEvents();
+    syncProgressFromServer();
+    window.addEventListener('questDataCleared', () => {
+        state.progress = sanitizeProgressData(null);
+        lastServerSyncPayload = '';
+        try {
+            window.localStorage?.removeItem(PROGRESS_STORAGE_KEY);
+        } catch (error) {
+            console.warn('Failed to clear quest progress storage', error);
+        }
+        if (state.questsLoaded) {
+            renderMerchantView();
+        }
+        if (state.itemsLoaded) {
+            renderItemsList();
+        }
+        syncProgressFromServer();
+    });
+    window.addEventListener('beforeunload', () => {
+        scheduleServerPersistProgress({ immediate: true });
+    });
     refreshAll({ force: false });
 })();

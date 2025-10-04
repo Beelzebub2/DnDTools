@@ -25,8 +25,8 @@
     <div class="quest-tabs" role="tablist">
         <button type="button" class="quest-tab active" data-view="merchant" role="tab" aria-selected="true"
             id="merchantTab">By Merchant</button>
-        <button type="button" class="quest-tab" data-view="items" role="tab" aria-selected="false"
-            id="itemsTab">Item Checklist</button>
+        <button type="button" class="quest-tab" data-view="items" role="tab" aria-selected="false" id="itemsTab">Item
+            Checklist</button>
     </div>
 
     <div class="quest-views">
@@ -36,12 +36,19 @@
                     <label for="merchantSelect">Merchant</label>
                     <div class="control-input">
                         <select id="merchantSelect" aria-label="Select merchant"></select>
-                        <button type="button" class="icon-button" id="merchantRefresh" title="Refresh quests for this merchant">
+                        <button type="button" class="icon-button" id="merchantRefresh"
+                            title="Refresh quests for this merchant">
                             <span class="material-icons" aria-hidden="true">sync</span>
                         </button>
                     </div>
                 </div>
                 <div class="merchant-stats" id="merchantStats"></div>
+                <div class="merchant-view-toggle" role="tablist" aria-label="Quest objective filter">
+                    <button type="button" class="view-toggle-btn active" data-mode="active" role="tab"
+                        aria-selected="true">Active</button>
+                    <button type="button" class="view-toggle-btn" data-mode="completed" role="tab"
+                        aria-selected="false">Completed</button>
+                </div>
             </div>
             <div id="questList" class="quest-list">
                 <div class="loading-spinner" id="questLoading">
@@ -55,7 +62,8 @@
             <div class="items-controls">
                 <div class="items-search" role="search">
                     <span class="material-icons" aria-hidden="true">search</span>
-                    <input type="text" id="itemSearch" placeholder="Search by item or merchant" aria-label="Search quest items">
+                    <input type="text" id="itemSearch" placeholder="Search by item or merchant"
+                        aria-label="Search quest items">
                     <button type="button" class="clear-search" id="clearItemSearch" aria-label="Clear search">
                         <span class="material-icons" aria-hidden="true">close</span>
                     </button>

@@ -216,6 +216,38 @@
     color: var(--accent-gold);
 }
 
+.merchant-view-toggle {
+    display: inline-flex;
+    gap: 10px;
+    padding: 6px;
+    border-radius: 10px;
+    border: 1px solid var(--quest-border);
+    background: rgba(16, 10, 8, 0.7);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.view-toggle-btn {
+    border: none;
+    background: transparent;
+    color: var(--quest-muted);
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-toggle-btn:hover {
+    color: var(--accent-gold);
+}
+
+.view-toggle-btn.active {
+    background: rgba(228, 200, 105, 0.16);
+    color: var(--accent-gold);
+    box-shadow: 0 6px 16px rgba(228, 200, 105, 0.18);
+}
+
 .quest-list {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -342,6 +374,80 @@
 
 .objective-meta {
     font-size: 0.8rem;
+    color: var(--quest-muted);
+}
+
+.objective-item.completed {
+    border-color: rgba(90, 168, 108, 0.45);
+    background: rgba(36, 58, 44, 0.35);
+}
+
+.objective-item.completed .objective-icon {
+    background: rgba(90, 168, 108, 0.32);
+    color: #9be7af;
+}
+
+.objective-item.completed .objective-content strong {
+    color: #b3f7c3;
+}
+
+.objective-progress {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+    font-size: 0.82rem;
+    color: var(--quest-muted);
+}
+
+.objective-progress-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.objective-progress-toggle input {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--accent-gold);
+}
+
+.objective-progress-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.objective-progress-label {
+    font-weight: 600;
+    color: var(--accent-gold);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-size: 0.75rem;
+}
+
+.objective-progress-count input {
+    width: 72px;
+    padding: 4px 8px;
+    text-align: center;
+    border-radius: 8px;
+    border: 1px solid var(--quest-border);
+    background: rgba(16, 10, 8, 0.85);
+    color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.objective-progress-count input:focus {
+    outline: none;
+    border-color: rgba(228, 200, 105, 0.45);
+    box-shadow: 0 0 0 2px rgba(228, 200, 105, 0.18);
+}
+
+.objective-remaining {
+    font-size: 0.75rem;
     color: var(--quest-muted);
 }
 
@@ -479,7 +585,7 @@
 
 .quest-item {
     display: grid;
-    grid-template-columns: minmax(180px, 260px) minmax(120px, 160px) 1fr;
+    grid-template-columns: minmax(180px, 260px) minmax(200px, 260px) 1fr;
     gap: 16px;
     align-items: center;
     background: rgba(19, 13, 10, 0.92);
@@ -540,12 +646,76 @@
 }
 
 .item-required {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     font-weight: 600;
     color: rgba(231, 216, 181, 0.9);
 }
 
 .item-required span {
     color: var(--accent-gold);
+}
+
+.item-total span {
+    color: var(--accent-gold);
+}
+
+.item-progress {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.item-progress-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.item-progress-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--quest-muted);
+}
+
+.item-progress-control input {
+    width: 80px;
+    text-align: center;
+    border-radius: 8px;
+    border: 1px solid var(--quest-border);
+    background: rgba(16, 10, 8, 0.85);
+    color: var(--accent-gold);
+    font-weight: 600;
+    padding: 4px 8px;
+}
+
+.item-progress-control input:focus {
+    outline: none;
+    border-color: rgba(228, 200, 105, 0.45);
+    box-shadow: 0 0 0 2px rgba(228, 200, 105, 0.18);
+}
+
+.item-remaining {
+    font-size: 0.8rem;
+    color: var(--quest-muted);
+}
+
+.item-progress-hint {
+    font-size: 0.75rem;
+    color: var(--quest-muted);
+}
+
+.quest-item-complete {
+    border-color: rgba(94, 168, 108, 0.4);
+    background: rgba(30, 46, 33, 0.35);
+}
+
+.quest-item-complete .item-total span {
+    color: #9be7af;
 }
 
 .item-quests {
@@ -603,5 +773,10 @@
 
     .item-quests {
         order: 2;
+    }
+
+    .merchant-view-toggle {
+        width: 100%;
+        justify-content: space-between;
     }
 }

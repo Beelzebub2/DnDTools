@@ -271,7 +271,7 @@ def get_sort_delay():
     """Get sort delay from settings"""
     return settings_manager.get_sort_speed()
 
-def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008, no_delay=False):
+def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.008, max_delay=0.01, no_delay=False):
     """
     Move the mouse smoothly from (x1, y1) to (x2, y2).
 
@@ -285,7 +285,7 @@ def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008
         y = y1 + (y2 - y1) * t
         move_mouse(round(x), round(y))
         if not no_delay:
-            sleep_floor = max(0.0, min_delay)
+            sleep_floor = max(0.003, min_delay)
             sleep_ceiling = max(sleep_floor, max_delay)
             time.sleep(random.uniform(sleep_floor, sleep_ceiling))
 

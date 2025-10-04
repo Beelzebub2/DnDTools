@@ -342,6 +342,17 @@
     transform: translateY(-1px);
 }
 
+.btn-small.danger {
+    background: var(--danger);
+    color: #fff;
+    margin-left: 0;
+}
+
+.btn-small.danger:hover {
+    background: #c0392b;
+    color: #fff;
+}
+
 .btn-small.loading {
     opacity: 0.7;
     cursor: progress;
