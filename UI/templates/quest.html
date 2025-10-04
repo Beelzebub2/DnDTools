@@ -22,11 +22,30 @@
         </div>
     </div>
 
-    <div class="quest-tabs" role="tablist">
-        <button type="button" class="quest-tab active" data-view="merchant" role="tab" aria-selected="true"
-            id="merchantTab">By Merchant</button>
-        <button type="button" class="quest-tab" data-view="items" role="tab" aria-selected="false" id="itemsTab">Item
-            Checklist</button>
+    <div class="quest-toolbar">
+        <div class="quest-tabs" role="tablist">
+            <button type="button" class="quest-tab active" data-view="merchant" role="tab" aria-selected="true"
+                id="merchantTab">By Merchant</button>
+            <button type="button" class="quest-tab" data-view="items" role="tab" aria-selected="false"
+                id="itemsTab">Item Checklist</button>
+        </div>
+        <div class="prerequisite-control">
+            <label for="prerequisiteFilter">Prerequisites</label>
+            <div class="prerequisite-toggle-wrapper">
+                <input type="checkbox" id="prerequisiteFilter" role="switch" aria-checked="false"
+                    aria-describedby="prerequisiteFilterHint">
+                <label class="quest-toggle" for="prerequisiteFilter">
+                    <span class="quest-toggle-track" aria-hidden="true">
+                        <span class="quest-toggle-thumb"></span>
+                    </span>
+                    <span class="quest-toggle-text">
+                        <span class="quest-toggle-title">Hide locked quests</span>
+                        <span class="quest-toggle-hint" id="prerequisiteFilterHint">Only show quests with prerequisites
+                            met</span>
+                    </span>
+                </label>
+            </div>
+        </div>
     </div>
 
     <div class="quest-views">
@@ -40,23 +59,6 @@
                             title="Refresh quests for this merchant">
                             <span class="material-icons" aria-hidden="true">sync</span>
                         </button>
-                    </div>
-                </div>
-                <div class="control-group prerequisite-control">
-                    <label for="prerequisiteFilter">Prerequisites</label>
-                    <div class="prerequisite-toggle-wrapper">
-                        <input type="checkbox" id="prerequisiteFilter" role="switch" aria-checked="false"
-                            aria-describedby="prerequisiteFilterHint">
-                        <label class="quest-toggle" for="prerequisiteFilter">
-                            <span class="quest-toggle-track" aria-hidden="true">
-                                <span class="quest-toggle-thumb"></span>
-                            </span>
-                            <span class="quest-toggle-text">
-                                <span class="quest-toggle-title">Hide locked quests</span>
-                                <span class="quest-toggle-hint" id="prerequisiteFilterHint">Only show quests with
-                                    prerequisites met</span>
-                            </span>
-                        </label>
                     </div>
                 </div>
                 <div class="merchant-stats" id="merchantStats"></div>

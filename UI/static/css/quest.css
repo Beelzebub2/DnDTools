@@ -89,6 +89,15 @@
     font-size: 20px;
 }
 
+.quest-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
 .quest-tabs {
     display: inline-flex;
     align-self: flex-start;
@@ -156,7 +165,21 @@
 }
 
 .prerequisite-control {
-    min-width: 260px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    min-width: 220px;
+    width: fit-content;
+    text-align: right;
+}
+
+.prerequisite-control>label {
+    text-transform: none;
+    letter-spacing: 0.2px;
+    font-size: 0.8rem;
+    color: rgba(231, 216, 181, 0.75);
+    font-weight: 500;
 }
 
 .prerequisite-toggle-wrapper {
@@ -174,26 +197,26 @@
 .quest-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
     border-radius: 12px;
-    padding: 10px 14px;
-    background: rgba(16, 10, 8, 0.78);
+    padding: 8px 12px;
+    background: rgba(16, 10, 8, 0.72);
     border: 1px solid var(--quest-border);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-    min-width: 250px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    min-width: 220px;
     cursor: pointer;
     transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
 .quest-toggle:hover {
-    border-color: rgba(228, 200, 105, 0.35);
-    box-shadow: 0 6px 16px rgba(228, 200, 105, 0.12);
+    border-color: rgba(228, 200, 105, 0.3);
+    box-shadow: 0 6px 14px rgba(228, 200, 105, 0.1);
 }
 
 .quest-toggle-track {
     position: relative;
-    width: 48px;
-    height: 26px;
+    width: 44px;
+    height: 24px;
     border-radius: 999px;
     background: rgba(228, 200, 105, 0.14);
     border: 1px solid rgba(228, 200, 105, 0.28);
@@ -205,8 +228,8 @@
     position: absolute;
     top: 50%;
     left: 3px;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     border-radius: 50%;
     background: rgba(228, 200, 105, 0.8);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
@@ -223,43 +246,56 @@
 
 .quest-toggle-title {
     font-weight: 600;
-    letter-spacing: 0.35px;
-    color: rgba(231, 216, 181, 0.88);
+    letter-spacing: 0.2px;
+    font-size: 0.92rem;
+    color: rgba(231, 216, 181, 0.85);
+    text-transform: none;
 }
 
 .quest-toggle-hint {
-    font-size: 0.78rem;
-    color: var(--quest-muted);
+    font-size: 0.72rem;
+    color: rgba(168, 154, 108, 0.78);
 }
 
-.prerequisite-toggle-wrapper input[type="checkbox"]:focus-visible + .quest-toggle {
+.prerequisite-toggle-wrapper input[type="checkbox"]:focus-visible+.quest-toggle {
     outline: 2px solid rgba(228, 200, 105, 0.5);
     outline-offset: 2px;
 }
 
-.prerequisite-toggle-wrapper input[type="checkbox"]:checked + .quest-toggle {
+.prerequisite-toggle-wrapper input[type="checkbox"]:checked+.quest-toggle {
     border-color: rgba(228, 200, 105, 0.45);
-    background: linear-gradient(135deg, rgba(228, 200, 105, 0.16), rgba(16, 10, 8, 0.85));
-    box-shadow: 0 8px 18px rgba(228, 200, 105, 0.16);
+    background: linear-gradient(135deg, rgba(228, 200, 105, 0.18), rgba(16, 10, 8, 0.82));
+    box-shadow: 0 8px 16px rgba(228, 200, 105, 0.14);
 }
 
-.prerequisite-toggle-wrapper input[type="checkbox"]:checked + .quest-toggle .quest-toggle-track {
+.prerequisite-toggle-wrapper input[type="checkbox"]:checked+.quest-toggle .quest-toggle-track {
     background: linear-gradient(135deg, rgba(228, 200, 105, 0.65), rgba(228, 200, 105, 0.2));
     border-color: rgba(228, 200, 105, 0.65);
 }
 
-.prerequisite-toggle-wrapper input[type="checkbox"]:checked + .quest-toggle .quest-toggle-thumb {
-    transform: translate3d(20px, -50%, 0);
+.prerequisite-toggle-wrapper input[type="checkbox"]:checked+.quest-toggle .quest-toggle-thumb {
+    transform: translate3d(18px, -50%, 0);
     background: rgba(18, 12, 9, 0.95);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
 }
 
-.prerequisite-toggle-wrapper input[type="checkbox"]:checked + .quest-toggle .quest-toggle-title {
+.prerequisite-toggle-wrapper input[type="checkbox"]:checked+.quest-toggle .quest-toggle-title {
     color: var(--accent-gold);
 }
 
-.prerequisite-toggle-wrapper input[type="checkbox"]:checked + .quest-toggle .quest-toggle-hint {
-    color: rgba(231, 216, 181, 0.85);
+.prerequisite-toggle-wrapper input[type="checkbox"]:checked+.quest-toggle .quest-toggle-hint {
+    color: rgba(231, 216, 181, 0.82);
+}
+
+@media (max-width: 768px) {
+    .quest-toolbar {
+        justify-content: flex-start;
+    }
+
+    .prerequisite-control {
+        align-items: flex-start;
+        text-align: left;
+    }
 }
 
 .control-group label {
