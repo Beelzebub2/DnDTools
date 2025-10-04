@@ -1586,7 +1586,7 @@ def download_update():
         return jsonify({'error': error_msg}), 500
 
 def get_version_info():
-    """Get the latest version from dndtools.me API with fallback to GitHub API."""
+    """Get the latest version from dndtools.rrmtools.uk API with fallback to GitHub API."""
     global version_cache, version_cache_timestamp
     
     current_time = time.time()
@@ -1598,17 +1598,17 @@ def get_version_info():
     
     # Cache expired or not set, fetch new data
     try:
-        # First try dndtools.me API
-        logger.info("Attempting to fetch version information from dndtools.me API")
+        # First try dndtools.rrmtools.uk API
+        logger.info("Attempting to fetch version information from dndtools.rrmtools.uk API")
         response = requests.get(
-            'https://dndtools.me/api/github/latest-release', 
+            'https://dndtools.rrmtools.uk/api/github/latest-release', 
             headers={'User-Agent': 'DnDTools-Updater'},
             timeout=10
         )
         
-        # If dndtools.me fails, try GitHub API directly
+        # If dndtools.rrmtools.uk fails, try GitHub API directly
         if not response.ok:
-            logger.warning(f"dndtools.me API failed with status {response.status_code}, trying GitHub API directly")
+            logger.warning(f"dndtools.rrmtools.uk API failed with status {response.status_code}, trying GitHub API directly")
             response = requests.get(
                 'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
                 headers={'User-Agent': 'DnDTools-Updater'},
@@ -1674,7 +1674,7 @@ def get_version_info():
 
 @server.route('/api/version')
 def api_version():
-    """Get the latest version from dndtools.me API with fallback to GitHub API."""
+    """Get the latest version from dndtools.rrmtools.uk API with fallback to GitHub API."""
     return jsonify(get_version_info())
 
 @server.route('/api/local_version')
@@ -2496,7 +2496,7 @@ PRICE_CACHE_EXPIRY = 600  # 10 minutes in seconds
 
 @server.route('/api/market/price/<item_id>')
 def proxy_market_price(item_id):
-    """Proxy endpoint to fetch market price from dndtools.me and avoid CORS issues."""
+    """Proxy endpoint to fetch market price from dndtools.rrmtools.uk and avoid CORS issues."""
     global market_price_cache
     current_time = time.time()
     
@@ -2508,7 +2508,7 @@ def proxy_market_price(item_id):
     
     # No valid cache, fetch from API
     try:
-        url = f'https://dndtools.me/api/market/price/{item_id}'
+        url = f'https://dndtools.rrmtools.uk/api/market/price/{item_id}'
         headers = {"X-Requested-With": "DnDTools"}
         resp = requests.get(url, headers=headers, timeout=5)
         
