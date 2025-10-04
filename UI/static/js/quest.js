@@ -403,14 +403,17 @@
     };
 
     const partitionQuestObjectives = (quest) => {
+        const objectives = Array.isArray(quest.objectives) ? quest.objectives : [];
         const result = {
             active: [],
-            completed: []
+            completed: [],
+            totalCount: objectives.length
         };
 
-        (quest.objectives || []).forEach((objective, index) => {
-            const annotated = { ...objective, __originalIndex: index };
-            if (isObjectiveCompleted(quest, objective, index)) {
+        objectives.forEach((objective, index) => {
+            const completed = isObjectiveCompleted(quest, objective, index);
+            const annotated = { ...objective, __originalIndex: index, __isCompleted: completed };
+            if (completed) {
                 result.completed.push(annotated);
             } else {
                 result.active.push(annotated);
@@ -430,18 +433,37 @@
 
         quests.forEach((quest) => {
             const partitions = partitionQuestObjectives(quest);
-            const relevantObjectives = viewMode === 'completed' ? partitions.completed : partitions.active;
+            const totalObjectives = Number(partitions.totalCount) || 0;
+            const completedObjectives = partitions.completed.length;
+            const activeObjectives = partitions.active.length;
+            const allObjectivesCompleted = totalObjectives > 0
+                ? completedObjectives === totalObjectives
+                : activeObjectives === 0 && completedObjectives === 0;
 
             totalActive += partitions.active.length;
             totalCompleted += partitions.completed.length;
+
+            let relevantObjectives;
+            if (viewMode === 'completed') {
+                if (!allObjectivesCompleted) {
+                    return;
+                }
+                relevantObjectives = partitions.completed;
+            } else {
+                if (allObjectivesCompleted) {
+                    return;
+                }
+                relevantObjectives = [...partitions.active, ...partitions.completed];
+            }
 
             if (!relevantObjectives.length) {
                 return;
             }
 
+            const objectivesForStatistics = viewMode === 'completed' ? partitions.completed : partitions.active;
             questsCount += 1;
-            objectiveCount += relevantObjectives.length;
-            itemObjectiveCount += relevantObjectives.filter(obj => obj.type === 'Fetch').length;
+            objectiveCount += objectivesForStatistics.length;
+            itemObjectiveCount += objectivesForStatistics.filter(obj => obj.type === 'Fetch').length;
 
             const objectivesWithIndex = relevantObjectives.map(obj => ({ ...obj }));
             questsForView.push({ quest, objectives: objectivesWithIndex });
@@ -634,6 +656,38 @@
                 });
             };
 
+            const rerenderMerchantAndItems = (animationClass) => {
+                const performRenders = () => {
+                    renderMerchantView();
+                    if (state.itemsLoaded) {
+                        renderItemsList();
+                    }
+                };
+
+                if (animationClass && item && item.isConnected) {
+                    let completed = false;
+                    let timeoutId = null;
+                    const finalize = () => {
+                        if (completed) {
+                            return;
+                        }
+                        completed = true;
+                        if (timeoutId !== null) {
+                            window.clearTimeout(timeoutId);
+                        }
+                        item.classList.remove('objective-item--transitioning', animationClass);
+                        item.removeEventListener('animationend', finalize);
+                        performRenders();
+                    };
+
+                    item.classList.add('objective-item--transitioning', animationClass);
+                    item.addEventListener('animationend', finalize, { once: true });
+                    timeoutId = window.setTimeout(finalize, 260);
+                } else {
+                    performRenders();
+                }
+            };
+
             let fetchInput = null;
             let updateRemainingLabel = null;
 
@@ -671,41 +725,36 @@
                         fetchInput.value = '';
                         checkbox.checked = false;
                         delete checkbox.dataset.autoComplete;
-                        if (updateRemainingLabel) {
-                            updateRemainingLabel();
+                    } else {
+                        const clamped = clampNumber(rawValue, 0, obj.count || 0);
+                        if (!Number.isFinite(clamped)) {
+                            return;
                         }
-                        updateCompletionClass();
-                        persistObjective();
-                        if (state.itemsLoaded) {
-                            renderItemsList();
+                        submittedValue = clamped;
+                        fetchInput.value = clamped;
+                        const shouldComplete = obj.count && clamped >= obj.count;
+                        if (shouldComplete) {
+                            checkbox.checked = true;
+                            checkbox.dataset.autoComplete = 'true';
+                        } else if (checkbox.dataset.autoComplete) {
+                            checkbox.checked = false;
+                            delete checkbox.dataset.autoComplete;
                         }
-                        renderMerchantView();
-                        return;
                     }
 
-                    const clamped = clampNumber(rawValue, 0, obj.count || 0);
-                    if (!Number.isFinite(clamped)) {
-                        return;
-                    }
-                    submittedValue = clamped;
-                    fetchInput.value = clamped;
-                    const shouldComplete = obj.count && clamped >= obj.count;
-                    if (shouldComplete) {
-                        checkbox.checked = true;
-                        checkbox.dataset.autoComplete = 'true';
-                    } else if (checkbox.dataset.autoComplete) {
-                        checkbox.checked = false;
-                        delete checkbox.dataset.autoComplete;
-                    }
                     if (updateRemainingLabel) {
                         updateRemainingLabel();
                     }
                     updateCompletionClass();
                     persistObjective();
-                    if (state.itemsLoaded) {
-                        renderItemsList();
-                    }
-                    renderMerchantView();
+
+                    const animationClass = checkbox.checked && state.merchantViewMode === 'active'
+                        ? 'objective-item--completing'
+                        : (!checkbox.checked && state.merchantViewMode === 'completed'
+                            ? 'objective-item--reopening'
+                            : null);
+
+                    rerenderMerchantAndItems(animationClass);
                 };
 
                 fetchInput.addEventListener('change', (event) => handleFetchInput(event.target.value));
@@ -733,10 +782,14 @@
                 }
                 updateCompletionClass();
                 persistObjective();
-                if (state.itemsLoaded) {
-                    renderItemsList();
-                }
-                renderMerchantView();
+
+                const animationClass = checkbox.checked && state.merchantViewMode === 'active'
+                    ? 'objective-item--completing'
+                    : (!checkbox.checked && state.merchantViewMode === 'completed'
+                        ? 'objective-item--reopening'
+                        : null);
+
+                rerenderMerchantAndItems(animationClass);
             });
 
             item.appendChild(progressContainer);
