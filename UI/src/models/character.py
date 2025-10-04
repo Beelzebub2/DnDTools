@@ -141,6 +141,11 @@ def _sync_shared_stashes(source_char_id, payload):
             continue
 
         try:
+            original_stat = candidate.stat()
+        except OSError:
+            original_stat = None
+
+        try:
             with candidate.open("r", encoding="utf-8") as handle:
                 other_payload = json.load(handle)
         except Exception as exc:
@@ -151,6 +156,18 @@ def _sync_shared_stashes(source_char_id, payload):
             try:
                 with candidate.open("w", encoding="utf-8") as handle:
                     json.dump(other_payload, handle, ensure_ascii=False)
+                if original_stat is not None:
+                    try:
+                        os.utime(
+                            candidate,
+                            (original_stat.st_atime, original_stat.st_mtime)
+                        )
+                    except OSError as exc:
+                        logger.debug(
+                            "Failed to restore timestamp for %s after shared stash sync: %s",
+                            candidate,
+                            exc,
+                        )
             except Exception as exc:
                 logger.error(f"Failed to write shared stash sync for {candidate}: {exc}")
 

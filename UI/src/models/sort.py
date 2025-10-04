@@ -4,6 +4,7 @@ import time
 import heapq
 import keyboard
 import os
+from collections import defaultdict
 from typing import Optional, Union
 
 import pygetwindow as gw
@@ -40,6 +41,8 @@ class StashSorter:
             self._prepare_stack_plan()
         self.pack_positions = {}
         self._buffered_inventory = {}
+        self._reserved_slots = {}
+        self._blocker_move_counts = defaultdict(int)
         if self.pack_mode:
             self.pack_positions = self._compute_pack_plan()
             if not self.pack_positions:
@@ -81,6 +84,8 @@ class StashSorter:
 
             item = heapq.heappop(self.stash.pq)
             self._buffered_inventory.pop(id(item), None)
+            self._release_reserved_slots(item)
+            self._blocker_move_counts.pop(id(item), None)
             logger.debug("Processing item: %s", item)
 
             planned_point = self.pack_positions.get(id(item)) if self.pack_mode else None
@@ -355,23 +360,57 @@ class StashSorter:
                     logger.info("Sort operation cancelled during area clearing")
                     return False
 
+                blocker_id = id(occupying_item)
+                inv_slot = self.inv.find_empty_slot(occupying_item) if self.inv else None
+                if inv_slot:
+                    logger.debug("Temporarily storing %s in inventory slot %s", occupying_item, inv_slot)
+                    self.stash.move(occupying_item, inv_slot, self.inv)
+                    self._mark_buffered_inventory(occupying_item)
+                    self._blocker_move_counts.pop(blocker_id, None)
+                    moved_items.add(occupying_item)
+                    continue
+
                 new_pos = self.stash.find_empty_slot(occupying_item)
                 if new_pos:
+                    if self.inv and self._blocker_move_counts[blocker_id] >= 1:
+                        inv_slot_retry = self.inv.find_empty_slot(occupying_item)
+                        if inv_slot_retry:
+                            logger.debug(
+                                "Blocker %s moved previously; relocating to inventory slot %s to avoid loops",
+                                occupying_item,
+                                inv_slot_retry,
+                            )
+                            self.stash.move(occupying_item, inv_slot_retry, self.inv)
+                            self._mark_buffered_inventory(occupying_item)
+                            self._blocker_move_counts.pop(blocker_id, None)
+                            moved_items.add(occupying_item)
+                            continue
+
+                    if self.inv and not self.inv.find_empty_slot(occupying_item):
+                        if self._rebalance_inventory(occupying_item):
+                            inv_slot_after_rebalance = self.inv.find_empty_slot(occupying_item)
+                            if inv_slot_after_rebalance:
+                                logger.debug(
+                                    "Rebalanced inventory; moving blocker %s into freed slot %s",
+                                    occupying_item,
+                                    inv_slot_after_rebalance,
+                                )
+                                self.stash.move(occupying_item, inv_slot_after_rebalance, self.inv)
+                                self._mark_buffered_inventory(occupying_item)
+                                self._blocker_move_counts.pop(blocker_id, None)
+                                moved_items.add(occupying_item)
+                                continue
+
                     logger.debug("Moving %s to empty slot in stash", occupying_item)
                     self.stash.move(occupying_item, new_pos, self.stash)
                     self._unmark_buffered_inventory(occupying_item)
+                    self._blocker_move_counts[blocker_id] += 1
                 else:
-                    new_pos = self.inv.find_empty_slot(occupying_item)
-                    if new_pos:
-                        logger.debug("Moving %s to inventory", occupying_item)
-                        self.stash.move(occupying_item, new_pos, self.inv)
-                        self._mark_buffered_inventory(occupying_item)
-                    else:
-                        logger.info("No immediate positions found; attempting to create workspace")
-                        if self._create_workspace_for(item, occupying_item):
-                            return self._ensure_area_available(item, target_point)
-                        logger.error("Workspace creation failed; aborting")
-                        return False
+                    logger.info("No immediate positions found; attempting to create workspace")
+                    if self._create_workspace_for(item, occupying_item):
+                        return self._ensure_area_available(item, target_point)
+                    logger.error("Workspace creation failed; aborting")
+                    return False
 
                 moved_items.add(occupying_item)
 
@@ -651,6 +690,8 @@ class StashSorter:
             return
         setattr(item, "_buffered_by_sort", True)
         self._buffered_inventory[id(item)] = item
+        self._blocker_move_counts.pop(id(item), None)
+        self._reserve_inventory_slots(item)
 
     def _unmark_buffered_inventory(self, item: Item):
         if item is None:
@@ -658,6 +699,61 @@ class StashSorter:
         self._buffered_inventory.pop(id(item), None)
         if getattr(item, "_buffered_by_sort", False):
             setattr(item, "_buffered_by_sort", False)
+        self._blocker_move_counts.pop(id(item), None)
+        self._release_reserved_slots(item)
+
+    def _reserve_inventory_slots(self, item: Item) -> None:
+        if not item or item.stash is not self.inv:
+            return
+
+        slots = set()
+        for dx in range(item.width):
+            for dy in range(item.height):
+                slot = (item.position.x + dx, item.position.y + dy)
+                item.stash._reserved_slots.add(slot)
+                slots.add(slot)
+
+        if slots:
+            self._reserved_slots[id(item)] = (item.stash, slots)
+
+    def _release_reserved_slots(self, item: Item) -> None:
+        record = self._reserved_slots.pop(id(item), None)
+        if not record:
+            return
+        storage, slots = record
+        for slot in slots:
+            storage._reserved_slots.discard(slot)
+
+    def _rebalance_inventory(self, blocker: Item, max_attempts: int = 5) -> bool:
+        if not self.inv or not self._buffered_inventory:
+            return False
+
+        attempts = 0
+        buffered_items = list(self._buffered_inventory.values())
+
+        for candidate in buffered_items:
+            if attempts >= max_attempts:
+                break
+            if candidate is blocker or candidate.stash is not self.inv:
+                continue
+
+            stash_slot = self._find_safe_slot(candidate, None, 0, 0)
+            if not stash_slot:
+                continue
+
+            logger.debug(
+                "Rebalancing inventory: returning %s from inventory to stash slot %s",
+                candidate,
+                stash_slot,
+            )
+            self.inv.move(candidate, stash_slot, self.stash)
+            self._unmark_buffered_inventory(candidate)
+            attempts += 1
+
+            if self.inv.find_empty_slot(blocker):
+                return True
+
+        return self.inv.find_empty_slot(blocker) is not None
 
 
 def main():
