@@ -784,6 +784,60 @@
     color: var(--quest-muted);
 }
 
+.item-holdings-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.item-owned {
+    font-size: 0.82rem;
+    color: var(--quest-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.item-owned span {
+    color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.item-holdings-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(228, 200, 105, 0.2);
+    background: rgba(228, 200, 105, 0.08);
+    color: var(--accent-gold);
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.item-holdings-button .material-icons {
+    font-size: 18px;
+}
+
+.item-holdings-button:hover {
+    background: rgba(228, 200, 105, 0.18);
+    border-color: rgba(228, 200, 105, 0.4);
+    transform: translateY(-1px);
+}
+
+.item-holdings-button:active {
+    transform: translateY(0);
+}
+
+.item-holdings-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 .quest-item-complete {
     border-color: rgba(94, 168, 108, 0.4);
     background: rgba(30, 46, 33, 0.35);
@@ -836,6 +890,188 @@
     color: var(--accent-gold);
 }
 
+.item-holdings-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(8, 6, 5, 0.72);
+    backdrop-filter: blur(2px);
+    z-index: 2200;
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+.item-holdings-modal {
+    position: fixed;
+    inset: 0;
+    display: block;
+    z-index: 2210;
+}
+
+.item-holdings-overlay.hidden,
+.item-holdings-modal.hidden {
+    display: none;
+}
+
+.item-holdings-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: min(520px, 92vw);
+    max-height: 80vh;
+    background: rgba(19, 13, 10, 0.95);
+    border: 1px solid rgba(228, 200, 105, 0.28);
+    border-radius: 16px;
+    box-shadow: 0 12px 45px rgba(0, 0, 0, 0.45);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.18s ease, top 0.2s ease, left 0.2s ease;
+    will-change: top, left;
+}
+
+.item-holdings-dialog.positioned {
+    opacity: 1;
+}
+
+.item-holdings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 12px;
+    background: linear-gradient(135deg, rgba(228, 200, 105, 0.12), rgba(19, 13, 10, 0.6));
+}
+
+.item-holdings-header h3 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: var(--accent-gold);
+    letter-spacing: 0.3px;
+}
+
+.item-holdings-close {
+    background: transparent;
+    border: none;
+    color: var(--quest-muted);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 50%;
+    padding: 4px;
+    transition: color 0.2s ease, background 0.2s ease;
+}
+
+.item-holdings-close:hover {
+    color: var(--accent-gold);
+    background: rgba(228, 200, 105, 0.1);
+}
+
+.item-holdings-summary {
+    padding: 0 20px 12px;
+    font-size: 0.85rem;
+    color: var(--quest-muted);
+}
+
+.item-holdings-summary strong {
+    color: var(--accent-gold);
+}
+
+.item-holdings-body {
+    padding: 0 20px 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.item-holdings-entry {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid rgba(228, 200, 105, 0.12);
+    border-radius: 10px;
+    padding: 10px 14px;
+    background: rgba(15, 10, 8, 0.6);
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, background 0.2s ease;
+}
+
+.item-holdings-entry:hover {
+    border-color: rgba(228, 200, 105, 0.32);
+    transform: translateY(-1px);
+    background: rgba(228, 200, 105, 0.08);
+}
+
+.item-holdings-entry:focus-visible {
+    outline: 2px solid rgba(228, 200, 105, 0.4);
+    outline-offset: 2px;
+}
+
+.item-holdings-entry .entry-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+}
+
+.item-holdings-entry .entry-meta strong {
+    color: rgba(231, 216, 181, 0.95);
+    font-size: 0.95rem;
+}
+
+.item-holdings-entry .entry-meta span {
+    font-size: 0.78rem;
+    color: var(--quest-muted);
+}
+
+.item-holdings-entry .entry-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 48px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: rgba(228, 200, 105, 0.18);
+    color: var(--accent-gold);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.item-holdings-empty,
+.item-holdings-error {
+    text-align: center;
+    padding: 32px 12px;
+    color: var(--quest-muted);
+    font-size: 0.9rem;
+}
+
+.item-holdings-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 28px 12px;
+    color: var(--quest-muted);
+}
+
+.item-holdings-loading .spinner {
+    width: 26px;
+    height: 26px;
+    border: 3px solid rgba(228, 200, 105, 0.16);
+    border-top-color: var(--accent-gold);
+    border-radius: 50%;
+    animation: holdings-spin 0.8s linear infinite;
+}
+
+@keyframes holdings-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 @media (max-width: 1024px) {
     .quest-item {
         grid-template-columns: 1fr;
@@ -853,5 +1089,10 @@
     .merchant-view-toggle {
         width: 100%;
         justify-content: space-between;
+    }
+
+    .item-holdings-dialog {
+        width: 94vw;
+        max-height: 85vh;
     }
 }

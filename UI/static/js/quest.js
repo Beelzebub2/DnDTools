@@ -3,6 +3,7 @@
     const PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
     const PROGRESS_SYNC_ENDPOINT = '/api/quests/progress';
     const SERVER_SYNC_DEBOUNCE = 400;
+    const HOLDINGS_CACHE_TTL = 5 * 60 * 1000;
 
     const createDefaultProgress = () => ({
         objectives: {},
@@ -232,7 +233,11 @@
         questsLoaded: false,
         itemsLoaded: false,
         merchantViewMode: 'active',
-        progress: sanitizeProgressData(loadProgress())
+        progress: sanitizeProgressData(loadProgress()),
+        itemHoldingsCache: {},
+        activeHoldingsItemId: null,
+        activeHoldingsAnchor: null,
+        bodyScrollLock: null
     };
 
     const elements = {
@@ -253,12 +258,45 @@
         clearItemSearch: document.getElementById('clearItemSearch'),
         itemsMeta: document.getElementById('itemsMeta'),
         itemsRefresh: document.getElementById('itemsRefresh'),
-        merchantViewToggle: document.querySelectorAll('.merchant-view-toggle .view-toggle-btn')
+        merchantViewToggle: document.querySelectorAll('.merchant-view-toggle .view-toggle-btn'),
+        itemHoldingsOverlay: document.getElementById('itemHoldingsOverlay'),
+        itemHoldingsModal: document.getElementById('itemHoldingsModal'),
+        itemHoldingsDialog: document.getElementById('itemHoldingsDialog'),
+        itemHoldingsTitle: document.getElementById('itemHoldingsTitle'),
+        itemHoldingsSummary: document.getElementById('itemHoldingsSummary'),
+        itemHoldingsBody: document.getElementById('itemHoldingsBody'),
+        itemHoldingsClose: document.getElementById('itemHoldingsClose')
     };
 
     if (!elements.questList || !elements.itemsList) {
         return;
     }
+
+    const ensureHoldingsElementsInBody = () => {
+        if (!document || !document.body) {
+            return;
+        }
+        if (elements.itemHoldingsOverlay && elements.itemHoldingsOverlay.parentElement !== document.body) {
+            document.body.appendChild(elements.itemHoldingsOverlay);
+        }
+        if (elements.itemHoldingsModal && elements.itemHoldingsModal.parentElement !== document.body) {
+            document.body.appendChild(elements.itemHoldingsModal);
+        }
+    };
+
+    ensureHoldingsElementsInBody();
+
+    if (elements.itemHoldingsClose) {
+        elements.itemHoldingsClose.addEventListener('click', hideItemHoldingsModal);
+    }
+    if (elements.itemHoldingsOverlay) {
+        elements.itemHoldingsOverlay.addEventListener('click', hideItemHoldingsModal);
+    }
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && state.activeHoldingsItemId && elements.itemHoldingsModal && !elements.itemHoldingsModal.classList.contains('hidden')) {
+            hideItemHoldingsModal();
+        }
+    });
 
     const clampNumber = (value, min, max) => {
         const numeric = Number(value);
@@ -272,6 +310,29 @@
             return max;
         }
         return numeric;
+    };
+
+    const cssEscape = (value) => {
+        if (value === undefined || value === null) {
+            return '';
+        }
+        const stringValue = String(value);
+        if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+            return CSS.escape(stringValue);
+        }
+        return stringValue.replace(/[^a-zA-Z0-9_-]/g, match => `\\${match}`);
+    };
+
+    const updateOwnedLabels = (itemId, total) => {
+        if (!itemId) {
+            return;
+        }
+        const numericTotal = Number(total);
+        const sanitizedTotal = Number.isFinite(numericTotal) ? numericTotal : 0;
+        const selector = `.item-owned-value[data-item-id="${cssEscape(itemId)}"]`;
+        document.querySelectorAll(selector).forEach(node => {
+            node.textContent = sanitizedTotal;
+        });
     };
 
     const updateMerchantViewToggle = () => {
@@ -971,6 +1032,423 @@
         updateMerchantStats(summary);
     }
 
+    const formatCharacterMeta = (entry) => {
+        const parts = [];
+        if (entry && entry.character_class) {
+            parts.push(entry.character_class);
+        }
+        const level = Number(entry && entry.character_level);
+        if (Number.isFinite(level) && level > 0) {
+            parts.push(`Level ${level}`);
+        }
+        if (!parts.length && entry && entry.last_update) {
+            parts.push('Recently captured');
+        }
+        return parts.length ? parts.join(' • ') : 'Captured stash';
+    };
+
+    let holdingsPositionFrame = null;
+    let holdingsResizeAttached = false;
+
+    const positionItemHoldingsDialog = () => {
+        const dialog = elements.itemHoldingsDialog;
+        if (!dialog || !elements.itemHoldingsModal || elements.itemHoldingsModal.classList.contains('hidden')) {
+            return;
+        }
+
+        const viewportWidth = (typeof window !== 'undefined' && window.innerWidth) || (document.documentElement && document.documentElement.clientWidth) || 0;
+        const viewportHeight = (typeof window !== 'undefined' && window.innerHeight) || (document.documentElement && document.documentElement.clientHeight) || 0;
+        if (!viewportWidth || !viewportHeight) {
+            return;
+        }
+
+        const margin = 20;
+        let anchorRect = state.activeHoldingsAnchor;
+
+        if (anchorRect && anchorRect.element && typeof anchorRect.element.getBoundingClientRect === 'function') {
+            const rect = anchorRect.element.getBoundingClientRect();
+            if (rect && Number.isFinite(rect.top)) {
+                anchorRect = {
+                    element: anchorRect.element,
+                    top: rect.top,
+                    bottom: rect.bottom,
+                    left: rect.left,
+                    right: rect.right,
+                    width: rect.width,
+                    height: rect.height
+                };
+            }
+        }
+
+        if (anchorRect && (!Number.isFinite(anchorRect.top) || !Number.isFinite(anchorRect.bottom))) {
+            anchorRect = null;
+        }
+
+        if (anchorRect && anchorRect.element && typeof document !== 'undefined' && document.body && !document.body.contains(anchorRect.element)) {
+            anchorRect = null;
+        }
+
+        dialog.style.top = 'auto';
+        dialog.style.left = 'auto';
+        dialog.classList.remove('positioned');
+
+        const dialogRect = dialog.getBoundingClientRect();
+        const dialogWidth = dialogRect.width || dialog.offsetWidth || 0;
+        const dialogHeight = dialogRect.height || dialog.offsetHeight || 0;
+
+        let top;
+        let left;
+
+        if (anchorRect) {
+            const spaceBelow = viewportHeight - anchorRect.bottom;
+            const showBelow = spaceBelow >= dialogHeight + margin || anchorRect.top <= margin;
+            if (showBelow) {
+                top = anchorRect.bottom + margin;
+            } else {
+                top = anchorRect.top - dialogHeight - margin;
+            }
+
+            if (top < margin) {
+                top = margin;
+            }
+
+            left = anchorRect.left + (anchorRect.width / 2) - (dialogWidth / 2);
+        } else {
+            top = (viewportHeight - dialogHeight) / 2;
+            left = (viewportWidth - dialogWidth) / 2;
+        }
+
+        if (left < margin) {
+            left = margin;
+        }
+        if (left + dialogWidth > viewportWidth - margin) {
+            left = Math.max(margin, viewportWidth - dialogWidth - margin);
+        }
+
+        if (dialogHeight && top + dialogHeight > viewportHeight - margin) {
+            top = Math.max(margin, viewportHeight - dialogHeight - margin);
+        }
+        if (top < margin) {
+            top = margin;
+        }
+
+        state.activeHoldingsAnchor = anchorRect;
+
+        dialog.style.top = `${Math.round(top)}px`;
+        dialog.style.left = `${Math.round(left)}px`;
+        dialog.classList.add('positioned');
+    };
+
+    function scheduleHoldingsPositionUpdate() {
+        if (typeof window === 'undefined' || typeof window.requestAnimationFrame !== 'function') {
+            positionItemHoldingsDialog();
+            return;
+        }
+        if (holdingsPositionFrame !== null) {
+            window.cancelAnimationFrame(holdingsPositionFrame);
+        }
+        holdingsPositionFrame = window.requestAnimationFrame(() => {
+            holdingsPositionFrame = null;
+            positionItemHoldingsDialog();
+        });
+    }
+
+    const attachHoldingsPositionListeners = () => {
+        if (holdingsResizeAttached || typeof window === 'undefined') {
+            return;
+        }
+        window.addEventListener('resize', scheduleHoldingsPositionUpdate);
+        window.addEventListener('scroll', scheduleHoldingsPositionUpdate, true);
+        holdingsResizeAttached = true;
+    };
+
+    const detachHoldingsPositionListeners = () => {
+        if (!holdingsResizeAttached || typeof window === 'undefined') {
+            if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function' && holdingsPositionFrame !== null) {
+                window.cancelAnimationFrame(holdingsPositionFrame);
+                holdingsPositionFrame = null;
+            }
+            return;
+        }
+        window.removeEventListener('resize', scheduleHoldingsPositionUpdate);
+        window.removeEventListener('scroll', scheduleHoldingsPositionUpdate, true);
+        holdingsResizeAttached = false;
+        if (typeof window !== 'undefined' && typeof window.cancelAnimationFrame === 'function' && holdingsPositionFrame !== null) {
+            window.cancelAnimationFrame(holdingsPositionFrame);
+            holdingsPositionFrame = null;
+        }
+    };
+
+    const formatAnchorFromElement = (element) => {
+        if (!element || typeof element.getBoundingClientRect !== 'function') {
+            return null;
+        }
+        const rect = element.getBoundingClientRect();
+        return {
+            element,
+            top: rect.top,
+            bottom: rect.bottom,
+            left: rect.left,
+            right: rect.right,
+            width: rect.width,
+            height: rect.height
+        };
+    };
+
+    function lockBodyScroll() {
+        if (!document || !document.body) {
+            return;
+        }
+
+        if (!state.bodyScrollLock) {
+            const existingOverflow = document.body.style.overflow;
+            const existingPaddingRight = document.body.style.paddingRight;
+
+            if (typeof window !== 'undefined') {
+                const viewportWidth = document.documentElement ? document.documentElement.clientWidth : 0;
+                const fullWidth = window.innerWidth || viewportWidth;
+                const scrollbarWidth = fullWidth - viewportWidth;
+                if (viewportWidth && scrollbarWidth > 0) {
+                    const numericPadding = parseFloat(existingPaddingRight || '0') || 0;
+                    document.body.style.paddingRight = `${numericPadding + scrollbarWidth}px`;
+                }
+            }
+
+            state.bodyScrollLock = {
+                overflow: existingOverflow,
+                paddingRight: existingPaddingRight
+            };
+        }
+
+        document.body.classList.add('modal-open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function unlockBodyScroll() {
+        if (!document || !document.body) {
+            return;
+        }
+
+        document.body.classList.remove('modal-open');
+
+        if (!state.bodyScrollLock) {
+            document.body.style.overflow = '';
+            document.body.style.paddingRight = '';
+            detachHoldingsPositionListeners();
+            return;
+        }
+
+        const { overflow, paddingRight } = state.bodyScrollLock;
+        document.body.style.overflow = overflow || '';
+        document.body.style.paddingRight = paddingRight || '';
+        state.bodyScrollLock = null;
+        detachHoldingsPositionListeners();
+    }
+
+    function hideItemHoldingsModal() {
+        state.activeHoldingsItemId = null;
+        state.activeHoldingsAnchor = null;
+        if (holdingsPositionFrame !== null && typeof window !== 'undefined') {
+            window.cancelAnimationFrame(holdingsPositionFrame);
+            holdingsPositionFrame = null;
+        }
+        if (elements.itemHoldingsModal) {
+            elements.itemHoldingsModal.classList.add('hidden');
+        }
+        if (elements.itemHoldingsOverlay) {
+            elements.itemHoldingsOverlay.classList.add('hidden');
+        }
+        if (elements.itemHoldingsBody) {
+            elements.itemHoldingsBody.innerHTML = '';
+        }
+        if (elements.itemHoldingsSummary) {
+            elements.itemHoldingsSummary.textContent = '';
+        }
+        if (elements.itemHoldingsDialog) {
+            elements.itemHoldingsDialog.style.top = '';
+            elements.itemHoldingsDialog.style.left = '';
+            elements.itemHoldingsDialog.classList.remove('positioned');
+        }
+        unlockBodyScroll();
+    }
+
+    const navigateToCharacter = (characterId, stashEntry) => {
+        hideItemHoldingsModal();
+        if (!characterId) {
+            return;
+        }
+        const encodedCharacter = encodeURIComponent(characterId);
+        const stashId = stashEntry && stashEntry.stash_id ? String(stashEntry.stash_id) : null;
+
+        const go = () => {
+            const targetUrl = stashId
+                ? `/character/${encodedCharacter}?stashId=${encodeURIComponent(stashId)}`
+                : `/character/${encodedCharacter}`;
+            if (typeof window.navigateWithTransition === 'function') {
+                window.navigateWithTransition(targetUrl);
+            } else {
+                window.location.href = targetUrl;
+            }
+        };
+
+        if (stashId) {
+            fetch(`/api/character/${encodedCharacter}/current-stash/${encodeURIComponent(stashId)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }).finally(go);
+        } else {
+            go();
+        }
+    };
+
+    const renderItemHoldingsModal = (item, summary) => {
+        if (!elements.itemHoldingsBody || !elements.itemHoldingsSummary) {
+            return;
+        }
+        const itemId = item && item.item_id ? String(item.item_id) : '';
+        const itemName = item && (item.name || item.title) ? (item.name || item.title) : itemId;
+
+        if (elements.itemHoldingsTitle && itemName) {
+            elements.itemHoldingsTitle.textContent = `${itemName} Holdings`;
+        }
+
+        const total = Number(summary && summary.total);
+        const totalValue = Number.isFinite(total) ? total : 0;
+        elements.itemHoldingsSummary.innerHTML = `Total owned across captured characters: <strong>${totalValue}</strong>`;
+        updateOwnedLabels(itemId, totalValue);
+
+        const characters = Array.isArray(summary && summary.characters) ? summary.characters : [];
+        if (!characters.length) {
+            elements.itemHoldingsBody.innerHTML = '<div class="item-holdings-empty">No captured characters currently hold this item.</div>';
+            scheduleHoldingsPositionUpdate();
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        characters.forEach((entry) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'item-holdings-entry';
+            button.dataset.characterId = entry.character_id || '';
+            button.innerHTML = `
+                <div class="entry-meta">
+                    <strong>${entry.character_name || 'Unknown Character'}</strong>
+                    <span>${formatCharacterMeta(entry)}</span>
+                </div>
+                <div class="entry-count">${Number(entry.total) || 0}</div>
+            `;
+            button.addEventListener('click', () => {
+                const primaryStash = Array.isArray(entry.stashes) && entry.stashes.length ? entry.stashes[0] : null;
+                navigateToCharacter(entry.character_id, primaryStash);
+            });
+            fragment.appendChild(button);
+        });
+
+        elements.itemHoldingsBody.innerHTML = '';
+        elements.itemHoldingsBody.appendChild(fragment);
+        scheduleHoldingsPositionUpdate();
+    };
+
+    const fetchItemHoldings = async (itemId) => {
+        const normalizedId = (itemId || '').toString().trim();
+        if (!normalizedId) {
+            return { total: 0, characters: [] };
+        }
+
+        const now = Date.now();
+        const cached = state.itemHoldingsCache[normalizedId];
+        if (cached && (now - cached.timestamp) < HOLDINGS_CACHE_TTL) {
+            updateOwnedLabels(normalizedId, cached.data && cached.data.total);
+            return cached.data;
+        }
+
+        let response;
+        try {
+            response = await fetch(`/api/quests/items/holdings?ids=${encodeURIComponent(normalizedId)}`, {
+                cache: 'no-store'
+            });
+        } catch (error) {
+            throw new Error('Unable to contact holdings service. Ensure character data is available.');
+        }
+
+        let payload;
+        try {
+            payload = await response.json();
+        } catch (error) {
+            throw new Error('Received an invalid response when loading holdings.');
+        }
+
+        if (!response.ok || payload.success === false) {
+            throw new Error((payload && payload.error) || `Failed to load holdings (status ${response.status})`);
+        }
+
+        const summary = (payload.items && payload.items[normalizedId]) || { total: 0, characters: [] };
+        state.itemHoldingsCache[normalizedId] = {
+            data: summary,
+            timestamp: now
+        };
+        updateOwnedLabels(normalizedId, summary.total || 0);
+        return summary;
+    };
+
+    const openItemHoldingsModal = (item, triggerElement) => {
+        if (!elements.itemHoldingsModal || !elements.itemHoldingsOverlay) {
+            return;
+        }
+
+        const itemId = item && item.item_id ? String(item.item_id) : '';
+        if (!itemId) {
+            if (typeof showNotification === 'function') {
+                showNotification('This quest item does not have a valid identifier yet.', 'warning');
+            }
+            return;
+        }
+
+        state.activeHoldingsAnchor = formatAnchorFromElement(triggerElement) || (triggerElement ? { element: triggerElement } : null);
+        state.activeHoldingsItemId = itemId;
+        elements.itemHoldingsOverlay.classList.remove('hidden');
+        elements.itemHoldingsModal.classList.remove('hidden');
+        lockBodyScroll();
+        attachHoldingsPositionListeners();
+        positionItemHoldingsDialog();
+
+        const itemName = item && (item.name || item.title) ? (item.name || item.title) : itemId;
+        if (elements.itemHoldingsTitle) {
+            elements.itemHoldingsTitle.textContent = `${itemName} Holdings`;
+        }
+        if (elements.itemHoldingsSummary) {
+            elements.itemHoldingsSummary.innerHTML = '<span>Gathering stash holdings...</span>';
+        }
+        if (elements.itemHoldingsBody) {
+            elements.itemHoldingsBody.innerHTML = '<div class="item-holdings-loading"><div class="spinner" aria-hidden="true"></div><span>Loading holdings...</span></div>';
+        }
+        scheduleHoldingsPositionUpdate();
+
+        fetchItemHoldings(itemId)
+            .then((summary) => {
+                if (state.activeHoldingsItemId !== itemId) {
+                    return;
+                }
+                renderItemHoldingsModal({ item_id: itemId, name: itemName }, summary);
+            })
+            .catch((error) => {
+                console.error('Failed to load item holdings', error);
+                if (state.activeHoldingsItemId !== itemId) {
+                    return;
+                }
+                if (elements.itemHoldingsSummary) {
+                    elements.itemHoldingsSummary.textContent = '';
+                }
+                if (elements.itemHoldingsBody) {
+                    const message = error && error.message ? error.message : 'Failed to load holdings.';
+                    elements.itemHoldingsBody.innerHTML = `<div class="item-holdings-error">${message}</div>`;
+                }
+                scheduleHoldingsPositionUpdate();
+            });
+    };
+
     function renderItemsList() {
         if (!state.itemsLoaded) {
             return;
@@ -997,6 +1475,8 @@
 
         const fragment = document.createDocumentFragment();
         filtered.forEach(item => {
+            const itemIdentifier = item.item_id || item.itemId || '';
+            const normalizedItem = { ...item, item_id: itemIdentifier };
             const row = document.createElement('div');
             row.className = 'quest-item';
 
@@ -1079,6 +1559,43 @@
             progressBlock.appendChild(progressHint);
 
             required.appendChild(progressBlock);
+
+            const holdingsBar = document.createElement('div');
+            holdingsBar.className = 'item-holdings-bar';
+
+            const ownedLabel = document.createElement('div');
+            ownedLabel.className = 'item-owned';
+            ownedLabel.textContent = 'Owned: ';
+            const ownedValue = document.createElement('span');
+            ownedValue.className = 'item-owned-value';
+            if (itemIdentifier) {
+                ownedValue.dataset.itemId = itemIdentifier;
+            }
+            ownedValue.textContent = '—';
+            ownedLabel.appendChild(ownedValue);
+            holdingsBar.appendChild(ownedLabel);
+
+            const holdingsButton = document.createElement('button');
+            holdingsButton.type = 'button';
+            holdingsButton.className = 'item-holdings-button';
+            holdingsButton.title = 'Show holdings across captured characters';
+            holdingsButton.innerHTML = '<span class="material-icons" aria-hidden="true">insights</span><span>Holdings</span>';
+            if (!itemIdentifier) {
+                holdingsButton.disabled = true;
+                holdingsButton.title = 'Item identifier unavailable';
+            } else {
+                holdingsButton.addEventListener('click', (event) => openItemHoldingsModal(normalizedItem, event.currentTarget || holdingsButton));
+            }
+            holdingsBar.appendChild(holdingsButton);
+
+            required.appendChild(holdingsBar);
+
+            if (itemIdentifier) {
+                const cachedHoldings = state.itemHoldingsCache[itemIdentifier];
+                if (cachedHoldings && cachedHoldings.data) {
+                    updateOwnedLabels(itemIdentifier, Number(cachedHoldings.data.total) || 0);
+                }
+            }
 
             const updateRowClasses = (remainingValue) => {
                 remainingSpan.textContent = `Remaining: ${remainingValue}`;

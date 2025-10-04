@@ -1963,6 +1963,72 @@ def api_quests_item_requirements():
     })
 
 
+@server.route('/api/quests/items/holdings', methods=['GET'])
+def api_quests_item_holdings():
+    raw_ids = (request.args.get('ids') or '').strip()
+    if not raw_ids:
+        return jsonify({'success': False, 'error': 'No item ids provided'}), 400
+
+    item_ids = [item_id.strip() for item_id in raw_ids.split(',') if item_id and item_id.strip()]
+    if not item_ids:
+        return jsonify({'success': False, 'error': 'No valid item ids provided'}), 400
+
+    try:
+        holdings_map = api.stash_manager.get_item_holdings(item_ids)
+    except Exception as exc:
+        logger.error("Failed to aggregate quest item holdings: %s", exc, exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to calculate holdings'}), 500
+
+    sanitized: dict[str, dict] = {}
+    for item_id in item_ids:
+        entries = holdings_map.get(item_id, []) or []
+        characters: list[dict] = []
+        total_owned = 0
+
+        for entry in entries:
+            entry_total_raw = entry.get('total', 0)
+            try:
+                entry_total = max(0, int(entry_total_raw))
+            except (TypeError, ValueError):
+                entry_total = 0
+            total_owned += entry_total
+
+            stashes_payload: list[dict] = []
+            for stash in entry.get('stashes', []) or []:
+                if not isinstance(stash, dict):
+                    continue
+                count_raw = stash.get('count', 0)
+                try:
+                    count_value = max(0, int(count_raw))
+                except (TypeError, ValueError):
+                    count_value = 0
+                stashes_payload.append({
+                    'stash_id': stash.get('stash_id'),
+                    'count': count_value,
+                    'slot_id': stash.get('slot_id')
+                })
+
+            characters.append({
+                'character_id': entry.get('character_id'),
+                'character_name': entry.get('character_name'),
+                'character_class': entry.get('character_class'),
+                'character_level': entry.get('character_level'),
+                'last_update': entry.get('last_update'),
+                'total': entry_total,
+                'stashes': stashes_payload,
+            })
+
+        sanitized[item_id] = {
+            'total': total_owned,
+            'characters': characters
+        }
+
+    return jsonify({
+        'success': True,
+        'items': sanitized
+    })
+
+
 @server.route('/api/quests/progress', methods=['GET', 'POST', 'DELETE'])
 def api_quests_progress():
     if request.method == 'GET':

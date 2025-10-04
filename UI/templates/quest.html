@@ -82,6 +82,20 @@
         </section>
     </div>
 </div>
+<div id="itemHoldingsOverlay" class="item-holdings-overlay hidden" aria-hidden="true"></div>
+<div id="itemHoldingsModal" class="item-holdings-modal hidden" role="dialog" aria-modal="true"
+    aria-labelledby="itemHoldingsTitle">
+    <div class="item-holdings-dialog" id="itemHoldingsDialog">
+        <header class="item-holdings-header">
+            <h3 id="itemHoldingsTitle">Item holdings</h3>
+            <button type="button" class="item-holdings-close" id="itemHoldingsClose" aria-label="Close holdings dialog">
+                <span class="material-icons" aria-hidden="true">close</span>
+            </button>
+        </header>
+        <div class="item-holdings-summary" id="itemHoldingsSummary"></div>
+        <div class="item-holdings-body" id="itemHoldingsBody"></div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
