@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const detectedResolutionSpan = document.querySelector('#detectedResolution');
     const refreshResolutionBtn = document.getElementById('refreshResolution');
     const clearQuestDataButton = document.getElementById('clearQuestData');
+    const clearCharacterDataButton = document.getElementById('clearCharacterData');
     const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');
 
     let currentSettings = {};
@@ -351,6 +352,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         createUnsavedChangesModal({
             title: 'Clear quest tracker data?',
             message: 'This will delete cached quest information and your saved quest progress. The tracker will download fresh data next time you open it.',
+            bodyText: 'Choose how you want to continue:',
+            bodyTips: [
+                { icon: 'bookmark_added', text: 'Keep Data retains cached quests and your submitted progress.' },
+                { icon: 'delete_sweep', text: 'Clear Data removes cached quests and resets your quest progress.' }
+            ],
             saveLabel: 'Clear Data',
             discardLabel: 'Keep Data',
             cancelLabel: 'Cancel',
@@ -398,6 +404,68 @@ document.addEventListener('DOMContentLoaded', async () => {
                 } finally {
                     if (typeof setLoading === 'function') {
                         setLoading(clearQuestDataButton, false);
+                    }
+                }
+            }
+        });
+    }
+
+    function handleClearCharacterData() {
+        if (!clearCharacterDataButton) {
+            return;
+        }
+
+        createUnsavedChangesModal({
+            title: 'Delete all character data?',
+            message: 'This will remove every captured character packet and stash snapshot stored on this device. This cannot be undone.',
+            bodyText: 'Decide what to do with your captured data:',
+            bodyTips: [
+                { icon: 'inventory_2', text: 'Keep Data leaves all captured characters and stash data untouched.' },
+                { icon: 'delete_forever', text: 'Delete Data removes all captured characters and stash data from this device.' }
+            ],
+            saveLabel: 'Delete Data',
+            discardLabel: 'Keep Data',
+            cancelLabel: 'Cancel',
+            onSave: async () => {
+                if (typeof setLoading === 'function') {
+                    setLoading(clearCharacterDataButton, true);
+                }
+
+                try {
+                    const response = await fetch('/api/characters/data', {
+                        method: 'DELETE',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    let data = null;
+                    try {
+                        data = await response.json();
+                    } catch (parseError) {
+                        /* ignore */
+                    }
+
+                    if (!response.ok || (data && data.success === false)) {
+                        const message = data && data.error ? data.error : 'Failed to delete character data';
+                        throw new Error(message);
+                    }
+
+                    try {
+                        window.dispatchEvent(new CustomEvent('characterDataCleared'));
+                    } catch (dispatchError) {
+                        console.warn('Failed to dispatch characterDataCleared event', dispatchError);
+                    }
+
+                    showNotification('All captured character data deleted.', 'success');
+                    return true;
+                } catch (error) {
+                    console.error('Failed to delete character data', error);
+                    showNotification(error.message || 'Failed to delete character data', 'error');
+                    return false;
+                } finally {
+                    if (typeof setLoading === 'function') {
+                        setLoading(clearCharacterDataButton, false);
                     }
                 }
             }
@@ -950,6 +1018,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     browseWiresharkButton?.addEventListener('click', pickWiresharkPath);
     detectWiresharkButton?.addEventListener('click', autoDetectWireshark);
     clearQuestDataButton?.addEventListener('click', handleClearQuestData);
+    clearCharacterDataButton?.addEventListener('click', handleClearCharacterData);
 
     // Setup hotkey recording
     setupHotkeyRecording(sortHotkeyInput);

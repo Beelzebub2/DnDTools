@@ -68,6 +68,11 @@ QUESTS_PAGE_SIZE = 100
 QUESTS_CACHE_DURATION = 10 * 60  # 10 minutes
 QUESTS_CACHE_FILE = os.path.join(get_data_dir(), 'quests_cache.json')
 QUESTS_PROGRESS_FILE = os.path.join(get_data_dir(), 'quests_progress.json')
+DATA_DIR = Path(get_data_dir())
+CHARACTER_STORAGE_PROTECTED_FILES = {
+    Path(QUESTS_CACHE_FILE).name.lower(),
+    Path(QUESTS_PROGRESS_FILE).name.lower(),
+}
 _quests_cache: Optional[list[dict]] = None
 _quests_cache_timestamp = 0.0
 _quests_lock = threading.RLock()
@@ -279,6 +284,53 @@ def _clear_quest_storage() -> dict[str, bool]:
         _quests_cache_timestamp = 0.0
 
     return results
+
+
+def _clear_character_storage() -> dict[str, object]:
+    removed_files: list[str] = []
+    failed_files: list[str] = []
+
+    if DATA_DIR.exists():
+        for candidate in DATA_DIR.glob('*.json'):
+            try:
+                if candidate.name.lower() in CHARACTER_STORAGE_PROTECTED_FILES:
+                    continue
+                candidate.unlink()
+                removed_files.append(candidate.name)
+            except FileNotFoundError:
+                continue
+            except OSError as exc:
+                logger.warning("Failed to delete character data file %s: %s", candidate, exc, exc_info=True)
+                failed_files.append(candidate.name)
+
+    reload_failed = False
+    try:
+        stash_manager.force_reload()
+    except Exception as exc:
+        reload_failed = True
+        logger.warning("Failed to reload stash manager after clearing character data: %s", exc, exc_info=True)
+
+    removed_count = len(removed_files)
+    failed_count = len(failed_files)
+
+    if failed_count:
+        message = 'Failed to delete some character data files'
+    elif removed_count:
+        message = 'Character data cleared'
+    else:
+        message = 'No character data found to delete'
+
+    success = failed_count == 0 and not reload_failed
+
+    return {
+        'success': success,
+        'message': message,
+        'removed_count': removed_count,
+        'failed_count': failed_count,
+        'removed_files': removed_files,
+        'failed_files': failed_files,
+        'reload_failed': reload_failed,
+    }
 
 
 def _download_manifest_from_url(url: str) -> Optional[dict]:
@@ -1964,6 +2016,13 @@ def api_clear_quest_cache():
     if not any(results.values()):
         return jsonify({'success': True, 'message': 'Quest cache already empty', 'results': results})
     return jsonify({'success': True, 'results': results})
+
+
+@server.route('/api/characters/data', methods=['DELETE'])
+def api_clear_character_data():
+    results = _clear_character_storage()
+    status_code = 200 if results.get('success') else 500
+    return jsonify(results), status_code
 
 @server.route('/api/capture/settings', methods=['GET', 'POST'])
 def api_capture_settings():

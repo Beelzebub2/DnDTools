@@ -147,7 +147,7 @@
     };
 
     const progressPayloadForServer = () => {
-    const sourceProgress = state && state.progress ? state.progress : { objectives: {}, items: {} };
+        const sourceProgress = state && state.progress ? state.progress : { objectives: {}, items: {} };
         return sanitizeProgressData({
             objectives: sourceProgress.objectives,
             items: sourceProgress.items
@@ -339,8 +339,8 @@
             state.progress.objectives[key] = record;
         }
 
-    schedulePersistProgress(state.progress);
-    scheduleServerPersistProgress();
+        schedulePersistProgress(state.progress);
+        scheduleServerPersistProgress();
     };
 
     const getObjectiveSubmissionsForItem = (itemId) => {
@@ -383,8 +383,8 @@
             }
         }
 
-    schedulePersistProgress(state.progress);
-    scheduleServerPersistProgress();
+        schedulePersistProgress(state.progress);
+        scheduleServerPersistProgress();
     };
 
     const getSubmittedForItem = (itemId) => {
@@ -1078,7 +1078,7 @@
                 item.merchants.forEach(entry => {
                     const tag = document.createElement('span');
                     tag.className = 'merchant-tag';
-                    tag.innerHTML = `<strong>${entry.name}</strong> • ${entry.count}x`;
+                    tag.innerHTML = `<strong>${entry.name}</strong>`;
                     merchantTags.appendChild(tag);
                 });
                 quests.appendChild(merchantTags);

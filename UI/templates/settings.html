@@ -120,21 +120,33 @@
             </div>
         </div>
 
-        <!-- Quest Tracker Settings -->
+        <!-- Data Settings -->
         <div class="settings-section">
             <div class="section-header">
-                <span class="material-icons">assignment</span>
-                <h2>Quest Tracker</h2>
+                <span class="material-icons">storage</span>
+                <h2>Data</h2>
             </div>
             <div class="section-content">
                 <div class="form-group">
-                    <label for="clearQuestData">Cached Quest Data</label>
+                    <label for="clearQuestData">Quest Tracker Cache</label>
                     <div class="form-help">
-                        Quest information and your quest progress are stored locally for faster loading. Clear the cache below to force a fresh download and reset saved progress.
+                        Quest information and your quest progress are stored locally for faster loading. Clear the cache
+                        below to force a fresh download and reset saved progress.
                     </div>
                     <button id="clearQuestData" type="button" class="btn-small danger">
                         <span class="material-icons" aria-hidden="true">delete_sweep</span>
                         Clear quest data
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label for="clearCharacterData">Captured Character Data</label>
+                    <div class="form-help">
+                        Captured packets and stash snapshots for your characters are saved on this device. Delete them to
+                        reclaim space or start fresh.
+                    </div>
+                    <button id="clearCharacterData" type="button" class="btn-small danger">
+                        <span class="material-icons" aria-hidden="true">delete_forever</span>
+                        Delete character data
                     </button>
                 </div>
             </div>
