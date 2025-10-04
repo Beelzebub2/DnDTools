@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import tempfile
 import hashlib
+from datetime import datetime
 import requests
 from networking.protos import _PacketCommand_pb2
 
@@ -60,6 +61,256 @@ _update_state = {
     "last_error": None,
 }
 _update_lock = threading.RLock()
+
+# Quest tracking cache
+QUESTS_API_URL = "https://api.darkerdb.com/v1/quests"
+QUESTS_PAGE_SIZE = 100
+QUESTS_CACHE_DURATION = 10 * 60  # 10 minutes
+_quests_cache: Optional[list[dict]] = None
+_quests_cache_timestamp = 0.0
+_quests_lock = threading.RLock()
+_items_index: Optional[dict[str, dict]] = None
+
+RARITY_ORDER = {
+    "Poor": 0,
+    "Common": 1,
+    "Uncommon": 2,
+    "Rare": 3,
+    "Epic": 4,
+    "Legendary": 5,
+    "Unique": 6,
+    "Mythic": 7,
+    "Artifact": 8,
+}
+
+MERCHANT_EXACT_ALIASES = {
+    'goblin merchant final': 'Goblin Merchant',
+    'huntress daily': 'Huntress',
+    'huntress daily equipment': 'Huntress',
+    'huntress seasonal': 'Huntress',
+    'huntress weekly': 'Huntress',
+    'tavern master final': 'Tavern Master',
+    'the collector final': 'The Collector',
+    'weaponsmith extra': 'Weaponsmith',
+}
+
+MERCHANT_PREFIX_ALIASES = {
+    'goblin merchant': 'Goblin Merchant',
+    'huntress': 'Huntress',
+    'tavern master': 'Tavern Master',
+    'the collector': 'The Collector',
+    'weaponsmith': 'Weaponsmith',
+}
+
+
+def _normalize_merchant_name(name: Optional[str]) -> str:
+    if not name:
+        return ''
+
+    cleaned = ' '.join(str(name).strip().split())
+    lowered = cleaned.lower()
+
+    if lowered in MERCHANT_EXACT_ALIASES:
+        return MERCHANT_EXACT_ALIASES[lowered]
+
+    for prefix, canonical in MERCHANT_PREFIX_ALIASES.items():
+        if lowered.startswith(prefix):
+            return canonical
+
+    return cleaned
+
+
+def _download_manifest_from_url(url: str) -> Optional[dict]:
+    try:
+        response = requests.get(
+            url,
+            headers={'User-Agent': 'DnDTools-Updater'},
+            timeout=15,
+        )
+    except requests.RequestException as exc:
+        logger.warning("Failed to download update manifest from %s: %s", url, exc)
+        return None
+
+    if response.status_code == 404:
+        logger.info("Update manifest not found at %s (404)", url)
+        return None
+
+    try:
+        response.raise_for_status()
+    except requests.HTTPError as exc:
+        logger.warning("Unexpected HTTP error retrieving manifest from %s: %s", url, exc)
+        return None
+
+    try:
+        manifest = response.json()
+    except ValueError as exc:
+        logger.warning("Manifest at %s is not valid JSON: %s", url, exc)
+        return None
+
+    if not isinstance(manifest, dict):
+        logger.warning("Manifest at %s must be a JSON object", url)
+        return None
+
+    return manifest
+
+
+def _fetch_manifest_from_github_latest() -> Optional[dict]:
+    try:
+        api_response = requests.get(
+            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
+            headers={'User-Agent': 'DnDTools-Updater'},
+            timeout=15,
+        )
+        api_response.raise_for_status()
+        release_data = api_response.json()
+    except requests.RequestException as exc:
+        logger.warning("Unable to query GitHub releases API: %s", exc)
+        return None
+
+    assets = release_data.get('assets') or []
+    asset_url = None
+    for asset in assets:
+        if isinstance(asset, dict) and asset.get('name') == 'update-manifest.json':
+            asset_url = asset.get('browser_download_url')
+            if asset_url:
+                break
+
+    if not asset_url:
+        logger.warning("No update-manifest.json asset found in latest GitHub release")
+        return None
+
+    try:
+        asset_response = requests.get(
+            asset_url,
+            headers={'User-Agent': 'DnDTools-Updater', 'Accept': 'application/octet-stream'},
+            timeout=15,
+        )
+        asset_response.raise_for_status()
+        manifest = asset_response.json()
+    except requests.RequestException as exc:
+        logger.warning("Failed downloading manifest asset from GitHub: %s", exc)
+        return None
+    except ValueError as exc:
+        logger.warning("GitHub manifest asset is not valid JSON: %s", exc)
+        return None
+
+    if not isinstance(manifest, dict):
+        logger.warning("GitHub manifest asset must be a JSON object")
+        return None
+
+    return manifest
+
+
+def _normalize_item_name(item_id: str) -> str:
+    if not item_id:
+        return "Unknown Item"
+    return item_id.replace('_', ' ').replace('-', ' ').title()
+
+
+def _load_items_index() -> dict[str, dict]:
+    global _items_index
+    if _items_index is not None:
+        return _items_index
+
+    items_index: dict[str, dict] = {}
+    items_path = resource_path('items.json')
+
+    try:
+        with open(items_path, 'r', encoding='utf-8') as handle:
+            raw_data = json.load(handle)
+    except FileNotFoundError:
+        logger.error("Quest tracker is unable to locate items.json at %s", items_path)
+        _items_index = items_index
+        return _items_index
+    except Exception as exc:
+        logger.error("Failed to load items data for quest tracker: %s", exc, exc_info=True)
+        _items_index = items_index
+        return _items_index
+
+    if isinstance(raw_data, dict):
+        for item_id, payload in raw_data.items():
+            if not isinstance(payload, dict):
+                continue
+            icon_path = str(payload.get('iconPath') or '').replace('\\', '/').replace('\\', '/')
+            items_index[item_id] = {
+                'item_id': item_id,
+                'name': payload.get('name') or _normalize_item_name(item_id),
+                'rarity': payload.get('rarity') or 'Unknown',
+                'type': payload.get('type'),
+                'iconPath': icon_path if icon_path else None,
+            }
+
+    _items_index = items_index
+    return _items_index
+
+
+def _fetch_quests_data(force: bool = False) -> list[dict]:
+    global _quests_cache, _quests_cache_timestamp
+    now = time.time()
+
+    with _quests_lock:
+        if (
+            not force
+            and _quests_cache is not None
+            and (now - _quests_cache_timestamp) < QUESTS_CACHE_DURATION
+        ):
+            return list(_quests_cache)
+
+    quests: list[dict] = []
+    next_url = f"{QUESTS_API_URL}?limit={QUESTS_PAGE_SIZE}"
+    headers = {
+        'User-Agent': 'DnDTools-QuestTracker/1.0'
+    }
+
+    pages = 0
+    max_pages = 100
+
+    while next_url and pages < max_pages:
+        pages += 1
+        response = requests.get(next_url, headers=headers, timeout=15)
+        response.raise_for_status()
+
+        payload = response.json()
+        body = payload.get('body')
+        if isinstance(body, list):
+            quests.extend(body)
+        else:
+            logger.debug("Unexpected quests payload format: %s", type(body))
+
+        pagination = payload.get('pagination') or {}
+        next_url = pagination.get('next')
+
+        if not next_url:
+            break
+
+    with _quests_lock:
+        _quests_cache = list(quests)
+        _quests_cache_timestamp = time.time()
+
+    return quests
+
+
+def _build_item_payload(item_info: Optional[dict]) -> dict:
+    if not item_info:
+        return {
+            'item_id': None,
+            'name': 'Unknown Item',
+            'rarity': 'Unknown',
+            'type': None,
+            'icon': None,
+            'iconPath': None,
+        }
+
+    icon_rel = item_info.get('iconPath')
+    icon_url = url_for('serve_file', filename=icon_rel) if icon_rel else None
+    return {
+        'item_id': item_info.get('item_id'),
+        'name': item_info.get('name'),
+        'rarity': item_info.get('rarity'),
+        'type': item_info.get('type'),
+        'icon': icon_url,
+        'iconPath': icon_rel,
+    }
 
 # Initialize logging first
 setup_logging()
@@ -163,17 +414,12 @@ def _fetch_update_manifest(force: bool = False) -> Optional[dict]:
         return _update_cache
 
     try:
-        response = requests.get(
-            UPDATE_MANIFEST_URL,
-            headers={'User-Agent': 'DnDTools-Updater'},
-            timeout=15,
-        )
-        response.raise_for_status()
-        manifest = response.json()
-        if not isinstance(manifest, dict):
-            raise ValueError('Manifest JSON must be an object')
+        manifest = _download_manifest_from_url(UPDATE_MANIFEST_URL)
+        if manifest is None:
+            manifest = _fetch_manifest_from_github_latest()
+        if manifest is None:
+            raise RuntimeError('Unable to retrieve update manifest from configured sources')
 
-        # Basic validation
         for key in ('version', 'url'):
             if not manifest.get(key):
                 raise ValueError(f'Manifest missing required field: {key}')
@@ -1295,6 +1541,190 @@ def api_search_items():
     query = request.args.get('query', '')
     return jsonify(api.search_items(query))
 
+
+@server.route('/api/quests', methods=['GET'])
+def api_quests_list():
+    refresh = (request.args.get('refresh') or '').strip().lower()
+    merchant_filter = (request.args.get('merchant') or '').strip()
+    force_refresh = refresh in {'1', 'true', 'yes', 'force'}
+
+    try:
+        quests = _fetch_quests_data(force=force_refresh)
+    except requests.exceptions.RequestException as exc:
+        logger.error("Failed to contact DarkerDB quests API: %s", exc, exc_info=True)
+        return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
+    except Exception as exc:
+        logger.error("Unexpected error retrieving quests: %s", exc, exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to load quests'}), 500
+
+    items_index = _load_items_index()
+    merchant_filter_normalized = _normalize_merchant_name(merchant_filter)
+    merchant_filter_lower = merchant_filter_normalized.lower() if merchant_filter_normalized else None
+
+    merchants = sorted(
+        {
+            _normalize_merchant_name(quest.get('merchant'))
+            for quest in quests
+            if _normalize_merchant_name(quest.get('merchant'))
+        },
+        key=lambda name: name.lower()
+    )
+
+    enriched_quests: list[dict] = []
+    for quest in quests:
+        merchant_name_original = quest.get('merchant') or ''
+        merchant_name = _normalize_merchant_name(merchant_name_original)
+        if merchant_filter_lower and merchant_name.lower() != merchant_filter_lower:
+            continue
+
+        objectives_payload: list[dict] = []
+        for objective in quest.get('objectives') or []:
+            objective_payload = {
+                'type': objective.get('type'),
+                'count': objective.get('count'),
+                'item_id': objective.get('item_id'),
+                'monster': objective.get('monster'),
+                'interact': objective.get('interact'),
+                'module': objective.get('module'),
+                'must_escape': objective.get('must_escape', False),
+            }
+            if objective.get('item_id'):
+                objective_payload['item'] = _build_item_payload(items_index.get(objective['item_id']))
+            objectives_payload.append(objective_payload)
+
+        rewards_payload: list[dict] = []
+        for reward in quest.get('rewards') or []:
+            reward_payload = dict(reward)
+            item_id = reward.get('item_id')
+            if item_id:
+                reward_payload['item'] = _build_item_payload(items_index.get(item_id))
+            rewards_payload.append(reward_payload)
+
+        enriched_quests.append({
+            'id': quest.get('id'),
+            'title': quest.get('title') or quest.get('id') or 'Unknown Quest',
+            'chapter': quest.get('chapter'),
+            'chapter_id': quest.get('chapter_id'),
+            'prerequisite': quest.get('prerequisite'),
+            'dungeons': quest.get('dungeons') or [],
+            'merchant': merchant_name,
+            'merchant_original': merchant_name_original,
+            'text': quest.get('text'),
+            'completion_text': quest.get('completion_text'),
+            'objectives': objectives_payload,
+            'rewards': rewards_payload,
+        })
+
+    return jsonify({
+        'success': True,
+        'quests': enriched_quests,
+        'merchants': merchants,
+        'last_updated': datetime.utcnow().isoformat() + 'Z',
+        'total': len(enriched_quests),
+        'cached': not force_refresh,
+    })
+
+
+@server.route('/api/quests/items', methods=['GET'])
+def api_quests_item_requirements():
+    refresh = (request.args.get('refresh') or '').strip().lower()
+    force_refresh = refresh in {'1', 'true', 'yes', 'force'}
+
+    try:
+        quests = _fetch_quests_data(force=force_refresh)
+    except requests.exceptions.RequestException as exc:
+        logger.error("Failed to contact DarkerDB quests API for item requirements: %s", exc, exc_info=True)
+        return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
+    except Exception as exc:
+        logger.error("Unexpected error retrieving quest requirements: %s", exc, exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to load quest requirements'}), 500
+
+    items_index = _load_items_index()
+
+    aggregated: dict[str, dict] = {}
+    for quest in quests:
+        quest_id = quest.get('id')
+        quest_title = quest.get('title') or quest_id or 'Unknown Quest'
+        merchant_name_original = quest.get('merchant')
+        merchant_name = _normalize_merchant_name(merchant_name_original)
+        dungeons = quest.get('dungeons') or []
+
+        for objective in quest.get('objectives') or []:
+            item_id = objective.get('item_id')
+            if not item_id:
+                continue
+            try:
+                count = int(objective.get('count') or 0)
+            except (TypeError, ValueError):
+                count = 0
+            if count <= 0:
+                continue
+
+            entry = aggregated.setdefault(item_id, {
+                'item_id': item_id,
+                'total_required': 0,
+                'quests': [],
+                'merchant_counts': {},
+                'dungeons': set(),
+            })
+            entry['total_required'] += count
+            entry['quests'].append({
+                'id': quest_id,
+                'title': quest_title,
+                'merchant': merchant_name,
+                'merchant_original': merchant_name_original,
+                'count': count,
+                'chapter': quest.get('chapter'),
+            })
+            if merchant_name:
+                entry['merchant_counts'][merchant_name] = entry['merchant_counts'].get(merchant_name, 0) + count
+            for dungeon in dungeons:
+                entry['dungeons'].add(dungeon)
+
+    items_payload: list[dict] = []
+    for item_id, entry in aggregated.items():
+        item_meta = items_index.get(item_id)
+        meta_payload = _build_item_payload(item_meta)
+        result_payload = {
+            **meta_payload,
+            'item_id': item_id,
+            'name': meta_payload.get('name') or _normalize_item_name(item_id),
+            'rarity': meta_payload.get('rarity') or 'Unknown',
+            'type': meta_payload.get('type'),
+            'total_required': entry['total_required'],
+            'merchants': sorted(
+                (
+                    {'name': name, 'count': count}
+                    for name, count in entry['merchant_counts'].items()
+                ),
+                key=lambda payload: (-payload['count'], payload['name'])
+            ),
+            'quests': sorted(
+                entry['quests'],
+                key=lambda payload: (
+                    (payload['merchant'] or '').lower(),
+                    (payload['title'] or '').lower()
+                )
+            ),
+            'dungeons': sorted(entry['dungeons']),
+        }
+        items_payload.append(result_payload)
+
+    items_payload.sort(
+        key=lambda payload: (
+            RARITY_ORDER.get((payload.get('rarity') or '').title(), 999),
+            payload.get('name') or ''
+        )
+    )
+
+    return jsonify({
+        'success': True,
+        'items': items_payload,
+        'total': len(items_payload),
+        'last_updated': datetime.utcnow().isoformat() + 'Z',
+        'cached': not force_refresh,
+    })
+
 @server.route('/api/capture/settings', methods=['GET', 'POST'])
 def api_capture_settings():
     if request.method == 'GET':
@@ -1483,6 +1913,11 @@ def character(character_id):
 @server.route('/search')
 def search():
     return render_template('search.html')
+
+
+@server.route('/quests')
+def quests():
+    return render_template('quest.html')
 
 # Add these routes after the other API routes
 @server.route('/api/settings', methods=['GET', 'POST'])
