@@ -276,6 +276,8 @@
     const questAliasIndex = new Map();
     let questAliasEntries = [];
     const questTitleIndex = new Map();
+    const questLockIndex = new Map();
+    let questCompletionIndex = new Map();
 
     if (!elements.questList || !elements.itemsList) {
         return;
@@ -577,13 +579,25 @@
         scheduleServerPersistProgress();
     };
 
-    const getObjectiveSubmissionsForItem = (itemId) => {
+    const getObjectiveSubmissionsForItem = (itemId, options = {}) => {
         if (!itemId) {
             return 0;
         }
-        return Object.values(state.progress.objectives).reduce((total, entry) => {
+        const entries = state.progress && state.progress.objectives
+            ? Object.values(state.progress.objectives)
+            : [];
+        const allowedQuestIds = Array.isArray(options.allowedQuestIds) && options.allowedQuestIds.length
+            ? new Set(options.allowedQuestIds.map(value => (value !== undefined && value !== null ? String(value) : '')).filter(Boolean))
+            : null;
+        return entries.reduce((total, entry) => {
             if (!entry || entry.item_id !== itemId) {
                 return total;
+            }
+            if (allowedQuestIds && allowedQuestIds.size) {
+                const questId = entry.quest_id !== undefined && entry.quest_id !== null ? String(entry.quest_id) : '';
+                if (!questId || !allowedQuestIds.has(questId)) {
+                    return total;
+                }
             }
             const amount = Number(entry.submitted) || 0;
             return total + (amount > 0 ? amount : 0);
@@ -846,6 +860,28 @@
         });
     };
 
+    const recomputeQuestLockState = () => {
+        questLockIndex.clear();
+        questCompletionIndex = computeQuestCompletionIndex();
+        state.quests.forEach((quest) => {
+            const questKey = questKeyFor(quest);
+            if (!questKey) {
+                return;
+            }
+            const locked = !areQuestPrerequisitesMet(quest, questCompletionIndex);
+            questLockIndex.set(questKey, locked);
+            quest.__isLocked = locked;
+        });
+        return questCompletionIndex;
+    };
+
+    const isQuestLocked = (questId) => {
+        if (!questId) {
+            return false;
+        }
+        return questLockIndex.get(questId) === true;
+    };
+
     const buildMerchantView = (quests, viewMode = 'active') => {
         const questsForView = [];
         let questsCount = 0;
@@ -856,7 +892,7 @@
         let hiddenByPrerequisite = 0;
         let lockedVisible = 0;
 
-        const completionIndex = computeQuestCompletionIndex();
+        recomputeQuestLockState();
 
         quests.forEach((quest) => {
             const partitions = partitionQuestObjectives(quest);
@@ -867,8 +903,9 @@
                 ? completedObjectives === totalObjectives
                 : activeObjectives === 0 && completedObjectives === 0;
 
-            const prerequisitesMet = areQuestPrerequisitesMet(quest, completionIndex);
-            if (!prerequisitesMet) {
+            const questKey = questKeyFor(quest);
+            const isLocked = questKey ? questLockIndex.get(questKey) === true : false;
+            if (isLocked) {
                 hiddenByPrerequisite += 1;
                 if (state.hideLockedQuests) {
                     return;
@@ -901,13 +938,13 @@
             itemObjectiveCount += objectivesForStatistics.filter(obj => obj.type === 'Fetch').length;
 
             const objectivesWithIndex = relevantObjectives.map(obj => ({ ...obj }));
-            if (!prerequisitesMet) {
+            if (isLocked) {
                 lockedVisible += 1;
             }
             questsForView.push({
                 quest,
                 objectives: objectivesWithIndex,
-                isLocked: !prerequisitesMet,
+                isLocked,
                 lockedPrerequisites: Array.isArray(quest.__resolvedPrerequisiteTitles) ? quest.__resolvedPrerequisiteTitles : []
             });
         });
@@ -1902,8 +1939,11 @@
             loader.style.display = 'none';
         }
 
+        const hideLocked = Boolean(state.hideLockedQuests);
+        recomputeQuestLockState();
+
         const searchTerm = state.itemSearch.trim().toLowerCase();
-        const filtered = state.aggregatedItems.filter(item => {
+        const filteredBySearch = state.aggregatedItems.filter(item => {
             if (!searchTerm) {
                 return true;
             }
@@ -1911,13 +1951,131 @@
             return (item.name || '').toLowerCase().includes(searchTerm) || merchantMatch;
         });
 
-        const totalNeeded = filtered.reduce((total, item) => total + (item.total_required || 0), 0);
+        const resolveQuestKeyFromEntry = (entry) => {
+            if (!entry) {
+                return '';
+            }
+            const candidates = [
+                entry.id,
+                entry.quest_id,
+                entry.questId,
+                entry.questID,
+                entry.quest,
+                entry.quest_name,
+                entry.questName,
+                entry.title,
+                entry.name
+            ];
+            for (const candidate of candidates) {
+                if (candidate !== undefined && candidate !== null && candidate !== '') {
+                    return String(candidate);
+                }
+            }
+            return '';
+        };
+
+        const summarizeItemForView = (item) => {
+            const questEntries = Array.isArray(item.quests) ? item.quests : [];
+            const visibleQuests = [];
+            const hiddenTitles = [];
+            const allQuestIds = [];
+            let lockedQuestCount = 0;
+            let totalFromQuests = 0;
+            let visibleTotalFromQuests = 0;
+
+            questEntries.forEach((entry) => {
+                const questKey = resolveQuestKeyFromEntry(entry);
+                if (questKey) {
+                    allQuestIds.push(questKey);
+                }
+                const locked = questKey ? questLockIndex.get(questKey) === true : false;
+                const countValue = Number(entry.count ?? entry.total ?? entry.quantity ?? entry.requirement ?? entry.amount) || 0;
+                totalFromQuests += countValue;
+                const questTitle = entry.title || entry.quest_title || entry.questTitle || entry.name || entry.id || questKey;
+
+                if (locked) {
+                    lockedQuestCount += 1;
+                    if (questTitle) {
+                        hiddenTitles.push(questTitle);
+                    }
+                } else {
+                    visibleTotalFromQuests += countValue;
+                }
+
+                const decoratedEntry = {
+                    ...entry,
+                    questKey,
+                    questTitle,
+                    count: countValue,
+                    __isLocked: locked
+                };
+
+                if (!hideLocked || !locked) {
+                    visibleQuests.push(decoratedEntry);
+                }
+            });
+
+            const baseTotal = Number(item.total_required);
+            const fallbackTotal = Number.isFinite(baseTotal) && baseTotal >= 0 ? baseTotal : totalFromQuests;
+            let effectiveTotal = fallbackTotal;
+
+            if (hideLocked) {
+                if (visibleQuests.length) {
+                    effectiveTotal = visibleTotalFromQuests || fallbackTotal;
+                } else if (questEntries.length) {
+                    effectiveTotal = 0;
+                }
+            }
+
+            const allowedQuestIds = hideLocked
+                ? visibleQuests.map(entry => entry.questKey).filter(Boolean)
+                : allQuestIds.filter(Boolean);
+
+            return {
+                totalRequired: Math.max(0, Number.isFinite(effectiveTotal) ? effectiveTotal : 0),
+                visibleQuests,
+                hiddenQuestCount: hideLocked ? lockedQuestCount : 0,
+                hiddenQuestTitles: Array.from(new Set(hiddenTitles.filter(Boolean))),
+                lockedQuestCount,
+                hasQuestAssociations: questEntries.length > 0,
+                isFullyLocked: hideLocked && questEntries.length > 0 && visibleQuests.length === 0 && lockedQuestCount > 0,
+                allowedQuestIds: allowedQuestIds.length ? allowedQuestIds : null
+            };
+        };
+
+        let hiddenByPrerequisite = 0;
+        const processedItems = [];
+
+        filteredBySearch.forEach((item) => {
+            const summary = summarizeItemForView(item);
+            if (hideLocked && summary.isFullyLocked) {
+                hiddenByPrerequisite += 1;
+                return;
+            }
+            processedItems.push({ item, summary });
+        });
+
+        const totalNeeded = processedItems.reduce((total, entry) => total + (entry.summary.totalRequired || 0), 0);
         if (elements.itemsMeta) {
-            elements.itemsMeta.innerHTML = `Showing <strong>${filtered.length}</strong> of ${state.aggregatedItems.length} items • Total required: <strong>${totalNeeded}</strong>`;
+            let metaText = `Showing <strong>${processedItems.length}</strong> of ${state.aggregatedItems.length} items`;
+            metaText += ` • Total required: <strong>${totalNeeded}</strong>`;
+            if (hideLocked && hiddenByPrerequisite > 0) {
+                metaText += ` • Hidden by prerequisites: <strong>${hiddenByPrerequisite}</strong>`;
+            }
+            elements.itemsMeta.innerHTML = metaText;
         }
 
-        if (!filtered.length) {
-            renderEmpty(container, 'checklist_rtl', 'No matching items', 'Try a different search term or refresh the data.');
+        if (!processedItems.length) {
+            if (hideLocked && hiddenByPrerequisite > 0) {
+                renderEmpty(
+                    container,
+                    'lock',
+                    'Prerequisites not met',
+                    'Complete earlier quests or disable the prerequisite filter to view their required items.'
+                );
+            } else {
+                renderEmpty(container, 'checklist_rtl', 'No matching items', 'Try a different search term or refresh the data.');
+            }
             ensureItemsLoaderAttached();
             if (loader) {
                 loader.style.display = 'none';
@@ -1925,7 +2083,7 @@
             return;
         }
 
-        const itemsWithIndex = filtered.map((item, index) => ({ item, index }));
+        const itemsWithIndex = processedItems.map(({ item, summary }, index) => ({ item, summary, index }));
         if (state.itemsOwnedFirst) {
             itemsWithIndex.sort((a, b) => {
                 const ownedDiff = getOwnedTotalForItem(b.item) - getOwnedTotalForItem(a.item);
@@ -1939,14 +2097,15 @@
         const fragment = document.createDocumentFragment();
         const visibleItemIds = [];
 
-        itemsWithIndex.forEach(({ item }) => {
+        itemsWithIndex.forEach(({ item, summary }) => {
             const itemIdentifier = item.item_id || item.itemId || '';
             const normalizedItem = { ...item, item_id: itemIdentifier };
             const row = document.createElement('div');
             row.className = 'quest-item';
 
-            const totalRequired = Number(item.total_required) || 0;
+            const totalRequired = Number(summary.totalRequired) || 0;
             const maxValue = totalRequired > 0 ? totalRequired : Number.MAX_SAFE_INTEGER;
+            const allowedQuestIds = summary.allowedQuestIds;
 
             const main = document.createElement('div');
             main.className = 'item-main';
@@ -2070,18 +2229,23 @@
             };
 
             const refreshFromState = () => {
-                const manual = getManualItemProgress(item.item_id);
-                const auto = getObjectiveSubmissionsForItem(item.item_id);
+                const manual = getManualItemProgress(normalizedItem.item_id);
+                const auto = getObjectiveSubmissionsForItem(normalizedItem.item_id, { allowedQuestIds });
                 const autoDisplay = totalRequired > 0 ? Math.min(auto, totalRequired) : auto;
                 const effective = manual !== undefined ? clampNumber(manual, 0, maxValue) : clampNumber(auto, 0, maxValue);
                 const submittedValue = Number.isFinite(effective) ? effective : 0;
+                const hintParts = [];
                 if (manual !== undefined) {
                     progressInput.value = submittedValue;
-                    progressHint.textContent = `Manual override • Auto-tracked: ${autoDisplay}`;
+                    hintParts.push(`Manual override • Auto-tracked: ${autoDisplay}`);
                 } else {
                     progressInput.value = submittedValue > 0 ? submittedValue : '';
-                    progressHint.textContent = `Auto-tracked from objectives: ${autoDisplay}`;
+                    hintParts.push(`Auto-tracked from objectives: ${autoDisplay}`);
                 }
+                if (hideLocked && summary.hiddenQuestCount > 0) {
+                    hintParts.push(`${summary.hiddenQuestCount} locked quest${summary.hiddenQuestCount === 1 ? '' : 's'} hidden`);
+                }
+                progressHint.textContent = hintParts.join(' • ');
                 const remainingValue = Math.max(0, totalRequired - submittedValue);
                 updateRowClasses(remainingValue);
                 return submittedValue;
@@ -2091,7 +2255,7 @@
 
             const handleItemInput = (rawValue) => {
                 if (rawValue === '') {
-                    setItemProgress(item.item_id, '');
+                    setItemProgress(normalizedItem.item_id, '');
                     refreshFromState();
                     return;
                 }
@@ -2099,7 +2263,7 @@
                 if (!Number.isFinite(clamped)) {
                     return;
                 }
-                setItemProgress(item.item_id, clamped);
+                setItemProgress(normalizedItem.item_id, clamped);
                 refreshFromState();
             };
 
@@ -2121,17 +2285,40 @@
                 quests.appendChild(merchantTags);
             }
 
-            if (item.quests && item.quests.length) {
+            if (summary.visibleQuests && summary.visibleQuests.length) {
                 const questTags = document.createElement('div');
                 questTags.className = 'quest-tags';
-                item.quests.forEach(entry => {
+                summary.visibleQuests.forEach(entry => {
                     const tag = document.createElement('span');
                     tag.className = 'quest-tag';
-                    const questTitle = entry.title || entry.id;
-                    tag.innerHTML = `${entry.merchant ? `<strong>${entry.merchant}</strong> — ` : ''}${questTitle} (<strong>${entry.count}×</strong>)`;
+                    const questTitle = entry.questTitle || entry.title || entry.id;
+                    const quantityRaw = entry.count ?? entry.total ?? entry.quantity ?? entry.requirement ?? entry.amount;
+                    const quantityLabel = quantityRaw !== undefined && quantityRaw !== null && quantityRaw !== ''
+                        ? `${quantityRaw}×`
+                        : '—';
+                    tag.innerHTML = `${entry.merchant ? `<strong>${entry.merchant}</strong> — ` : ''}${questTitle} (<strong>${quantityLabel}</strong>)`;
                     questTags.appendChild(tag);
                 });
                 quests.appendChild(questTags);
+            }
+
+            if (hideLocked && summary.hiddenQuestCount > 0) {
+                const hiddenHint = document.createElement('div');
+                hiddenHint.className = 'item-prerequisite-hint';
+                const lockIcon = document.createElement('span');
+                lockIcon.className = 'material-icons';
+                lockIcon.setAttribute('aria-hidden', 'true');
+                lockIcon.textContent = 'lock';
+                hiddenHint.appendChild(lockIcon);
+                const hintText = document.createElement('span');
+                hintText.textContent = summary.hiddenQuestCount === 1
+                    ? '1 locked quest hidden by filter'
+                    : `${summary.hiddenQuestCount} locked quests hidden by filter`;
+                if (summary.hiddenQuestTitles && summary.hiddenQuestTitles.length) {
+                    hiddenHint.title = summary.hiddenQuestTitles.join(', ');
+                }
+                hiddenHint.appendChild(hintText);
+                quests.appendChild(hiddenHint);
             }
 
             row.appendChild(main);
@@ -2323,6 +2510,7 @@
                 state.hideLockedQuests = Boolean(event.target.checked);
                 updatePrerequisiteToggleUI();
                 renderMerchantView();
+                renderItemsList();
             });
         }
 

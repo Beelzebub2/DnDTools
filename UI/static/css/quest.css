@@ -1175,6 +1175,19 @@
     color: var(--accent-gold);
 }
 
+.item-prerequisite-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.75rem;
+    color: var(--quest-muted);
+}
+
+.item-prerequisite-hint .material-icons {
+    font-size: 16px;
+    color: var(--accent-gold);
+}
+
 .empty-state {
     text-align: center;
     padding: 40px 20px;
