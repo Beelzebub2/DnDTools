@@ -1,6 +1,7 @@
 /* global showNotification */
 (() => {
     const PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
+    const ARCHIVE_STORAGE_KEY = 'dndtools.questArchived.v1';
     const PROGRESS_SYNC_ENDPOINT = '/api/quests/progress';
     const SERVER_SYNC_DEBOUNCE = 400;
     const HOLDINGS_CACHE_TTL = 5 * 60 * 1000;
@@ -236,12 +237,41 @@
         itemsLoaded: false,
         merchantViewMode: 'active',
         progress: sanitizeProgressData(loadProgress()),
+        // archived completed quests that were present previously but no longer returned by the server
+        archivedCompletedQuests: [],
         itemHoldingsCache: {},
         activeHoldingsItemId: null,
         activeHoldingsAnchor: null,
         bodyScrollLock: null,
         hideLockedQuests: false
     };
+
+    // Load archived completed quests from localStorage (if any)
+    const loadArchivedCompletedQuests = () => {
+        if (typeof window === 'undefined' || !window.localStorage) return [];
+        try {
+            const raw = window.localStorage.getItem(ARCHIVE_STORAGE_KEY);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) return [];
+            return parsed.filter(Boolean).map(q => (typeof q === 'object' ? q : null)).filter(Boolean);
+        } catch (e) {
+            console.warn('Failed to load archived completed quests', e);
+            return [];
+        }
+    };
+
+    const persistArchivedCompletedQuests = (arr) => {
+        if (typeof window === 'undefined' || !window.localStorage) return;
+        try {
+            window.localStorage.setItem(ARCHIVE_STORAGE_KEY, JSON.stringify(Array.isArray(arr) ? arr : []));
+        } catch (e) {
+            console.warn('Failed to persist archived completed quests', e);
+        }
+    };
+
+    // initialize archived list from storage
+    state.archivedCompletedQuests = loadArchivedCompletedQuests();
 
     const elements = {
         questList: document.getElementById('questList'),
@@ -792,6 +822,37 @@
         return resolved;
     };
 
+    // Determine whether a quest appears to be time-limited (daily/weekly/seasonal).
+    // We use several heuristics since the API returns all quests and doesn't
+    // indicate "active" status: merchant/title strings may include frequency
+    // terms or the quest object may include frequency-like fields.
+    const isQuestTimeLimited = (quest) => {
+        if (!quest || typeof quest !== 'object') return false;
+        const keywords = ['daily', 'weekly', 'seasonal', 'season'];
+        const testString = (val) => {
+            if (!val && val !== 0) return '';
+            try { return String(val).toLowerCase(); } catch (e) { return ''; }
+        };
+        const merchant = testString(quest.merchant || quest.merchant_original || '');
+        const title = testString(quest.title || quest.id || '');
+        const id = testString(quest.id || '');
+        // check explicit fields that may exist on some sources
+        const freq = testString(quest.frequency || quest.repeat || quest.recurrence || quest.schedule || '');
+        for (const kw of keywords) {
+            if (merchant.includes(kw) || title.includes(kw) || id.includes(kw) || freq.includes(kw)) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Hard-coded merchants the UI should never show (normalized form).
+    // Add merchant names here (lowercase, normalized) to forcibly hide them
+    // regardless of whether they have permanent quests.
+    const FORCED_HIDDEN_MERCHANTS = new Set([
+        'huntress'
+    ]);
+
     const rebuildQuestDependencyIndex = () => {
         questAliasIndex.clear();
         questAliasEntries = [];
@@ -824,6 +885,65 @@
             quest.__resolvedPrerequisites = resolved;
             quest.__resolvedPrerequisiteTitles = resolved.map(id => questTitleIndex.get(id) || id);
         });
+        // Compute a display order based on prerequisites (topological sort). This
+        // produces a map from questKey -> numericOrder where prerequisites come
+        // before dependents. If cycles exist, remaining nodes are appended in
+        // a deterministic order by title.
+        try {
+            const nodes = new Set();
+            state.quests.forEach(q => {
+                const k = questKeyFor(q);
+                if (k) nodes.add(k);
+            });
+
+            const indegree = new Map();
+            const adj = new Map();
+            nodes.forEach(n => { indegree.set(n, 0); adj.set(n, []); });
+
+            state.quests.forEach(q => {
+                const k = questKeyFor(q);
+                if (!k) return;
+                const deps = Array.isArray(q.__resolvedPrerequisites) ? q.__resolvedPrerequisites : [];
+                deps.forEach(dep => {
+                    if (!dep || !nodes.has(dep)) return;
+                    adj.get(dep).push(k);
+                    indegree.set(k, (indegree.get(k) || 0) + 1);
+                });
+            });
+
+            const queue = [];
+            indegree.forEach((d, node) => { if (!d) queue.push(node); });
+
+            const order = [];
+            while (queue.length) {
+                const node = queue.shift();
+                order.push(node);
+                const neighbors = adj.get(node) || [];
+                neighbors.forEach(nbr => {
+                    indegree.set(nbr, (indegree.get(nbr) || 0) - 1);
+                    if (indegree.get(nbr) === 0) {
+                        queue.push(nbr);
+                    }
+                });
+            }
+
+            // If there are cycles or disconnected nodes not processed, append
+            // them in a stable order by title so UI remains deterministic.
+            const remaining = Array.from(nodes).filter(n => !order.includes(n));
+            remaining.sort((a, b) => {
+                const ta = (questTitleIndex.get(a) || a).toLowerCase();
+                const tb = (questTitleIndex.get(b) || b).toLowerCase();
+                if (ta < tb) return -1; if (ta > tb) return 1; return 0;
+            });
+            const finalOrder = order.concat(remaining);
+
+            // create a quick lookup map
+            state.questDisplayOrder = new Map();
+            finalOrder.forEach((qk, idx) => state.questDisplayOrder.set(qk, idx));
+        } catch (e) {
+            // If anything goes wrong, clear any existing display order to avoid crashes
+            state.questDisplayOrder = new Map();
+        }
     };
 
     const computeQuestCompletionIndex = () => {
@@ -883,6 +1003,13 @@
     };
 
     const buildMerchantView = (quests, viewMode = 'active') => {
+        // Exclude time-limited quests (daily/weekly/seasonal) from all displayed
+        // quest lists — even if they exist in the local cache — per user request.
+        // We still keep the full data in `state.quests` so item tracking and
+        // badge computation continues to account for those quests.
+        const originalQuests = Array.isArray(quests) ? quests.slice() : [];
+        const questsToDisplay = originalQuests.filter(q => !isQuestTimeLimited(q));
+        quests = questsToDisplay;
         const questsForView = [];
         let questsCount = 0;
         let objectiveCount = 0;
@@ -892,9 +1019,10 @@
         let hiddenByPrerequisite = 0;
         let lockedVisible = 0;
 
-        recomputeQuestLockState();
+    recomputeQuestLockState();
 
-        quests.forEach((quest) => {
+    // Iterate only over quests allowed to be displayed (time-limited ones are removed)
+    quests.forEach((quest) => {
             const partitions = partitionQuestObjectives(quest);
             const totalObjectives = Number(partitions.totalCount) || 0;
             const completedObjectives = partitions.completed.length;
@@ -949,6 +1077,26 @@
             });
         });
 
+        // Sort questsForView by prerequisite display order if available.
+        try {
+            const orderMap = state.questDisplayOrder instanceof Map ? state.questDisplayOrder : null;
+            if (orderMap) {
+                questsForView.sort((a, b) => {
+                    const ak = questKeyFor(a.quest) || '';
+                    const bk = questKeyFor(b.quest) || '';
+                    const ai = orderMap.has(ak) ? orderMap.get(ak) : Number.MAX_SAFE_INTEGER;
+                    const bi = orderMap.has(bk) ? orderMap.get(bk) : Number.MAX_SAFE_INTEGER;
+                    if (ai !== bi) return ai - bi;
+                    // fallback to title
+                    const at = (a.quest.title || ak).toLowerCase();
+                    const bt = (b.quest.title || bk).toLowerCase();
+                    if (at < bt) return -1; if (at > bt) return 1; return 0;
+                });
+            }
+        } catch (e) {
+            // ignore sort errors and leave the original order
+        }
+
         return {
             questsForView,
             summary: {
@@ -963,6 +1111,60 @@
                 lockedVisible
             }
         };
+    };
+
+    // Move quests that were present previously but are missing from the latest server list
+    // into the archivedCompletedQuests array if they are completed locally.
+    const archiveMissingCompletedQuests = (oldQuests, newQuests) => {
+        try {
+            if (!Array.isArray(oldQuests) || !Array.isArray(newQuests)) return;
+            const newIds = new Set(newQuests.map(q => (q && (q.id || q.title)) ? String(q.id || q.title) : '').filter(Boolean));
+            // compute completion index from current state.progress and oldQuests
+            const completionIndexBefore = (() => {
+                const map = new Map();
+                oldQuests.forEach(q => {
+                    if (!q) return;
+                    const key = q.id || q.title || '';
+                    if (!key) return;
+                    const partitions = partitionQuestObjectives(q);
+                    const totalObjectives = Number(partitions.totalCount) || 0;
+                    const completedObjectives = partitions.completed.length;
+                    const activeObjectives = partitions.active.length;
+                    const allCompleted = totalObjectives > 0
+                        ? completedObjectives === totalObjectives
+                        : activeObjectives === 0 && completedObjectives === 0;
+                    map.set(String(key), !!allCompleted);
+                });
+                return map;
+            })();
+
+            const toArchive = [];
+            oldQuests.forEach(q => {
+                if (!q) return;
+                const key = q.id || q.title || '';
+                if (!key) return;
+                if (newIds.has(String(key))) return; // still present
+                if (!completionIndexBefore.get(String(key))) return; // not completed locally
+                // ensure not already archived
+                const already = (state.archivedCompletedQuests || []).some(a => (a.id || a.title) && String(a.id || a.title) === String(key));
+                if (already) return;
+                toArchive.push({
+                    id: q.id,
+                    title: q.title,
+                    merchant: q.merchant,
+                    merchant_original: q.merchant_original,
+                    archivedAt: new Date().toISOString(),
+                    objectives: q.objectives || []
+                });
+            });
+
+            if (toArchive.length) {
+                state.archivedCompletedQuests = (state.archivedCompletedQuests || []).concat(toArchive);
+                persistArchivedCompletedQuests(state.archivedCompletedQuests);
+            }
+        } catch (e) {
+            console.warn('Failed to archive missing completed quests', e);
+        }
     };
 
     function toggleLoading(el, isLoading) {
@@ -1424,6 +1626,8 @@
         if (!elements.merchantSelect) {
             return;
         }
+        // Disable select until we populate it to avoid flicker while capture data settles
+        elements.merchantSelect.disabled = true;
         const previousSelection = state.selectedMerchant;
         const fragment = document.createDocumentFragment();
 
@@ -1438,10 +1642,18 @@
         elements.merchantSelect.appendChild(fragment);
 
         if (state.merchants.length) {
+            // enable select when we have merchants
+            elements.merchantSelect.disabled = false;
             if (!state.selectedMerchant || !state.merchants.includes(previousSelection)) {
                 state.selectedMerchant = state.merchants[0];
             }
             elements.merchantSelect.value = state.selectedMerchant;
+        } else {
+            // leave disabled and insert a placeholder option so UI indicates no merchants
+            const placeholder = document.createElement('option');
+            placeholder.value = '';
+            placeholder.textContent = 'No merchants available';
+            elements.merchantSelect.appendChild(placeholder);
         }
     }
 
@@ -2347,9 +2559,65 @@
             }
 
             const rawQuests = Array.isArray(data.quests) ? data.quests : [];
+            // Archive any completed quests that were present previously but are now missing
+            try {
+                archiveMissingCompletedQuests(state.quests || [], rawQuests || []);
+            } catch (e) {
+                // ignore
+            }
+            // Keep the full quest list for internal tracking (items, archiving, etc.)
             state.quests = rawQuests.map(quest => ({ ...quest }));
             rebuildQuestDependencyIndex();
-            state.merchants = data.merchants || [];
+
+            // The API returns all possible quests (including rotated dailies/seasonal).
+            // For merchant selection we want to hide merchants that only offer
+            // time-limited quests (daily/weekly/seasonal) because we can't know
+            // whether they're currently active. However, we must keep the full
+            // quest list so item submission/badges still work for those quests.
+            const allMerchants = Array.isArray(data.merchants) ? data.merchants.slice() : [];
+            try {
+                // Normalize merchant names for grouping so variants like "Huntress daily"
+                // map to the canonical merchant name returned by the server ("Huntress").
+                const normalizeMerchant = (m) => {
+                    if (!m && m !== 0) return '';
+                    let s = String(m).toLowerCase().trim();
+                    // strip common frequency words
+                    s = s.replace(/\b(daily|weekly|seasonal|season)\b/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+                    return s;
+                };
+
+                // Build a normalized merchant -> quest list map
+                const merchantMapNorm = new Map();
+                rawQuests.forEach(q => {
+                    const rawM = q && (q.merchant || q.merchant_original) ? String(q.merchant || q.merchant_original) : '';
+                    const key = normalizeMerchant(rawM);
+                    if (!key) return;
+                    if (!merchantMapNorm.has(key)) merchantMapNorm.set(key, []);
+                    merchantMapNorm.get(key).push(q);
+                });
+
+                // Filter: only include merchants that have at least one non-time-limited quest
+                const frequencyRegex = /\b(daily|weekly|seasonal|season)\b/i;
+                const visibleMerchants = allMerchants.filter(m => {
+                    if (!m) return false;
+                    const key = normalizeMerchant(m);
+                    if (FORCED_HIDDEN_MERCHANTS.has(key)) return false;
+                    const questsFor = merchantMapNorm.get(key) || [];
+                    if (!questsFor.length) return false;
+                    // If the literal merchant string contains frequency and no non-time-limited
+                    // quests exist in the normalized group, hide it. Otherwise keep.
+                    const literalHasFreq = frequencyRegex.test(String(m));
+                    if (literalHasFreq) {
+                        return questsFor.some(q => !isQuestTimeLimited(q));
+                    }
+                    return questsFor.some(q => !isQuestTimeLimited(q));
+                });
+
+                state.merchants = visibleMerchants;
+            } catch (e) {
+                // If filtering fails, fall back to the raw merchant list
+                state.merchants = data.merchants || [];
+            }
             state.questsLoaded = true;
             renderMerchantOptions();
             renderMerchantView();
