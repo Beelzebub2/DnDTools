@@ -1019,10 +1019,10 @@
         let hiddenByPrerequisite = 0;
         let lockedVisible = 0;
 
-    recomputeQuestLockState();
+        recomputeQuestLockState();
 
-    // Iterate only over quests allowed to be displayed (time-limited ones are removed)
-    quests.forEach((quest) => {
+        // Iterate only over quests allowed to be displayed (time-limited ones are removed)
+        quests.forEach((quest) => {
             const partitions = partitionQuestObjectives(quest);
             const totalObjectives = Number(partitions.totalCount) || 0;
             const completedObjectives = partitions.completed.length;
