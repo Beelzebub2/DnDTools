@@ -120,6 +120,12 @@
     text-align: center;
 }
 
+.loading-spinner .loader-text {
+    margin-top: 12px;
+    color: var(--text-muted, #888);
+    font-size: 15px;
+}
+
 .spinner {
     width: 32px;
     height: 32px;

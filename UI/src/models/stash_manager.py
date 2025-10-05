@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 import os
 import time
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union
 import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
@@ -262,6 +262,90 @@ class StashManager:
                 'streamingModeName': char['streamingModeName']
             }
         return None
+
+    def get_item_holdings(self, item_ids: Iterable[str]) -> Dict[str, List[Dict]]:
+        """Aggregate how many of the specified items exist across all characters."""
+        if not item_ids:
+            return {}
+
+        targets = [str(item_id).strip() for item_id in item_ids if item_id]
+        if not targets:
+            return {}
+
+        if not self._is_loaded:
+            self._load_data()
+
+        target_set = set(targets)
+        aggregated: Dict[str, List[Dict]] = {item_id: [] for item_id in target_set}
+
+        for char in self.get_characters():
+            if not isinstance(char, dict):
+                continue
+
+            stashes = char.get('stashes') or {}
+            if not isinstance(stashes, dict):
+                continue
+
+            character_holdings: Dict[str, Dict] = {}
+
+            for stash_id, items in stashes.items():
+                if not isinstance(items, list):
+                    continue
+
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+
+                    design_str = item.get("itemId") or ""
+                    try:
+                        canonical_id = item_data_manager.get_item_id_from_design_str(design_str)
+                    except Exception:
+                        continue
+
+                    if canonical_id not in target_set:
+                        continue
+
+                    count_raw = item.get("itemCount", 1)
+                    try:
+                        count = int(count_raw)
+                    except (TypeError, ValueError):
+                        count = 1
+                    if count <= 0:
+                        count = 1
+
+                    stash_entry = {
+                        'stash_id': str(stash_id),
+                        'count': count,
+                        'slot_id': item.get("slotId")
+                    }
+
+                    holding = character_holdings.setdefault(canonical_id, {
+                        'character_id': str(char.get('id')),
+                        'character_name': char.get('nickname') or 'Unknown',
+                        'character_class': char.get('class'),
+                        'character_level': char.get('level'),
+                        'last_update': char.get('lastUpdate'),
+                        'total': 0,
+                        'stashes': []
+                    })
+                    holding['total'] += count
+                    holding['stashes'].append(stash_entry)
+
+            for item_id, info in character_holdings.items():
+                info['stashes'].sort(
+                    key=lambda payload: (-payload.get('count', 0), str(payload.get('stash_id')))
+                )
+                aggregated.setdefault(item_id, []).append(info)
+
+        for item_id, entries in aggregated.items():
+            entries.sort(
+                key=lambda payload: (
+                    -payload.get('total', 0),
+                    (payload.get('character_name') or '').lower()
+                )
+            )
+
+        return {item_id: aggregated.get(item_id, []) for item_id in targets}
 
     def search_items(self, query: str) -> List[Dict]:
         """Search for items across all character stashes"""

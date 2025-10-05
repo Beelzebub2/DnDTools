@@ -146,6 +146,12 @@ class INPUT(ctypes.Structure):
 
 SendInput = ctypes.windll.user32.SendInput
 
+INSTANT_MODE_MIN_PAUSE = 0.028
+DOUBLE_CLICK_PROTECT_WINDOW = 0.18
+
+_last_drop_signature = None
+_last_drop_time = 0.0
+
 def move_mouse(x, y):
     screen_width = ctypes.windll.user32.GetSystemMetrics(0)
     screen_height = ctypes.windll.user32.GetSystemMetrics(1)
@@ -271,7 +277,7 @@ def get_sort_delay():
     """Get sort delay from settings"""
     return settings_manager.get_sort_speed()
 
-def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008, no_delay=False):
+def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.008, max_delay=0.01, no_delay=False):
     """
     Move the mouse smoothly from (x1, y1) to (x2, y2).
 
@@ -285,7 +291,7 @@ def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.003, max_delay=0.008
         y = y1 + (y2 - y1) * t
         move_mouse(round(x), round(y))
         if not no_delay:
-            sleep_floor = max(0.0, min_delay)
+            sleep_floor = max(0.003, min_delay)
             sleep_ceiling = max(sleep_floor, max_delay)
             time.sleep(random.uniform(sleep_floor, sleep_ceiling))
 
@@ -295,14 +301,19 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     Adds random jitter and delay to mimic human input.
     Now uses smooth mouse movement.
     """
-    DELAY = get_sort_delay()
+    global _last_drop_signature, _last_drop_time
+
+    DELAY = max(0.0, get_sort_delay() or 0.0)
     no_delay_mode = DELAY <= 0
 
-    def maybe_sleep(base_delay: float, jitter: float = 0.0) -> None:
-        if no_delay_mode:
-            return
+    def maybe_sleep(base_delay: float, jitter: float = 0.0, enforce_floor: bool = False) -> None:
         jitter_component = random.uniform(0, jitter) if jitter > 0 else 0.0
         total = max(0.0, base_delay + jitter_component)
+
+        if no_delay_mode:
+            floor = INSTANT_MODE_MIN_PAUSE if (enforce_floor or total > 0.0) else 0.0
+            total = max(floor, total)
+
         if total > 0:
             time.sleep(total)
 
@@ -313,64 +324,89 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     end_x = end_stash.base_screen_pos.x + (jump * end_pos.x) + (jump * end_width) / 2
     end_y = end_stash.base_screen_pos.y + (jump * end_pos.y) + (jump * end_height) / 2
 
-    # Add random jitter (±3 pixels)
-    sx = start_x + random.uniform(-3, 3)
-    sy = start_y + random.uniform(-3, 3)
-    ex = end_x + random.uniform(-3, 3)
-    ey = end_y + random.uniform(-3, 3)
+    travel_x = abs(end_x - start_x)
+    travel_y = abs(end_y - start_y)
+    max_travel = max(travel_x, travel_y)
+    jitter_range = 3.0
+    if max_travel <= max(jump * 0.6, 12):
+        jitter_range = 1.25
+
+    sx = start_x + random.uniform(-jitter_range, jitter_range)
+    sy = start_y + random.uniform(-jitter_range, jitter_range)
+    ex = end_x + random.uniform(-jitter_range, jitter_range)
+    ey = end_y + random.uniform(-jitter_range, jitter_range)
 
     # Move to start position smoothly from current mouse position
     pt = POINT()
     ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+    start_steps = 12 if no_delay_mode else 20
+    if max_travel <= max(jump * 0.6, 12):
+        start_steps = 18 if no_delay_mode else 24
     move_mouse_smooth(
         float(pt.x),
         float(pt.y),
         sx,
         sy,
-        steps=12 if no_delay_mode else 20,
+        steps=start_steps,
         min_delay=0.001,
         max_delay=0.003,
         no_delay=no_delay_mode,
     )
-    maybe_sleep(DELAY, 0.07)
+    maybe_sleep(DELAY, 0.07, enforce_floor=True)
 
     # Mouse down (hold item)
     mouse_down()
-    maybe_sleep(DELAY, 0.07)
+    maybe_sleep(DELAY, 0.07, enforce_floor=True)
 
     # Move to end position smoothly
+    travel_steps = 15 if no_delay_mode else 25
+    if max_travel <= max(jump * 0.6, 12):
+        travel_steps = 20 if no_delay_mode else 28
     move_mouse_smooth(
         sx,
         sy,
         ex,
         ey,
-        steps=15 if no_delay_mode else 25,
+        steps=travel_steps,
         min_delay=0.001,
         max_delay=0.003,
         no_delay=no_delay_mode,
     )
-    maybe_sleep(DELAY, 0.07)
+    maybe_sleep(DELAY, 0.07, enforce_floor=True)
 
     # Mouse up (drop item)
     mouse_up()
-    maybe_sleep(DELAY, 0.07)
+    maybe_sleep(DELAY, 0.07, enforce_floor=True)
 
-    # Extra click at end for reliability
-    move_mouse_smooth(
-        ex,
-        ey,
-        ex,
-        ey,
-        steps=3 if no_delay_mode else 5,
-        min_delay=0.0005,
-        max_delay=0.0015,
-        no_delay=no_delay_mode,
+    drop_signature = (id(end_stash), int(getattr(end_pos, "x", 0)), int(getattr(end_pos, "y", 0)))
+    now = time.perf_counter()
+    should_skip_reliability_click = no_delay_mode or (
+        _last_drop_signature == drop_signature and
+        (now - _last_drop_time) < DOUBLE_CLICK_PROTECT_WINDOW
     )
-    maybe_sleep(DELAY / 2, 0.04)
-    mouse_down()
-    maybe_sleep(DELAY / 4, 0.03)
-    mouse_up()
-    maybe_sleep(DELAY / 2, 0.04)
+
+    if not should_skip_reliability_click:
+        move_mouse_smooth(
+            ex,
+            ey,
+            ex,
+            ey,
+            steps=3 if no_delay_mode else 5,
+            min_delay=0.0005,
+            max_delay=0.0015,
+            no_delay=no_delay_mode,
+        )
+        maybe_sleep(DELAY / 2, 0.04, enforce_floor=True)
+        mouse_down()
+        maybe_sleep(DELAY / 4, 0.03, enforce_floor=True)
+        mouse_up()
+        maybe_sleep(DELAY / 2, 0.04, enforce_floor=True)
+    else:
+        logger.debug("Skipping reliability click to avoid double-click on %s", drop_signature)
+        maybe_sleep(INSTANT_MODE_MIN_PAUSE, 0.01, enforce_floor=True)
+
+    _last_drop_signature = drop_signature
+    _last_drop_time = now
 
 def send_key(vk_code, key_up=False):
     flags = KEYEVENTF_KEYUP if key_up else 0

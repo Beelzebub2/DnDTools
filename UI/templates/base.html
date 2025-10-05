@@ -619,10 +619,9 @@
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="nav-link disabled" data-page="backup">
-                            <span class="material-icons">backup</span>
-                            <span class="nav-text">Soon</span>
-                            <span class="coming-soon">Soon</span>
+                        <a href="{{ url_for('quests') }}" class="nav-link" data-page="quests">
+                            <span class="material-icons">assignment</span>
+                            <span class="nav-text">Quests</span>
                             <div class="nav-indicator"></div>
                         </a>
                     </li>
@@ -706,6 +705,11 @@
             const defaults = {
                 title: 'Unsaved changes',
                 message: 'You have unsaved changes. Save before leaving?',
+                bodyText: 'Choose how you want to leave this page:',
+                bodyTips: [
+                    { icon: 'task_alt', text: 'Exit and save keeps your latest changes.' },
+                    { icon: 'logout', text: 'Exit anyway discards anything unsaved.' }
+                ],
                 saveLabel: 'Exit and Save',
                 discardLabel: 'Exit Anyway',
                 cancelLabel: 'Stay Here',
@@ -756,6 +760,8 @@
 
             const card = modal.querySelector('.unsaved-modal-card');
             const messageEl = modal.querySelector('.unsaved-modal-message');
+            const bodyTextEl = modal.querySelector('.unsaved-modal-body-text');
+            const tipsListEl = modal.querySelector('.unsaved-modal-list');
             const cancelButton = modal.querySelector('[data-action="cancel"]');
             const discardButton = modal.querySelector('[data-action="discard"]');
             const saveButton = modal.querySelector('[data-action="save"]');
@@ -763,6 +769,52 @@
 
             card.querySelector('#unsaved-modal-title').textContent = config.title;
             messageEl.textContent = config.message;
+            if (bodyTextEl) {
+                if (config.bodyText === null) {
+                    bodyTextEl.style.display = 'none';
+                    bodyTextEl.textContent = '';
+                } else {
+                    bodyTextEl.style.display = '';
+                    bodyTextEl.textContent = (typeof config.bodyText === 'string' ? config.bodyText : defaults.bodyText) || '';
+                }
+            }
+
+            if (tipsListEl) {
+                const tips = Array.isArray(config.bodyTips) ? config.bodyTips.filter(Boolean) : defaults.bodyTips;
+                tipsListEl.innerHTML = '';
+                if (Array.isArray(tips) && tips.length > 0) {
+                    tipsListEl.style.display = '';
+                    tips.forEach((tip) => {
+                        const tipConfig = typeof tip === 'string' ? { icon: 'info', text: tip } : {
+                            icon: (tip && typeof tip.icon === 'string' && tip.icon.trim()) ? tip.icon.trim() : 'info',
+                            text: tip && typeof tip.text === 'string' ? tip.text : ''
+                        };
+
+                        if (!tipConfig.text) {
+                            return;
+                        }
+
+                        const item = document.createElement('li');
+                        const iconEl = document.createElement('span');
+                        iconEl.className = 'material-icons';
+                        iconEl.setAttribute('aria-hidden', 'true');
+                        iconEl.textContent = tipConfig.icon;
+
+                        const textEl = document.createElement('span');
+                        textEl.textContent = tipConfig.text;
+
+                        item.appendChild(iconEl);
+                        item.appendChild(textEl);
+                        tipsListEl.appendChild(item);
+                    });
+
+                    if (!tipsListEl.children.length) {
+                        tipsListEl.style.display = 'none';
+                    }
+                } else {
+                    tipsListEl.style.display = 'none';
+                }
+            }
             cancelButton.textContent = config.cancelLabel;
             discardButton.textContent = config.discardLabel;
             saveButton.textContent = config.saveLabel;

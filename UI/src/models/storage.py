@@ -57,6 +57,7 @@ class Storage:
         self.size = self.height * self.width
         self.grid = [[0 for _ in range(self.height)] for _ in range(self.width)]
         self.pq = []
+        self._reserved_slots: set[tuple[int, int]] = set()
         self.load()
     
     def get_items(self):
@@ -73,6 +74,15 @@ class Storage:
 
     def move(self, item, end_pos, end_stash):
         logger.debug("Moving %s to %s", item, end_pos)
+
+        if self is not end_stash:
+            for dx in range(item.width):
+                for dy in range(item.height):
+                    self._reserved_slots.discard((item.position.x + dx, item.position.y + dy))
+        if end_stash is not self:
+            for dx in range(item.width):
+                for dy in range(item.height):
+                    end_stash._reserved_slots.discard((end_pos.x + dx, end_pos.y + dy))
 
         # Clear old location
         for dx in range(item.width):
@@ -95,7 +105,8 @@ class Storage:
                 fits = True
                 for dx in range(item.width):
                     for dy in range(item.height):
-                        if self.grid[x + dx][y + dy] != 0:
+                        slot = (x + dx, y + dy)
+                        if slot in self._reserved_slots or self.grid[slot[0]][slot[1]] != 0:
                             fits = False
                             break
                     if not fits:
