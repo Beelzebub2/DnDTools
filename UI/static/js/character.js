@@ -672,39 +672,6 @@ async function loadStackModeFromServer() {
     }
 }
 
-async function persistStackMode(stack) {
-    try {
-        const response = await fetch('/api/stack_mode', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ stack })
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to save stack mode: ${response.status}`);
-        }
-        const data = await response.json().catch(() => ({}));
-        if (data && typeof data.stack !== 'undefined') {
-            isStackMode = !!data.stack;
-        }
-    } catch (error) {
-        console.error('Error persisting stack mode:', error);
-    } finally {
-        updateStackToggleUI();
-    }
-}
-
-function updateStackToggleUI() {
-    if (!stackModeToggle) {
-        return;
-    }
-    stackModeToggle.checked = isStackMode;
-    const wrapper = stackModeToggle.closest('label');
-    if (wrapper) {
-        wrapper.classList.toggle('active', isStackMode);
-    }
-}
 
 // Variable to store the equipment slots configuration
 let equipmentSlotConfig = null;
@@ -1479,9 +1446,16 @@ window.addEventListener('keydown', (e) => {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 // Abort fetch and immediately update UI
-                abortController.abort();
+                try { abortController.abort(); } catch (err) { /* noop */ }
+                abortController = null;
                 setSortingState(false);
-                showNotification('Sorting cancelled', 'info');
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('Sorting cancelled', 'info');
+                } else {
+                    showNotification('Sorting cancelled', 'info');
+                }
+                // Notify other listeners
+                window.dispatchEvent(new Event('sortingEnded'));
             }
             return;
         }
@@ -1493,11 +1467,18 @@ window.addEventListener('keydown', (e) => {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 // Abort the ongoing request
-                abortController.abort();
+                try { abortController.abort(); } catch (err) { /* noop */ }
+                abortController = null;
                 // Immediately hide sorting UI so the cancel feels instant
                 setSortingState(false);
-                // Inform the user
-                showNotification('Sorting cancelled', 'info');
+                // Inform the user using the app-level notification if available
+                if (typeof window.showNotification === 'function') {
+                    window.showNotification('Sorting cancelled', 'info');
+                } else {
+                    showNotification('Sorting cancelled', 'info');
+                }
+                // Notify other listeners
+                window.dispatchEvent(new Event('sortingEnded'));
             }
             return;
         }
