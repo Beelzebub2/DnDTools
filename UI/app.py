@@ -48,7 +48,7 @@ VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 APP_VERSION = "3.4.7"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
-    "https://github.com/Beelzebub2/DnDTools/releases/download/latest/update-manifest.json",
+    "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
 )
 UPDATE_CACHE_DURATION = 5 * 60
 AUTO_UPDATE_SILENT = os.environ.get("DND_UPDATE_SILENT", "1").lower() not in {"0", "false", "no", "off"}
