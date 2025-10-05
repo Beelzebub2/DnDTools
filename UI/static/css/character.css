@@ -452,7 +452,7 @@
     align-items: center;
     justify-content: center;
     border-radius: 6px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
     z-index: 12;
 }
 
@@ -584,6 +584,20 @@
 .secondary-props div:before {
     content: '• ';
     opacity: 0.7;
+}
+
+.tooltip-needed {
+    border-top: 1px dashed rgba(255, 215, 0, 0.08);
+    padding-top: 8px;
+}
+
+.tooltip-quest-name {
+    font-size: 12px;
+    color: var(--accent-gold);
+    margin-top: 4px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .stash-action-button {

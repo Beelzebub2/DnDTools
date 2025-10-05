@@ -910,6 +910,17 @@ const renderInteractiveGrid = (stashId, items) => {
                         </div>
                     </div>
                 `;
+                // Append needed-for quests if available
+                try {
+                    const id = item.item_id || item.itemId || item.id || item.name || '';
+                    const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
+                    if (by && Array.isArray(by) && by.length) {
+                        const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
+                        html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
+                    }
+                } catch (e) {
+                    // ignore
+                }
                 showGlobalTooltip(html, e.clientX, e.clientY);
             });
             itemEl.addEventListener('mousemove', (e) => {
@@ -1816,7 +1827,6 @@ const renderCombinedCharacterView = async (stashes) => {
             itemEl.removeAttribute('title');
             itemEl.addEventListener('mouseenter', (e) => {
                 if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-                // Build tooltip HTML
                 const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
                 let html = `
                     <div class="tooltip-header" style="background-color: ${rarityColor}44;">
@@ -1834,6 +1844,17 @@ const renderCombinedCharacterView = async (stashes) => {
                         </div>
                     </div>
                 `;
+                // Append needed-for quests if available
+                try {
+                    const id = item.item_id || item.itemId || item.id || item.name || '';
+                    const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
+                    if (by && Array.isArray(by) && by.length) {
+                        const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
+                        html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
+                    }
+                } catch (e) {
+                    // ignore
+                }
                 showGlobalTooltip(html, e.clientX, e.clientY);
             });
             itemEl.addEventListener('mousemove', (e) => {
@@ -1997,6 +2018,14 @@ const renderCombinedCharacterView = async (stashes) => {
                         </div>
                     </div>
                 `;
+                try {
+                    const id = item.item_id || item.itemId || item.id || item.name || '';
+                    const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
+                    if (by && Array.isArray(by) && by.length) {
+                        const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
+                        html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
+                    }
+                } catch (e) { }
                 showGlobalTooltip(html, e.clientX, e.clientY);
             });
             itemEl.addEventListener('mousemove', (e) => {
@@ -2372,6 +2401,18 @@ function getOrderingOptions() {
 
 // Quest-needed items cache (item_id strings)
 window.questNeededItems = new Set();
+// Map of item_id -> array of merchant names that need the item
+window.questNeededBy = Object.create(null);
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+}
 
 async function refreshQuestNeededItems() {
     try {
@@ -2393,6 +2434,7 @@ async function refreshQuestNeededItems() {
         const manualItems = progress.items || {};
 
         const needed = new Set();
+        const neededBy = Object.create(null);
 
         // Build map of objective-submitted totals by item_id
         const objectiveSubmissionsByItem = {};
@@ -2409,20 +2451,52 @@ async function refreshQuestNeededItems() {
             const totalRequired = Number(item.total_required) || 0;
 
             // Manual override takes precedence (same behavior as quest UI)
+            let isNeeded = false;
             if (manualItems.hasOwnProperty(itemId)) {
                 const manual = Number(manualItems[itemId]) || 0;
                 if (manual < totalRequired) {
-                    needed.add(String(itemId));
+                    isNeeded = true;
                 }
             } else {
                 const auto = Number(objectiveSubmissionsByItem[String(itemId)]) || 0;
                 if (auto < totalRequired) {
-                    needed.add(String(itemId));
+                    isNeeded = true;
+                }
+            }
+
+            if (isNeeded) {
+                needed.add(String(itemId));
+                try {
+                    // Prefer aggregated merchant list if available, otherwise fall back to per-quest merchant field
+                    let merchants = [];
+                    try {
+                        if (Array.isArray(item.merchants) && item.merchants.length) {
+                            merchants = item.merchants.map(m => (m && (m.name || m)).toString()).filter(Boolean);
+                        } else if (Array.isArray(item.quests) && item.quests.length) {
+                            merchants = item.quests.map(q => (q && (q.merchant || q.merchant_original || q.merchant))).filter(Boolean).map(String);
+                        }
+                    } catch (e) {
+                        merchants = [];
+                    }
+                    // Deduplicate merchant names while preserving order
+                    const unique = [];
+                    const seen = new Set();
+                    for (const m of merchants) {
+                        const s = String(m);
+                        if (!seen.has(s)) {
+                            seen.add(s);
+                            unique.push(s);
+                        }
+                    }
+                    if (unique.length) neededBy[String(itemId)] = unique;
+                } catch (e) {
+                    // ignore
                 }
             }
         });
 
         window.questNeededItems = needed;
+        window.questNeededBy = neededBy;
     } catch (err) {
         console.warn('Failed to refresh quest-needed items:', err);
         window.questNeededItems = new Set();
