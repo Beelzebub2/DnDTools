@@ -1458,18 +1458,54 @@ function showNotification(message, type = 'info') {
     }, 3000);
 }
 
-// Add keyboard shortcuts: Ctrl+S to sort, Ctrl+X to cancel
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        const sortButton = document.querySelector('.sort-button');
-        sortButton && sortButton.click();
+// Global keyboard shortcuts and an always-ready cancel key.
+// Use capture-phase listener so the cancel key is caught before other elements (inputs, modals) can intercept it.
+window.addEventListener('keydown', (e) => {
+    try {
+        const key = (e.key || '').toString();
+
+        // Ctrl/Cmd+S to trigger sort (preserve previous behavior)
+        if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 's') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const sortButton = document.querySelector('.sort-button');
+            sortButton && sortButton.click();
+            return;
+        }
+
+        // Ctrl/Cmd+X still cancels (legacy)
+        if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'x') {
+            if (abortController) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                // Abort fetch and immediately update UI
+                abortController.abort();
+                setSortingState(false);
+                showNotification('Sorting cancelled', 'info');
+            }
+            return;
+        }
+
+        // Escape key: instant cancel and always listened-for (no modifier required)
+        if (key === 'Escape' || key === 'Esc') {
+            if (abortController) {
+                // Prevent other handlers from processing this event
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                // Abort the ongoing request
+                abortController.abort();
+                // Immediately hide sorting UI so the cancel feels instant
+                setSortingState(false);
+                // Inform the user
+                showNotification('Sorting cancelled', 'info');
+            }
+            return;
+        }
+    } catch (err) {
+        // Swallow errors in the global key handler to avoid breaking other features
+        console.error('Key handler error:', err);
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
-        e.preventDefault();
-        if (abortController) abortController.abort();
-    }
-});
+}, { capture: true });
 
 // Add an event listener for when sorting starts from a keybind
 window.addEventListener('sortingStarted', () => {
