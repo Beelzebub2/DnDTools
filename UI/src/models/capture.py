@@ -256,12 +256,14 @@ class PacketCapture:
         self.tshark_path = resolve_tshark_executable(wireshark_path) or resolve_tshark_executable(settings_manager.get('wiresharkPath'))
         self._apply_tshark_environment()
 
-        quests_dir = os.path.join(get_data_dir(), "quests")
-        try:
-            os.makedirs(quests_dir, exist_ok=True)
-        except Exception as exc:
-            self.logger.warning(f"Unable to create quests data directory at {quests_dir}: {exc}")
-        self.quests_dir = quests_dir
+        # NOTE: persisting raw quest packet captures to disk has been disabled.
+        # The app previously created and wrote files under data/quests; that is
+        # noisy and can leak packet data. To stop saving captures, we don't
+        # create the directory and short-circuit persistence logic below.
+        self.quests_dir = None
+        # Toggle to control whether quest packets are persisted. Set to False
+        # to avoid writing any files. This can be made configurable later.
+        self._save_quest_packets = False
         self._quest_packet_types = {}
         for packet_name in (
             'S2C_MERCHANT_LIST_RES',
@@ -791,10 +793,20 @@ class PacketCapture:
                     self.logger.warning("Invalid Packet")
 
     def _persist_quest_packet(self, packet_data: bytes, proto_type: int, packet_name: str, message) -> None:
+        # Respect runtime toggle: if saving quest packets is disabled, skip.
+        if not getattr(self, '_save_quest_packets', False):
+            self.logger.debug(f"Quest packet persistence disabled; skipping {packet_name}")
+            return
+
         now = datetime.utcnow()
         timestamp_safe = now.strftime('%Y-%m-%dT%H-%M-%S.%fZ')
         iso_timestamp = now.isoformat() + 'Z'
         base_name = f"{timestamp_safe}_{packet_name}"
+        # Ensure quests_dir is present and writable before constructing paths
+        if not self.quests_dir:
+            self.logger.debug("No quests_dir configured; aborting persistence")
+            return
+
         json_path = os.path.join(self.quests_dir, f"{base_name}.json")
         bin_path = os.path.join(self.quests_dir, f"{base_name}.bin")
         hexdump_path = os.path.join(self.quests_dir, f"{base_name}.hexdump.txt")
