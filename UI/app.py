@@ -53,6 +53,10 @@ UPDATE_MANIFEST_URL = os.environ.get(
 UPDATE_CACHE_DURATION = 5 * 60
 AUTO_UPDATE_SILENT = os.environ.get("DND_UPDATE_SILENT", "1").lower() not in {"0", "false", "no", "off"}
 
+SORT_CANCEL_NOTIFICATION_MESSAGE = (
+    "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again."
+)
+
 # Update state tracking
 _update_cache = None
 _update_cache_timestamp = 0
@@ -1329,7 +1333,26 @@ class Api:
             stack_mode=self.get_stack_mode(),
         )
         if self.window:
-            self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
+            try:
+                self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
+            except Exception as exc:
+                logger.debug("Failed to dispatch sortingEnded event after worker sort: %s", exc, exc_info=True)
+
+            try:
+                error_text = ""
+                if isinstance(result, dict):
+                    error_text = result.get('error') or ""
+
+                if isinstance(error_text, str) and 'cancel' in error_text.lower():
+                    cancel_detail = json.dumps({
+                        "source": "worker",
+                        "message": SORT_CANCEL_NOTIFICATION_MESSAGE,
+                    })
+                    self.window.evaluate_js(
+                        f'window.dispatchEvent(new CustomEvent("sortCancelled", {{ detail: {cancel_detail} }}))'
+                    )
+            except Exception as exc:
+                logger.debug("Failed to dispatch worker sortCancelled event: %s", exc, exc_info=True)
         # Optionally, communicate result back to UI
         
     def _trigger_cancel_sort(self):
@@ -1339,7 +1362,22 @@ class Api:
             self.current_sort_event.set()
             logger.info("Sort operation cancelled")
             if self.window:
-                self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
+                try:
+                    self.window.evaluate_js('window.dispatchEvent(new Event("sortingEnded"))')
+                except Exception as exc:
+                    logger.debug("Failed to dispatch sortingEnded event after cancel: %s", exc, exc_info=True)
+
+                cancel_detail = json.dumps({
+                    "source": "hotkey",
+                    "message": SORT_CANCEL_NOTIFICATION_MESSAGE,
+                })
+
+                try:
+                    self.window.evaluate_js(
+                        f'window.dispatchEvent(new CustomEvent("sortCancelled", {{ detail: {cancel_detail} }}))'
+                    )
+                except Exception as exc:
+                    logger.debug("Failed to dispatch sortCancelled event: %s", exc, exc_info=True)
 
     def get_characters(self):
         return self.stash_manager.get_characters()

@@ -21,29 +21,147 @@ function handleApiError(error, element) {
     }
 }
 
+const activeNotifications = new Map();
+const GLOBAL_SORT_CANCEL_NOTIFICATION_ID = 'character-sort-cancelled';
+const GLOBAL_SORT_CANCEL_MESSAGE = 'Sort canceled. Refresh your character data. If switching tabs doesn\'t update, move any item in the stash and switch tabs again.';
+
+function removeNotificationElement(id, element) {
+    if (!element) {
+        return;
+    }
+
+    element.classList.add('fade-out');
+    setTimeout(() => {
+        if (element.parentNode) {
+            element.parentNode.removeChild(element);
+        }
+        if (id && activeNotifications.has(id)) {
+            const stored = activeNotifications.get(id);
+            if (stored && stored.element === element) {
+                activeNotifications.delete(id);
+            }
+        }
+    }, 300);
+}
+
+function scheduleAutoDismiss(id, element, duration) {
+    const safeDuration = Number.isFinite(duration) && duration >= 0 ? duration : 3000;
+    return setTimeout(() => {
+        removeNotificationElement(id, element);
+    }, safeDuration);
+}
+
 // Global notification function
-function showNotification(message, type = 'error') {
+function showNotification(message, type = 'error', options = {}) {
+    if (typeof type === 'object' && type !== null) {
+        options = type;
+        type = options.type || 'error';
+    }
+
+    const { id = null, persistent = false, duration = 3000 } = options || {};
+
+    if (id && activeNotifications.has(id)) {
+        const existing = activeNotifications.get(id);
+        if (existing && existing.element) {
+            if (existing.timeout) {
+                clearTimeout(existing.timeout);
+                existing.timeout = null;
+            }
+
+            existing.element.textContent = message;
+            existing.element.className = `notification ${type}`;
+            existing.element.dataset.notificationType = type;
+            existing.element.dataset.persistent = persistent ? '1' : '0';
+            existing.element.classList.toggle('persistent', persistent);
+            existing.element.setAttribute('role', 'alert');
+            existing.element.setAttribute('aria-live', 'assertive');
+            existing.element.setAttribute('aria-atomic', 'true');
+            existing.element.classList.remove('fade-out');
+            existing.element.style.animation = 'none';
+            // Force reflow to restart animation
+            void existing.element.offsetWidth;
+            existing.element.style.animation = '';
+
+            if (!persistent) {
+                existing.timeout = scheduleAutoDismiss(id, existing.element, duration);
+            }
+
+            existing.persistent = persistent;
+        }
+
+        return { id, dismiss: () => dismissNotification(id) };
+    }
+
     const notification = document.createElement('div');
     notification.className = `notification ${type}`;
     notification.textContent = message;
+    notification.dataset.notificationType = type;
+    notification.dataset.persistent = persistent ? '1' : '0';
+    notification.classList.toggle('persistent', persistent);
+    notification.setAttribute('role', 'alert');
+    notification.setAttribute('aria-live', 'assertive');
+    notification.setAttribute('aria-atomic', 'true');
 
     // Add inline styling to position the notification below the topbar
     notification.style.position = 'fixed';
-    notification.style.top = '60px'; // Position below the topbar
-    notification.style.right = '20px';
+    notification.style.top = '60px';
+    notification.style.right = '24px';
     notification.style.zIndex = '9999';
-    notification.style.padding = '12px 20px';
-    notification.style.borderRadius = '4px';
-    notification.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
-    notification.style.animation = 'slideIn 0.3s ease-out forwards';
+
+    if (id) {
+        notification.dataset.notificationId = id;
+    }
 
     document.body.appendChild(notification);
 
-    setTimeout(() => {
-        notification.classList.add('fade-out');
-        setTimeout(() => notification.remove(), 300);
-    }, 3000);
+    let timeout = null;
+    if (!persistent) {
+        timeout = scheduleAutoDismiss(id, notification, duration);
+    }
+
+    if (id) {
+        activeNotifications.set(id, {
+            element: notification,
+            timeout,
+            persistent
+        });
+    }
+
+    return { id, dismiss: () => dismissNotification(id) };
 }
+
+function dismissNotification(id) {
+    if (!id || !activeNotifications.has(id)) {
+        return false;
+    }
+
+    const entry = activeNotifications.get(id);
+    if (entry.timeout) {
+        clearTimeout(entry.timeout);
+    }
+
+    removeNotificationElement(id, entry.element);
+    return true;
+}
+
+window.dismissNotification = dismissNotification;
+window.showNotification = showNotification;
+
+window.addEventListener('sortCancelled', (event) => {
+    try {
+        const detail = event && typeof event.detail === 'object' ? event.detail : null;
+        const message = detail && typeof detail.message === 'string' && detail.message.trim()
+            ? detail.message
+            : GLOBAL_SORT_CANCEL_MESSAGE;
+
+        showNotification(message, 'warning', {
+            id: GLOBAL_SORT_CANCEL_NOTIFICATION_ID,
+            persistent: true
+        });
+    } catch (err) {
+        console.error('Failed to display sort cancellation notification', err);
+    }
+});
 
 // Format number values consistently across the app
 function formatNumber(num) {
