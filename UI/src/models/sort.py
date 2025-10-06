@@ -59,124 +59,141 @@ class StashSorter:
         total_items = len(self.stash.pq)
         processed = 0
 
-        if self.stack_mode and self._stack_instructions:
-            self._overlay_update("Merging stackable items before sorting...", status="info")
+        if cancel_event:
+            macros.push_cancel_event(cancel_event)
 
-        if self.stack_mode:
-            if not self._perform_stacking_phase():
-                self._overlay_log("Stacking phase failed; aborting sort.")
-                return False
+        try:
+            if self.stack_mode and self._stack_instructions:
+                self._overlay_update("Merging stackable items before sorting...", status="info")
 
-        self._overlay_update("Preparing workspace...", status="info")
-        self._ensure_initial_workspace()
-        self._overlay_update("Sorting stash items...", status="info")
-
-        while self.stash.pq or self._buffered_inventory:
-            if not self.stash.pq and self._buffered_inventory:
-                _, buffered_item = self._buffered_inventory.popitem()
-                heapq.heappush(self.stash.pq, buffered_item)
-                continue
-
-            if self.cancel_event and self.cancel_event.is_set():
-                logger.info("Sort operation cancelled")
-                self._overlay_log("Sort cancelled by user.")
-                return False
-
-            item = heapq.heappop(self.stash.pq)
-            self._buffered_inventory.pop(id(item), None)
-            self._release_reserved_slots(item)
-            self._blocker_move_counts.pop(id(item), None)
-            logger.debug("Processing item: %s", item)
-
-            planned_point = self.pack_positions.get(id(item)) if self.pack_mode else None
-            target_point = planned_point
-
-            if target_point is not None and not self._is_within_bounds(item, target_point):
-                logger.warning("Planned target position out of bounds; recalculating")
-                if self.pack_mode:
-                    self.pack_positions.pop(id(item), None)
-                target_point = None
-
-            if target_point is None:
-                sequential_point = self._compute_next_sequential_position(item)
-                if sequential_point is not None and self._is_within_bounds(item, sequential_point):
-                    target_point = sequential_point
-                else:
-                    if sequential_point is None:
-                        logger.info("Sequential planner could not provide a position; searching alternatives")
-                        self._overlay_log("Sequential planner yielded no slot; scanning for alternatives.")
-                    else:
-                        logger.warning("Sequential planner returned out-of-bounds position; searching alternatives")
-                        self._overlay_log("Sequential slot was invalid; recalculating placement.")
-
-                    target_point = self._find_next_fittable_slot(item)
-                    if target_point is None:
-                        target_point = self._find_direct_empty_slot(item)
-
-            if target_point is None or not self._is_within_bounds(item, target_point):
-                logger.error("No valid target position found after adjustments; aborting sort")
-                self._overlay_log("No valid placement found for an item; aborting sort.")
-                return False
-
-            if self.pack_mode:
-                self.pack_positions[id(item)] = target_point
-
-            logger.debug("Target position: %s, Current position: %s", target_point, item.position)
-            if target_point == item.position:
-                logger.debug("Item already in correct position")
-                self._overlay_log("Item already positioned correctly; skipping move.")
-                continue
-
-            if not self._ensure_area_available(item, target_point):
-                logger.warning("Failed to clear target area; attempting fallback placement")
-                self._overlay_log("Primary slot blocked; attempting fallback placement.")
-                fallback_point = self._find_direct_empty_slot(item)
-                if fallback_point and fallback_point != target_point:
-                    logger.info("Fallback slot located at %s", fallback_point)
-                    self._overlay_log(f"Using fallback slot at ({fallback_point.x}, {fallback_point.y}).")
-                    if self.pack_mode:
-                        self.pack_positions[id(item)] = fallback_point
-                    if not self._ensure_area_available(item, fallback_point):
-                        logger.error("Fallback slot blocked; aborting sort")
-                        self._overlay_log("Fallback slot also blocked; aborting sort.")
-                        return False
-                    target_point = fallback_point
-                else:
-                    logger.error("No suitable fallback slot available; aborting sort")
-                    self._overlay_log("No fallback slot available; aborting sort.")
+            if self.stack_mode:
+                if not self._perform_stacking_phase():
+                    self._overlay_log("Stacking phase failed; aborting sort.")
                     return False
-            else:
-                blockers = self._collect_blocking_items(item, target_point)
-                if blockers:
-                    logger.warning("Target area still obstructed after clearing by %s", [repr(b) for b in blockers])
-                    self._overlay_log("Remaining blockers detected; attempting to relocate.")
-                    if not self._force_clear_blockers(item, blockers, target_point):
-                        logger.error("Unable to relocate remaining blockers; aborting sort")
-                        self._overlay_log("Unable to relocate blocking items; aborting sort.")
+
+            self._overlay_update("Preparing workspace...", status="info")
+            self._ensure_initial_workspace()
+            self._overlay_update("Sorting stash items...", status="info")
+
+            while self.stash.pq or self._buffered_inventory:
+                if not self.stash.pq and self._buffered_inventory:
+                    _, buffered_item = self._buffered_inventory.popitem()
+                    heapq.heappush(self.stash.pq, buffered_item)
+                    continue
+
+                if self.cancel_event and self.cancel_event.is_set():
+                    logger.info("Sort operation cancelled")
+                    self._overlay_log("Sort cancelled by user.")
+                    return False
+
+                item = heapq.heappop(self.stash.pq)
+                self._buffered_inventory.pop(id(item), None)
+                self._release_reserved_slots(item)
+                self._blocker_move_counts.pop(id(item), None)
+                logger.debug("Processing item: %s", item)
+
+                planned_point = self.pack_positions.get(id(item)) if self.pack_mode else None
+                target_point = planned_point
+
+                if target_point is not None and not self._is_within_bounds(item, target_point):
+                    logger.warning("Planned target position out of bounds; recalculating")
+                    if self.pack_mode:
+                        self.pack_positions.pop(id(item), None)
+                    target_point = None
+
+                if target_point is None:
+                    sequential_point = self._compute_next_sequential_position(item)
+                    if sequential_point is not None and self._is_within_bounds(item, sequential_point):
+                        target_point = sequential_point
+                    else:
+                        if sequential_point is None:
+                            logger.info("Sequential planner could not provide a position; searching alternatives")
+                            self._overlay_log("Sequential planner yielded no slot; scanning for alternatives.")
+                        else:
+                            logger.warning("Sequential planner returned out-of-bounds position; searching alternatives")
+                            self._overlay_log("Sequential slot was invalid; recalculating placement.")
+
+                        target_point = self._find_next_fittable_slot(item)
+                        if target_point is None:
+                            target_point = self._find_direct_empty_slot(item)
+
+                if target_point is None or not self._is_within_bounds(item, target_point):
+                    logger.error("No valid target position found after adjustments; aborting sort")
+                    self._overlay_log("No valid placement found for an item; aborting sort.")
+                    return False
+
+                if self.pack_mode:
+                    self.pack_positions[id(item)] = target_point
+
+                logger.debug("Target position: %s, Current position: %s", target_point, item.position)
+                if target_point == item.position:
+                    logger.debug("Item already in correct position")
+                    self._overlay_log("Item already positioned correctly; skipping move.")
+                    continue
+
+                if not self._ensure_area_available(item, target_point):
+                    logger.warning("Failed to clear target area; attempting fallback placement")
+                    self._overlay_log("Primary slot blocked; attempting fallback placement.")
+                    fallback_point = self._find_direct_empty_slot(item)
+                    if fallback_point and fallback_point != target_point:
+                        logger.info("Fallback slot located at %s", fallback_point)
+                        self._overlay_log(f"Using fallback slot at ({fallback_point.x}, {fallback_point.y}).")
+                        if self.pack_mode:
+                            self.pack_positions[id(item)] = fallback_point
+                        if not self._ensure_area_available(item, fallback_point):
+                            logger.error("Fallback slot blocked; aborting sort")
+                            self._overlay_log("Fallback slot also blocked; aborting sort.")
+                            return False
+                        target_point = fallback_point
+                    else:
+                        logger.error("No suitable fallback slot available; aborting sort")
+                        self._overlay_log("No fallback slot available; aborting sort.")
                         return False
+                else:
+                    blockers = self._collect_blocking_items(item, target_point)
+                    if blockers:
+                        logger.warning("Target area still obstructed after clearing by %s", [repr(b) for b in blockers])
+                        self._overlay_log("Remaining blockers detected; attempting to relocate.")
+                        if not self._force_clear_blockers(item, blockers, target_point):
+                            logger.error("Unable to relocate remaining blockers; aborting sort")
+                            self._overlay_log("Unable to relocate blocking items; aborting sort.")
+                            return False
 
-            if self.cancel_event and self.cancel_event.is_set():
-                logger.info("Sort operation cancelled before final placement")
-                self._overlay_log("Sort cancelled before final placement.")
-                return False
+                if self.cancel_event and self.cancel_event.is_set():
+                    logger.info("Sort operation cancelled before final placement")
+                    self._overlay_log("Sort cancelled before final placement.")
+                    return False
 
-            item.stash.move(item, target_point, self.stash)
-            self._unmark_buffered_inventory(item)
-            logger.debug("Current stash state:\n%s", self.stash)
+                item.stash.move(item, target_point, self.stash)
+                self._unmark_buffered_inventory(item)
+                logger.debug("Current stash state:\n%s", self.stash)
 
-            if self.cancel_event and self.cancel_event.is_set():
-                logger.info("Sort operation cancelled after item placement")
-                self._overlay_log("Sort cancelled after item placement.")
-                return False
+                if self.cancel_event and self.cancel_event.is_set():
+                    logger.info("Sort operation cancelled after item placement")
+                    self._overlay_log("Sort cancelled after item placement.")
+                    return False
 
-            processed += 1
-            if total_items and (processed == total_items or processed == 1 or processed % 5 == 0):
-                self._overlay_update(
-                    f"Sorting stash items... ({processed}/{total_items})",
-                    status="info",
-                )
+                processed += 1
+                if total_items and (processed == total_items or processed == 1 or processed % 5 == 0):
+                    self._overlay_update(
+                        f"Sorting stash items... ({processed}/{total_items})",
+                        status="info",
+                    )
 
-        return True
+            return True
+        except macros.MacroCancelled:
+            logger.info("Sort operation cancelled during macro execution")
+            self._overlay_update(
+                "Sort cancelled. Refresh your character data to resynchronize.",
+                status="warning",
+            )
+            self._overlay_log(
+                "Sort cancelled. Macro actions stopped immediately. Refresh your character data to resynchronize."
+            )
+            return False
+        finally:
+            if cancel_event:
+                macros.pop_cancel_event(cancel_event)
 
     # ------------------------------------------------------------------ overlay helpers
     def _overlay_update(self, subtitle: str, status: str = "info") -> None:

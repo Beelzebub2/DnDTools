@@ -70,6 +70,8 @@ let isPackMode = false;
 let packModeToggle = null;
 let isStackMode = false;
 let stackModeToggle = null;
+const SORT_CANCEL_NOTIFICATION_ID = 'character-sort-cancelled';
+const SORT_CANCEL_MESSAGE = "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
 
 const rarityRankMap = {
     'none': 0,
@@ -93,6 +95,21 @@ function getRarityRankValue(rarity) {
     }
     const key = rarity.toString().toLowerCase();
     return rarityRankMap.hasOwnProperty(key) ? rarityRankMap[key] : 0;
+}
+
+function showSortCancelNotification() {
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(SORT_CANCEL_MESSAGE, 'warning', {
+            id: SORT_CANCEL_NOTIFICATION_ID,
+            persistent: true
+        });
+    }
+}
+
+function dismissSortCancelNotification() {
+    if (typeof window.dismissNotification === 'function') {
+        window.dismissNotification(SORT_CANCEL_NOTIFICATION_ID);
+    }
 }
 
 // Format functions - same as in search.js for consistency
@@ -672,39 +689,6 @@ async function loadStackModeFromServer() {
     }
 }
 
-async function persistStackMode(stack) {
-    try {
-        const response = await fetch('/api/stack_mode', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ stack })
-        });
-        if (!response.ok) {
-            throw new Error(`Failed to save stack mode: ${response.status}`);
-        }
-        const data = await response.json().catch(() => ({}));
-        if (data && typeof data.stack !== 'undefined') {
-            isStackMode = !!data.stack;
-        }
-    } catch (error) {
-        console.error('Error persisting stack mode:', error);
-    } finally {
-        updateStackToggleUI();
-    }
-}
-
-function updateStackToggleUI() {
-    if (!stackModeToggle) {
-        return;
-    }
-    stackModeToggle.checked = isStackMode;
-    const wrapper = stackModeToggle.closest('label');
-    if (wrapper) {
-        wrapper.classList.toggle('active', isStackMode);
-    }
-}
 
 // Variable to store the equipment slots configuration
 let equipmentSlotConfig = null;
@@ -1135,22 +1119,21 @@ const triggerSort = async () => {
 
         if (result.success) {
             await loadStashes();
-            showNotification('Stash sorted successfully', 'success');
+            window.showNotification('Stash sorted successfully', 'success');
         } else {
             const errorMessage = result.error || 'Failed to sort stash. The stash might be full.';
-            // Use the global notification function from app.js for consistent UI notifications
-            if (typeof window.showNotification === 'function') {
-                window.showNotification(errorMessage, 'error');
+            if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('cancel')) {
+                showSortCancelNotification();
             } else {
-                showNotification(errorMessage, 'error');
+                window.showNotification(errorMessage, 'error');
             }
         }
     } catch (error) {
         if (error.name === 'AbortError') {
-            showNotification('Sorting cancelled', 'info');
+            showSortCancelNotification();
         } else {
             console.error('Error sorting stash:', error);
-            showNotification('Network error while sorting stash', 'error');
+            window.showNotification('Network error while sorting stash', 'error');
         }
     } finally {
         setSortingState(false);
@@ -1430,46 +1413,176 @@ const loadStashes = async () => {
 };
 
 // Function to show notification
-function showNotification(message, type = 'info') {
-    const container = document.createElement('div');
-    container.className = `notification ${type}`;
-    container.textContent = message;
+if (typeof window.showNotification !== 'function') {
+    const fallbackNotifications = new Map();
 
-    // Add inline styling to position the notification below the topbar
-    container.style.position = 'fixed';
-    container.style.top = '60px'; // Position below the topbar
-    container.style.right = '20px';
-    container.style.zIndex = '9999';
-    container.style.padding = '12px 20px';
-    container.style.borderRadius = '4px';
-    container.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.2)';
-    container.style.animation = 'slideIn 0.3s ease-out forwards';
-
-    document.body.appendChild(container);
-
-    // Remove after animation
-    setTimeout(() => {
-        container.classList.add('fade-out');
+    const fallbackRemove = (id, element) => {
+        if (!element) {
+            return;
+        }
+        element.classList.add('fade-out');
         setTimeout(() => {
-            if (container.parentNode) {
-                document.body.removeChild(container);
+            if (element.parentNode) {
+                element.parentNode.removeChild(element);
+            }
+            if (id && fallbackNotifications.has(id)) {
+                const stored = fallbackNotifications.get(id);
+                if (stored && stored.element === element) {
+                    fallbackNotifications.delete(id);
+                }
             }
         }, 300);
-    }, 3000);
+    };
+
+    const fallbackScheduleRemove = (id, element, duration) => {
+        const safeDuration = Number.isFinite(duration) && duration >= 0 ? duration : 3000;
+        return setTimeout(() => fallbackRemove(id, element), safeDuration);
+    };
+
+    window.showNotification = function (message, type = 'info', options = {}) {
+        if (typeof type === 'object' && type !== null) {
+            options = type;
+            type = options.type || 'info';
+        }
+
+        const { id = null, persistent = false, duration = 3000 } = options || {};
+
+        if (id && fallbackNotifications.has(id)) {
+            const existing = fallbackNotifications.get(id);
+            if (existing.timeout) {
+                clearTimeout(existing.timeout);
+                existing.timeout = null;
+            }
+
+            existing.element.textContent = message;
+            existing.element.className = `notification ${type}`;
+            existing.element.dataset.notificationType = type;
+            existing.element.dataset.persistent = persistent ? '1' : '0';
+            existing.element.classList.toggle('persistent', persistent);
+            existing.element.setAttribute('role', 'alert');
+            existing.element.setAttribute('aria-live', 'assertive');
+            existing.element.setAttribute('aria-atomic', 'true');
+            existing.element.classList.remove('fade-out');
+            existing.element.style.animation = 'none';
+            void existing.element.offsetWidth;
+            existing.element.style.animation = '';
+
+            if (!persistent) {
+                existing.timeout = fallbackScheduleRemove(id, existing.element, duration);
+            }
+
+            existing.persistent = persistent;
+            return { id, dismiss: () => window.dismissNotification && window.dismissNotification(id) };
+        }
+
+        const container = document.createElement('div');
+        container.className = `notification ${type}`;
+        container.textContent = message;
+
+        container.style.position = 'fixed';
+        container.style.top = '60px';
+        container.style.right = '24px';
+        container.style.zIndex = '9999';
+        container.dataset.notificationType = type;
+        container.dataset.persistent = persistent ? '1' : '0';
+        container.classList.toggle('persistent', persistent);
+        container.setAttribute('role', 'alert');
+        container.setAttribute('aria-live', 'assertive');
+        container.setAttribute('aria-atomic', 'true');
+
+        if (id) {
+            container.dataset.notificationId = id;
+        }
+
+        document.body.appendChild(container);
+
+        let timeout = null;
+        if (!persistent) {
+            timeout = fallbackScheduleRemove(id, container, duration);
+        }
+
+        if (id) {
+            fallbackNotifications.set(id, {
+                element: container,
+                timeout,
+                persistent
+            });
+        }
+
+        return { id, dismiss: () => window.dismissNotification && window.dismissNotification(id) };
+    };
+
+    if (typeof window.dismissNotification !== 'function') {
+        window.dismissNotification = function (id) {
+            if (!id || !fallbackNotifications.has(id)) {
+                return false;
+            }
+
+            const entry = fallbackNotifications.get(id);
+            if (entry.timeout) {
+                clearTimeout(entry.timeout);
+            }
+
+            fallbackRemove(id, entry.element);
+            return true;
+        };
+    }
 }
 
-// Add keyboard shortcuts: Ctrl+S to sort, Ctrl+X to cancel
-document.addEventListener('keydown', (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        const sortButton = document.querySelector('.sort-button');
-        sortButton && sortButton.click();
+// Global keyboard shortcuts and an always-ready cancel key.
+// Use capture-phase listener so the cancel key is caught before other elements (inputs, modals) can intercept it.
+window.addEventListener('keydown', (e) => {
+    try {
+        const key = (e.key || '').toString();
+
+        // Ctrl/Cmd+S to trigger sort (preserve previous behavior)
+        if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 's') {
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            const sortButton = document.querySelector('.sort-button');
+            sortButton && sortButton.click();
+            return;
+        }
+
+        // Ctrl/Cmd+X still cancels (legacy)
+        if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'x') {
+            if (abortController) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                // Abort fetch and immediately update UI
+                try { abortController.abort(); } catch (err) { /* noop */ }
+                abortController = null;
+                setSortingState(false);
+                showSortCancelNotification();
+                // Notify other listeners
+                window.dispatchEvent(new Event('sortingEnded'));
+            }
+            return;
+        }
+
+        // Escape key: instant cancel and always listened-for (no modifier required)
+        if (key === 'Escape' || key === 'Esc') {
+            if (abortController) {
+                // Prevent other handlers from processing this event
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                // Abort the ongoing request
+                try { abortController.abort(); } catch (err) { /* noop */ }
+                abortController = null;
+                // Immediately hide sorting UI so the cancel feels instant
+                setSortingState(false);
+                // Inform the user
+                showSortCancelNotification();
+                // Notify other listeners
+                window.dispatchEvent(new Event('sortingEnded'));
+            }
+            return;
+        }
+    } catch (err) {
+        // Swallow errors in the global key handler to avoid breaking other features
+        console.error('Key handler error:', err);
     }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'x') {
-        e.preventDefault();
-        if (abortController) abortController.abort();
-    }
-});
+}, { capture: true });
 
 // Add an event listener for when sorting starts from a keybind
 window.addEventListener('sortingStarted', () => {
@@ -1484,6 +1597,7 @@ window.addEventListener('sortingEnded', () => {
 window.updateCharacterData = async () => {
     await updateCharacterInfo(charId);
     await loadStashes();
+    dismissSortCancelNotification();
 };
 
 // Character capture animation function (placeholder for character page)
