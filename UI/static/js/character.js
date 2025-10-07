@@ -215,6 +215,67 @@ function clearHighlightQueryFromUrl() {
     }
 }
 
+function scrollHighlightedElements(elements) {
+    if (!Array.isArray(elements) || !elements.length) {
+        return;
+    }
+
+    const primary = elements[0];
+    if (!primary) {
+        return;
+    }
+
+    const scrollContainer = primary.closest('.stash-grid-container');
+    const behavior = { behavior: 'smooth' };
+
+    if (scrollContainer && typeof scrollContainer.scrollTop === 'number') {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const targetRect = primary.getBoundingClientRect();
+        const topOffset = targetRect.top - containerRect.top + scrollContainer.scrollTop;
+        const leftOffset = targetRect.left - containerRect.left + scrollContainer.scrollLeft;
+        const bottomOffset = topOffset + primary.offsetHeight;
+        const rightOffset = leftOffset + primary.offsetWidth;
+
+        const margin = 24;
+        let nextTop = scrollContainer.scrollTop;
+        let needScroll = false;
+
+        if (topOffset < scrollContainer.scrollTop + margin) {
+            nextTop = Math.max(topOffset - margin, 0);
+            needScroll = true;
+        } else if (bottomOffset > scrollContainer.scrollTop + scrollContainer.clientHeight - margin) {
+            nextTop = Math.min(bottomOffset + margin - scrollContainer.clientHeight, scrollContainer.scrollHeight);
+            needScroll = true;
+        }
+
+        let nextLeft = scrollContainer.scrollLeft;
+        if (leftOffset < scrollContainer.scrollLeft + margin) {
+            nextLeft = Math.max(leftOffset - margin, 0);
+            needScroll = true;
+        } else if (rightOffset > scrollContainer.scrollLeft + scrollContainer.clientWidth - margin) {
+            nextLeft = Math.min(rightOffset + margin - scrollContainer.clientWidth, scrollContainer.scrollWidth);
+            needScroll = true;
+        }
+
+        if (needScroll) {
+            scrollContainer.scrollTo({ ...behavior, top: nextTop, left: nextLeft });
+        }
+        return;
+    }
+
+    if (typeof primary.scrollIntoView === 'function') {
+        try {
+            primary.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        } catch (err) {
+            try {
+                primary.scrollIntoView(behavior);
+            } catch (fallbackErr) {
+                primary.scrollIntoView(true);
+            }
+        }
+    }
+}
+
 function applyPendingHighlight(stashId, containerElement) {
     if (!pendingHighlightRequest || !containerElement) {
         return;
@@ -243,7 +304,9 @@ function applyPendingHighlight(stashId, containerElement) {
         }
     });
 
-    if (!matchedElements.length) {
+    const connectedElements = matchedElements.filter(el => el && el.isConnected);
+
+    if (!connectedElements.length) {
         if (pendingHighlightRequest.attemptsRemaining > 0) {
             pendingHighlightRequest.attemptsRemaining -= 1;
             if (highlightReattemptTimeout) {
@@ -265,13 +328,15 @@ function applyPendingHighlight(stashId, containerElement) {
     }
 
     clearExistingHighlights();
-    matchedElements.forEach(el => {
+    connectedElements.forEach(el => {
         el.classList.add(HIGHLIGHT_CLASS);
         el.setAttribute('data-highlight-active', 'true');
     });
 
+    scrollHighlightedElements(connectedElements);
+
     highlightCleanupTimeout = setTimeout(() => {
-        matchedElements.forEach(el => {
+        connectedElements.forEach(el => {
             el.classList.remove(HIGHLIGHT_CLASS);
             el.removeAttribute('data-highlight-active');
         });
@@ -971,6 +1036,9 @@ const renderInteractiveGrid = (stashId, items) => {
     // Create one single grid - no conditional logic that could create multiple grids
     const grid = document.createElement('div');
     grid.className = 'interactive-stash-grid';
+    if (isPreviewMode) {
+        grid.classList.add('preview-layout-active');
+    }
 
     // Use explicit sizing for the grid to prevent expansion
     const cellSize = 45;
@@ -1536,23 +1604,23 @@ const loadStashes = async () => {
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
 
-                    // Update server with selection using bag as reference
-                    updateCurrentStash('2');
+                    // Update server with selection using equipment as the canonical stash
+                    updateCurrentStash('3');
                 } else {
-                    // Keep the image source for fallback
+                    usingCombinedCharacterView = false;
+
                     if (isNewFormat) {
-                        previewImage.src = stashes.previewImages[currentStashId];
+                        previewImage.classList.add('hidden');
+                        previewImage.removeAttribute('src');
+                        previewContainer.classList.remove('hidden');
+                        previewContainer.className = 'stash-content-area';
                     } else {
                         previewImage.src = stashes[currentStashId];
+                        if (previewImage.src && previewImage.src !== window.location.href) {
+                            previewImage.classList.remove('hidden');
+                            previewContainer.classList.remove('hidden');
+                        }
                     }
-
-                    // Only show the preview container if we have a valid image source
-                    if (previewImage.src && previewImage.src !== window.location.href) {
-                        previewImage.classList.remove('hidden');
-                        previewContainer.classList.remove('hidden');
-                    }
-
-                    usingCombinedCharacterView = false;
 
                     // Process and render the interactive grid
                     processStashData(stashes, currentStashId).then(items => {
@@ -1578,8 +1646,8 @@ const loadStashes = async () => {
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
 
-                    // Update server with selection using bag as reference
-                    updateCurrentStash('2');
+                    // Update server with selection using equipment as the canonical stash
+                    updateCurrentStash('3');
                 } else {
                     // Fall back to the first available tab
                     const firstTab = document.querySelector('.stash-tab');
@@ -1587,28 +1655,36 @@ const loadStashes = async () => {
                         firstTab.classList.add('active');
                         currentStashId = firstTab.dataset.stashId;
 
-                        // Keep the image source for fallback
-                        if (isNewFormat) {
-                            previewImage.src = stashes.previewImages[currentStashId];
-                        } else {
-                            previewImage.src = stashes[currentStashId];
-                        }
-
-                        // Only show the preview container if we have a valid image source
-                        if (previewImage.src && previewImage.src !== window.location.href) {
-                            previewImage.classList.remove('hidden');
+                        if (currentStashId === 'character') {
+                            previewImage.classList.add('hidden');
+                            usingCombinedCharacterView = true;
                             previewContainer.classList.remove('hidden');
+                            renderCombinedCharacterView(stashes);
+                            updateCurrentStash('3');
+                        } else {
+                            usingCombinedCharacterView = false;
+
+                            if (isNewFormat) {
+                                previewImage.classList.add('hidden');
+                                previewImage.removeAttribute('src');
+                                previewContainer.classList.remove('hidden');
+                                previewContainer.className = 'stash-content-area';
+                            } else {
+                                previewImage.src = stashes[currentStashId];
+                                if (previewImage.src && previewImage.src !== window.location.href) {
+                                    previewImage.classList.remove('hidden');
+                                    previewContainer.classList.remove('hidden');
+                                }
+                            }
+
+                            // Process and render the interactive grid 
+                            processStashData(stashes, currentStashId).then(items => {
+                                renderInteractiveGrid(currentStashId, items);
+                            });
+
+                            const syncStashId = currentStashId === 'character' ? '3' : currentStashId;
+                            updateCurrentStash(syncStashId);
                         }
-
-                        usingCombinedCharacterView = false;
-
-                        // Process and render the interactive grid 
-                        processStashData(stashes, currentStashId).then(items => {
-                            renderInteractiveGrid(currentStashId, items);
-                        });
-
-                        // Update the server with our selection
-                        updateCurrentStash(currentStashId);
                     }
                 }
             }            // Show the stash section header and tabs selector
@@ -1864,15 +1940,20 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         // Check if there's a stash ID in the URL params (added by search page)
         const urlParams = new URLSearchParams(window.location.search);
-        const stashIdParam = urlParams.get('stashId');
-        requestedStashIdFromUrl = stashIdParam || null;
-        const highlightRequest = primeHighlightRequestFromUrl(urlParams, stashIdParam);
+        const stashIdParamRaw = urlParams.get('stashId');
+        const highlightRequest = primeHighlightRequestFromUrl(urlParams, stashIdParamRaw);
+        const shouldUseCombinedView = stashIdParamRaw === '2' || stashIdParamRaw === '3';
 
-        if (stashIdParam) {
-            // Set the current stash ID from URL parameter
-            currentStashId = stashIdParam;
+        if (shouldUseCombinedView) {
+            requestedStashIdFromUrl = 'character';
+            currentStashId = 'character';
+            console.log(`Using combined Character view for stash ${stashIdParamRaw} from URL.`);
+        } else if (stashIdParamRaw) {
+            requestedStashIdFromUrl = stashIdParamRaw;
+            currentStashId = stashIdParamRaw;
             console.log(`Using stash ID from URL: ${currentStashId}`);
         } else {
+            requestedStashIdFromUrl = null;
             // If not in URL, try to get it from server
             try {
                 const currentStashResponse = await fetch(`/api/character/${charId}/current-stash`);
@@ -2113,6 +2194,9 @@ const renderCombinedCharacterView = async (stashes) => {
     equipmentSection.appendChild(equipmentTitle);    // Create equipment grid
     const equipmentGrid = document.createElement('div');
     equipmentGrid.className = 'interactive-stash-grid equipment-grid';
+    if (isPreviewMode) {
+        equipmentGrid.classList.add('preview-layout-active');
+    }
     equipmentGrid.style.gridTemplateColumns = `repeat(${equipWidth}, 45px)`;
     equipmentGrid.style.gridTemplateRows = `repeat(${equipHeight}, 45px)`;
 
@@ -2266,6 +2350,9 @@ const renderCombinedCharacterView = async (stashes) => {
     bagSection.appendChild(bagTitle);    // Create bag grid
     const bagGrid = document.createElement('div');
     bagGrid.className = 'interactive-stash-grid bag-grid';
+    if (isPreviewMode) {
+        bagGrid.classList.add('preview-layout-active');
+    }
     bagGrid.style.gridTemplateColumns = `repeat(${bagWidth}, 45px)`;
     bagGrid.style.gridTemplateRows = `repeat(${bagHeight}, 45px)`;
 

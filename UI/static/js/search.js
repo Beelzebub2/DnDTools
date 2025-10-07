@@ -522,10 +522,10 @@ window.addEventListener('load', () => {
             itemElement.innerHTML = `
                 <div class="item-icon-container">
                     ${iconPath ?
-                        `<img src="${iconPath}" alt="${escapeHtml(normalizedItem.name)}" class="item-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    `<img src="${iconPath}" alt="${escapeHtml(normalizedItem.name)}" class="item-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                          <span class="material-icons item-icon-fallback" style="display: none;">inventory_2</span>` :
-                        `<span class="material-icons item-icon-fallback">inventory_2</span>`
-                    }
+                    `<span class="material-icons item-icon-fallback">inventory_2</span>`
+                }
                 </div>
                 <div class="item-content">
                     <div class="item-details">
