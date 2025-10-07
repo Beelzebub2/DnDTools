@@ -156,6 +156,287 @@ const HIGHLIGHT_DURATION_MS = 3600;
 const HIGHLIGHT_POLL_INTERVAL = 120;
 const HIGHLIGHT_MAX_ATTEMPTS = 20;
 
+let pendingContainerFocus = false;
+let pendingItemFocus = false;
+
+function requestContainerFocus() {
+    pendingContainerFocus = true;
+}
+
+function requestItemFocus() {
+    pendingItemFocus = true;
+    pendingContainerFocus = true;
+}
+
+function getPrimaryScrollContainer() {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const contentContainer = document.querySelector('.content');
+    if (contentContainer) {
+        return contentContainer;
+    }
+
+    if (document.scrollingElement) {
+        return document.scrollingElement;
+    }
+
+    if (document.documentElement) {
+        return document.documentElement;
+    }
+
+    return document.body || null;
+}
+
+function scheduleViewportScroll(target, options) {
+    if (!target) {
+        return;
+    }
+    console.log('[SCROLL DEBUG] scheduleViewportScroll called for:', target, options);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            console.log('[SCROLL DEBUG] Executing scrollViewportToElement');
+            scrollViewportToElement(target, options);
+        });
+    });
+}
+
+function resolveFocusContainer(element) {
+    if (typeof document === 'undefined') {
+        return element;
+    }
+
+    const stashPreview = document.getElementById('stashPreview');
+    if (stashPreview && element && stashPreview.contains(element)) {
+        return stashPreview;
+    }
+    if (element && typeof element.closest === 'function') {
+        const matchingContainer = element.closest('#stashPreview, .stash-container, #interactiveStashGrid');
+        if (matchingContainer) {
+            if (matchingContainer.id === 'interactiveStashGrid' && stashPreview) {
+                return stashPreview;
+            }
+            return matchingContainer;
+        }
+    }
+    if (stashPreview) {
+        return stashPreview;
+    }
+    return element;
+}
+
+function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', scrollContainer: explicitContainer } = {}) {
+    console.log('[SCROLL DEBUG] scrollViewportToElement called for:', element, 'margin:', margin);
+    if (typeof window === 'undefined' || !element || typeof element.getBoundingClientRect !== 'function') {
+        console.log('[SCROLL DEBUG] Early return - window or element invalid');
+        return;
+    }
+
+    const docRef = typeof document !== 'undefined' ? document : null;
+    const scrollContainer = explicitContainer || getPrimaryScrollContainer();
+    const isElementContainer = !!(scrollContainer && scrollContainer.nodeType === 1 && scrollContainer !== docRef?.documentElement && scrollContainer !== docRef?.body && scrollContainer !== docRef?.scrollingElement);
+    console.log('[SCROLL DEBUG] Using scroll container:', scrollContainer, 'isElementContainer:', isElementContainer);
+
+    const rect = element.getBoundingClientRect();
+    console.log('[SCROLL DEBUG] Element rect:', rect);
+
+    let viewportHeight = window.innerHeight;
+    let currentScroll = window.pageYOffset;
+    let maxScroll = (docRef && (docRef.scrollingElement || docRef.documentElement || docRef.body))?.scrollHeight || 0;
+    let containerRect = null;
+
+    if (isElementContainer && scrollContainer) {
+        viewportHeight = scrollContainer.clientHeight;
+        currentScroll = scrollContainer.scrollTop;
+        maxScroll = scrollContainer.scrollHeight;
+        containerRect = scrollContainer.getBoundingClientRect();
+    } else if (docRef) {
+        const scrollingElement = docRef.scrollingElement || docRef.documentElement || docRef.body;
+        if (scrollingElement) {
+            viewportHeight = scrollingElement.clientHeight || viewportHeight;
+            currentScroll = scrollingElement.scrollTop || currentScroll;
+            maxScroll = scrollingElement.scrollHeight || maxScroll;
+        }
+    }
+
+    const elementHeight = Math.max(rect.height, 0);
+    const elementTop = containerRect ? (rect.top - containerRect.top + currentScroll) : (rect.top + currentScroll);
+    const elementCenter = elementTop + (elementHeight / 2);
+    const viewportCenter = viewportHeight / 2;
+
+    let targetTop = elementCenter - viewportCenter;
+
+    if (Number.isFinite(margin) && margin > 0 && elementHeight < viewportHeight) {
+        const marginAdjustment = Math.max(0, margin - (viewportHeight - elementHeight) / 2);
+        targetTop = Math.max(targetTop - marginAdjustment, elementTop - margin);
+    }
+
+    targetTop = Math.max(0, targetTop);
+    if (Number.isFinite(maxScroll) && maxScroll > viewportHeight) {
+        targetTop = Math.min(targetTop, maxScroll - viewportHeight);
+    }
+
+    const scrollOptions = { top: targetTop, behavior };
+    console.log('[SCROLL DEBUG] Calculated targetTop:', targetTop, 'scrollOptions:', scrollOptions);
+
+    let scrolled = false;
+
+    if (isElementContainer && scrollContainer) {
+        console.log('[SCROLL DEBUG] Attempting scroll on element container');
+        try {
+            if (typeof scrollContainer.scrollTo === 'function') {
+                scrollContainer.scrollTo(scrollOptions);
+            } else {
+                scrollContainer.scrollTop = targetTop;
+            }
+            scrolled = true;
+            console.log('[SCROLL DEBUG] Element container scroll succeeded');
+        } catch (err) {
+            console.log('[SCROLL DEBUG] Element container scroll failed:', err);
+        }
+    }
+
+    if (!scrolled && typeof window.scrollTo === 'function') {
+        console.log('[SCROLL DEBUG] Attempting window.scrollTo');
+        try {
+            window.scrollTo(scrollOptions);
+            scrolled = true;
+            console.log('[SCROLL DEBUG] window.scrollTo succeeded');
+        } catch (err) {
+            console.log('[SCROLL DEBUG] window.scrollTo failed, trying legacy:', err);
+            try {
+                window.scrollTo(0, targetTop);
+                scrolled = true;
+                console.log('[SCROLL DEBUG] Legacy window.scrollTo succeeded');
+            } catch (fallbackError) {
+                console.log('[SCROLL DEBUG] Legacy window.scrollTo also failed:', fallbackError);
+            }
+        }
+    }
+
+    if (!scrolled && scrollContainer && !isElementContainer) {
+        console.log('[SCROLL DEBUG] Attempting scroll on fallback container:', scrollContainer);
+        try {
+            if (typeof scrollContainer.scrollTo === 'function') {
+                scrollContainer.scrollTo(scrollOptions);
+            } else {
+                scrollContainer.scrollTop = targetTop;
+            }
+            scrolled = true;
+            console.log('[SCROLL DEBUG] Fallback container scroll succeeded');
+        } catch (err) {
+            console.log('[SCROLL DEBUG] Fallback container scroll failed:', err);
+        }
+    }
+
+    if (!scrolled && docRef && docRef.body) {
+        console.log('[SCROLL DEBUG] Final fallback: setting body.scrollTop');
+        docRef.body.scrollTop = targetTop;
+    }
+
+    console.log('[SCROLL DEBUG] scrollViewportToElement completed, scrolled:', scrolled);
+}
+
+function ensureHighlightedItemsVisible(highlightedElements) {
+    if (!Array.isArray(highlightedElements) || !highlightedElements.length) {
+        return;
+    }
+
+    const primary = highlightedElements.find(el => el && el.isConnected);
+    if (!primary) {
+        return;
+    }
+
+    const scrollContainer = primary.closest('.stash-grid-container');
+    if (scrollContainer && typeof scrollContainer.scrollTop === 'number') {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const targetRect = primary.getBoundingClientRect();
+        const topOffset = targetRect.top - containerRect.top + scrollContainer.scrollTop;
+        const leftOffset = targetRect.left - containerRect.left + scrollContainer.scrollLeft;
+        const bottomOffset = topOffset + primary.offsetHeight;
+        const rightOffset = leftOffset + primary.offsetWidth;
+
+        const margin = 36;
+        let nextTop = scrollContainer.scrollTop;
+        let nextLeft = scrollContainer.scrollLeft;
+        let needScroll = false;
+        const maxTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+        const maxLeft = Math.max(0, scrollContainer.scrollWidth - scrollContainer.clientWidth);
+
+        if (topOffset < scrollContainer.scrollTop + margin) {
+            nextTop = Math.max(topOffset - margin, 0);
+            needScroll = true;
+        } else if (bottomOffset > scrollContainer.scrollTop + scrollContainer.clientHeight - margin) {
+            const candidateTop = bottomOffset + margin - scrollContainer.clientHeight;
+            nextTop = Math.min(Math.max(candidateTop, 0), maxTop);
+            needScroll = true;
+        }
+
+        if (leftOffset < scrollContainer.scrollLeft + margin) {
+            nextLeft = Math.max(leftOffset - margin, 0);
+            needScroll = true;
+        } else if (rightOffset > scrollContainer.scrollLeft + scrollContainer.clientWidth - margin) {
+            const candidateLeft = rightOffset + margin - scrollContainer.clientWidth;
+            nextLeft = Math.min(Math.max(candidateLeft, 0), maxLeft);
+            needScroll = true;
+        }
+
+        if (needScroll) {
+            if (typeof scrollContainer.scrollTo === 'function') {
+                scrollContainer.scrollTo({ top: nextTop, left: nextLeft, behavior: 'smooth' });
+            } else {
+                scrollContainer.scrollTop = nextTop;
+                scrollContainer.scrollLeft = nextLeft;
+            }
+        }
+        return;
+    }
+
+    if (typeof primary.scrollIntoView === 'function') {
+        try {
+            primary.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        } catch (err) {
+            try {
+                primary.scrollIntoView(true);
+            } catch (fallbackErr) {
+                // ignore
+            }
+        }
+    }
+}
+
+function focusStashIfRequested(sourceElement, highlightedElements = []) {
+    console.log('[SCROLL DEBUG] focusStashIfRequested called, sourceElement:', sourceElement, 'containerFocus:', pendingContainerFocus, 'itemFocus:', pendingItemFocus, 'highlightedElements:', highlightedElements.length);
+    if (!sourceElement || (!pendingContainerFocus && !pendingItemFocus)) {
+        console.log('[SCROLL DEBUG] Early return - no source or no pending focus');
+        return;
+    }
+
+    const hasHighlights = Array.isArray(highlightedElements) && highlightedElements.length;
+    const primaryHighlight = hasHighlights ? highlightedElements.find(el => el && el.isConnected) : null;
+    console.log('[SCROLL DEBUG] hasHighlights:', hasHighlights, 'primaryHighlight:', primaryHighlight);
+
+    const containerTarget = resolveFocusContainer(primaryHighlight || sourceElement);
+    console.log('[SCROLL DEBUG] containerTarget:', containerTarget);
+
+    if (pendingItemFocus && primaryHighlight) {
+        console.log('[SCROLL DEBUG] Item focus path - scrolling to highlighted item only');
+        ensureHighlightedItemsVisible(highlightedElements);
+        scheduleViewportScroll(primaryHighlight, { margin: 160 });
+        pendingItemFocus = false;
+        pendingContainerFocus = false;
+        return;
+    }
+
+    if (pendingContainerFocus && containerTarget) {
+        console.log('[SCROLL DEBUG] Container focus path - calling scheduleViewportScroll');
+        scheduleViewportScroll(containerTarget, { margin: 220 });
+        pendingContainerFocus = false;
+    }
+    console.log('[SCROLL DEBUG] focusStashIfRequested completed');
+}
+
 let pendingHighlightRequest = null;
 let highlightCleanupTimeout = null;
 let highlightReattemptTimeout = null;
@@ -176,6 +457,7 @@ function setPendingHighlight(stashId, slotSource) {
         slotIds: normalizedSlots,
         attemptsRemaining: HIGHLIGHT_MAX_ATTEMPTS
     };
+    requestItemFocus();
     return pendingHighlightRequest;
 }
 
@@ -195,6 +477,7 @@ function clearPendingHighlight() {
         highlightReattemptTimeout = null;
     }
     pendingHighlightRequest = null;
+    pendingItemFocus = false;
 }
 
 function clearHighlightQueryFromUrl() {
@@ -212,67 +495,6 @@ function clearHighlightQueryFromUrl() {
     if (changed) {
         const newUrl = `${url.pathname}${url.search}${url.hash}`;
         window.history.replaceState({}, document.title, newUrl);
-    }
-}
-
-function scrollHighlightedElements(elements) {
-    if (!Array.isArray(elements) || !elements.length) {
-        return;
-    }
-
-    const primary = elements[0];
-    if (!primary) {
-        return;
-    }
-
-    const scrollContainer = primary.closest('.stash-grid-container');
-    const behavior = { behavior: 'smooth' };
-
-    if (scrollContainer && typeof scrollContainer.scrollTop === 'number') {
-        const containerRect = scrollContainer.getBoundingClientRect();
-        const targetRect = primary.getBoundingClientRect();
-        const topOffset = targetRect.top - containerRect.top + scrollContainer.scrollTop;
-        const leftOffset = targetRect.left - containerRect.left + scrollContainer.scrollLeft;
-        const bottomOffset = topOffset + primary.offsetHeight;
-        const rightOffset = leftOffset + primary.offsetWidth;
-
-        const margin = 24;
-        let nextTop = scrollContainer.scrollTop;
-        let needScroll = false;
-
-        if (topOffset < scrollContainer.scrollTop + margin) {
-            nextTop = Math.max(topOffset - margin, 0);
-            needScroll = true;
-        } else if (bottomOffset > scrollContainer.scrollTop + scrollContainer.clientHeight - margin) {
-            nextTop = Math.min(bottomOffset + margin - scrollContainer.clientHeight, scrollContainer.scrollHeight);
-            needScroll = true;
-        }
-
-        let nextLeft = scrollContainer.scrollLeft;
-        if (leftOffset < scrollContainer.scrollLeft + margin) {
-            nextLeft = Math.max(leftOffset - margin, 0);
-            needScroll = true;
-        } else if (rightOffset > scrollContainer.scrollLeft + scrollContainer.clientWidth - margin) {
-            nextLeft = Math.min(rightOffset + margin - scrollContainer.clientWidth, scrollContainer.scrollWidth);
-            needScroll = true;
-        }
-
-        if (needScroll) {
-            scrollContainer.scrollTo({ ...behavior, top: nextTop, left: nextLeft });
-        }
-        return;
-    }
-
-    if (typeof primary.scrollIntoView === 'function') {
-        try {
-            primary.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-        } catch (err) {
-            try {
-                primary.scrollIntoView(behavior);
-            } catch (fallbackErr) {
-                primary.scrollIntoView(true);
-            }
-        }
     }
 }
 
@@ -333,7 +555,7 @@ function applyPendingHighlight(stashId, containerElement) {
         el.setAttribute('data-highlight-active', 'true');
     });
 
-    scrollHighlightedElements(connectedElements);
+    focusStashIfRequested(containerElement, connectedElements);
 
     highlightCleanupTimeout = setTimeout(() => {
         connectedElements.forEach(el => {
@@ -1207,6 +1429,7 @@ const renderInteractiveGrid = (stashId, items) => {
 
     applyPendingHighlight(stashId, grid);
     gridContainer.appendChild(grid);
+    focusStashIfRequested(gridContainer);
 };
 
 const createStashTabs = (stashes) => {
@@ -1948,10 +2171,12 @@ window.addEventListener('DOMContentLoaded', async () => {
             requestedStashIdFromUrl = 'character';
             currentStashId = 'character';
             console.log(`Using combined Character view for stash ${stashIdParamRaw} from URL.`);
+            requestContainerFocus();
         } else if (stashIdParamRaw) {
             requestedStashIdFromUrl = stashIdParamRaw;
             currentStashId = stashIdParamRaw;
             console.log(`Using stash ID from URL: ${currentStashId}`);
+            requestContainerFocus();
         } else {
             requestedStashIdFromUrl = null;
             // If not in URL, try to get it from server
@@ -2505,6 +2730,7 @@ const renderCombinedCharacterView = async (stashes) => {
 
     // Add the combined grid to the container
     gridContainer.appendChild(combinedGrid);
+    focusStashIfRequested(gridContainer);
 };
 
 function updatePreviewForCurrentStash() {

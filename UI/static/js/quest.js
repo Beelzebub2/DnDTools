@@ -2025,7 +2025,7 @@
             });
         }
 
-        const uniqueSlotIds = Array.from(new Set(slotCandidates));
+        const uniqueSlotIds = Array.from(new Set(slotCandidates)).sort((a, b) => a - b);
 
         const queryParams = new URLSearchParams();
         if (primaryStashId) {
