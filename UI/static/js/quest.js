@@ -1959,18 +1959,86 @@
         unlockBodyScroll();
     }
 
-    const navigateToCharacter = (characterId, stashEntry) => {
+    const navigateToCharacter = (characterId, stashEntries) => {
         hideItemHoldingsModal();
         if (!characterId) {
             return;
         }
         const encodedCharacter = encodeURIComponent(characterId);
-        const stashId = stashEntry && stashEntry.stash_id ? String(stashEntry.stash_id) : null;
+
+        const stashList = Array.isArray(stashEntries) ? stashEntries.filter(Boolean) : [];
+
+        const normalizeSlotId = (slotValue) => {
+            if (typeof slotValue === 'number' && Number.isFinite(slotValue)) {
+                return slotValue;
+            }
+            if (typeof slotValue === 'string' && slotValue.trim() !== '') {
+                const parsed = Number.parseInt(slotValue, 10);
+                if (Number.isFinite(parsed)) {
+                    return parsed;
+                }
+            }
+            return null;
+        };
+
+        let primaryStashId = null;
+        let primaryHasSlots = false;
+
+        stashList.forEach(entry => {
+            if (!entry) {
+                return;
+            }
+            const stashIdRaw = entry.stash_id;
+            if (stashIdRaw === undefined || stashIdRaw === null || stashIdRaw === '') {
+                return;
+            }
+            const stashIdStr = String(stashIdRaw);
+            const slotForEntry = normalizeSlotId(entry.slot_id);
+            if (!primaryStashId) {
+                primaryStashId = stashIdStr;
+                primaryHasSlots = slotForEntry !== null;
+                return;
+            }
+            if (!primaryHasSlots && slotForEntry !== null) {
+                primaryStashId = stashIdStr;
+                primaryHasSlots = true;
+            }
+        });
+
+        const slotCandidates = [];
+        if (primaryStashId) {
+            stashList.forEach(entry => {
+                if (!entry) {
+                    return;
+                }
+                const stashIdRaw = entry.stash_id;
+                if (stashIdRaw === undefined || stashIdRaw === null || stashIdRaw === '') {
+                    return;
+                }
+                if (String(stashIdRaw) !== primaryStashId) {
+                    return;
+                }
+                const normalizedSlot = normalizeSlotId(entry.slot_id);
+                if (normalizedSlot !== null && normalizedSlot >= 0) {
+                    slotCandidates.push(normalizedSlot);
+                }
+            });
+        }
+
+        const uniqueSlotIds = Array.from(new Set(slotCandidates));
+
+        const queryParams = new URLSearchParams();
+        if (primaryStashId) {
+            queryParams.set('stashId', primaryStashId);
+        }
+        if (uniqueSlotIds.length) {
+            queryParams.set('slotIds', uniqueSlotIds.join(','));
+        }
 
         const go = () => {
-            const targetUrl = stashId
-                ? `/character/${encodedCharacter}?stashId=${encodeURIComponent(stashId)}`
-                : `/character/${encodedCharacter}`;
+            const baseUrl = `/character/${encodedCharacter}`;
+            const queryString = queryParams.toString();
+            const targetUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
             if (typeof window.navigateWithTransition === 'function') {
                 window.navigateWithTransition(targetUrl);
             } else {
@@ -1978,8 +2046,8 @@
             }
         };
 
-        if (stashId) {
-            fetch(`/api/character/${encodedCharacter}/current-stash/${encodeURIComponent(stashId)}`, {
+        if (primaryStashId) {
+            fetch(`/api/character/${encodedCharacter}/current-stash/${encodeURIComponent(primaryStashId)}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -2027,8 +2095,8 @@
                 <div class="entry-count">${Number(entry.total) || 0}</div>
             `;
             button.addEventListener('click', () => {
-                const primaryStash = Array.isArray(entry.stashes) && entry.stashes.length ? entry.stashes[0] : null;
-                navigateToCharacter(entry.character_id, primaryStash);
+                const stashEntries = Array.isArray(entry.stashes) ? entry.stashes : [];
+                navigateToCharacter(entry.character_id, stashEntries);
             });
             fragment.appendChild(button);
         });
