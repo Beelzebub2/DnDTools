@@ -985,9 +985,12 @@ class CaptureController:
 
             return self._state_dict()
 
-    def shutdown(self):
+    def shutdown(self, persist_running_state: Optional[bool] = None):
         with self._lock:
-            desired = self._desired_running or self._packet_capture.is_active()
+            if persist_running_state is None:
+                desired = self._desired_running or self._packet_capture.is_active()
+            else:
+                desired = bool(persist_running_state)
             self._desired_running = desired
 
         self._packet_capture.shutdown(persist_running_state=desired)
@@ -1041,6 +1044,7 @@ class Api:
         self.current_sort_event = None
         self._current_char_id = None
         self._current_stash_id = None
+        self._capture_shutdown_completed = False
 
     def _update_closing_overlay(self, message):
         if not self.window:
@@ -1720,32 +1724,89 @@ class Api:
         """Properly save capture state before closing the window"""
         try:
             self._update_closing_overlay("Stopping capture...")
-            if hasattr(self, 'capture_controller'):
-                self.capture_controller.shutdown()
-            elif hasattr(self, 'packet_capture'):
-                self.packet_capture.shutdown()
-        except Exception as e:
-            logger.error(f"Error during window close: {e}")
+            packet_capture = None
+            should_resume = False
+
+            if hasattr(self, 'capture_controller') and self.capture_controller:
+                controller = self.capture_controller
+                try:
+                    state = controller.state()
+                    should_resume = bool(
+                        state.get('desiredRunning') or state.get('running')
+                    )
+                except Exception as state_exc:
+                    logger.debug(
+                        "Unable to snapshot capture state before shutdown: %s",
+                        state_exc,
+                        exc_info=True,
+                    )
+
+                try:
+                    controller.shutdown(persist_running_state=should_resume)
+                finally:
+                    packet_capture = controller.packet_capture
+            elif hasattr(self, 'packet_capture') and self.packet_capture:
+                packet_capture = self.packet_capture
+                try:
+                    should_resume = bool(
+                        packet_capture.is_active()
+                        or getattr(packet_capture, 'running', False)
+                    )
+                except Exception:
+                    should_resume = False
+
+                try:
+                    packet_capture.shutdown(persist_running_state=should_resume)
+                except Exception as exc:
+                    logger.error("Error shutting down capture: %s", exc, exc_info=True)
+
+            if packet_capture:
+                try:
+                    packet_capture._terminate_capture_processes(timeout=5.0)
+                except Exception as proc_exc:
+                    logger.debug(
+                        "Failed to terminate capture helpers on shutdown: %s",
+                        proc_exc,
+                        exc_info=True,
+                    )
+
+            self._capture_shutdown_completed = True
+
+            # Give helper threads/processes a moment to exit cleanly
+            time.sleep(0.35)
+        except Exception as exc:
+            logger.error(f"Error during window close: {exc}", exc_info=True)
         finally:
-            self._update_closing_overlay("Capture stopped. Closing application...")
             try:
-                time.sleep(0.2)
+                self._update_closing_overlay("Capture stopped. Closing application...")
             except Exception:
                 pass
-            # Close immediately without delays
             self.force_close_window()
             
     def force_close_window(self):
         # Quick shutdown without delays
         try:
-            if hasattr(self, 'capture_controller'):
-                self.capture_controller.packet_capture.running = False
-            elif hasattr(self, 'packet_capture') and self.packet_capture.running:
-                self.packet_capture.running = False
+            already_shutdown = getattr(self, '_capture_shutdown_completed', False)
+            if not already_shutdown:
+                if hasattr(self, 'capture_controller') and self.capture_controller:
+                    try:
+                        self.capture_controller.stop_capture_switch()
+                    except Exception:
+                        pass
+                elif hasattr(self, 'packet_capture') and self.packet_capture:
+                    try:
+                        self.packet_capture.stop_capture_switch()
+                    except Exception:
+                        pass
         except Exception as e:
             logger.error(f"Error stopping packet capture on close: {e}")
         # Remove delay - close immediately
-        self.window.destroy()
+        try:
+            self.window.destroy()
+        finally:
+            # Ensure the process actually terminates; fallback to hard exit if needed
+            threading.Timer(1.0, lambda: os._exit(0)).start()
+            self._capture_shutdown_completed = False
         
     def set_sort_order(self, order):
         try:

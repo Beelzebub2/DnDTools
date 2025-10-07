@@ -166,6 +166,25 @@ import importlib
 from concurrent.futures import TimeoutError as FutureTimeout
 from google.protobuf.json_format import MessageToDict
 
+
+DEFAULT_TSHARK_MEMORY_LIMIT_MB = 100.0
+DEFAULT_TSHARK_MEMORY_CHECK_SEC = 15.0
+DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC = 120.0
+DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES = 2
+
+
+def _read_positive_float_env(var_name: str, default: float) -> float:
+    raw_value = os.environ.get(var_name)
+    if raw_value is None:
+        return default
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError):
+        return default
+    if value <= 0:
+        return default
+    return value
+
 from .appdirs import get_capture_state_file, get_data_dir, is_frozen
 from src.models.settings import settings_manager, resolve_tshark_executable
 from networking.protos import _PacketCommand_pb2
@@ -255,6 +274,15 @@ class PacketCapture:
         self.STATE_FILE = get_capture_state_file()
         self.tshark_path = resolve_tshark_executable(wireshark_path) or resolve_tshark_executable(settings_manager.get('wiresharkPath'))
         self._apply_tshark_environment()
+        self._user_requested_stop = False
+        self._force_closing = False
+        self._memory_guard_thread: Optional[threading.Thread] = None
+        self._memory_guard_stop_event: Optional[threading.Event] = None
+        self._memory_guard_last_restart: float = 0.0
+        self._memory_guard_threshold_mb: float = DEFAULT_TSHARK_MEMORY_LIMIT_MB
+        self._memory_guard_poll_interval: float = DEFAULT_TSHARK_MEMORY_CHECK_SEC
+        self._memory_guard_restart_cooldown: float = DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC
+        self._memory_guard_required_samples: int = DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES
 
         # NOTE: persisting raw quest packet captures to disk has been disabled.
         # The app previously created and wrote files under data/quests; that is
@@ -317,6 +345,35 @@ class PacketCapture:
             self.logger.warning("Cleared custom tshark path; relying on system PATH")
         self._apply_tshark_environment()
         return True
+
+    def _refresh_memory_guard_settings(self) -> None:
+        self._memory_guard_threshold_mb = _read_positive_float_env(
+            "DND_TSHARK_MEMORY_LIMIT_MB",
+            DEFAULT_TSHARK_MEMORY_LIMIT_MB,
+        )
+        self._memory_guard_poll_interval = max(
+            5.0,
+            _read_positive_float_env(
+                "DND_TSHARK_MEMORY_CHECK_SEC",
+                DEFAULT_TSHARK_MEMORY_CHECK_SEC,
+            ),
+        )
+        self._memory_guard_restart_cooldown = max(
+            60.0,
+            _read_positive_float_env(
+                "DND_TSHARK_MEMORY_RESTART_COOLDOWN_SEC",
+                DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC,
+            ),
+        )
+        required_samples = _read_positive_float_env(
+            "DND_TSHARK_MEMORY_REQUIRED_SAMPLES",
+            float(DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES),
+        )
+        try:
+            samples_int = int(required_samples)
+        except (TypeError, ValueError):
+            samples_int = DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES
+        self._memory_guard_required_samples = max(1, samples_int)
 
     def background_init(self):
         """Initialize capture in background, restoring previous state if needed"""
@@ -422,15 +479,14 @@ class PacketCapture:
         self.expected_packet_length = None
         self.expected_proto_type = None
 
-    def _terminate_capture_processes(self, timeout: float = 3.0) -> None:
-        """Ensure helper capture processes like tshark/dumpcap are terminated."""
+    def _collect_capture_processes(self) -> List[psutil.Process]:
         try:
             parent = psutil.Process(os.getpid())
         except (psutil.Error, OSError) as err:
             self.logger.debug(f"Unable to inspect child processes: {err}")
-            return
+            return []
 
-        targets = []
+        targets: List[psutil.Process] = []
         for child in parent.children(recursive=True):
             try:
                 name = child.name().lower()
@@ -439,6 +495,11 @@ class PacketCapture:
 
             if 'tshark' in name or 'dumpcap' in name:
                 targets.append(child)
+        return targets
+
+    def _terminate_capture_processes(self, timeout: float = 3.0) -> None:
+        """Ensure helper capture processes like tshark/dumpcap are terminated."""
+        targets = self._collect_capture_processes()
 
         if not targets:
             return
@@ -462,6 +523,140 @@ class PacketCapture:
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
 
+    def _start_memory_guard(self) -> None:
+        if psutil is None:
+            return
+        if self._memory_guard_thread and self._memory_guard_thread.is_alive():
+            return
+
+        self._refresh_memory_guard_settings()
+        stop_event = threading.Event()
+        self._memory_guard_stop_event = stop_event
+        self._memory_guard_last_restart = 0.0
+
+        thread = threading.Thread(
+            target=self._memory_guard_loop,
+            name="TsharkMemoryGuard",
+            daemon=True,
+        )
+        self._memory_guard_thread = thread
+        thread.start()
+        self.logger.debug(
+            "Memory guard started (threshold=%.1f MB, interval=%.1f s)",
+            self._memory_guard_threshold_mb,
+            self._memory_guard_poll_interval,
+        )
+
+    def _stop_memory_guard(self) -> None:
+        stop_event = self._memory_guard_stop_event
+        thread = self._memory_guard_thread
+        if stop_event:
+            stop_event.set()
+        if thread and thread.is_alive():
+            thread.join(timeout=2.5)
+
+        self._memory_guard_stop_event = None
+        self._memory_guard_thread = None
+        self._memory_guard_last_restart = 0.0
+
+    def _memory_guard_loop(self) -> None:
+        stop_event = self._memory_guard_stop_event
+        if stop_event is None:
+            return
+
+        consecutive_breaches = 0
+        triggered_value = 0.0
+
+        while not stop_event.wait(self._memory_guard_poll_interval):
+            if not self.running:
+                consecutive_breaches = 0
+                continue
+
+            processes = self._collect_capture_processes()
+            if not processes:
+                consecutive_breaches = 0
+                continue
+
+            triggered = False
+            max_seen = 0.0
+
+            for proc in processes:
+                try:
+                    rss_bytes = proc.memory_info().rss
+                except (psutil.Error, OSError) as exc:
+                    self.logger.debug(f"Unable to inspect tshark memory usage: {exc}")
+                    continue
+
+                rss_mb = rss_bytes / (1024 * 1024)
+                if rss_mb > max_seen:
+                    max_seen = rss_mb
+
+                if rss_mb >= self._memory_guard_threshold_mb:
+                    triggered = True
+                    triggered_value = rss_mb
+                    break
+
+            if not triggered:
+                consecutive_breaches = 0
+                continue
+
+            consecutive_breaches += 1
+            if consecutive_breaches < self._memory_guard_required_samples:
+                continue
+
+            consecutive_breaches = 0
+            now = time.time()
+            if now - self._memory_guard_last_restart < self._memory_guard_restart_cooldown:
+                continue
+
+            self._memory_guard_last_restart = now
+            self.logger.warning(
+                "Restarting capture: tshark memory usage %.1f MB exceeded limit %.1f MB",
+                triggered_value,
+                self._memory_guard_threshold_mb,
+            )
+
+            threading.Thread(
+                target=self._restart_capture_due_to_memory,
+                args=(triggered_value,),
+                name="TsharkMemoryGuardRestart",
+                daemon=True,
+            ).start()
+
+    def _restart_capture_due_to_memory(self, observed_mb: float) -> None:
+        # Prevent restart cycles when capture is shutting down intentionally
+        with self._state_lock:
+            should_restart = self.running or (
+                self.capture_thread is not None and self.capture_thread.is_alive()
+            )
+
+        if not should_restart:
+            return
+
+        if self._user_requested_stop or self._force_closing:
+            self.logger.debug(
+                "Skipping memory guard restart because capture was stopped by the user"
+            )
+            return
+
+        try:
+            self.stop_capture_switch(persist_running_state=True)
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to stop capture during memory guard restart ({observed_mb:.1f} MB): {exc}",
+                exc_info=True,
+            )
+            return
+
+        time.sleep(1.0)
+
+        try:
+            self.start_capture_switch()
+        except Exception as exc:
+            self.logger.error(
+                f"Failed to restart capture after memory guard stop ({observed_mb:.1f} MB): {exc}",
+                exc_info=True,
+            )
 
     def _save_state(self, running: bool):
         """Save capture state to persistent storage"""
@@ -679,9 +874,12 @@ class PacketCapture:
             self._stop_event.clear()
             self._cleanup_capture_on_exit = True
             self._save_state(True)
+            self._user_requested_stop = False
 
             self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
             self.capture_thread.start()
+
+        self._start_memory_guard()
 
         self.logger.info("Capture thread started")
         return True
@@ -695,6 +893,7 @@ class PacketCapture:
                 app restarts even though the capture has to stop for cleanup.
         """
         with self._state_lock:
+            self._force_closing = True
             if not self.running and not (self.capture_thread and self.capture_thread.is_alive()):
                 self.logger.info("Capture already stopped, ignoring stop request")
                 return True
@@ -704,6 +903,9 @@ class PacketCapture:
             persisted_flag = False if persist_running_state is None else bool(persist_running_state)
             self._save_state(persisted_flag)
             thread = self.capture_thread
+            self._user_requested_stop = not persisted_flag
+
+        self._stop_memory_guard()
 
         capture = getattr(self, '_current_capture', None)
         loop = getattr(self, '_current_loop', None)
@@ -763,6 +965,7 @@ class PacketCapture:
         with self._state_lock:
             self.capture_thread = None
             self._cleanup_capture_on_exit = False
+            self._force_closing = False
 
         self.logger.info("Capture switch turned OFF")
         return True
