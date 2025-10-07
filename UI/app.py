@@ -702,7 +702,7 @@ def _download_installer(manifest: dict) -> Path:
     return target_path
 
 
-def _run_installer(installer_path: Path) -> None:
+def _run_installer(installer_path: Path) -> subprocess.Popen:
     launch_mode = "silent" if AUTO_UPDATE_SILENT else "interactive"
     logger.info(
         "Launching installer for update: %s (mode=%s)",
@@ -743,23 +743,58 @@ def _run_installer(installer_path: Path) -> None:
 
     proc = subprocess.Popen(args, **popen_kwargs)
     logger.info("Installer process started (pid=%s)", proc.pid)
+    return proc
 
 
 def _perform_update(manifest: dict) -> None:
     installer_path: Optional[Path] = None
+    installer_proc: Optional[subprocess.Popen] = None
+    update_context: Optional[dict] = None
     should_exit = False
+    api_ref = globals().get("api")
     try:
         with _update_lock:
             _update_state['in_progress'] = True
             _update_state['last_error'] = None
 
         installer_path = _download_installer(manifest)
-        _run_installer(installer_path)
+        if api_ref:
+            try:
+                update_context = api_ref.prepare_for_update()
+            except Exception as prep_exc:
+                logger.error("Failed to prepare application for update: %s", prep_exc, exc_info=True)
+                update_context = None
+            else:
+                try:
+                    api_ref._update_closing_overlay("Launching installer...")
+                except Exception:
+                    logger.debug("Unable to update closing overlay before launching installer", exc_info=True)
+
+        installer_proc = _run_installer(installer_path)
+        immediate_exit = installer_proc.poll()
+        if immediate_exit not in (None, 0):
+            raise RuntimeError(f"Installer exited immediately with code {immediate_exit}")
         should_exit = True
+        if api_ref:
+            try:
+                api_ref._update_closing_overlay(
+                    "Installer started. The app will close to finish updating..."
+                )
+            except Exception:
+                logger.debug("Unable to update closing overlay after launching installer", exc_info=True)
     except Exception as exc:
         logger.error(f"Automatic update failed: {exc}", exc_info=True)
         with _update_lock:
             _update_state['last_error'] = str(exc)
+        if api_ref:
+            try:
+                api_ref.resume_after_update_failure(update_context, str(exc))
+            except Exception as resume_exc:
+                logger.debug(
+                    "Failed to restore application state after update failure: %s",
+                    resume_exc,
+                    exc_info=True,
+                )
     finally:
         with _update_lock:
             _update_state['in_progress'] = False
@@ -1017,6 +1052,117 @@ class Api:
             )
         except Exception as overlay_err:
             logger.debug(f"Unable to update closing overlay: {overlay_err}")
+
+    def prepare_for_update(self) -> dict[str, object]:
+        context: dict[str, object] = {
+            'capture_should_resume': False,
+        }
+
+        capture_controller = getattr(self, 'capture_controller', None)
+        if capture_controller:
+            try:
+                capture_state = capture_controller.state()
+                context['capture_should_resume'] = bool(
+                    capture_state.get('desiredRunning') or capture_state.get('running')
+                )
+            except Exception as exc:
+                logger.debug(
+                    "Unable to snapshot capture state before update: %s",
+                    exc,
+                    exc_info=True,
+                )
+
+        if self.current_sort_event and not self.current_sort_event.is_set():
+            try:
+                self.current_sort_event.set()
+            except Exception:
+                pass
+
+        try:
+            self.overlay_manager.hide()
+        except Exception as exc:
+            logger.debug("Failed to hide overlay before update: %s", exc, exc_info=True)
+
+        if self.window:
+            try:
+                self.window.evaluate_js(
+                    """
+                    (function () {
+                        const overlay = document.getElementById('closing-overlay');
+                        if (overlay && !overlay.classList.contains('active')) {
+                            overlay.classList.add('active');
+                        }
+                        if (window.updateClosingStatus) {
+                            window.updateClosingStatus('Preparing update...');
+                        }
+                    })();
+                    """
+                )
+            except Exception as exc:
+                logger.debug(
+                    "Failed to prime closing overlay for update: %s",
+                    exc,
+                    exc_info=True,
+                )
+
+        if capture_controller:
+            try:
+                success, state = capture_controller.stop()
+                if not success:
+                    logger.warning(
+                        "Packet capture reported still running during update preparation: %s",
+                        state.get('lastError'),
+                    )
+            except Exception as exc:
+                logger.error("Failed to stop packet capture before update: %s", exc, exc_info=True)
+
+        try:
+            self._update_closing_overlay("Preparing installer...")
+        except Exception as exc:
+            logger.debug(
+                "Unable to update closing overlay message before installer launch: %s",
+                exc,
+                exc_info=True,
+            )
+
+        return context
+
+    def resume_after_update_failure(self, context: Optional[dict], error_message: str) -> None:
+        message = error_message or "Automatic update failed."
+
+        try:
+            self._update_closing_overlay(f"Update failed: {message}")
+        except Exception as exc:
+            logger.debug("Unable to update closing overlay after update failure: %s", exc, exc_info=True)
+
+        if self.window:
+            try:
+                message_json = json.dumps(message)
+                script = (
+                    "(function () {"
+                    " const overlay = document.getElementById('closing-overlay');"
+                    " if (overlay) { overlay.classList.remove('active'); }"
+                    " if (window.showNotification) { "
+                    "window.showNotification(" + message_json + ", 'error', { duration: 6000 });"
+                    " }"
+                    "})();"
+                )
+                self.window.evaluate_js(script)
+            except Exception as exc:
+                logger.debug("Failed to notify UI about update failure: %s", exc, exc_info=True)
+
+        capture_should_resume = bool(context.get('capture_should_resume')) if context else False
+        capture_controller = getattr(self, 'capture_controller', None)
+        if capture_should_resume and capture_controller:
+            try:
+                running, state = capture_controller.start()
+                if not running:
+                    logger.warning(
+                        "Packet capture failed to resume after update failure: %s",
+                        state.get('lastError'),
+                    )
+            except Exception as exc:
+                logger.error("Unable to resume packet capture after update failure: %s", exc, exc_info=True)
 
     def _save_settings(self, settings):
         """Save settings to file with validation, reporting, and clear error handling."""
