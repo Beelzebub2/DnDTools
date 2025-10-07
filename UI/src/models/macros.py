@@ -463,6 +463,7 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         )
 
         if not should_skip_reliability_click:
+            base_reliability_delay = max(DELAY / 2 if DELAY > 0 else 0.0, 0.0)
             move_mouse_smooth(
                 ex,
                 ey,
@@ -473,15 +474,15 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
                 max_delay=0.0015,
                 no_delay=no_delay_mode,
             )
-            maybe_sleep(DELAY / 2, 0.04, enforce_floor=True)
+            maybe_sleep(base_reliability_delay, 0.04, enforce_floor=True)
             _ensure_not_cancelled()
             mouse_down()
             reliability_button_held = True
-            maybe_sleep(DELAY / 4, 0.03, enforce_floor=True)
+            maybe_sleep(base_reliability_delay / 2, 0.03, enforce_floor=True)
             _ensure_not_cancelled()
             mouse_up()
             reliability_button_held = False
-            maybe_sleep(DELAY / 2, 0.04, enforce_floor=True)
+            maybe_sleep(base_reliability_delay, 0.04, enforce_floor=True)
         else:
             logger.debug("Skipping reliability click to avoid double-click on %s", drop_signature)
             maybe_sleep(INSTANT_MODE_MIN_PAUSE, 0.01, enforce_floor=True)
