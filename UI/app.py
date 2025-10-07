@@ -25,10 +25,10 @@ import time
 import shutil
 import subprocess
 import tempfile
-import hashlib
 from datetime import datetime
 import requests
 from networking.protos import _PacketCommand_pb2
+from update import UpdateManager, UpdateError
 
 from src.models.icon_pak import icon_store, canonical_icon_path
 
@@ -57,14 +57,6 @@ SORT_CANCEL_NOTIFICATION_MESSAGE = (
     "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again."
 )
 
-# Update state tracking
-_update_cache = None
-_update_cache_timestamp = 0
-_update_state = {
-    "in_progress": False,
-    "last_error": None,
-}
-_update_lock = threading.RLock()
 
 # Quest tracking cache
 QUESTS_API_URL = "https://api.darkerdb.com/v1/quests"
@@ -339,86 +331,6 @@ def _clear_character_storage() -> dict[str, object]:
     }
 
 
-def _download_manifest_from_url(url: str) -> Optional[dict]:
-    try:
-        response = requests.get(
-            url,
-            headers={'User-Agent': 'DnDTools-Updater'},
-            timeout=15,
-        )
-    except requests.RequestException as exc:
-        logger.warning("Failed to download update manifest from %s: %s", url, exc)
-        return None
-
-    if response.status_code == 404:
-        logger.info("Update manifest not found at %s (404)", url)
-        return None
-
-    try:
-        response.raise_for_status()
-    except requests.HTTPError as exc:
-        logger.warning("Unexpected HTTP error retrieving manifest from %s: %s", url, exc)
-        return None
-
-    try:
-        manifest = response.json()
-    except ValueError as exc:
-        logger.warning("Manifest at %s is not valid JSON: %s", url, exc)
-        return None
-
-    if not isinstance(manifest, dict):
-        logger.warning("Manifest at %s must be a JSON object", url)
-        return None
-
-    return manifest
-
-
-def _fetch_manifest_from_github_latest() -> Optional[dict]:
-    try:
-        api_response = requests.get(
-            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
-            headers={'User-Agent': 'DnDTools-Updater'},
-            timeout=15,
-        )
-        api_response.raise_for_status()
-        release_data = api_response.json()
-    except requests.RequestException as exc:
-        logger.warning("Unable to query GitHub releases API: %s", exc)
-        return None
-
-    assets = release_data.get('assets') or []
-    asset_url = None
-    for asset in assets:
-        if isinstance(asset, dict) and asset.get('name') == 'update-manifest.json':
-            asset_url = asset.get('browser_download_url')
-            if asset_url:
-                break
-
-    if not asset_url:
-        logger.warning("No update-manifest.json asset found in latest GitHub release")
-        return None
-
-    try:
-        asset_response = requests.get(
-            asset_url,
-            headers={'User-Agent': 'DnDTools-Updater', 'Accept': 'application/octet-stream'},
-            timeout=15,
-        )
-        asset_response.raise_for_status()
-        manifest = asset_response.json()
-    except requests.RequestException as exc:
-        logger.warning("Failed downloading manifest asset from GitHub: %s", exc)
-        return None
-    except ValueError as exc:
-        logger.warning("GitHub manifest asset is not valid JSON: %s", exc)
-        return None
-
-    if not isinstance(manifest, dict):
-        logger.warning("GitHub manifest asset must be a JSON object")
-        return None
-
-    return manifest
-
 
 def _normalize_item_name(item_id: str) -> str:
     if not item_id:
@@ -556,6 +468,14 @@ register_overlay_logging()
 logger = logging.getLogger(__name__)
 settings_manager.set_logger(logger)
 
+update_manager = UpdateManager(
+    current_version=APP_VERSION,
+    manifest_url=UPDATE_MANIFEST_URL,
+    cache_duration=UPDATE_CACHE_DURATION,
+    auto_update_silent=AUTO_UPDATE_SILENT,
+    logger=logger,
+)
+
 # Load environment variables
 load_dotenv()
 
@@ -620,194 +540,6 @@ def validate_stash_id(stash_id):
     except (ValueError, TypeError):
         return None
 
-
-def _normalize_version(value: Optional[str]) -> tuple[int, ...]:
-    if not value:
-        return ()
-    parts = [p for p in re.split(r"[^0-9]+", str(value)) if p]
-    normalized = []
-    for part in parts:
-        try:
-            normalized.append(int(part))
-        except ValueError:
-            continue
-    return tuple(normalized)
-
-
-def _is_remote_newer(remote: str, local: str) -> bool:
-    remote_tuple = _normalize_version(remote)
-    local_tuple = _normalize_version(local)
-    # Pad tuples to the same length for comparison
-    length = max(len(remote_tuple), len(local_tuple))
-    remote_padded = remote_tuple + (0,) * (length - len(remote_tuple))
-    local_padded = local_tuple + (0,) * (length - len(local_tuple))
-    return remote_padded > local_padded
-
-
-def _fetch_update_manifest(force: bool = False) -> Optional[dict]:
-    global _update_cache, _update_cache_timestamp
-
-    now = time.time()
-    if not force and _update_cache and (now - _update_cache_timestamp) < UPDATE_CACHE_DURATION:
-        return _update_cache
-
-    try:
-        manifest = _download_manifest_from_url(UPDATE_MANIFEST_URL)
-        if manifest is None:
-            manifest = _fetch_manifest_from_github_latest()
-        if manifest is None:
-            raise RuntimeError('Unable to retrieve update manifest from configured sources')
-
-        for key in ('version', 'url'):
-            if not manifest.get(key):
-                raise ValueError(f'Manifest missing required field: {key}')
-
-        _update_cache = manifest
-        _update_cache_timestamp = now
-        return manifest
-    except Exception as exc:
-        logger.error(f"Failed to fetch update manifest: {exc}", exc_info=True)
-        with _update_lock:
-            _update_state['last_error'] = str(exc)
-        return None
-
-
-def _download_installer(manifest: dict) -> Path:
-    url = manifest['url']
-    parsed = urlparse(url)
-    filename = Path(parsed.path).name or f"DnDTools-Setup-{manifest['version']}.exe"
-    target_dir = Path(tempfile.gettempdir()) / "DnDToolsUpdater"
-    target_dir.mkdir(parents=True, exist_ok=True)
-    target_path = target_dir / filename
-
-    logger.info(f"Downloading installer from {url} to {target_path}")
-
-    sha256 = hashlib.sha256()
-    with requests.get(url, stream=True, timeout=60) as response:
-        response.raise_for_status()
-        with target_path.open('wb') as fh:
-            for chunk in response.iter_content(chunk_size=1024 * 1024):
-                if not chunk:
-                    continue
-                fh.write(chunk)
-                sha256.update(chunk)
-
-    expected_sha = manifest.get('sha256')
-    if expected_sha:
-        digest = sha256.hexdigest()
-        if digest.lower() != expected_sha.lower():
-            target_path.unlink(missing_ok=True)
-            raise ValueError('Downloaded installer checksum mismatch')
-
-    return target_path
-
-
-def _run_installer(installer_path: Path) -> subprocess.Popen:
-    launch_mode = "silent" if AUTO_UPDATE_SILENT else "interactive"
-    logger.info(
-        "Launching installer for update: %s (mode=%s)",
-        installer_path,
-        launch_mode,
-    )
-    args = [str(installer_path)]
-    if AUTO_UPDATE_SILENT:
-        args.extend(
-            [
-                "/VERYSILENT",
-                "/SUPPRESSMSGBOXES",
-                "/NORESTART",
-                "/SP-",
-                "/CLOSEAPPLICATIONS",
-                "/RESTARTAPPLICATIONS",
-            ]
-        )
-    else:
-        args.extend(
-            [
-                "/SILENT",
-                "/SUPPRESSMSGBOXES",
-                "/NORESTART",
-                "/SP-",
-            ]
-        )
-
-    popen_kwargs = {
-        "close_fds": False,
-        "cwd": str(installer_path.parent),
-    }
-    if os.name == "nt":
-        creation_flags = 0
-        for flag_name in ("DETACHED_PROCESS", "CREATE_NEW_PROCESS_GROUP"):
-            creation_flags |= getattr(subprocess, flag_name, 0)
-        popen_kwargs["creationflags"] = creation_flags
-
-    proc = subprocess.Popen(args, **popen_kwargs)
-    logger.info("Installer process started (pid=%s)", proc.pid)
-    return proc
-
-
-def _perform_update(manifest: dict) -> None:
-    installer_path: Optional[Path] = None
-    installer_proc: Optional[subprocess.Popen] = None
-    update_context: Optional[dict] = None
-    should_exit = False
-    api_ref = globals().get("api")
-    try:
-        with _update_lock:
-            _update_state['in_progress'] = True
-            _update_state['last_error'] = None
-
-        installer_path = _download_installer(manifest)
-        if api_ref:
-            try:
-                update_context = api_ref.prepare_for_update()
-            except Exception as prep_exc:
-                logger.error("Failed to prepare application for update: %s", prep_exc, exc_info=True)
-                update_context = None
-            else:
-                try:
-                    api_ref._update_closing_overlay("Launching installer...")
-                except Exception:
-                    logger.debug("Unable to update closing overlay before launching installer", exc_info=True)
-
-        installer_proc = _run_installer(installer_path)
-        immediate_exit = installer_proc.poll()
-        if immediate_exit not in (None, 0):
-            raise RuntimeError(f"Installer exited immediately with code {immediate_exit}")
-        should_exit = True
-        if api_ref:
-            try:
-                api_ref._update_closing_overlay(
-                    "Installer started. The app will close to finish updating..."
-                )
-            except Exception:
-                logger.debug("Unable to update closing overlay after launching installer", exc_info=True)
-    except Exception as exc:
-        logger.error(f"Automatic update failed: {exc}", exc_info=True)
-        with _update_lock:
-            _update_state['last_error'] = str(exc)
-        if api_ref:
-            try:
-                api_ref.resume_after_update_failure(update_context, str(exc))
-            except Exception as resume_exc:
-                logger.debug(
-                    "Failed to restore application state after update failure: %s",
-                    resume_exc,
-                    exc_info=True,
-                )
-    finally:
-        with _update_lock:
-            _update_state['in_progress'] = False
-        if installer_path and installer_path.exists():
-            try:
-                installer_path.unlink()
-            except OSError:
-                logger.debug("Installer still in use, leaving behind temporary file %s", installer_path)
-
-    if should_exit:
-        logger.info("Update installer launched. Exiting application in 3 seconds.")
-        time.sleep(3)
-        os._exit(0)
 
 def handle_alive_packet(message):
     """Handle S2C_ALIVE_RES packets to trigger traffic animation"""
@@ -1979,69 +1711,26 @@ def api_local_version():
     return jsonify({'version': APP_VERSION})
 
 
-def _snapshot_update_state() -> dict:
-    with _update_lock:
-        return {
-            'in_progress': _update_state['in_progress'],
-            'last_error': _update_state['last_error'],
-        }
-
-
 @server.route('/api/update/check')
 def api_update_check():
-    manifest = _fetch_update_manifest()
-    if not manifest:
-        state = _snapshot_update_state()
-        state.update(
-            {
-                'currentVersion': APP_VERSION,
-                'latestVersion': APP_VERSION,
-                'updateAvailable': False,
-                'notes': '',
-                'downloadUrl': '',
-                'sha256': '',
-                'error': 'Unable to retrieve update manifest',
-            }
-        )
-        return jsonify(state), 503
-
-    remote_version = str(manifest.get('version', APP_VERSION))
-    update_available = _is_remote_newer(remote_version, APP_VERSION)
-    state = _snapshot_update_state()
-    state.update(
-        {
-            'currentVersion': APP_VERSION,
-            'latestVersion': remote_version,
-            'updateAvailable': update_available,
-            'notes': manifest.get('notes', ''),
-            'downloadUrl': manifest.get('url', ''),
-            'sha256': manifest.get('sha256', ''),
-        }
-    )
-    return jsonify(state)
+    payload, error = update_manager.check_for_updates()
+    status_code = 200 if not error else 503
+    return jsonify(payload), status_code
 
 
 @server.route('/api/update/status')
 def api_update_status():
-    return jsonify(_snapshot_update_state())
+    return jsonify(update_manager.snapshot_state())
 
 
 @server.route('/api/update/apply', methods=['POST'])
 def api_update_apply():
-    with _update_lock:
-        if _update_state['in_progress']:
-            return jsonify({'started': False, 'error': 'Update already in progress'}), 409
-        _update_state['last_error'] = None
+    try:
+        update_manager.start_update(api)
+    except UpdateError as exc:
+        status = getattr(exc, 'status_code', 500)
+        return jsonify({'started': False, 'error': str(exc)}), status
 
-    manifest = _fetch_update_manifest(force=True)
-    if not manifest:
-        return jsonify({'started': False, 'error': 'Unable to retrieve update manifest'}), 503
-
-    remote_version = str(manifest.get('version', APP_VERSION))
-    if not _is_remote_newer(remote_version, APP_VERSION):
-        return jsonify({'started': False, 'error': 'Already up to date'}), 400
-
-    threading.Thread(target=_perform_update, args=(manifest,), daemon=True).start()
     return jsonify({'started': True})
 
 # Initialize API

@@ -44,6 +44,17 @@ pyinstaller ^
   --hidden-import=pyshark.tshark.tshark ^
   --exclude-module=tkinter ^
   UI\app.py
+if %ERRORLEVEL% NEQ 0 goto :error
+
+pyinstaller ^
+  --onefile ^
+  --windowed ^
+  --icon=UI\assets\logo.ico ^
+  --add-data "UI\assets\logo.ico;assets" ^
+  --name update ^
+  --distpath dist ^
+  UI\update.py
+if %ERRORLEVEL% NEQ 0 goto :error
 
 echo Build complete. Executable is in the dist folder.
 goto :eof
