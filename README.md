@@ -18,7 +18,7 @@ A tool to capture and generate visual previews of Dark and Darker stash contents
 
 🌐 **Website:** [https://dndtools.rrmtools.uk](https://dndtools.rrmtools.uk)  
 💬 **Discord:** [Join our community](https://discord.gg/X8FuqR2cq6)  
-❓**Wiki** [Faq](https://github.com/Beelzebub2/DnDTools/wiki)
+❓**Wiki** [FAQ](https://github.com/Beelzebub2/DnDTools/wiki)
 
 ## ⚠️ Disclaimer
 
