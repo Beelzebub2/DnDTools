@@ -143,12 +143,28 @@
                 <img id="currentStashPreview" class="stash-preview-image hidden" src="" alt="Stash Preview">
                 <!-- Sorting overlay with jelly triangle animation -->
                 <div id="sortingOverlay" class="sorting-overlay hidden">
-                    <div class="sorting-animation-container">
-                        <div class="jelly-triangle-container">
-                            <div class="dot"></div>
-                            <div class="traveler"></div>
+                    <div class="sorting-overlay-card">
+                        <div class="sorting-overlay-header">
+                            <div class="sorting-overlay-logo" aria-hidden="true">
+                                <img src="{{ url_for('serve_file', filename='logo.png') }}" alt="DnDTools logo">
+                            </div>
+                            <div class="sorting-overlay-heading">
+                                <span class="sorting-overlay-title">DnDTools</span>
+                                <span class="sorting-overlay-subtitle">Advanced Stash Sorting</span>
+                            </div>
                         </div>
-                        <div class="sorting-text" id="sortingText">Sorting items...</div>
+                        <div class="sorting-overlay-body">
+                            <div class="sorting-animation-container">
+                                <div class="jelly-triangle-container">
+                                    <div class="dot"></div>
+                                    <div class="traveler"></div>
+                                </div>
+                            </div>
+                            <div class="sorting-text" id="sortingText">Sorting items...</div>
+                            <div class="sorting-overlay-description">
+                                Sit tight while we arrange your stash for peak efficiency.
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -7,6 +7,15 @@ import time
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional
 
+from pathlib import Path
+
+try:
+    import ctypes
+    from ctypes import wintypes
+except Exception:
+    ctypes = None  # type: ignore
+    wintypes = None  # type: ignore
+
 try:  # pragma: no cover - platform specific
     import win32api  # type: ignore
     import win32con  # type: ignore
@@ -81,14 +90,21 @@ class GameOverlayManager:
         self._hwnd = None
         self._heading_font = None
         self._body_font = None
+        self._title_font = None
         self._heading_font_is_stock = False
         self._body_font_is_stock = False
+        self._title_font_is_stock = False
         self._reposition_needed = False
         self._hide_timer: Optional[threading.Timer] = None
         self._active_session: Optional[SortOverlaySession] = None
         self._state_owner: Optional[SortOverlaySession] = None
         self._log_handler: Optional[logging.Handler] = None
         self._log_handler_registered = False
+        self._gdip_token: Optional[int] = None
+        self._gdiplus = None
+        self._logo_hbitmap: Optional[int] = None
+        self._logo_width = 0
+        self._logo_height = 0
 
     # ------------------------------------------------------------------ public
     def begin_sort_session(
@@ -210,6 +226,7 @@ class GameOverlayManager:
         if not self.enabled or win32gui is None or win32con is None or win32api is None:
             self._ready_event.set()
             return
+
         try:
             class_name = "DnDToolsGameOverlay"
             wnd_class = win32gui.WNDCLASS()
@@ -279,6 +296,9 @@ class GameOverlayManager:
 
             self._heading_font, self._heading_font_is_stock = _safe_create_font(-28, win32con.FW_BOLD, "Segoe UI")
             self._body_font, self._body_font_is_stock = _safe_create_font(-18, win32con.FW_NORMAL, "Segoe UI")
+            self._title_font, self._title_font_is_stock = _safe_create_font(-34, win32con.FW_BOLD, "Segoe UI Semibold")
+
+            self._initialize_branding_assets()
 
             win32gui.ShowWindow(hwnd, win32con.SW_HIDE)
             self._ready_event.set()
@@ -291,11 +311,96 @@ class GameOverlayManager:
                 win32gui.DeleteObject(self._heading_font)
             if self._body_font and win32gui and not self._body_font_is_stock:
                 win32gui.DeleteObject(self._body_font)
+            if self._title_font and win32gui and not self._title_font_is_stock:
+                win32gui.DeleteObject(self._title_font)
             self._heading_font = None
             self._body_font = None
+            self._title_font = None
             self._heading_font_is_stock = False
             self._body_font_is_stock = False
+            self._title_font_is_stock = False
             self._hwnd = None
+            self._dispose_branding_assets()
+
+    def _initialize_branding_assets(self) -> None:
+        if not self.enabled or ctypes is None:
+            return
+        if not self._start_gdiplus():
+            return
+        self._load_logo_bitmap()
+
+    def _start_gdiplus(self) -> bool:
+        if self._gdip_token is not None:
+            return True
+        if ctypes is None:
+            return False
+        try:
+            gdiplus = ctypes.windll.gdiplus
+        except AttributeError:
+            return False
+
+        class GdiplusStartupInput(ctypes.Structure):  # pragma: no cover - struct layout
+            _fields_ = [
+                ("GdiplusVersion", ctypes.c_uint32),
+                ("DebugEventCallback", ctypes.c_void_p),
+                ("SuppressBackgroundThread", ctypes.c_uint32),
+                ("SuppressExternalCodecs", ctypes.c_uint32),
+            ]
+
+        startup_input = GdiplusStartupInput(1, None, 0, 0)
+        token = ctypes.c_ulong()
+        status = gdiplus.GdiplusStartup(ctypes.byref(token), ctypes.byref(startup_input), None)
+        if status != 0:
+            return False
+        self._gdiplus = gdiplus
+        self._gdip_token = int(token.value)
+        return True
+
+    def _load_logo_bitmap(self) -> None:
+        if self._gdiplus is None or self._logo_hbitmap or ctypes is None:
+            return
+        try:
+            logo_path = Path(__file__).resolve().parents[2] / "assets" / "logo.png"
+            if not logo_path.exists():
+                return
+
+            image_ptr = ctypes.c_void_p()
+            status = self._gdiplus.GdipCreateBitmapFromFile(ctypes.c_wchar_p(str(logo_path)), ctypes.byref(image_ptr))
+            if status != 0 or not image_ptr.value:
+                return
+
+            width = ctypes.c_uint32()
+            height = ctypes.c_uint32()
+            self._gdiplus.GdipGetImageWidth(image_ptr, ctypes.byref(width))
+            self._gdiplus.GdipGetImageHeight(image_ptr, ctypes.byref(height))
+
+            hbitmap = ctypes.c_void_p()
+            status = self._gdiplus.GdipCreateHBITMAPFromBitmap(image_ptr, ctypes.byref(hbitmap), ctypes.c_uint32(0))
+            self._gdiplus.GdipDisposeImage(image_ptr)
+            if status == 0 and hbitmap.value:
+                self._logo_hbitmap = int(hbitmap.value)
+                self._logo_width = int(width.value)
+                self._logo_height = int(height.value)
+        except Exception:
+            logger.debug("Failed to load overlay logo", exc_info=True)
+
+    def _dispose_branding_assets(self) -> None:
+        if self._logo_hbitmap and win32gui:
+            try:
+                win32gui.DeleteObject(self._logo_hbitmap)
+            except Exception:
+                logger.debug("Failed to delete overlay logo bitmap", exc_info=True)
+        self._logo_hbitmap = None
+        self._logo_width = 0
+        self._logo_height = 0
+
+        if self._gdip_token is not None and self._gdiplus is not None and ctypes is not None:
+            try:
+                self._gdiplus.GdiplusShutdown(ctypes.c_ulong(self._gdip_token))
+            except Exception:
+                logger.debug("Failed to shutdown GDI+", exc_info=True)
+        self._gdip_token = None
+        self._gdiplus = None
 
     def _wnd_proc(self, hwnd, msg, w_param, l_param):  # pragma: no cover - GUI thread
         if msg == self.WM_OVERLAY_UPDATE:
@@ -331,42 +436,126 @@ class GameOverlayManager:
             rect = list(win32gui.GetClientRect(hwnd))
             bg_color = self.STATUS_BACKGROUND.get(state.status, self.BACKGROUND_COLOR)
             accent = self.ACCENT_COLORS.get(state.status, self.ACCENT_COLORS["info"])
+            header_color = tuple(min(255, c + 18) for c in bg_color)
+            footer_color = tuple(max(0, c - 12) for c in bg_color)
 
-            brush_bg = win32gui.CreateSolidBrush(win32api.RGB(*bg_color))
+            brush_bg = win32gui.CreateSolidBrush(win32api.RGB(*footer_color))
             win32gui.FillRect(hdc, tuple(rect), brush_bg)
             win32gui.DeleteObject(brush_bg)
 
-            accent_rect = (rect[0], rect[1], rect[0] + 6, rect[3])
+            header_rect = (rect[0], rect[1], rect[2], rect[1] + 120)
+            brush_header = win32gui.CreateSolidBrush(win32api.RGB(*header_color))
+            win32gui.FillRect(hdc, header_rect, brush_header)
+            win32gui.DeleteObject(brush_header)
+
+            accent_rect = (rect[0], rect[1], rect[0] + 8, rect[3])
             brush_accent = win32gui.CreateSolidBrush(win32api.RGB(*accent))
             win32gui.FillRect(hdc, accent_rect, brush_accent)
             win32gui.DeleteObject(brush_accent)
 
-            padding = 18
-            left = rect[0] + padding + 6
-            right = rect[2] - padding
-            top = rect[1] + padding
+            border_pen = win32gui.CreatePen(win32con.PS_SOLID, 1, win32api.RGB(90, 72, 48))
+            old_pen = win32gui.SelectObject(hdc, border_pen)
+            old_brush = win32gui.SelectObject(hdc, win32gui.GetStockObject(win32con.NULL_BRUSH))
+            win32gui.RoundRect(hdc, rect[0], rect[1], rect[2], rect[3], 24, 24)
+            win32gui.SelectObject(hdc, old_brush)
+            win32gui.SelectObject(hdc, old_pen)
+            win32gui.DeleteObject(border_pen)
 
             win32gui.SetBkMode(hdc, win32con.TRANSPARENT)
 
-            if self._heading_font:
-                prev_font = win32gui.SelectObject(hdc, self._heading_font)
+            padding = 24
+            left = rect[0] + padding + 8
+            right = rect[2] - padding
+            top = rect[1] + padding
+            text_left = left
+            text_top = top
+            logo_bottom = top
+
+            if self._logo_hbitmap and self._logo_width and self._logo_height:
+                mem_dc = None
+                old_bitmap = None
+                try:
+                    mem_dc = win32gui.CreateCompatibleDC(hdc)
+                    if mem_dc:
+                        old_bitmap = win32gui.SelectObject(mem_dc, self._logo_hbitmap)
+                        target_height = 64
+                        scale = min(target_height / float(self._logo_height), 1.0)
+                        dest_height = max(32, int(self._logo_height * scale))
+                        dest_width = max(32, int(self._logo_width * scale))
+                        dest_width = min(dest_width, 96)
+                        win32gui.SetStretchBltMode(hdc, win32con.HALFTONE)
+                        win32gui.StretchBlt(
+                            hdc,
+                            left,
+                            top,
+                            dest_width,
+                            dest_height,
+                            mem_dc,
+                            0,
+                            0,
+                            self._logo_width,
+                            self._logo_height,
+                            win32con.SRCCOPY,
+                        )
+                        text_left = left + dest_width + 18
+                        logo_bottom = top + dest_height
+                        text_top = top
+                except Exception:
+                    logger.debug("Failed to draw overlay logo", exc_info=True)
+                finally:
+                    if mem_dc:
+                        if old_bitmap:
+                            win32gui.SelectObject(mem_dc, old_bitmap)
+                        win32gui.DeleteDC(mem_dc)
+
+            title_text = "DnDTools"
+            heading_text = state.heading or "Sorting stash"
+
+            if self._title_font:
+                prev_font = win32gui.SelectObject(hdc, self._title_font)
                 win32gui.SetTextColor(hdc, win32api.RGB(241, 221, 150))
-                heading_rect = [left, top, right, top + 80]
+                title_rect = [text_left, text_top, right, text_top + 64]
                 win32gui.DrawText(
                     hdc,
-                    state.heading or "Sorting stash",
+                    title_text,
                     -1,
-                    tuple(heading_rect),
-                    win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_NOPREFIX,
+                    tuple(title_rect),
+                    win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_NOPREFIX | win32con.DT_SINGLELINE,
                 )
                 win32gui.SelectObject(hdc, prev_font)
-                top = heading_rect[1] + 32
+                text_top = max(title_rect[3] + 6, logo_bottom + 8)
+
+            if self._heading_font:
+                prev_font = win32gui.SelectObject(hdc, self._heading_font)
+                win32gui.SetTextColor(hdc, win32api.RGB(min(255, accent[0] + 5), min(255, accent[1] + 5), min(255, accent[2] + 5)))
+                heading_rect = [text_left, text_top, right, text_top + 64]
+                win32gui.DrawText(
+                    hdc,
+                    heading_text,
+                    -1,
+                    tuple(heading_rect),
+                    win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_WORDBREAK | win32con.DT_NOPREFIX,
+                )
+                win32gui.SelectObject(hdc, prev_font)
+                text_top = heading_rect[3] + 10
+
+            divider_pen = win32gui.CreatePen(win32con.PS_SOLID, 1, win32api.RGB(80, 65, 40))
+            old_pen = win32gui.SelectObject(hdc, divider_pen)
+            win32gui.MoveToEx(hdc, text_left, text_top + 2)
+            win32gui.LineTo(hdc, right, text_top + 2)
+            win32gui.SelectObject(hdc, old_pen)
+            win32gui.DeleteObject(divider_pen)
+            text_top += 12
 
             if self._body_font:
                 prev_font = win32gui.SelectObject(hdc, self._body_font)
-                win32gui.SetTextColor(hdc, win32api.RGB(220, 210, 200))
+                body_color = win32api.RGB(220, 210, 200)
+                log_color = win32api.RGB(205, 195, 185)
+                bullet_color = win32api.RGB(*accent)
+
                 if state.subtitle:
-                    subtitle_rect = [left, top, right, top + 80]
+                    win32gui.SetTextColor(hdc, body_color)
+                    subtitle_rect = [text_left, text_top, right, text_top + 80]
                     win32gui.DrawText(
                         hdc,
                         state.subtitle,
@@ -377,15 +566,24 @@ class GameOverlayManager:
                         | win32con.DT_WORDBREAK
                         | win32con.DT_NOPREFIX,
                     )
-                    top = subtitle_rect[1] + 36
+                    text_top = subtitle_rect[3] + 14
 
-                for log_line in state.logs:
-                    if not log_line:
-                        continue
-                    log_rect = [left, top, right, top + 60]
+                logs_to_render = [log for log in state.logs if log][: self.max_logs]
+                for log_line in logs_to_render:
+                    bullet_rect = [text_left, text_top, text_left + 16, text_top + 28]
+                    win32gui.SetTextColor(hdc, bullet_color)
                     win32gui.DrawText(
                         hdc,
-                        f"• {log_line}",
+                        "•",
+                        -1,
+                        tuple(bullet_rect),
+                        win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_NOPREFIX,
+                    )
+                    log_rect = [text_left + 18, text_top - 2, right, text_top + 48]
+                    win32gui.SetTextColor(hdc, log_color)
+                    win32gui.DrawText(
+                        hdc,
+                        log_line,
                         -1,
                         tuple(log_rect),
                         win32con.DT_LEFT
@@ -393,7 +591,7 @@ class GameOverlayManager:
                         | win32con.DT_WORDBREAK
                         | win32con.DT_NOPREFIX,
                     )
-                    top = log_rect[1] + 28
+                    text_top = log_rect[3] + 8
 
                 win32gui.SelectObject(hdc, prev_font)
         finally:
@@ -408,8 +606,8 @@ class GameOverlayManager:
             height = win32api.GetSystemMetrics(1)
             left = 0
             top = 0
-        overlay_width = max(420, min(int(width * 0.45), 720))
-        overlay_height = max(240, min(int(height * 0.35), 520))
+        overlay_width = max(480, min(int(width * 0.45), 760))
+        overlay_height = max(260, min(int(height * 0.35), 560))
         x = left + (width - overlay_width) // 2
         y = top + int(height * 0.18)
         flags = (
