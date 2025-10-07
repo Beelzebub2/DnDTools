@@ -22,6 +22,30 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isDirty = false;
     let changeCheckScheduled = false;
     const QUEST_PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
+    const FIELD_LABELS = {
+        interface: 'Network Interface',
+        sortHotkey: 'Sort Stash Hotkey',
+        cancelHotkey: 'Cancel Sort Hotkey',
+        sortSpeed: 'Sort Speed',
+        resolution: 'Game Resolution',
+        wiresharkPath: 'Wireshark Path'
+    };
+
+    function updateSaveButtonState() {
+        if (!saveButton) {
+            return;
+        }
+
+        if (saveButton.classList.contains('saving')) {
+            saveButton.disabled = true;
+            saveButton.setAttribute('aria-disabled', 'true');
+            return;
+        }
+
+        const shouldDisable = !isDirty;
+        saveButton.disabled = shouldDisable;
+        saveButton.setAttribute('aria-disabled', shouldDisable ? 'true' : 'false');
+    }
 
     const beforeUnloadHandler = (event) => {
         if (!isDirty) {
@@ -82,6 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         isDirty = Boolean(value);
         window.hasUnsavedChanges = isDirty;
         document.body.classList.toggle('has-unsaved-settings', isDirty);
+        updateSaveButtonState();
     }
 
     function evaluateUnsavedChanges() {
@@ -224,45 +249,73 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Load current settings
-    async function loadSettings() {
-        try {
-            const response = await fetch('/api/settings');
-            const data = await response.json();
+    async function fetchSettingsFromServer() {
+        const response = await fetch('/api/settings');
+        if (!response.ok) {
+            const message = await response.text().catch(() => '');
+            throw new Error(message || `Failed to load settings (status ${response.status})`);
+        }
+        return response.json();
+    }
 
-            updateCurrentSettings(data);
+    function applySettingsToForm(settings) {
+        if (!settings || typeof settings !== 'object') {
+            return null;
+        }
 
-            const parsedSpeed = parseSortSpeed(currentSettings.sortSpeed, 0.2);
-            if (parsedSpeed > 0) {
-                lastManualSortSpeed = parsedSpeed;
+        updateCurrentSettings(settings);
+
+        const parsedSpeed = parseSortSpeed(currentSettings.sortSpeed, 0.2);
+        if (parsedSpeed > 0) {
+            lastManualSortSpeed = parsedSpeed;
+        }
+
+        runWithApplyingFlag(() => {
+            interfaceSelect.value = currentSettings.interface || '';
+            sortHotkeyInput.value = currentSettings.sortHotkey || 'ctrl+f11';
+            cancelHotkeyInput.value = currentSettings.cancelHotkey || 'ctrl+f12';
+            sortSpeedInput.value = toDisplaySpeed(parsedSpeed);
+            resolutionSelect.value = currentSettings.resolution || 'Auto';
+
+            if (noDelayCheckbox) {
+                noDelayCheckbox.checked = parsedSpeed <= 0;
             }
 
-            runWithApplyingFlag(() => {
-                interfaceSelect.value = currentSettings.interface || '';
-                sortHotkeyInput.value = currentSettings.sortHotkey || 'ctrl+f11';
-                cancelHotkeyInput.value = currentSettings.cancelHotkey || 'ctrl+f12';
-                sortSpeedInput.value = toDisplaySpeed(parsedSpeed);
-                resolutionSelect.value = currentSettings.resolution || 'Auto';
+            if (wiresharkPathInput) {
+                const detectedPath = currentSettings.wiresharkPath || '';
+                wiresharkPathInput.value = detectedPath;
+                wiresharkPathInput.dataset.defaultValue = detectedPath;
+            }
+        });
 
-                if (noDelayCheckbox) {
-                    noDelayCheckbox.checked = parsedSpeed <= 0;
-                }
+        runWithApplyingFlag(() => {
+            applyNoDelayUIState();
+        });
 
-                if (wiresharkPathInput) {
-                    const detectedPath = currentSettings.wiresharkPath || '';
-                    wiresharkPathInput.value = detectedPath;
-                    wiresharkPathInput.dataset.defaultValue = detectedPath;
-                }
-            });
+        evaluateUnsavedChanges();
 
-            runWithApplyingFlag(() => {
-                applyNoDelayUIState();
-            });
+        return { ...currentSettings };
+    }
 
-            evaluateUnsavedChanges();
-        } catch (error) {
-            console.error('Failed to load settings:', error);
-            showNotification('Failed to load settings', 'error');
+    async function loadSettings(options = {}) {
+        const { data: providedData = null, apply = true } = options;
+
+        let data = providedData;
+        if (!data) {
+            try {
+                data = await fetchSettingsFromServer();
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+                showNotification('Failed to load settings', 'error');
+                return null;
+            }
         }
+
+        if (!apply) {
+            return data;
+        }
+
+        return applySettingsToForm(data);
     }
 
     // Load detected resolution
@@ -738,9 +791,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             showNotification: shouldNotify = true,
             showAnimation = true,
             suppressSuccessToast = false,
+            forceSave = false,
             onSuccess,
             onError
         } = options;
+
+        if (!isDirty && !forceSave) {
+            if (shouldNotify && !suppressSuccessToast) {
+                showNotification('All settings are already saved.', 'info');
+            }
+            updateSaveButtonState();
+            return true;
+        }
 
         let sortSpeedValue = noDelayCheckbox?.checked ? 0 : parseSortSpeed(
             sortSpeedInput.value,
@@ -779,7 +841,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (showAnimation) {
             startSaveAnimation();
         } else {
+            saveButton.classList.add('saving');
             saveButton.disabled = true;
+            saveButton.setAttribute('aria-disabled', 'true');
         }
 
         let success = false;
@@ -793,31 +857,96 @@ document.addEventListener('DOMContentLoaded', async () => {
                 body: JSON.stringify(newSettings)
             });
 
-            const result = await response.json();
+            let result = {};
+            try {
+                result = await response.json();
+            } catch (parseError) {
+                if (response.ok) {
+                    throw parseError;
+                }
+            }
+
+            if (!response.ok) {
+                const message = Array.isArray(result.errors) && result.errors.length
+                    ? result.errors.join('\n')
+                    : (result.error || `Failed to save settings (status ${response.status})`);
+                throw new Error(message);
+            }
 
             if (result.success) {
-                updateCurrentSettings(newSettings);
+                const confirmationPayload = await loadSettings({
+                    data: result.settings || null,
+                    apply: false
+                });
 
-                if (!noDelayCheckbox?.checked && sortSpeedValue > 0) {
-                    lastManualSortSpeed = sortSpeedValue;
+                if (!confirmationPayload) {
+                    if (showAnimation) {
+                        await showSaveError();
+                    } else {
+                        resetSaveButton();
+                    }
+
+                    if (shouldNotify) {
+                        showNotification('Unable to confirm that settings were saved. Please try again.', 'warning');
+                    }
+
+                    if (typeof onError === 'function') {
+                        onError(result);
+                    }
+
+                    return false;
                 }
 
-                if (wiresharkPathInput) {
-                    wiresharkPathInput.dataset.defaultValue = wiresharkPathInput.value;
+                const normalizedExpected = normalizeForComparison(newSettings);
+                const normalizedConfirmed = normalizeForComparison(confirmationPayload);
+                const mismatchedKeys = Object.keys(normalizedExpected).filter(
+                    (key) => normalizedExpected[key] !== normalizedConfirmed[key]
+                );
+
+                if (mismatchedKeys.length > 0) {
+                    if (showAnimation) {
+                        await showSaveError();
+                    } else {
+                        resetSaveButton();
+                    }
+
+                    const mismatchSummary = mismatchedKeys
+                        .map((key) => FIELD_LABELS[key] || key)
+                        .join(', ');
+
+                    if (shouldNotify) {
+                        showNotification(`Some settings couldn't be saved: ${mismatchSummary}.`, 'error');
+                    }
+
+                    if (typeof onError === 'function') {
+                        onError({ ...result, mismatchedKeys });
+                    }
+
+                    setUnsavedChanges(true);
+                    return false;
+                }
+
+                const appliedSettings = applySettingsToForm(confirmationPayload);
+
+                if (Array.isArray(result.warnings)) {
+                    result.warnings
+                        .filter(Boolean)
+                        .forEach((warning) => showNotification(warning, 'warning'));
                 }
 
                 if (showAnimation) {
                     await showSaveSuccess();
                 } else {
-                    saveButton.disabled = false;
+                    resetSaveButton();
+                }
+
+                if (!noDelayCheckbox?.checked && typeof appliedSettings?.sortSpeed === 'number' && appliedSettings.sortSpeed > 0) {
+                    lastManualSortSpeed = appliedSettings.sortSpeed;
                 }
 
                 if (shouldNotify && !suppressSuccessToast) {
                     showNotification('Settings saved successfully!', 'success');
                 }
-
-                setUnsavedChanges(false);
-                evaluateUnsavedChanges();
 
                 if (typeof onSuccess === 'function') {
                     onSuccess(result);
@@ -828,11 +957,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (showAnimation) {
                     await showSaveError();
                 } else {
-                    saveButton.disabled = false;
+                    resetSaveButton();
                 }
 
+                const errorMessage = Array.isArray(result.errors) && result.errors.length
+                    ? result.errors.join('\n')
+                    : 'Failed to save settings';
+
                 if (shouldNotify) {
-                    showNotification('Failed to save settings', 'error');
+                    showNotification(errorMessage, 'error');
+                }
+
+                if (result.settings) {
+                    applySettingsToForm(result.settings);
                 }
 
                 if (typeof onError === 'function') {
@@ -845,15 +982,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (showAnimation) {
                 await showSaveError();
             } else {
-                saveButton.disabled = false;
+                resetSaveButton();
             }
 
             if (shouldNotify) {
-                showNotification('Error saving settings', 'error');
+                showNotification(error?.message || 'Error saving settings', 'error');
             }
 
             if (typeof onError === 'function') {
                 onError(error);
+            }
+        } finally {
+            if (!showAnimation) {
+                saveButton.classList.remove('saving');
+                updateSaveButtonState();
             }
         }
 
@@ -863,6 +1005,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Start save animation
     function startSaveAnimation() {
         saveButton.disabled = true;
+        saveButton.setAttribute('aria-disabled', 'true');
         saveButton.classList.add('saving');
 
         // Add loading animation to button
@@ -935,7 +1078,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Reset save button to original state
     function resetSaveButton() {
-        saveButton.disabled = false;
         saveButton.classList.remove('saving', 'save-success', 'save-error');
 
         const originalContent = saveButton.getAttribute('data-original-content');
@@ -943,8 +1085,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             saveButton.innerHTML = originalContent;
         }
 
+        saveButton.removeAttribute('data-original-content');
+
         const container = document.querySelector('.settings-container');
         container.classList.remove('saving-state');
+        updateSaveButtonState();
     }
 
     // Create success ripple effect

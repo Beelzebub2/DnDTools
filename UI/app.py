@@ -1019,17 +1019,54 @@ class Api:
             logger.debug(f"Unable to update closing overlay: {overlay_err}")
 
     def _save_settings(self, settings):
-        """Save settings to file with proper error handling and validation"""
+        """Save settings to file with validation, reporting, and clear error handling."""
+        result: dict[str, object] = {
+            'success': False,
+            'errors': [],
+            'warnings': [],
+        }
+
         try:
-            previous_settings = self.settings_manager.data
-            updated_settings = self.settings_manager.update(settings)
-            self._setup_global_hotkeys()
+            try:
+                previous_settings = self.settings_manager.data
+            except Exception:
+                previous_settings = {}
+
+            try:
+                updated_settings = self.settings_manager.update(settings)
+            except (IOError, OSError) as exc:
+                logger.error("Error writing settings file: %s", exc)
+                result['errors'].append('Unable to write settings file. Check disk permissions and try again.')
+                result['settings'] = self.settings_manager.data
+                return result
+            except ValueError as exc:
+                logger.error("Invalid settings data: %s", exc)
+                result['errors'].append(str(exc))
+                result['settings'] = self.settings_manager.data
+                return result
+
+            success = True
+
+            try:
+                self._setup_global_hotkeys()
+            except Exception as hotkey_err:  # pragma: no cover - defensive safeguard
+                success = False
+                logger.error("Failed to register global hotkeys: %s", hotkey_err)
+                result['errors'].append('Failed to register global hotkeys. Previous hotkeys were restored.')
+                try:
+                    self.settings_manager.update({
+                        'sortHotkey': previous_settings.get('sortHotkey', 'ctrl+f11'),
+                        'cancelHotkey': previous_settings.get('cancelHotkey', 'ctrl+f12'),
+                    })
+                except Exception as revert_err:  # pragma: no cover - defensive safeguard
+                    logger.error("Failed to revert hotkeys after registration failure: %s", revert_err)
 
             new_interface = updated_settings.get('interface')
             previous_interface = previous_settings.get('interface') if isinstance(previous_settings, dict) else None
-            interface_changed = new_interface and new_interface != previous_interface
+            interface_changed = bool(new_interface) and new_interface != previous_interface
 
-            self.capture_settings['interface'] = new_interface or self.capture_settings.get('interface')
+            if new_interface:
+                self.capture_settings['interface'] = new_interface
 
             if interface_changed:
                 try:
@@ -1048,12 +1085,21 @@ class Api:
                             "showNotification('Capture interface updated', 'info');"
                         )
                 except Exception as capture_err:
-                    logger.error(f"Failed to apply capture interface change: {capture_err}")
+                    success = False
+                    logger.error("Failed to apply capture interface change: %s", capture_err)
                     if self.window:
                         error_msg = str(capture_err).replace('"', '\\"')
                         self.window.evaluate_js(
                             f"showNotification('Failed to switch capture interface: {error_msg}', 'error');"
                         )
+
+                    revert_interface = previous_interface or ''
+                    try:
+                        self.settings_manager.update({'interface': revert_interface})
+                        self.capture_settings['interface'] = revert_interface or self.capture_settings.get('interface')
+                    except Exception as revert_err:  # pragma: no cover - defensive safeguard
+                        logger.error("Failed to revert interface after error: %s", revert_err)
+                    result['errors'].append('Capture interface could not be switched. Previous interface restored.')
 
             previous_wireshark_path = previous_settings.get('wiresharkPath') if isinstance(previous_settings, dict) else None
             new_wireshark_path = updated_settings.get('wiresharkPath')
@@ -1069,19 +1115,24 @@ class Api:
                         self.window.evaluate_js(
                             "showNotification('Wireshark path cleared. Using system PATH settings.', 'warning');"
                         )
+                if not resolved and new_wireshark_path:
+                    result['warnings'].append('Wireshark path could not be verified. Using the provided value.')
 
-            logger.info("Settings saved successfully")
-            return True
-            
-        except (IOError, OSError) as e:
-            logger.error(f"Error writing settings file: {e}")
-            return False
-        except ValueError as e:
-            logger.error(f"Invalid settings data: {e}")
-            return False
-        except Exception as e:
-            logger.error(f"Unexpected error saving settings: {e}")
-            return False
+            result['settings'] = self.settings_manager.data
+            result['success'] = success and not result['errors']
+
+            if result['success']:
+                logger.info("Settings saved successfully")
+            else:
+                logger.warning("Settings save completed with issues: %s", '; '.join(result['errors']))
+
+            return result
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            logger.error("Unexpected error saving settings: %s", exc, exc_info=True)
+            result['errors'].append('Unexpected error while saving settings. No changes were applied.')
+            result['settings'] = self.settings_manager.data
+            result['success'] = False
+            return result
 
     def _setup_global_hotkeys(self):
         import keyboard
@@ -2325,7 +2376,7 @@ def api_settings():
     if request.method == 'GET':
         return jsonify(api.settings_manager.data)
     data = request.get_json()
-    return jsonify({'success': api._save_settings(data)})
+    return jsonify(api._save_settings(data))
 
 
 @server.route('/api/pack_mode', methods=['GET'])
