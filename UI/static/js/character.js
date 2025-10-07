@@ -45,6 +45,7 @@ function handleApiError(error, element) {
 const charId = window.location.pathname.split('/').pop();
 let abortController = null;
 let currentStashId = null;  // Track current stash ID
+let requestedStashIdFromUrl = null;
 
 // Rarity colors - same as in search.js for consistency
 const rarityColors = {
@@ -95,6 +96,213 @@ function getRarityRankValue(rarity) {
     }
     const key = rarity.toString().toLowerCase();
     return rarityRankMap.hasOwnProperty(key) ? rarityRankMap[key] : 0;
+}
+
+function normalizeSlotIdValue(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed !== '') {
+            const parsed = Number.parseInt(trimmed, 10);
+            if (Number.isFinite(parsed)) {
+                return parsed;
+            }
+        }
+    }
+    return null;
+}
+
+function normalizeSlotIdList(slotSource) {
+    if (slotSource == null) {
+        return [];
+    }
+
+    const collected = [];
+    const collectValue = (entry) => {
+        if (entry == null) {
+            return;
+        }
+        if (Array.isArray(entry)) {
+            entry.forEach(collectValue);
+            return;
+        }
+        if (typeof entry === 'string' && entry.includes(',')) {
+            entry.split(/[\s,]+/).forEach(collectValue);
+            return;
+        }
+        const normalized = normalizeSlotIdValue(entry);
+        if (normalized !== null) {
+            collected.push(normalized);
+        }
+    };
+
+    collectValue(slotSource);
+
+    if (!collected.length) {
+        return [];
+    }
+
+    const unique = Array.from(new Set(collected));
+    unique.sort((a, b) => a - b);
+    return unique;
+}
+
+const HIGHLIGHT_QUERY_PARAM = 'slotIds';
+const HIGHLIGHT_FALLBACK_QUERY_PARAMS = ['slots', 'highlight'];
+const HIGHLIGHT_CLASS = 'stash-item-highlight';
+const HIGHLIGHT_DURATION_MS = 3600;
+const HIGHLIGHT_POLL_INTERVAL = 120;
+const HIGHLIGHT_MAX_ATTEMPTS = 20;
+
+let pendingHighlightRequest = null;
+let highlightCleanupTimeout = null;
+let highlightReattemptTimeout = null;
+
+function setPendingHighlight(stashId, slotSource) {
+    const normalizedSlots = normalizeSlotIdList(slotSource);
+    if (!normalizedSlots.length) {
+        return null;
+    }
+
+    if (highlightReattemptTimeout) {
+        clearTimeout(highlightReattemptTimeout);
+        highlightReattemptTimeout = null;
+    }
+
+    pendingHighlightRequest = {
+        stashId: (stashId != null && stashId !== '') ? String(stashId) : null,
+        slotIds: normalizedSlots,
+        attemptsRemaining: HIGHLIGHT_MAX_ATTEMPTS
+    };
+    return pendingHighlightRequest;
+}
+
+function clearExistingHighlights() {
+    if (typeof document === 'undefined') {
+        return;
+    }
+    document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach(el => {
+        el.classList.remove(HIGHLIGHT_CLASS);
+        el.removeAttribute('data-highlight-active');
+    });
+}
+
+function clearPendingHighlight() {
+    if (highlightReattemptTimeout) {
+        clearTimeout(highlightReattemptTimeout);
+        highlightReattemptTimeout = null;
+    }
+    pendingHighlightRequest = null;
+}
+
+function clearHighlightQueryFromUrl() {
+    if (typeof window === 'undefined' || !window.history || !window.history.replaceState) {
+        return;
+    }
+    const url = new URL(window.location.href);
+    let changed = false;
+    [HIGHLIGHT_QUERY_PARAM, ...HIGHLIGHT_FALLBACK_QUERY_PARAMS].forEach(param => {
+        if (url.searchParams.has(param)) {
+            url.searchParams.delete(param);
+            changed = true;
+        }
+    });
+    if (changed) {
+        const newUrl = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+}
+
+function applyPendingHighlight(stashId, containerElement) {
+    if (!pendingHighlightRequest || !containerElement) {
+        return;
+    }
+
+    const targetStashId = pendingHighlightRequest.stashId;
+    const normalizedCurrentStash = stashId != null ? String(stashId) : null;
+    const isCharacterAggregate = targetStashId === 'character' && (normalizedCurrentStash === '2' || normalizedCurrentStash === '3');
+    if (targetStashId && normalizedCurrentStash && targetStashId !== normalizedCurrentStash && !isCharacterAggregate) {
+        return;
+    }
+
+    const slotIds = pendingHighlightRequest.slotIds || [];
+    if (!slotIds.length) {
+        clearPendingHighlight();
+        return;
+    }
+
+    const slotIdSet = new Set(slotIds.map(id => String(id)));
+    const matchedElements = [];
+    containerElement.querySelectorAll('.stash-item').forEach(itemEl => {
+        const displaySlot = itemEl.dataset.displaySlotId;
+        const rawSlot = itemEl.dataset.slotId;
+        if ((displaySlot && slotIdSet.has(displaySlot)) || (rawSlot && slotIdSet.has(rawSlot))) {
+            matchedElements.push(itemEl);
+        }
+    });
+
+    if (!matchedElements.length) {
+        if (pendingHighlightRequest.attemptsRemaining > 0) {
+            pendingHighlightRequest.attemptsRemaining -= 1;
+            if (highlightReattemptTimeout) {
+                clearTimeout(highlightReattemptTimeout);
+            }
+            highlightReattemptTimeout = setTimeout(() => {
+                applyPendingHighlight(stashId, containerElement);
+            }, HIGHLIGHT_POLL_INTERVAL);
+            return;
+        }
+        clearPendingHighlight();
+        clearHighlightQueryFromUrl();
+        return;
+    }
+
+    if (highlightCleanupTimeout) {
+        clearTimeout(highlightCleanupTimeout);
+        highlightCleanupTimeout = null;
+    }
+
+    clearExistingHighlights();
+    matchedElements.forEach(el => {
+        el.classList.add(HIGHLIGHT_CLASS);
+        el.setAttribute('data-highlight-active', 'true');
+    });
+
+    highlightCleanupTimeout = setTimeout(() => {
+        matchedElements.forEach(el => {
+            el.classList.remove(HIGHLIGHT_CLASS);
+            el.removeAttribute('data-highlight-active');
+        });
+        highlightCleanupTimeout = null;
+    }, HIGHLIGHT_DURATION_MS);
+
+    clearPendingHighlight();
+    clearHighlightQueryFromUrl();
+}
+
+function primeHighlightRequestFromUrl(urlParams, explicitStashId = null) {
+    if (!urlParams || typeof urlParams.get !== 'function') {
+        return null;
+    }
+
+    let slotParamValue = urlParams.get(HIGHLIGHT_QUERY_PARAM);
+    if (!slotParamValue) {
+        for (const fallbackKey of HIGHLIGHT_FALLBACK_QUERY_PARAMS) {
+            slotParamValue = urlParams.get(fallbackKey);
+            if (slotParamValue) {
+                break;
+            }
+        }
+    }
+
+    if (!slotParamValue) {
+        return null;
+    }
+
+    const stashId = explicitStashId != null ? explicitStashId : (urlParams.get('stashId') || null);
+    return setPendingHighlight(stashId, slotParamValue);
 }
 
 function showSortCancelNotification() {
@@ -807,13 +1015,14 @@ const renderInteractiveGrid = (stashId, items) => {
     if (Array.isArray(itemsToRender) && itemsToRender.length > 0) {
         itemsToRender.forEach(item => {
             if (!item) return;
-            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const rawSlotId = normalizeSlotIdValue(item.slotId);
+            const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
+            const slotIndex = displaySlotId ?? rawSlotId ?? 0;
             const w = Math.max(1, Math.min(Number(item.width) || 1, gridWidth));
             const h = Math.max(1, Math.min(Number(item.height) || 1, gridHeight));
-            const x = slotId % gridWidth;
-            const y = Math.floor(slotId / gridWidth);
+            const x = slotIndex % gridWidth;
+            const y = Math.floor(slotIndex / gridWidth);
 
-            // Check if item is within bounds
             if (
                 x >= 0 && x < gridWidth &&
                 y >= 0 && y < gridHeight &&
@@ -828,11 +1037,13 @@ const renderInteractiveGrid = (stashId, items) => {
 
         // Now process only the valid items
         validItems.forEach(item => {
-            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const rawSlotId = normalizeSlotIdValue(item.slotId);
+            const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
+            const slotIndex = displaySlotId ?? rawSlotId ?? 0;
             const w = Math.max(1, Math.min(Number(item.width) || 1, gridWidth));
             const h = Math.max(1, Math.min(Number(item.height) || 1, gridHeight));
-            const x = slotId % gridWidth;
-            const y = Math.floor(slotId / gridWidth);
+            const x = slotIndex % gridWidth;
+            const y = Math.floor(slotIndex / gridWidth);
 
             // Create item element
             const itemEl = document.createElement('div');
@@ -841,6 +1052,13 @@ const renderInteractiveGrid = (stashId, items) => {
             // Use grid positioning instead of absolute for better alignment
             itemEl.style.gridColumn = `${x + 1} / span ${w}`;
             itemEl.style.gridRow = `${y + 1} / span ${h}`;
+
+            if (rawSlotId !== null) {
+                itemEl.dataset.slotId = String(rawSlotId);
+            }
+            if (displaySlotId !== null) {
+                itemEl.dataset.displaySlotId = String(displaySlotId);
+            }
 
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
@@ -919,6 +1137,7 @@ const renderInteractiveGrid = (stashId, items) => {
         });
     }
 
+    applyPendingHighlight(stashId, grid);
     gridContainer.appendChild(grid);
 };
 
@@ -1288,10 +1507,12 @@ const loadStashes = async () => {
 
             // Check if we have both equipment and bag
             const hasCharacterTab = stashKeys.includes('2') && stashKeys.includes('3');
+            const hasExplicitStashRequest = !!requestedStashIdFromUrl;
+            const hasPendingHighlight = !!(pendingHighlightRequest && Array.isArray(pendingHighlightRequest.slotIds) && pendingHighlightRequest.slotIds.length);
 
             // If currentStashId is 2 (bag) or 3 (equipment) and we have a Character tab,
-            // redirect to the Character tab instead
-            if (hasCharacterTab && (currentStashId === '2' || currentStashId === '3')) {
+            // redirect to the Character tab instead unless the user explicitly requested a stash/highlight
+            if (hasCharacterTab && (currentStashId === '2' || currentStashId === '3') && !hasExplicitStashRequest && !hasPendingHighlight) {
                 currentStashId = 'character';
             }
 
@@ -1644,6 +1865,9 @@ window.addEventListener('DOMContentLoaded', async () => {
         // Check if there's a stash ID in the URL params (added by search page)
         const urlParams = new URLSearchParams(window.location.search);
         const stashIdParam = urlParams.get('stashId');
+        requestedStashIdFromUrl = stashIdParam || null;
+        const highlightRequest = primeHighlightRequestFromUrl(urlParams, stashIdParam);
+
         if (stashIdParam) {
             // Set the current stash ID from URL parameter
             currentStashId = stashIdParam;
@@ -1667,13 +1891,19 @@ window.addEventListener('DOMContentLoaded', async () => {
         await updateCharacterInfo(charId);
         await loadStashes();
 
-        // Force render the Character tab if it exists
-        setTimeout(() => {
-            const characterTab = document.querySelector('[data-stash-id="character"]');
-            if (characterTab) {
-                characterTab.click();
-            }
-        }, 100);
+        const shouldForceCharacterTab = !requestedStashIdFromUrl && !(highlightRequest && Array.isArray(highlightRequest.slotIds) && highlightRequest.slotIds.length);
+        if (shouldForceCharacterTab) {
+            // Force render the Character tab if it exists
+            setTimeout(() => {
+                const characterTab = document.querySelector('[data-stash-id="character"]');
+                if (characterTab) {
+                    characterTab.click();
+                }
+            }, 100);
+        }
+
+        // Clear the one-time request flag after initial handling
+        requestedStashIdFromUrl = null;
     } catch (error) {
         handleApiError(error, document.querySelector('.character-details'));
     }
@@ -1916,6 +2146,16 @@ const renderCombinedCharacterView = async (stashes) => {
             itemEl.style.opacity = '0.4';
             itemEl.style.pointerEvents = 'none';
         }
+
+        const rawSlotId = normalizeSlotIdValue(item && item.slotId);
+        const displaySlotId = normalizeSlotIdValue(item && item.displaySlotId);
+        if (rawSlotId !== null) {
+            itemEl.dataset.slotId = String(rawSlotId);
+        }
+        if (displaySlotId !== null) {
+            itemEl.dataset.displaySlotId = String(displaySlotId);
+        }
+
         const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
         itemEl.style.borderColor = rarityColor;
         itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
@@ -2007,6 +2247,9 @@ const renderCombinedCharacterView = async (stashes) => {
         equipmentGrid.appendChild(slotCell);
     }
 
+    // Apply any pending highlights targeting equipment before appending
+    applyPendingHighlight('3', equipmentGrid);
+
     // Append equipment grid to section
     equipmentSection.appendChild(equipmentGrid);
 
@@ -2046,11 +2289,13 @@ const renderCombinedCharacterView = async (stashes) => {
     if (bagItemsToRender && bagItemsToRender.length) {
         bagItemsToRender.forEach(item => {
             if (!item) return;
-            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const rawSlotId = normalizeSlotIdValue(item.slotId);
+            const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
+            const slotIndex = displaySlotId ?? rawSlotId ?? 0;
             const w = Math.max(1, Math.min(Number(item.width) || 1, bagWidth));
             const h = Math.max(1, Math.min(Number(item.height) || 1, bagHeight));
-            const x = slotId % bagWidth;
-            const y = Math.floor(slotId / bagWidth);
+            const x = slotIndex % bagWidth;
+            const y = Math.floor(slotIndex / bagWidth);
 
             // Create item element
             const itemEl = document.createElement('div');
@@ -2100,6 +2345,13 @@ const renderCombinedCharacterView = async (stashes) => {
             } else {
                 // No image, just display the name
                 itemEl.textContent = item.name || 'Unknown';
+            }
+
+            if (rawSlotId !== null) {
+                itemEl.dataset.slotId = String(rawSlotId);
+            }
+            if (displaySlotId !== null) {
+                itemEl.dataset.displaySlotId = String(displaySlotId);
             }
 
             // Add count badge if more than 1
@@ -2154,6 +2406,9 @@ const renderCombinedCharacterView = async (stashes) => {
             bagGrid.appendChild(itemEl);
         });
     }
+
+    // Apply any pending highlights targeting the bag before appending
+    applyPendingHighlight('2', bagGrid);
 
     // Append bag grid to section
     bagSection.appendChild(bagGrid);
