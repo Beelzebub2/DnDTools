@@ -391,7 +391,7 @@ class UpdateManager:
         if script_candidate.exists():
             return script_candidate, False
 
-    raise UpdateError("Updater helper not found", status_code=500)
+        raise UpdateError("Updater helper not found", status_code=500)
 
     def _launch_updater_process(self, context_path: Path) -> subprocess.Popen[Any]:
         candidate, is_executable = self._resolve_updater_candidate()
