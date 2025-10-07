@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 import os
 import time
-from typing import Dict, Iterable, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Tuple, Union
 import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
@@ -349,66 +349,125 @@ class StashManager:
 
     def search_items(self, query: str) -> List[Dict]:
         """Search for items across all character stashes"""
+        query = (query or '').strip()
         if not query:
             return []
-        
-        # Ensure data is loaded before searching
+
         if not self._is_loaded:
             self._load_data()
-            
-        keywords = [k.strip().lower() for k in query.split(",")]
-        output = []
+
+        keywords = [segment.strip().lower() for segment in query.split(',') if segment.strip()]
+        if not keywords:
+            return []
+
+        output: List[Dict] = []
+        effect_prefix = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
+
         for char in self.get_characters():
-            for stash_id, stash in char.get('stashes', {}).items():
+            stashes = char.get('stashes', {})
+            if not isinstance(stashes, dict):
+                continue
+
+            char_nickname = char.get('nickname') or 'Unknown'
+            char_id = char.get('id')
+            char_class = char.get('class') or 'Unknown'
+            char_level = char.get('level')
+
+            for stash_id, stash in stashes.items():
                 if not isinstance(stash, list):
                     continue
+
                 for item in stash:
                     try:
-                        design_str = item.get("itemId", "")
-                        item_id = item_data_manager.get_item_id_from_design_str(design_str)
-                        name = item_data_manager.get_item_name_from_id(item_id)
-                        rarity = item_data_manager.get_item_rarity_from_id(item_id)
-                        icon_path = item_data_manager.get_item_image_path_from_id(item_id)
-                        data = item.get("data", {})
-                        effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
-                        pp = []
-                        for p in data.get("primaryPropertyArray", []):
-                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
-                                prop_name = p["propertyTypeId"].replace(effect_str, "")
-                                pp.append((prop_name, p["propertyValue"]))
-                        sp = []
-                        for p in data.get("secondaryPropertyArray", []):
-                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
-                                prop_name = p["propertyTypeId"].replace(effect_str, "")
-                                sp.append((prop_name, p["propertyValue"]))
+                        design_str = item.get("itemId") or ""
+
+                        try:
+                            item_id = item_data_manager.get_item_id_from_design_str(design_str)
+                        except Exception:
+                            item_id = design_str or item.get("itemUniqueId") or "unknown"
+
+                        try:
+                            name = item_data_manager.get_item_name_from_id(item_id)
+                        except Exception:
+                            name = design_str or "Unknown Item"
+
+                        try:
+                            rarity = item_data_manager.get_item_rarity_from_id(item_id)
+                        except Exception:
+                            rarity = "Unknown"
+
+                        try:
+                            raw_icon_path = item_data_manager.get_item_image_path_from_id(item_id)
+                        except Exception:
+                            raw_icon_path = None
+                        icon_path = canonical_icon_path(raw_icon_path) if raw_icon_path else None
+
+                        data = item.get("data") or {}
+
+                        pp: List[Tuple[str, object]] = []
+                        for prop in data.get("primaryPropertyArray", []):
+                            if not isinstance(prop, dict):
+                                continue
+                            prop_id = prop.get("propertyTypeId")
+                            if not prop_id:
+                                continue
+                            prop_name = str(prop_id).replace(effect_prefix, "")
+                            pp.append((prop_name, prop.get("propertyValue")))
+
+                        sp: List[Tuple[str, object]] = []
+                        for prop in data.get("secondaryPropertyArray", []):
+                            if not isinstance(prop, dict):
+                                continue
+                            prop_id = prop.get("propertyTypeId")
+                            if not prop_id:
+                                continue
+                            prop_name = str(prop_id).replace(effect_prefix, "")
+                            sp.append((prop_name, prop.get("propertyValue")))
+
                         search_parts = [
-                            name.lower(),
-                            rarity.lower(),
-                            *[p[0].lower() for p in pp],
-                            *[p[0].lower() for p in sp]
+                            str(name).lower(),
+                            str(rarity).lower(),
+                            *[str(prop_name).lower() for prop_name, _ in pp],
+                            *[str(prop_name).lower() for prop_name, _ in sp],
                         ]
-                        search_str = " ".join(search_parts)
-                        if all(k in search_str for k in keywords):
-                            result = {
-                                'nickname': char['nickname'],
-                                'id': char['id'],
-                                'class': char['class'],
-                                'level': char['level'],
-                                'itemCount': item.get("itemCount", 1),
-                                'slotId': item.get("slotId", 0),
-                                'item': {
-                                    'name': name,
-                                    'rarity': rarity,
-                                    'pp': pp,
-                                    'sp': sp,
-                                    'iconPath': canonical_icon_path(icon_path)
-                                },
-                                'stash_id': stash_id
-                            }
-                            output.append(result)
-                    except Exception as e:
-                        logger.error(f"Error processing item in search: {str(e)}")
+                        search_str = " ".join(filter(None, search_parts))
+                        if not search_str or not all(keyword in search_str for keyword in keywords):
+                            continue
+
+                        item_count_raw = item.get("itemCount", 1)
+                        try:
+                            item_count = int(item_count_raw)
+                        except (TypeError, ValueError):
+                            item_count = 1
+                        if item_count < 0:
+                            item_count = 0
+
+                        slot_id_raw = item.get("slotId")
+                        try:
+                            slot_id = int(slot_id_raw)
+                        except (TypeError, ValueError):
+                            slot_id = slot_id_raw
+
+                        output.append({
+                            'nickname': char_nickname,
+                            'id': char_id,
+                            'class': char_class,
+                            'level': char_level,
+                            'itemCount': item_count,
+                            'slotId': slot_id,
+                            'item': {
+                                'name': name or "Unknown Item",
+                                'rarity': rarity or "Unknown",
+                                'pp': pp,
+                                'sp': sp,
+                                'iconPath': icon_path,
+                            },
+                            'stash_id': stash_id,
+                        })
+                    except Exception as exc:
+                        logger.error("Error processing item in search: %s", exc)
                         continue
+
         return output
 
     def get_character_stash_previews(self, character_id):

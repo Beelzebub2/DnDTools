@@ -45,6 +45,7 @@ function handleApiError(error, element) {
 const charId = window.location.pathname.split('/').pop();
 let abortController = null;
 let currentStashId = null;  // Track current stash ID
+let requestedStashIdFromUrl = null;
 
 // Rarity colors - same as in search.js for consistency
 const rarityColors = {
@@ -95,6 +96,500 @@ function getRarityRankValue(rarity) {
     }
     const key = rarity.toString().toLowerCase();
     return rarityRankMap.hasOwnProperty(key) ? rarityRankMap[key] : 0;
+}
+
+function normalizeSlotIdValue(value) {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+        return value;
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        if (trimmed !== '') {
+            const parsed = Number.parseInt(trimmed, 10);
+            if (Number.isFinite(parsed)) {
+                return parsed;
+            }
+        }
+    }
+    return null;
+}
+
+function normalizeSlotIdList(slotSource) {
+    if (slotSource == null) {
+        return [];
+    }
+
+    const collected = [];
+    const collectValue = (entry) => {
+        if (entry == null) {
+            return;
+        }
+        if (Array.isArray(entry)) {
+            entry.forEach(collectValue);
+            return;
+        }
+        if (typeof entry === 'string' && entry.includes(',')) {
+            entry.split(/[\s,]+/).forEach(collectValue);
+            return;
+        }
+        const normalized = normalizeSlotIdValue(entry);
+        if (normalized !== null) {
+            collected.push(normalized);
+        }
+    };
+
+    collectValue(slotSource);
+
+    if (!collected.length) {
+        return [];
+    }
+
+    const unique = Array.from(new Set(collected));
+    unique.sort((a, b) => a - b);
+    return unique;
+}
+
+const HIGHLIGHT_QUERY_PARAM = 'slotIds';
+const HIGHLIGHT_FALLBACK_QUERY_PARAMS = ['slots', 'highlight'];
+const HIGHLIGHT_CLASS = 'stash-item-highlight';
+const HIGHLIGHT_DURATION_MS = 3600;
+const HIGHLIGHT_POLL_INTERVAL = 120;
+const HIGHLIGHT_MAX_ATTEMPTS = 20;
+
+let pendingContainerFocus = false;
+let pendingItemFocus = false;
+
+function requestContainerFocus() {
+    pendingContainerFocus = true;
+}
+
+function requestItemFocus() {
+    pendingItemFocus = true;
+    pendingContainerFocus = true;
+}
+
+function getPrimaryScrollContainer() {
+    if (typeof document === 'undefined') {
+        return null;
+    }
+
+    const contentContainer = document.querySelector('.content');
+    if (contentContainer) {
+        return contentContainer;
+    }
+
+    if (document.scrollingElement) {
+        return document.scrollingElement;
+    }
+
+    if (document.documentElement) {
+        return document.documentElement;
+    }
+
+    return document.body || null;
+}
+
+function scheduleViewportScroll(target, options) {
+    if (!target) {
+        return;
+    }
+    console.log('[SCROLL DEBUG] scheduleViewportScroll called for:', target, options);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            console.log('[SCROLL DEBUG] Executing scrollViewportToElement');
+            scrollViewportToElement(target, options);
+        });
+    });
+}
+
+function resolveFocusContainer(element) {
+    if (typeof document === 'undefined') {
+        return element;
+    }
+
+    const stashPreview = document.getElementById('stashPreview');
+    if (stashPreview && element && stashPreview.contains(element)) {
+        return stashPreview;
+    }
+    if (element && typeof element.closest === 'function') {
+        const matchingContainer = element.closest('#stashPreview, .stash-container, #interactiveStashGrid');
+        if (matchingContainer) {
+            if (matchingContainer.id === 'interactiveStashGrid' && stashPreview) {
+                return stashPreview;
+            }
+            return matchingContainer;
+        }
+    }
+    if (stashPreview) {
+        return stashPreview;
+    }
+    return element;
+}
+
+function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', scrollContainer: explicitContainer } = {}) {
+    console.log('[SCROLL DEBUG] scrollViewportToElement called for:', element, 'margin:', margin);
+    if (typeof window === 'undefined' || !element || typeof element.getBoundingClientRect !== 'function') {
+        console.log('[SCROLL DEBUG] Early return - window or element invalid');
+        return;
+    }
+
+    const docRef = typeof document !== 'undefined' ? document : null;
+    const scrollContainer = explicitContainer || getPrimaryScrollContainer();
+    const isElementContainer = !!(scrollContainer && scrollContainer.nodeType === 1 && scrollContainer !== docRef?.documentElement && scrollContainer !== docRef?.body && scrollContainer !== docRef?.scrollingElement);
+    console.log('[SCROLL DEBUG] Using scroll container:', scrollContainer, 'isElementContainer:', isElementContainer);
+
+    const rect = element.getBoundingClientRect();
+    console.log('[SCROLL DEBUG] Element rect:', rect);
+
+    let viewportHeight = window.innerHeight;
+    let currentScroll = window.pageYOffset;
+    let maxScroll = (docRef && (docRef.scrollingElement || docRef.documentElement || docRef.body))?.scrollHeight || 0;
+    let containerRect = null;
+
+    if (isElementContainer && scrollContainer) {
+        viewportHeight = scrollContainer.clientHeight;
+        currentScroll = scrollContainer.scrollTop;
+        maxScroll = scrollContainer.scrollHeight;
+        containerRect = scrollContainer.getBoundingClientRect();
+    } else if (docRef) {
+        const scrollingElement = docRef.scrollingElement || docRef.documentElement || docRef.body;
+        if (scrollingElement) {
+            viewportHeight = scrollingElement.clientHeight || viewportHeight;
+            currentScroll = scrollingElement.scrollTop || currentScroll;
+            maxScroll = scrollingElement.scrollHeight || maxScroll;
+        }
+    }
+
+    const elementHeight = Math.max(rect.height, 0);
+    const elementTop = containerRect ? (rect.top - containerRect.top + currentScroll) : (rect.top + currentScroll);
+    const elementCenter = elementTop + (elementHeight / 2);
+    const viewportCenter = viewportHeight / 2;
+
+    let targetTop = elementCenter - viewportCenter;
+
+    if (Number.isFinite(margin) && margin > 0 && elementHeight < viewportHeight) {
+        const marginAdjustment = Math.max(0, margin - (viewportHeight - elementHeight) / 2);
+        targetTop = Math.max(targetTop - marginAdjustment, elementTop - margin);
+    }
+
+    targetTop = Math.max(0, targetTop);
+    if (Number.isFinite(maxScroll) && maxScroll > viewportHeight) {
+        targetTop = Math.min(targetTop, maxScroll - viewportHeight);
+    }
+
+    const scrollOptions = { top: targetTop, behavior };
+    console.log('[SCROLL DEBUG] Calculated targetTop:', targetTop, 'scrollOptions:', scrollOptions);
+
+    let scrolled = false;
+
+    if (isElementContainer && scrollContainer) {
+        console.log('[SCROLL DEBUG] Attempting scroll on element container');
+        try {
+            if (typeof scrollContainer.scrollTo === 'function') {
+                scrollContainer.scrollTo(scrollOptions);
+            } else {
+                scrollContainer.scrollTop = targetTop;
+            }
+            scrolled = true;
+            console.log('[SCROLL DEBUG] Element container scroll succeeded');
+        } catch (err) {
+            console.log('[SCROLL DEBUG] Element container scroll failed:', err);
+        }
+    }
+
+    if (!scrolled && typeof window.scrollTo === 'function') {
+        console.log('[SCROLL DEBUG] Attempting window.scrollTo');
+        try {
+            window.scrollTo(scrollOptions);
+            scrolled = true;
+            console.log('[SCROLL DEBUG] window.scrollTo succeeded');
+        } catch (err) {
+            console.log('[SCROLL DEBUG] window.scrollTo failed, trying legacy:', err);
+            try {
+                window.scrollTo(0, targetTop);
+                scrolled = true;
+                console.log('[SCROLL DEBUG] Legacy window.scrollTo succeeded');
+            } catch (fallbackError) {
+                console.log('[SCROLL DEBUG] Legacy window.scrollTo also failed:', fallbackError);
+            }
+        }
+    }
+
+    if (!scrolled && scrollContainer && !isElementContainer) {
+        console.log('[SCROLL DEBUG] Attempting scroll on fallback container:', scrollContainer);
+        try {
+            if (typeof scrollContainer.scrollTo === 'function') {
+                scrollContainer.scrollTo(scrollOptions);
+            } else {
+                scrollContainer.scrollTop = targetTop;
+            }
+            scrolled = true;
+            console.log('[SCROLL DEBUG] Fallback container scroll succeeded');
+        } catch (err) {
+            console.log('[SCROLL DEBUG] Fallback container scroll failed:', err);
+        }
+    }
+
+    if (!scrolled && docRef && docRef.body) {
+        console.log('[SCROLL DEBUG] Final fallback: setting body.scrollTop');
+        docRef.body.scrollTop = targetTop;
+    }
+
+    console.log('[SCROLL DEBUG] scrollViewportToElement completed, scrolled:', scrolled);
+}
+
+function ensureHighlightedItemsVisible(highlightedElements) {
+    if (!Array.isArray(highlightedElements) || !highlightedElements.length) {
+        return;
+    }
+
+    const primary = highlightedElements.find(el => el && el.isConnected);
+    if (!primary) {
+        return;
+    }
+
+    const scrollContainer = primary.closest('.stash-grid-container');
+    if (scrollContainer && typeof scrollContainer.scrollTop === 'number') {
+        const containerRect = scrollContainer.getBoundingClientRect();
+        const targetRect = primary.getBoundingClientRect();
+        const topOffset = targetRect.top - containerRect.top + scrollContainer.scrollTop;
+        const leftOffset = targetRect.left - containerRect.left + scrollContainer.scrollLeft;
+        const bottomOffset = topOffset + primary.offsetHeight;
+        const rightOffset = leftOffset + primary.offsetWidth;
+
+        const margin = 36;
+        let nextTop = scrollContainer.scrollTop;
+        let nextLeft = scrollContainer.scrollLeft;
+        let needScroll = false;
+        const maxTop = Math.max(0, scrollContainer.scrollHeight - scrollContainer.clientHeight);
+        const maxLeft = Math.max(0, scrollContainer.scrollWidth - scrollContainer.clientWidth);
+
+        if (topOffset < scrollContainer.scrollTop + margin) {
+            nextTop = Math.max(topOffset - margin, 0);
+            needScroll = true;
+        } else if (bottomOffset > scrollContainer.scrollTop + scrollContainer.clientHeight - margin) {
+            const candidateTop = bottomOffset + margin - scrollContainer.clientHeight;
+            nextTop = Math.min(Math.max(candidateTop, 0), maxTop);
+            needScroll = true;
+        }
+
+        if (leftOffset < scrollContainer.scrollLeft + margin) {
+            nextLeft = Math.max(leftOffset - margin, 0);
+            needScroll = true;
+        } else if (rightOffset > scrollContainer.scrollLeft + scrollContainer.clientWidth - margin) {
+            const candidateLeft = rightOffset + margin - scrollContainer.clientWidth;
+            nextLeft = Math.min(Math.max(candidateLeft, 0), maxLeft);
+            needScroll = true;
+        }
+
+        if (needScroll) {
+            if (typeof scrollContainer.scrollTo === 'function') {
+                scrollContainer.scrollTo({ top: nextTop, left: nextLeft, behavior: 'smooth' });
+            } else {
+                scrollContainer.scrollTop = nextTop;
+                scrollContainer.scrollLeft = nextLeft;
+            }
+        }
+        return;
+    }
+
+    if (typeof primary.scrollIntoView === 'function') {
+        try {
+            primary.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+        } catch (err) {
+            try {
+                primary.scrollIntoView(true);
+            } catch (fallbackErr) {
+                // ignore
+            }
+        }
+    }
+}
+
+function focusStashIfRequested(sourceElement, highlightedElements = []) {
+    console.log('[SCROLL DEBUG] focusStashIfRequested called, sourceElement:', sourceElement, 'containerFocus:', pendingContainerFocus, 'itemFocus:', pendingItemFocus, 'highlightedElements:', highlightedElements.length);
+    if (!sourceElement || (!pendingContainerFocus && !pendingItemFocus)) {
+        console.log('[SCROLL DEBUG] Early return - no source or no pending focus');
+        return;
+    }
+
+    const hasHighlights = Array.isArray(highlightedElements) && highlightedElements.length;
+    const primaryHighlight = hasHighlights ? highlightedElements.find(el => el && el.isConnected) : null;
+    console.log('[SCROLL DEBUG] hasHighlights:', hasHighlights, 'primaryHighlight:', primaryHighlight);
+
+    const containerTarget = resolveFocusContainer(primaryHighlight || sourceElement);
+    console.log('[SCROLL DEBUG] containerTarget:', containerTarget);
+
+    if (pendingItemFocus && primaryHighlight) {
+        console.log('[SCROLL DEBUG] Item focus path - scrolling to highlighted item only');
+        ensureHighlightedItemsVisible(highlightedElements);
+        scheduleViewportScroll(primaryHighlight, { margin: 160 });
+        pendingItemFocus = false;
+        pendingContainerFocus = false;
+        return;
+    }
+
+    if (pendingContainerFocus && containerTarget) {
+        console.log('[SCROLL DEBUG] Container focus path - calling scheduleViewportScroll');
+        scheduleViewportScroll(containerTarget, { margin: 220 });
+        pendingContainerFocus = false;
+    }
+    console.log('[SCROLL DEBUG] focusStashIfRequested completed');
+}
+
+let pendingHighlightRequest = null;
+let highlightCleanupTimeout = null;
+let highlightReattemptTimeout = null;
+
+function setPendingHighlight(stashId, slotSource) {
+    const normalizedSlots = normalizeSlotIdList(slotSource);
+    if (!normalizedSlots.length) {
+        return null;
+    }
+
+    if (highlightReattemptTimeout) {
+        clearTimeout(highlightReattemptTimeout);
+        highlightReattemptTimeout = null;
+    }
+
+    pendingHighlightRequest = {
+        stashId: (stashId != null && stashId !== '') ? String(stashId) : null,
+        slotIds: normalizedSlots,
+        attemptsRemaining: HIGHLIGHT_MAX_ATTEMPTS
+    };
+    requestItemFocus();
+    return pendingHighlightRequest;
+}
+
+function clearExistingHighlights() {
+    if (typeof document === 'undefined') {
+        return;
+    }
+    document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach(el => {
+        el.classList.remove(HIGHLIGHT_CLASS);
+        el.removeAttribute('data-highlight-active');
+    });
+}
+
+function clearPendingHighlight() {
+    if (highlightReattemptTimeout) {
+        clearTimeout(highlightReattemptTimeout);
+        highlightReattemptTimeout = null;
+    }
+    pendingHighlightRequest = null;
+    pendingItemFocus = false;
+}
+
+function clearHighlightQueryFromUrl() {
+    if (typeof window === 'undefined' || !window.history || !window.history.replaceState) {
+        return;
+    }
+    const url = new URL(window.location.href);
+    let changed = false;
+    [HIGHLIGHT_QUERY_PARAM, ...HIGHLIGHT_FALLBACK_QUERY_PARAMS].forEach(param => {
+        if (url.searchParams.has(param)) {
+            url.searchParams.delete(param);
+            changed = true;
+        }
+    });
+    if (changed) {
+        const newUrl = `${url.pathname}${url.search}${url.hash}`;
+        window.history.replaceState({}, document.title, newUrl);
+    }
+}
+
+function applyPendingHighlight(stashId, containerElement) {
+    if (!pendingHighlightRequest || !containerElement) {
+        return;
+    }
+
+    const targetStashId = pendingHighlightRequest.stashId;
+    const normalizedCurrentStash = stashId != null ? String(stashId) : null;
+    const isCharacterAggregate = targetStashId === 'character' && (normalizedCurrentStash === '2' || normalizedCurrentStash === '3');
+    if (targetStashId && normalizedCurrentStash && targetStashId !== normalizedCurrentStash && !isCharacterAggregate) {
+        return;
+    }
+
+    const slotIds = pendingHighlightRequest.slotIds || [];
+    if (!slotIds.length) {
+        clearPendingHighlight();
+        return;
+    }
+
+    const slotIdSet = new Set(slotIds.map(id => String(id)));
+    const matchedElements = [];
+    containerElement.querySelectorAll('.stash-item').forEach(itemEl => {
+        const displaySlot = itemEl.dataset.displaySlotId;
+        const rawSlot = itemEl.dataset.slotId;
+        if ((displaySlot && slotIdSet.has(displaySlot)) || (rawSlot && slotIdSet.has(rawSlot))) {
+            matchedElements.push(itemEl);
+        }
+    });
+
+    const connectedElements = matchedElements.filter(el => el && el.isConnected);
+
+    if (!connectedElements.length) {
+        if (pendingHighlightRequest.attemptsRemaining > 0) {
+            pendingHighlightRequest.attemptsRemaining -= 1;
+            if (highlightReattemptTimeout) {
+                clearTimeout(highlightReattemptTimeout);
+            }
+            highlightReattemptTimeout = setTimeout(() => {
+                applyPendingHighlight(stashId, containerElement);
+            }, HIGHLIGHT_POLL_INTERVAL);
+            return;
+        }
+        clearPendingHighlight();
+        clearHighlightQueryFromUrl();
+        return;
+    }
+
+    if (highlightCleanupTimeout) {
+        clearTimeout(highlightCleanupTimeout);
+        highlightCleanupTimeout = null;
+    }
+
+    clearExistingHighlights();
+    connectedElements.forEach(el => {
+        el.classList.add(HIGHLIGHT_CLASS);
+        el.setAttribute('data-highlight-active', 'true');
+    });
+
+    focusStashIfRequested(containerElement, connectedElements);
+
+    highlightCleanupTimeout = setTimeout(() => {
+        connectedElements.forEach(el => {
+            el.classList.remove(HIGHLIGHT_CLASS);
+            el.removeAttribute('data-highlight-active');
+        });
+        highlightCleanupTimeout = null;
+    }, HIGHLIGHT_DURATION_MS);
+
+    clearPendingHighlight();
+    clearHighlightQueryFromUrl();
+}
+
+function primeHighlightRequestFromUrl(urlParams, explicitStashId = null) {
+    if (!urlParams || typeof urlParams.get !== 'function') {
+        return null;
+    }
+
+    let slotParamValue = urlParams.get(HIGHLIGHT_QUERY_PARAM);
+    if (!slotParamValue) {
+        for (const fallbackKey of HIGHLIGHT_FALLBACK_QUERY_PARAMS) {
+            slotParamValue = urlParams.get(fallbackKey);
+            if (slotParamValue) {
+                break;
+            }
+        }
+    }
+
+    if (!slotParamValue) {
+        return null;
+    }
+
+    const stashId = explicitStashId != null ? explicitStashId : (urlParams.get('stashId') || null);
+    return setPendingHighlight(stashId, slotParamValue);
 }
 
 function showSortCancelNotification() {
@@ -763,6 +1258,9 @@ const renderInteractiveGrid = (stashId, items) => {
     // Create one single grid - no conditional logic that could create multiple grids
     const grid = document.createElement('div');
     grid.className = 'interactive-stash-grid';
+    if (isPreviewMode) {
+        grid.classList.add('preview-layout-active');
+    }
 
     // Use explicit sizing for the grid to prevent expansion
     const cellSize = 45;
@@ -807,13 +1305,14 @@ const renderInteractiveGrid = (stashId, items) => {
     if (Array.isArray(itemsToRender) && itemsToRender.length > 0) {
         itemsToRender.forEach(item => {
             if (!item) return;
-            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const rawSlotId = normalizeSlotIdValue(item.slotId);
+            const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
+            const slotIndex = displaySlotId ?? rawSlotId ?? 0;
             const w = Math.max(1, Math.min(Number(item.width) || 1, gridWidth));
             const h = Math.max(1, Math.min(Number(item.height) || 1, gridHeight));
-            const x = slotId % gridWidth;
-            const y = Math.floor(slotId / gridWidth);
+            const x = slotIndex % gridWidth;
+            const y = Math.floor(slotIndex / gridWidth);
 
-            // Check if item is within bounds
             if (
                 x >= 0 && x < gridWidth &&
                 y >= 0 && y < gridHeight &&
@@ -828,11 +1327,13 @@ const renderInteractiveGrid = (stashId, items) => {
 
         // Now process only the valid items
         validItems.forEach(item => {
-            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const rawSlotId = normalizeSlotIdValue(item.slotId);
+            const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
+            const slotIndex = displaySlotId ?? rawSlotId ?? 0;
             const w = Math.max(1, Math.min(Number(item.width) || 1, gridWidth));
             const h = Math.max(1, Math.min(Number(item.height) || 1, gridHeight));
-            const x = slotId % gridWidth;
-            const y = Math.floor(slotId / gridWidth);
+            const x = slotIndex % gridWidth;
+            const y = Math.floor(slotIndex / gridWidth);
 
             // Create item element
             const itemEl = document.createElement('div');
@@ -841,6 +1342,13 @@ const renderInteractiveGrid = (stashId, items) => {
             // Use grid positioning instead of absolute for better alignment
             itemEl.style.gridColumn = `${x + 1} / span ${w}`;
             itemEl.style.gridRow = `${y + 1} / span ${h}`;
+
+            if (rawSlotId !== null) {
+                itemEl.dataset.slotId = String(rawSlotId);
+            }
+            if (displaySlotId !== null) {
+                itemEl.dataset.displaySlotId = String(displaySlotId);
+            }
 
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
@@ -919,7 +1427,9 @@ const renderInteractiveGrid = (stashId, items) => {
         });
     }
 
+    applyPendingHighlight(stashId, grid);
     gridContainer.appendChild(grid);
+    focusStashIfRequested(gridContainer);
 };
 
 const createStashTabs = (stashes) => {
@@ -1288,10 +1798,12 @@ const loadStashes = async () => {
 
             // Check if we have both equipment and bag
             const hasCharacterTab = stashKeys.includes('2') && stashKeys.includes('3');
+            const hasExplicitStashRequest = !!requestedStashIdFromUrl;
+            const hasPendingHighlight = !!(pendingHighlightRequest && Array.isArray(pendingHighlightRequest.slotIds) && pendingHighlightRequest.slotIds.length);
 
             // If currentStashId is 2 (bag) or 3 (equipment) and we have a Character tab,
-            // redirect to the Character tab instead
-            if (hasCharacterTab && (currentStashId === '2' || currentStashId === '3')) {
+            // redirect to the Character tab instead unless the user explicitly requested a stash/highlight
+            if (hasCharacterTab && (currentStashId === '2' || currentStashId === '3') && !hasExplicitStashRequest && !hasPendingHighlight) {
                 currentStashId = 'character';
             }
 
@@ -1315,23 +1827,23 @@ const loadStashes = async () => {
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
 
-                    // Update server with selection using bag as reference
-                    updateCurrentStash('2');
+                    // Update server with selection using equipment as the canonical stash
+                    updateCurrentStash('3');
                 } else {
-                    // Keep the image source for fallback
+                    usingCombinedCharacterView = false;
+
                     if (isNewFormat) {
-                        previewImage.src = stashes.previewImages[currentStashId];
+                        previewImage.classList.add('hidden');
+                        previewImage.removeAttribute('src');
+                        previewContainer.classList.remove('hidden');
+                        previewContainer.className = 'stash-content-area';
                     } else {
                         previewImage.src = stashes[currentStashId];
+                        if (previewImage.src && previewImage.src !== window.location.href) {
+                            previewImage.classList.remove('hidden');
+                            previewContainer.classList.remove('hidden');
+                        }
                     }
-
-                    // Only show the preview container if we have a valid image source
-                    if (previewImage.src && previewImage.src !== window.location.href) {
-                        previewImage.classList.remove('hidden');
-                        previewContainer.classList.remove('hidden');
-                    }
-
-                    usingCombinedCharacterView = false;
 
                     // Process and render the interactive grid
                     processStashData(stashes, currentStashId).then(items => {
@@ -1357,8 +1869,8 @@ const loadStashes = async () => {
                     // Render the combined view
                     renderCombinedCharacterView(stashes);
 
-                    // Update server with selection using bag as reference
-                    updateCurrentStash('2');
+                    // Update server with selection using equipment as the canonical stash
+                    updateCurrentStash('3');
                 } else {
                     // Fall back to the first available tab
                     const firstTab = document.querySelector('.stash-tab');
@@ -1366,28 +1878,36 @@ const loadStashes = async () => {
                         firstTab.classList.add('active');
                         currentStashId = firstTab.dataset.stashId;
 
-                        // Keep the image source for fallback
-                        if (isNewFormat) {
-                            previewImage.src = stashes.previewImages[currentStashId];
-                        } else {
-                            previewImage.src = stashes[currentStashId];
-                        }
-
-                        // Only show the preview container if we have a valid image source
-                        if (previewImage.src && previewImage.src !== window.location.href) {
-                            previewImage.classList.remove('hidden');
+                        if (currentStashId === 'character') {
+                            previewImage.classList.add('hidden');
+                            usingCombinedCharacterView = true;
                             previewContainer.classList.remove('hidden');
+                            renderCombinedCharacterView(stashes);
+                            updateCurrentStash('3');
+                        } else {
+                            usingCombinedCharacterView = false;
+
+                            if (isNewFormat) {
+                                previewImage.classList.add('hidden');
+                                previewImage.removeAttribute('src');
+                                previewContainer.classList.remove('hidden');
+                                previewContainer.className = 'stash-content-area';
+                            } else {
+                                previewImage.src = stashes[currentStashId];
+                                if (previewImage.src && previewImage.src !== window.location.href) {
+                                    previewImage.classList.remove('hidden');
+                                    previewContainer.classList.remove('hidden');
+                                }
+                            }
+
+                            // Process and render the interactive grid 
+                            processStashData(stashes, currentStashId).then(items => {
+                                renderInteractiveGrid(currentStashId, items);
+                            });
+
+                            const syncStashId = currentStashId === 'character' ? '3' : currentStashId;
+                            updateCurrentStash(syncStashId);
                         }
-
-                        usingCombinedCharacterView = false;
-
-                        // Process and render the interactive grid 
-                        processStashData(stashes, currentStashId).then(items => {
-                            renderInteractiveGrid(currentStashId, items);
-                        });
-
-                        // Update the server with our selection
-                        updateCurrentStash(currentStashId);
                     }
                 }
             }            // Show the stash section header and tabs selector
@@ -1643,12 +2163,22 @@ window.addEventListener('DOMContentLoaded', async () => {
     try {
         // Check if there's a stash ID in the URL params (added by search page)
         const urlParams = new URLSearchParams(window.location.search);
-        const stashIdParam = urlParams.get('stashId');
-        if (stashIdParam) {
-            // Set the current stash ID from URL parameter
-            currentStashId = stashIdParam;
+        const stashIdParamRaw = urlParams.get('stashId');
+        const highlightRequest = primeHighlightRequestFromUrl(urlParams, stashIdParamRaw);
+        const shouldUseCombinedView = stashIdParamRaw === '2' || stashIdParamRaw === '3';
+
+        if (shouldUseCombinedView) {
+            requestedStashIdFromUrl = 'character';
+            currentStashId = 'character';
+            console.log(`Using combined Character view for stash ${stashIdParamRaw} from URL.`);
+            requestContainerFocus();
+        } else if (stashIdParamRaw) {
+            requestedStashIdFromUrl = stashIdParamRaw;
+            currentStashId = stashIdParamRaw;
             console.log(`Using stash ID from URL: ${currentStashId}`);
+            requestContainerFocus();
         } else {
+            requestedStashIdFromUrl = null;
             // If not in URL, try to get it from server
             try {
                 const currentStashResponse = await fetch(`/api/character/${charId}/current-stash`);
@@ -1667,13 +2197,19 @@ window.addEventListener('DOMContentLoaded', async () => {
         await updateCharacterInfo(charId);
         await loadStashes();
 
-        // Force render the Character tab if it exists
-        setTimeout(() => {
-            const characterTab = document.querySelector('[data-stash-id="character"]');
-            if (characterTab) {
-                characterTab.click();
-            }
-        }, 100);
+        const shouldForceCharacterTab = !requestedStashIdFromUrl && !(highlightRequest && Array.isArray(highlightRequest.slotIds) && highlightRequest.slotIds.length);
+        if (shouldForceCharacterTab) {
+            // Force render the Character tab if it exists
+            setTimeout(() => {
+                const characterTab = document.querySelector('[data-stash-id="character"]');
+                if (characterTab) {
+                    characterTab.click();
+                }
+            }, 100);
+        }
+
+        // Clear the one-time request flag after initial handling
+        requestedStashIdFromUrl = null;
     } catch (error) {
         handleApiError(error, document.querySelector('.character-details'));
     }
@@ -1883,6 +2419,9 @@ const renderCombinedCharacterView = async (stashes) => {
     equipmentSection.appendChild(equipmentTitle);    // Create equipment grid
     const equipmentGrid = document.createElement('div');
     equipmentGrid.className = 'interactive-stash-grid equipment-grid';
+    if (isPreviewMode) {
+        equipmentGrid.classList.add('preview-layout-active');
+    }
     equipmentGrid.style.gridTemplateColumns = `repeat(${equipWidth}, 45px)`;
     equipmentGrid.style.gridTemplateRows = `repeat(${equipHeight}, 45px)`;
 
@@ -1916,6 +2455,16 @@ const renderCombinedCharacterView = async (stashes) => {
             itemEl.style.opacity = '0.4';
             itemEl.style.pointerEvents = 'none';
         }
+
+        const rawSlotId = normalizeSlotIdValue(item && item.slotId);
+        const displaySlotId = normalizeSlotIdValue(item && item.displaySlotId);
+        if (rawSlotId !== null) {
+            itemEl.dataset.slotId = String(rawSlotId);
+        }
+        if (displaySlotId !== null) {
+            itemEl.dataset.displaySlotId = String(displaySlotId);
+        }
+
         const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
         itemEl.style.borderColor = rarityColor;
         itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
@@ -2007,6 +2556,9 @@ const renderCombinedCharacterView = async (stashes) => {
         equipmentGrid.appendChild(slotCell);
     }
 
+    // Apply any pending highlights targeting equipment before appending
+    applyPendingHighlight('3', equipmentGrid);
+
     // Append equipment grid to section
     equipmentSection.appendChild(equipmentGrid);
 
@@ -2023,6 +2575,9 @@ const renderCombinedCharacterView = async (stashes) => {
     bagSection.appendChild(bagTitle);    // Create bag grid
     const bagGrid = document.createElement('div');
     bagGrid.className = 'interactive-stash-grid bag-grid';
+    if (isPreviewMode) {
+        bagGrid.classList.add('preview-layout-active');
+    }
     bagGrid.style.gridTemplateColumns = `repeat(${bagWidth}, 45px)`;
     bagGrid.style.gridTemplateRows = `repeat(${bagHeight}, 45px)`;
 
@@ -2046,11 +2601,13 @@ const renderCombinedCharacterView = async (stashes) => {
     if (bagItemsToRender && bagItemsToRender.length) {
         bagItemsToRender.forEach(item => {
             if (!item) return;
-            const slotId = (item.displaySlotId ?? item.slotId ?? 0);
+            const rawSlotId = normalizeSlotIdValue(item.slotId);
+            const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
+            const slotIndex = displaySlotId ?? rawSlotId ?? 0;
             const w = Math.max(1, Math.min(Number(item.width) || 1, bagWidth));
             const h = Math.max(1, Math.min(Number(item.height) || 1, bagHeight));
-            const x = slotId % bagWidth;
-            const y = Math.floor(slotId / bagWidth);
+            const x = slotIndex % bagWidth;
+            const y = Math.floor(slotIndex / bagWidth);
 
             // Create item element
             const itemEl = document.createElement('div');
@@ -2100,6 +2657,13 @@ const renderCombinedCharacterView = async (stashes) => {
             } else {
                 // No image, just display the name
                 itemEl.textContent = item.name || 'Unknown';
+            }
+
+            if (rawSlotId !== null) {
+                itemEl.dataset.slotId = String(rawSlotId);
+            }
+            if (displaySlotId !== null) {
+                itemEl.dataset.displaySlotId = String(displaySlotId);
             }
 
             // Add count badge if more than 1
@@ -2155,6 +2719,9 @@ const renderCombinedCharacterView = async (stashes) => {
         });
     }
 
+    // Apply any pending highlights targeting the bag before appending
+    applyPendingHighlight('2', bagGrid);
+
     // Append bag grid to section
     bagSection.appendChild(bagGrid);
 
@@ -2163,6 +2730,7 @@ const renderCombinedCharacterView = async (stashes) => {
 
     // Add the combined grid to the container
     gridContainer.appendChild(combinedGrid);
+    focusStashIfRequested(gridContainer);
 };
 
 function updatePreviewForCurrentStash() {
