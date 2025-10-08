@@ -700,12 +700,32 @@ class UpdaterUI:
             self.root.destroy()
             return
 
+        self.status_var.set("Launching DnDTools...")
+        self.detail_var.set("Updater will close automatically in about 10 seconds.")
+
         try:
-            subprocess.Popen([str(exe_path)], cwd=str(exe_path.parent))
+            process = subprocess.Popen([str(exe_path)], cwd=str(exe_path.parent))
         except Exception as exc:
             self.logger.error("Failed to launch app after update: %s", exc)
-        finally:
-            self.root.destroy()
+            self.detail_var.set(f"Launch failed: {exc}")
+            return
+
+        def _wait_for_launch() -> None:
+            timeout = 10.0
+            interval = 0.2
+            elapsed = 0.0
+
+            while elapsed < timeout:
+                result = process.poll()
+                if result is not None:
+                    self.logger.debug("Launch process exited with code %s during wait", result)
+                time.sleep(interval)
+                elapsed += interval
+
+            self.root.after(0, lambda: self.detail_var.set("Closing updater..."))
+            self.root.after(0, self.root.destroy)
+
+        threading.Thread(target=_wait_for_launch, daemon=True).start()
 
     def _open_logs_directory(self) -> None:
         log_dir = self.options.get("log_directory") or self.app_info.get("log_directory")
@@ -739,12 +759,11 @@ class UpdaterUI:
             installer_path = self._download_installer()
             self._download_path = installer_path
 
-            self._enqueue("status", ("Applying update...", ""))
-            self._run_installer(installer_path)
-
-            self._enqueue("status", ("Update complete", f"DnDTools {self.manifest.version} installed."))
-            self._enqueue("progress", 100)
-            self._enqueue("complete")
+            self._enqueue("status", ("Launching installer...", ""))
+            self._run_installer(installer_path, wait=False)
+            self._notify_installation_in_progress()
+            self.root.after(300, self.root.destroy)
+            return
         except Exception as exc:
             self.logger.error("Update workflow failed: %s", exc, exc_info=True)
             self._enqueue("status", ("Update failed", str(exc)))
@@ -865,7 +884,7 @@ class UpdaterUI:
         if digest.lower() != expected.lower():
             raise UpdateError("Downloaded installer checksum mismatch")
 
-    def _run_installer(self, installer_path: Path) -> None:
+    def _run_installer(self, installer_path: Path, wait: bool = True) -> None:
         args = [str(installer_path)]
         if self.options.get("silent", True):
             args.extend([
@@ -895,9 +914,80 @@ class UpdaterUI:
             popen_kwargs["creationflags"] = creation
 
         proc = subprocess.Popen(args, **popen_kwargs)
-        return_code = proc.wait()
-        if return_code != 0:
-            raise UpdateError(f"Installer exited with code {return_code}")
+        if wait:
+            return_code = proc.wait()
+            if return_code != 0:
+                raise UpdateError(f"Installer exited with code {return_code}")
+
+    def _notify_installation_in_progress(self) -> None:
+        if os.name != "nt":
+            return
+
+        def _show_notification() -> None:
+            try:
+                import win32con
+                import win32gui
+            except ImportError:
+                self.logger.info("pywin32 not available; skipping Windows notification")
+                return
+
+            hwnd = self.root.winfo_id()
+            title = "Applying DnDTools update"
+            message = "Update is installing. The app will reopen shortly."
+            icon_path = self._resolve_icon_path()
+
+            hicon = 0
+            extra_icons: list[int] = []
+            try:
+                large_icons, small_icons = win32gui.ExtractIconEx(icon_path, 0, 1)
+                if large_icons:
+                    hicon = large_icons[0]
+                    extra_icons.extend(large_icons[1:])
+                elif small_icons:
+                    hicon = small_icons[0]
+                    extra_icons.extend(small_icons[1:])
+            except Exception:
+                hicon = 0
+
+            flags = win32con.NIF_INFO | win32con.NIF_TIP
+            if hicon:
+                flags |= win32con.NIF_ICON
+
+            tip = "DnDTools Updater"
+            nid = (
+                hwnd,
+                1,
+                flags,
+                0,
+                hicon,
+                tip,
+                message,
+                8000,
+                title,
+                win32con.NIIF_INFO,
+            )
+
+            try:
+                win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
+                win32gui.Shell_NotifyIcon(win32gui.NIM_MODIFY, nid)
+            except win32gui.error as exc:
+                self.logger.warning("Failed to display Windows notification: %s", exc)
+            finally:
+                def _cleanup() -> None:
+                    try:
+                        win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
+                    except Exception:
+                        pass
+                    for handle in [hicon, *extra_icons]:
+                        if handle:
+                            try:
+                                win32gui.DestroyIcon(handle)
+                            except Exception:
+                                pass
+
+                threading.Timer(9, _cleanup).start()
+
+        self.root.after(0, _show_notification)
 
     def _cleanup_temp(self) -> None:
         try:
