@@ -3,7 +3,7 @@
 ## 🎮 Demo
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/ce137f5c-c787-480c-bdac-3c7ebd408979" controls autoplay loop muted width="100%"></video>
+  <video src="https://github.com/user-attachments/assets/100d069c-3b83-4177-a7ff-7760b1cd092d" controls autoplay loop muted width="100%"></video>
 </p>
 
 <p align="center">
