@@ -441,10 +441,25 @@ class UpdaterUI:
 
         self.tk = tk
         self.ttk = ttk
+
+        self.colors = {
+            "bg": "#0d1118",
+            "panel": "#151c27",
+            "panel_border": "#1f2734",
+            "panel_hover": "#1b2330",
+            "text_primary": "#fdfbff",
+            "text_muted": "#c4ccda",
+            "text_subtle": "#8e99ad",
+            "accent": "#ff7b26",
+            "accent_hover": "#ff9553",
+            "accent_dark": "#c8621d",
+            "progress_trough": "#1c2433",
+        }
+
         self.root = tk.Tk()
         self.root.title("DnDTools Updater")
-        self.root.geometry("420x240")
-        self.root.configure(bg="#10131a")
+        self.root.geometry("460x260")
+        self.root.configure(bg=self.colors["bg"])
         self.root.resizable(False, False)
 
         try:
@@ -455,15 +470,30 @@ class UpdaterUI:
         self.status_var = tk.StringVar(value="Preparing update...")
         self.detail_var = tk.StringVar(value="")
 
-        padding = 16
-        container = tk.Frame(self.root, bg="#10131a", padx=padding, pady=padding)
+        outer = tk.Frame(self.root, bg=self.colors["bg"])
+        outer.pack(fill=tk.BOTH, expand=True)
+
+        card = tk.Frame(
+            outer,
+            bg=self.colors["panel"],
+            highlightthickness=1,
+            highlightbackground=self.colors["panel_border"],
+            bd=0,
+        )
+        card.pack(expand=True, padx=24, pady=24, fill=tk.BOTH)
+
+        accent_bar = tk.Frame(card, bg=self.colors["accent"], height=3, bd=0)
+        accent_bar.pack(fill=tk.X, side=tk.TOP)
+
+        padding = 20
+        container = tk.Frame(card, bg=self.colors["panel"], padx=padding, pady=padding, bd=0)
         container.pack(fill=tk.BOTH, expand=True)
 
         title_label = tk.Label(
             container,
             text="Dark and Darker Tools",
-            fg="#f0f4ff",
-            bg="#10131a",
+            fg=self.colors["accent"],
+            bg=self.colors["panel"],
             font=("Segoe UI Semibold", 16),
         )
         title_label.pack(anchor="w")
@@ -471,17 +501,17 @@ class UpdaterUI:
         subtitle_label = tk.Label(
             container,
             text="Update in progress",
-            fg="#8891a9",
-            bg="#10131a",
+            fg=self.colors["text_subtle"],
+            bg=self.colors["panel"],
             font=("Segoe UI", 11),
         )
-        subtitle_label.pack(anchor="w", pady=(0, 12))
+        subtitle_label.pack(anchor="w", pady=(4, 16))
 
         status_label = tk.Label(
             container,
             textvariable=self.status_var,
-            fg="#f0f4ff",
-            bg="#10131a",
+            fg=self.colors["text_primary"],
+            bg=self.colors["panel"],
             font=("Segoe UI", 11),
         )
         status_label.pack(anchor="w")
@@ -489,20 +519,56 @@ class UpdaterUI:
         detail_label = tk.Label(
             container,
             textvariable=self.detail_var,
-            fg="#9aa3bb",
-            bg="#10131a",
+            fg=self.colors["text_muted"],
+            bg=self.colors["panel"],
             font=("Segoe UI", 9),
             wraplength=360,
             justify="left",
         )
-        detail_label.pack(anchor="w", pady=(4, 12))
+        detail_label.pack(anchor="w", pady=(6, 16))
 
-        self.progress = ttk.Progressbar(container, orient="horizontal", length=360, mode="determinate")
-        self.progress.pack(anchor="w")
+        self.style = ttk.Style(self.root)
+        try:
+            self.style.theme_use("clam")
+        except tk.TclError:
+            pass
+        self.style.configure(
+            "Updater.Horizontal.TProgressbar",
+            troughcolor=self.colors["progress_trough"],
+            bordercolor=self.colors["progress_trough"],
+            background=self.colors["accent"],
+            lightcolor=self.colors["accent"],
+            darkcolor=self.colors["accent_dark"],
+            thickness=12,
+            troughrelief="flat",
+            relief="flat",
+        )
+
+        self.progress = ttk.Progressbar(
+            container,
+            orient="horizontal",
+            mode="determinate",
+            style="Updater.Horizontal.TProgressbar",
+            length=360,
+        )
+        self.progress.pack(fill=tk.X)
         self.progress.configure(value=0, maximum=100)
 
-        self.buttons_frame = tk.Frame(container, bg="#10131a")
-        self.buttons_frame.pack(anchor="e", fill=tk.X, pady=(18, 0))
+        self.buttons_frame = tk.Frame(container, bg=self.colors["panel"])
+        self.buttons_frame.pack(anchor="e", fill=tk.X, pady=(22, 0))
+
+        self._button_palette = {
+            "accent": {
+                "bg": self.colors["accent"],
+                "hover": self.colors["accent_hover"],
+                "fg": self.colors["bg"],
+            },
+            "ghost": {
+                "bg": self.colors["panel"],
+                "hover": self.colors["panel_hover"],
+                "fg": self.colors["accent"],
+            },
+        }
 
         self._workflow_thread = threading.Thread(target=self._workflow, name="UpdaterWorkflow", daemon=True)
 
@@ -563,38 +629,77 @@ class UpdaterUI:
         for child in list(self.buttons_frame.winfo_children()):
             child.destroy()
 
+    def _create_button(self, parent, text: str, command, variant: str = "accent"):
+        colors = self._button_palette.get(variant, self._button_palette["accent"])
+        button = self.tk.Button(
+            parent,
+            text=text,
+            command=command,
+            bg=colors["bg"],
+            activebackground=colors["hover"],
+            fg=colors["fg"],
+            activeforeground=colors["fg"],
+            relief="flat",
+            bd=0,
+            padx=16,
+            pady=8,
+            font=("Segoe UI Semibold", 10),
+            cursor="hand2",
+            highlightthickness=0,
+        )
+
+        button.bind("<Enter>", lambda _e: button.configure(bg=colors["hover"]))
+        button.bind("<Leave>", lambda _e: button.configure(bg=colors["bg"]))
+        return button
+
     def _show_completion_buttons(self) -> None:
         self._clear_buttons()
-        close_button = self.ttk.Button(self.buttons_frame, text="Close", command=self.root.destroy)
-        close_button.pack(side=self.tk.RIGHT)
-        if not self.options.get("no_launch"):
-            launch_button = self.ttk.Button(self.buttons_frame, text="Launch DnDTools", command=self._launch_app)
-            launch_button.pack(side=self.tk.RIGHT, padx=(8, 0))
+        can_launch = bool(self.app_info.get("executable")) and not self.options.get("no_launch")
 
-    def _show_error_buttons(self, message: str) -> None:
-        self._clear_buttons()
-        label = self.tk.Label(
-            self.buttons_frame,
-            text=message,
-            fg="#f88b8b",
-            bg="#10131a",
-            font=("Segoe UI", 9),
-            wraplength=360,
-            justify="left",
+        close_button = self._create_button(
+            self.buttons_frame, "Close", self.root.destroy, variant="ghost"
         )
-        label.pack(anchor="w", fill=self.tk.X, pady=(0, 12))
-        close_button = self.ttk.Button(self.buttons_frame, text="Close", command=self.root.destroy)
         close_button.pack(side=self.tk.RIGHT)
+
+        if can_launch:
+            launch_button = self._create_button(
+                self.buttons_frame,
+                "Launch DnDTools",
+                self._launch_app,
+                variant="accent",
+            )
+            launch_button.pack(side=self.tk.RIGHT, padx=(0, 8))
+
+    def _show_error_buttons(self, message: str | None = None) -> None:
+        self._clear_buttons()
+
+        if message:
+            self.detail_var.set(message)
+
+        close_button = self._create_button(
+            self.buttons_frame, "Close", self.root.destroy, variant="ghost"
+        )
+        close_button.pack(side=self.tk.RIGHT)
+
+        open_logs_button = self._create_button(
+            self.buttons_frame,
+            "View logs",
+            self._open_logs_directory,
+            variant="accent",
+        )
+        open_logs_button.pack(side=self.tk.RIGHT, padx=(0, 8))
 
     def _launch_app(self) -> None:
         executable = self.app_info.get("executable")
         if not executable:
             self.root.destroy()
             return
+
         exe_path = Path(executable)
         if not exe_path.exists():
             self.root.destroy()
             return
+
         try:
             subprocess.Popen([str(exe_path)], cwd=str(exe_path.parent))
         except Exception as exc:
@@ -602,11 +707,31 @@ class UpdaterUI:
         finally:
             self.root.destroy()
 
+    def _open_logs_directory(self) -> None:
+        log_dir = self.options.get("log_directory") or self.app_info.get("log_directory")
+        if not log_dir:
+            self.logger.info("No logs directory provided; falling back to temp directory")
+            log_dir = str(self._temp_dir)
+
+        path = Path(log_dir).expanduser()
+        try:
+            if sys.platform.startswith("win"):
+                os.startfile(str(path))  # type: ignore[attr-defined]
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", str(path)])
+            else:
+                subprocess.Popen(["xdg-open", str(path)])
+        except Exception as exc:
+            self.logger.error("Failed to open logs directory: %s", exc)
+
     # ------------------------------------------------------------------
     # Workflow implementation
     # ------------------------------------------------------------------
     def _workflow(self) -> None:
         try:
+            if self.options.get("demo"):
+                self._run_demo_flow()
+                return
             self._enqueue("status", ("Ensuring DnDTools is closed...", ""))
             self._ensure_application_closed()
 
@@ -626,6 +751,30 @@ class UpdaterUI:
             self._enqueue("error", str(exc))
         finally:
             self._cleanup_temp()
+
+    def _run_demo_flow(self) -> None:
+        phantom_pid = self.options.get("phantom_pid", "?")
+        statuses = [
+            ("Ensuring DnDTools is closed...", f"Phantom PID {phantom_pid}", 20),
+            ("Downloading update...", "Simulated download (demo mode)", 60),
+            ("Applying update...", "Simulated installer (demo mode)", 90),
+        ]
+
+        progress = 0
+        for status, detail, target in statuses:
+            self._enqueue("status", (status, detail))
+            while progress < target:
+                progress = min(target, progress + 5)
+                self._enqueue("progress", progress)
+                time.sleep(0.15)
+
+        final_message = (
+            f"DnDTools {self.manifest.version} installed (demo)."
+            if self.manifest else "Demo complete."
+        )
+        self._enqueue("status", ("Update complete", final_message))
+        self._enqueue("progress", 100)
+        self._enqueue("complete")
 
     def _ensure_application_closed(self) -> None:
         pid = self.app_info.get("pid")
@@ -779,6 +928,7 @@ def _parse_arguments(argv: Optional[list[str]] = None) -> argparse.Namespace:
     parser.add_argument("--manifest-url", help="Manifest URL to fetch if no context provided", default=None)
     parser.add_argument("--silent", action="store_true", help="Apply update silently")
     parser.add_argument("--no-launch", action="store_true", help="Do not offer to relaunch the app")
+    parser.add_argument("--demo", action="store_true", help="Run a demo UI with a phantom update process")
     return parser.parse_args(argv)
 
 
@@ -795,6 +945,8 @@ def main(argv: Optional[list[str]] = None) -> None:
     manifest: Optional[UpdateManifest] = None
     app_info: dict[str, Any] = {}
     options: dict[str, Any] = {"silent": args.silent}
+    has_manifest_args = any((args.context, args.manifest, args.manifest_url))
+    demo_mode = bool(args.demo or not has_manifest_args)
 
     if args.context:
         context_path = Path(args.context)
@@ -811,6 +963,20 @@ def main(argv: Optional[list[str]] = None) -> None:
         if payload is None:
             raise UpdateError("Unable to download manifest")
         manifest = payload
+    elif demo_mode:
+        phantom_pid = 424242
+        manifest = UpdateManifest(
+            version="demo-3.5.99",
+            url="https://example.com/DnDTools-demo-installer.exe",
+            notes="Demo run – no files will be downloaded."
+        )
+        app_info = {"phantom": True, "pid": phantom_pid, "executable": str(Path(__file__).resolve())}
+        options.update({
+            "silent": False,
+            "demo": True,
+            "no_launch": True,
+            "phantom_pid": phantom_pid,
+        })
     else:
         raise UpdateError("No manifest information supplied")
 
@@ -819,6 +985,11 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     if args.no_launch:
         options["no_launch"] = True
+    if args.demo and not options.get("demo"):
+        options["demo"] = True
+        options.setdefault("silent", False)
+        options.setdefault("no_launch", True)
+        options.setdefault("phantom_pid", 424242)
 
     updater = UpdaterUI(manifest, app_info, options)
     updater.run()
