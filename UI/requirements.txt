@@ -1,6 +1,6 @@
 flask==3.1.2
 pywebview==6.0
-protobuf==6.32.1
+protobuf==6.33.0
 python-dotenv
 pyautogui
 keyboard
