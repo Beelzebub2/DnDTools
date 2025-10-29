@@ -2,7 +2,7 @@ from pathlib import Path
 import json
 import os
 import time
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
@@ -263,8 +263,16 @@ class StashManager:
             }
         return None
 
-    def get_item_holdings(self, item_ids: Iterable[str]) -> Dict[str, List[Dict]]:
-        """Aggregate how many of the specified items exist across all characters."""
+    def get_item_holdings(
+        self,
+        item_ids: Iterable[str],
+        loot_state_map: Optional[Dict[str, Set[int]]] = None,
+    ) -> Dict[str, List[Dict]]:
+        """Aggregate how many of the specified items exist across all characters.
+
+        When ``loot_state_map`` is provided, only items whose ``lootState`` value is
+        present in the corresponding set will be counted for that item id.
+        """
         if not item_ids:
             return {}
 
@@ -277,6 +285,11 @@ class StashManager:
 
         target_set = set(targets)
         aggregated: Dict[str, List[Dict]] = {item_id: [] for item_id in target_set}
+        loot_state_filter = {
+            str(item_id): set(values)
+            for item_id, values in (loot_state_map or {}).items()
+            if values
+        }
 
         for char in self.get_characters():
             if not isinstance(char, dict):
@@ -305,6 +318,17 @@ class StashManager:
                     if canonical_id not in target_set:
                         continue
 
+                    loot_state_raw = item.get("lootState")
+                    try:
+                        loot_state_value = int(loot_state_raw)
+                    except (TypeError, ValueError):
+                        loot_state_value = None
+
+                    allowed_states = loot_state_filter.get(canonical_id)
+                    if allowed_states is not None:
+                        if loot_state_value is None or loot_state_value not in allowed_states:
+                            continue
+
                     count_raw = item.get("itemCount", 1)
                     try:
                         count = int(count_raw)
@@ -316,8 +340,10 @@ class StashManager:
                     stash_entry = {
                         'stash_id': str(stash_id),
                         'count': count,
-                        'slot_id': item.get("slotId")
+                        'slot_id': item.get("slotId"),
                     }
+                    if loot_state_value is not None:
+                        stash_entry['loot_state'] = loot_state_value
 
                     holding = character_holdings.setdefault(canonical_id, {
                         'character_id': str(char.get('id')),

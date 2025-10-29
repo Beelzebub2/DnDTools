@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Dict, Iterable, Optional, Set
 
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, get_data_dir
 from src.models.settings import (
@@ -58,6 +58,129 @@ AUTO_UPDATE_SILENT = os.environ.get("DND_UPDATE_SILENT", "1").lower() not in {"0
 SORT_CANCEL_NOTIFICATION_MESSAGE = (
     "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again."
 )
+
+
+LOOT_STATE_VALUE_TO_LABEL: Dict[int, str] = {
+    0: "None",
+    1: "Supplied",
+    2: "Looted",
+    3: "Handled",
+    4: "Crafted",
+    5: "Ally",
+}
+
+_LOOT_STATE_ALIAS_MAP: Dict[str, int] = {}
+for _value, _label in LOOT_STATE_VALUE_TO_LABEL.items():
+    _normalized_label = _label.lower()
+    _LOOT_STATE_ALIAS_MAP[str(_value)] = _value
+    _LOOT_STATE_ALIAS_MAP[_normalized_label] = _value
+    _LOOT_STATE_ALIAS_MAP[_normalized_label.replace(" ", "")] = _value
+
+_LOOT_STATE_ALIAS_MAP.update(
+    {
+        "none": 0,
+        "none_source": 0,
+        "nonesource": 0,
+        "supplies": 1,
+        "loot": 2,
+        "handled": 3,
+        "handle": 3,
+        "craft": 4,
+        "crafted": 4,
+        "ally": 5,
+    }
+)
+
+
+def _normalize_loot_state_key(raw: str) -> str:
+    cleaned = raw.lower().strip()
+    if not cleaned:
+        return ""
+    cleaned = cleaned.replace("-", " ").replace("_", " ")
+    cleaned = cleaned.replace("only", "")
+    return " ".join(part for part in cleaned.split() if part)
+
+
+def _parse_single_loot_state(raw) -> Optional[int]:
+    if raw is None:
+        return None
+    if isinstance(raw, int):
+        return raw
+    text = str(raw).strip()
+    if not text:
+        return None
+    key = _normalize_loot_state_key(text)
+    if not key or key in {"any", "all", "*"}:
+        return None
+    return _LOOT_STATE_ALIAS_MAP.get(key)
+
+
+def extract_loot_state_filter(raw) -> Optional[Set[int]]:
+    """Return a set of acceptable loot state values or None when unrestricted."""
+
+    if raw is None:
+        return None
+
+    if isinstance(raw, (list, tuple, set)):
+        collected: Set[int] = set()
+        for entry in raw:
+            values = extract_loot_state_filter(entry)
+            if values is None:
+                return None
+            collected.update(values)
+        return collected or None
+
+    value = _parse_single_loot_state(raw)
+    if value is None:
+        return None
+    return {value}
+
+
+def format_loot_state_label(value: int) -> str:
+    return LOOT_STATE_VALUE_TO_LABEL.get(value, str(value))
+
+
+def collect_item_loot_state_requirements(
+    quests: Iterable[dict],
+    item_filter: Optional[Set[str]] = None,
+) -> Dict[str, Optional[Set[int]]]:
+    """Map item ids to acceptable loot state values based on quest objectives."""
+
+    filtered_items = set(item_filter) if item_filter else None
+    requirements: Dict[str, Optional[Set[int]]] = {}
+
+    for quest in quests or []:
+        objectives = quest.get("objectives") or []
+        for objective in objectives:
+            if not isinstance(objective, dict):
+                continue
+
+            item_id = objective.get("item_id")
+            if not item_id:
+                continue
+            if filtered_items is not None and item_id not in filtered_items:
+                continue
+
+            values = extract_loot_state_filter(
+                objective.get("loot_state") or objective.get("lootState")
+            )
+
+            if values is None:
+                requirements[item_id] = None
+                continue
+
+            if not values:
+                continue
+
+            current = requirements.get(item_id)
+            if current is None and item_id in requirements:
+                continue
+            if current is None:
+                requirements[item_id] = set(values)
+            else:
+                current.update(values)
+
+    return requirements
 
 
 def _clear_character_storage() -> dict[str, object]:
@@ -1531,6 +1654,19 @@ def api_quests_list():
                 'module': objective.get('module'),
                 'must_escape': objective.get('must_escape', False),
             }
+            loot_state_raw = objective.get('loot_state') or objective.get('lootState')
+            if loot_state_raw is not None:
+                objective_payload['loot_state'] = loot_state_raw
+                parsed_states = extract_loot_state_filter(loot_state_raw)
+                if parsed_states:
+                    values_list = sorted(parsed_states)
+                    objective_payload['loot_state_values'] = values_list
+                    objective_payload['loot_state_labels'] = [
+                        format_loot_state_label(value) for value in values_list
+                    ]
+                    if len(values_list) == 1:
+                        objective_payload['loot_state_value'] = values_list[0]
+                        objective_payload['loot_state_label'] = objective_payload['loot_state_labels'][0]
             if objective.get('item_id'):
                 objective_payload['item'] = quest_service.build_item_payload(
                     items_index.get(objective['item_id']),
@@ -1617,16 +1753,35 @@ def api_quests_item_requirements():
                 'quests': [],
                 'merchant_counts': {},
                 'dungeons': set(),
+                'loot_state_values': set(),
             })
             entry['total_required'] += count
-            entry['quests'].append({
+
+            loot_state_raw = objective.get('loot_state') or objective.get('lootState')
+            loot_state_values = extract_loot_state_filter(loot_state_raw)
+            if loot_state_values:
+                entry['loot_state_values'].update(loot_state_values)
+
+            quest_entry = {
                 'id': quest_id,
                 'title': quest_title,
                 'merchant': merchant_name,
                 'merchant_original': merchant_name_original,
                 'count': count,
                 'chapter': quest.get('chapter'),
-            })
+                'loot_state': loot_state_raw,
+            }
+            if loot_state_values:
+                sorted_values = sorted(loot_state_values)
+                quest_entry['loot_state_values'] = sorted_values
+                quest_entry['loot_state_labels'] = [
+                    format_loot_state_label(value) for value in sorted_values
+                ]
+                if len(sorted_values) == 1:
+                    quest_entry['loot_state_value'] = sorted_values[0]
+                    quest_entry['loot_state_label'] = quest_entry['loot_state_labels'][0]
+
+            entry['quests'].append(quest_entry)
             if merchant_name:
                 entry['merchant_counts'][merchant_name] = entry['merchant_counts'].get(merchant_name, 0) + count
             for dungeon in dungeons:
@@ -1687,8 +1842,21 @@ def api_quests_item_holdings():
     if not item_ids:
         return jsonify({'success': False, 'error': 'No valid item ids provided'}), 400
 
+    loot_state_requirements: Dict[str, Optional[Set[int]]] = {}
     try:
-        holdings_map = api.stash_manager.get_item_holdings(item_ids)
+        quests_snapshot = quest_service.fetch_quests()
+        loot_state_requirements = collect_item_loot_state_requirements(quests_snapshot, set(item_ids))
+    except Exception as exc:
+        logger.debug("Unable to resolve loot state requirements for holdings: %s", exc, exc_info=True)
+
+    loot_state_filter = {
+        item_id: values
+        for item_id, values in loot_state_requirements.items()
+        if values
+    }
+
+    try:
+        holdings_map = api.stash_manager.get_item_holdings(item_ids, loot_state_map=loot_state_filter)
     except Exception as exc:
         logger.error("Failed to aggregate quest item holdings: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to calculate holdings'}), 500
