@@ -35,7 +35,7 @@ from src.models.icon_pak import icon_store, canonical_icon_path
 from src.models.character import save_packet_data
 from src.models.item import Item
 from src.models.game_overlay import overlay_manager, register_overlay_logging
-from src.models.hotkeys import GlobalHotkeyManager, HotkeyError
+from src.models.hotkeys import GlobalHotkeyManager, HotkeyError, format_hotkey_display
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -1971,7 +1971,13 @@ def api_set_current_stash(character_id, stash_id):
 def index():
     # if not check_tshark():
     #     return redirect(url_for('installing'))
-    return render_template('index.html')
+    sort_hotkey = format_hotkey_display(settings_manager.get('sortHotkey', 'ctrl+f11'), 'ctrl+f11')
+    cancel_hotkey = format_hotkey_display(settings_manager.get('cancelHotkey', 'ctrl+f12'), 'ctrl+f12')
+    return render_template(
+        'index.html',
+        sort_hotkey_display=sort_hotkey,
+        cancel_hotkey_display=cancel_hotkey,
+    )
 
 @server.route('/settings')
 def settings():

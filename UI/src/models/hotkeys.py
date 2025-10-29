@@ -21,6 +21,7 @@ __all__ = [
     "HotkeyConflictError",
     "GlobalHotkeyManager",
     "canonicalize_hotkey",
+    "format_hotkey_display",
 ]
 
 
@@ -139,10 +140,67 @@ _WINDOWS_MODIFIER_BITS = {
     "win": 0x0008,
 }
 
+_HOTKEY_DISPLAY_OVERRIDES = {
+    "pageup": "Page Up",
+    "pagedown": "Page Down",
+    "capslock": "Caps Lock",
+    "numlock": "Num Lock",
+    "scrolllock": "Scroll Lock",
+    "printscreen": "Print Screen",
+    "esc": "Esc",
+    "escape": "Esc",
+    "space": "Space",
+    "tab": "Tab",
+    "enter": "Enter",
+    "win": "Win",
+    "windows": "Win",
+}
+
 
 def canonicalize_hotkey(raw: str) -> str:
     """Return the canonical form of a hotkey string."""
     return _parse_hotkey(raw).canonical
+
+
+def format_hotkey_display(raw: Optional[str], fallback: str = "") -> str:
+    """Return a user-friendly hotkey label for display in the UI."""
+    candidate = (raw or fallback or "").strip()
+    if not candidate:
+        return ""
+
+    canonical_source = candidate
+    try:
+        canonical = canonicalize_hotkey(candidate)
+    except HotkeyError:
+        canonical_source = fallback.strip() or candidate
+        try:
+            canonical = canonicalize_hotkey(canonical_source)
+        except HotkeyError:
+            canonical = canonical_source
+
+    tokens = [segment for segment in canonical.split("+") if segment]
+    if not tokens:
+        return canonical.replace("+", " + ")
+
+    display_tokens: list[str] = []
+    for token in tokens:
+        lower = token.lower()
+        override = _HOTKEY_DISPLAY_OVERRIDES.get(lower)
+        if override:
+            display_tokens.append(override)
+            continue
+
+        if len(token) == 1:
+            display_tokens.append(token.upper())
+            continue
+
+        if lower.startswith("f") and lower[1:].isdigit():
+            display_tokens.append(lower.upper())
+            continue
+
+        display_tokens.append(lower.capitalize())
+
+    return " + ".join(display_tokens)
 
 
 def _parse_hotkey(raw: str) -> _ParsedHotkey:
