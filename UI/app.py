@@ -35,6 +35,7 @@ from src.models.icon_pak import icon_store, canonical_icon_path
 from src.models.character import save_packet_data
 from src.models.item import Item
 from src.models.game_overlay import overlay_manager, register_overlay_logging
+from src.models.hotkeys import GlobalHotkeyManager, HotkeyError
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
@@ -416,7 +417,16 @@ class Api:
         self._apply_wireshark_path(self._wireshark_path)
         self._initial_restart_done = False
         self.window = None
-        self._setup_global_hotkeys()
+        try:
+            self.hotkey_manager: Optional[GlobalHotkeyManager] = GlobalHotkeyManager(logger)
+        except HotkeyError as creation_err:
+            self.hotkey_manager = None
+            logger.error("Global hotkeys disabled: %s", creation_err)
+        else:
+            try:
+                self._setup_global_hotkeys()
+            except HotkeyError as hotkey_err:
+                logger.error("Failed to register initial global hotkeys: %s", hotkey_err)
         self.is_maximized = False
         self.original_size = None
         self.original_position = None
@@ -576,19 +586,28 @@ class Api:
 
             success = True
 
-            try:
-                self._setup_global_hotkeys()
-            except Exception as hotkey_err:  # pragma: no cover - defensive safeguard
-                success = False
-                logger.error("Failed to register global hotkeys: %s", hotkey_err)
-                result['errors'].append('Failed to register global hotkeys. Previous hotkeys were restored.')
+            if self.hotkey_manager:
                 try:
-                    self.settings_manager.update({
-                        'sortHotkey': previous_settings.get('sortHotkey', 'ctrl+f11'),
-                        'cancelHotkey': previous_settings.get('cancelHotkey', 'ctrl+f12'),
-                    })
-                except Exception as revert_err:  # pragma: no cover - defensive safeguard
-                    logger.error("Failed to revert hotkeys after registration failure: %s", revert_err)
+                    self._setup_global_hotkeys()
+                except HotkeyError as hotkey_err:  # pragma: no cover - defensive safeguard
+                    success = False
+                    logger.error("Failed to register global hotkeys: %s", hotkey_err)
+                    result['errors'].append(str(hotkey_err))
+                    fallback_sort = previous_settings.get('sortHotkey') or 'ctrl+f11'
+                    fallback_cancel = previous_settings.get('cancelHotkey') or 'ctrl+f12'
+                    try:
+                        self.settings_manager.update({
+                            'sortHotkey': fallback_sort,
+                            'cancelHotkey': fallback_cancel,
+                        })
+                        try:
+                            self._setup_global_hotkeys()
+                        except HotkeyError as revert_err:
+                            logger.error("Failed to restore previous hotkeys: %s", revert_err)
+                    except Exception as revert_err:  # pragma: no cover - defensive safeguard
+                        logger.error("Failed to revert hotkeys after registration failure: %s", revert_err)
+            else:
+                result['warnings'].append('Global hotkeys are not available on this system.')
 
             new_interface = updated_settings.get('interface')
             previous_interface = previous_settings.get('interface') if isinstance(previous_settings, dict) else None
@@ -664,19 +683,24 @@ class Api:
             return result
 
     def _setup_global_hotkeys(self):
-        import keyboard
-        # Remove any existing hotkeys
-        keyboard.unhook_all()
-        
-        # Setup sort hotkey
-        sort_hotkey = self.settings_manager.get('sortHotkey', 'ctrl+f11')
-        logger.info(f"Registering sort hotkey: {sort_hotkey}")
-        keyboard.add_hotkey(sort_hotkey, self._trigger_sort_current, suppress=True)
-        
-        # Setup cancel hotkey
-        cancel_hotkey = self.settings_manager.get('cancelHotkey', 'ctrl+f12')
-        logger.info(f"Registering cancel hotkey: {cancel_hotkey}")
-        keyboard.add_hotkey(cancel_hotkey, self._trigger_cancel_sort, suppress=True)
+        if not self.hotkey_manager:
+            raise HotkeyError("Global hotkey manager is not available on this system")
+
+        sort_hotkey = self.settings_manager.get('sortHotkey', 'ctrl+f11') or 'ctrl+f11'
+        cancel_hotkey = self.settings_manager.get('cancelHotkey', 'ctrl+f12') or 'ctrl+f12'
+
+        bindings = {
+            'sort': (sort_hotkey, self._trigger_sort_current),
+            'cancel': (cancel_hotkey, self._trigger_cancel_sort),
+        }
+
+        canonical = self.hotkey_manager.apply_bindings(bindings)
+        logger.info(
+            "Registered hotkeys -> sort: %s | cancel: %s",
+            canonical.get('sort', '<none>'),
+            canonical.get('cancel', '<none>'),
+        )
+        return canonical
         
     def _apply_wireshark_path(self, wireshark_path, update_capture=False, propagate_state=False):
         resolved = resolve_tshark_executable(wireshark_path)
@@ -896,19 +920,46 @@ class Api:
         logger.info(f"Sort hotkey activated: {self.settings_manager.get('sortHotkey')}")
         current_char_id = self._current_char_id
         current_stash_id = self._current_stash_id
-        if current_char_id and current_stash_id:
-            logger.info(f"Scheduling sort for character {current_char_id}, stash {current_stash_id}")
-            threading.Thread(target=self._sort_worker, daemon=True).start()
-        else:
-            logger.warning("No current stash selected")
 
-    def _sort_worker(self):
+        if self.current_sort_event and not self.current_sort_event.is_set():
+            logger.info("Sort hotkey pressed while a sort is already running; ignoring duplicate trigger")
+            if self.window:
+                try:
+                    self.window.evaluate_js(
+                        "showNotification('A sort is already running. Press the cancel hotkey to stop it.', 'info');"
+                    )
+                except Exception:
+                    logger.debug("Unable to surface duplicate sort warning to UI", exc_info=True)
+            return
+
+        if not (current_char_id and current_stash_id):
+            logger.warning("Sort hotkey pressed with no active character/stash context")
+            if self.window:
+                try:
+                    self.window.evaluate_js(
+                        "showNotification('Open a character stash before triggering the sort hotkey.', 'warning');"
+                    )
+                except Exception:
+                    logger.debug("Unable to surface missing context warning to UI", exc_info=True)
+            return
+
+        logger.info(f"Scheduling sort for character {current_char_id}, stash {current_stash_id}")
+        cancel_event = threading.Event()
+        self.current_sort_event = cancel_event
+        threading.Thread(target=self._sort_worker, args=(cancel_event,), daemon=True).start()
+
+    def _sort_worker(self, cancel_event: threading.Event):
         """Background worker for sorting current stash"""
+        if cancel_event.is_set():
+            logger.info("Sort worker aborted before start because cancel was requested")
+            return
+
         if self.window:
             self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
         result = self.sort_stash(
             self._current_char_id,
             self._current_stash_id,
+            cancel_event=cancel_event,
             pack_mode=self.get_pack_mode(),
             stack_mode=self.get_stack_mode(),
         )
@@ -958,6 +1009,15 @@ class Api:
                     )
                 except Exception as exc:
                     logger.debug("Failed to dispatch sortCancelled event: %s", exc, exc_info=True)
+        else:
+            logger.debug("Cancel hotkey pressed but no active sort was running")
+            if self.window:
+                try:
+                    self.window.evaluate_js(
+                        "showNotification('No sort is currently running.', 'info');"
+                    )
+                except Exception:
+                    logger.debug("Unable to surface idle cancel notification to UI", exc_info=True)
 
     def get_characters(self):
         return self.stash_manager.get_characters()
@@ -1013,9 +1073,12 @@ class Api:
         state["initialRestartDone"] = self._initial_restart_done
         return state
 
-    def sort_stash(self, character_id, stash_id, pack_mode=None, stack_mode=None):
+    def sort_stash(self, character_id, stash_id, pack_mode=None, stack_mode=None, cancel_event=None):
         """Sort a specific stash for a character"""
-        self.current_sort_event = threading.Event()
+        if cancel_event is None:
+            cancel_event = threading.Event()
+
+        self.current_sort_event = cancel_event
         success = False
         error_msg: Optional[str] = None
 
@@ -1039,6 +1102,9 @@ class Api:
         )
 
         try:
+            if cancel_event.is_set():
+                return {"success": False, "error": "Sort cancelled"}
+
             if pack_mode is None:
                 pack_mode = self.get_pack_mode()
             else:
@@ -1059,7 +1125,7 @@ class Api:
             result = self.stash_manager.sort_stash(
                 character_id,
                 stash_id,
-                cancel_event=self.current_sort_event,
+                cancel_event=cancel_event,
                 pack_mode=pack_mode,
                 stack_mode=stack_mode,
                 overlay_session=overlay_session,
@@ -1164,6 +1230,14 @@ class Api:
             
     def force_close_window(self):
         # Quick shutdown without delays
+        try:
+            if getattr(self, 'hotkey_manager', None):
+                self.hotkey_manager.shutdown()
+        except Exception as exc:
+            logger.debug("Failed to shut down hotkey manager: %s", exc)
+        finally:
+            self.hotkey_manager = None
+
         try:
             already_shutdown = getattr(self, '_capture_shutdown_completed', False)
             if not already_shutdown:
@@ -2206,7 +2280,11 @@ def main():
         except Exception as capture_err:
             logger.error(f"Failed to apply migrated capture interface: {capture_err}")
 
-    api._setup_global_hotkeys()
+    if api.hotkey_manager:
+        try:
+            api._setup_global_hotkeys()
+        except HotkeyError as hotkey_err:
+            logger.error("Failed to refresh global hotkeys after settings reload: %s", hotkey_err)
     
     # Only handle immediate restart if capture is in a known running state
     if (
