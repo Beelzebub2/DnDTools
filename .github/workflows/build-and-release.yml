@@ -51,6 +51,16 @@ jobs:
         run: |
           installer\build_installer.bat
 
+      - name: Verify PyInstaller outputs
+        shell: powershell
+        run: |
+          if (-not (Test-Path "dist/DnDTools/DnDTools.exe")) {
+            throw "DnDTools onedir build missing."
+          }
+          if (-not (Test-Path "dist/update.exe")) {
+            throw "Update executable missing."
+          }
+
       - name: Generate update manifest
         shell: powershell
         run: |
