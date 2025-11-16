@@ -1,0 +1,11 @@
+flask==3.1.2
+pywebview==6.0
+protobuf==6.32.1
+python-dotenv
+pyautogui
+keyboard
+psutil
+pygetwindow
+pyshark
+requests
+Pillow
