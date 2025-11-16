@@ -107,7 +107,7 @@ jobs:
         github_output = os.environ.get('GITHUB_OUTPUT')
         if github_output:
             with open(github_output, 'a', encoding='utf-8') as fh:
-                fh.write("release_summary<<'EOF'\n")
+                fh.write("release_summary<<EOF\n")
                 fh.write(summary)
                 fh.write("\nEOF\n")
         PY
