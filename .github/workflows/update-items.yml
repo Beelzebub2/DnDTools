@@ -104,6 +104,39 @@ jobs:
         summary = '\n'.join(summary_lines)
         print(summary)
 
+        added_preview = [
+            {
+                "id": key,
+                "name": current.get(key, {}).get('name', key),
+            }
+            for key in new_keys[:50]
+        ]
+
+        removed_preview = [
+            {
+                "id": key,
+                "name": previous.get(key, {}).get('name', key),
+            }
+            for key in removed_keys[:50]
+        ]
+
+        changelog = {
+            "generated_at": dt.datetime.utcnow().isoformat() + 'Z',
+            "display_date": date_str,
+            "total_items": len(current),
+            "previous_total": len(previous),
+            "added_count": len(new_keys),
+            "removed_count": len(removed_keys),
+            "has_added": bool(new_keys),
+            "has_removed": bool(removed_keys),
+            "added_items": added_preview,
+            "removed_items": removed_preview,
+        }
+
+        changelog_path = Path('UI/assets/changelog.json')
+        changelog_path.write_text(json.dumps(changelog, indent=2, ensure_ascii=False))
+        print(f"Wrote changelog data to {changelog_path}")
+
         github_output = os.environ.get('GITHUB_OUTPUT')
         if github_output:
             with open(github_output, 'a', encoding='utf-8') as fh:
@@ -181,6 +214,7 @@ jobs:
         # List of assets to publish (relative to repo root)
         upload_asset "UI/assets/icons.pak"
         upload_asset "UI/assets/items.json"
+        upload_asset "UI/assets/changelog.json"
 
     - name: Check for changes
       id: verify-changed-files
