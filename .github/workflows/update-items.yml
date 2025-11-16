@@ -6,7 +6,69 @@ on:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
 
 jobs:
+  check-darkerdb-version:
+    runs-on: ubuntu-latest
+
+    outputs:
+      build: ${{ steps.detect.outputs.build }}
+      patch: ${{ steps.detect.outputs.patch }}
+      changed: ${{ steps.detect.outputs.changed }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - name: Detect DarkerDB build changes
+      id: detect
+      run: |
+        python - <<'PY'
+        import json
+        import os
+        import urllib.request
+        from pathlib import Path
+
+        HEALTH_URL = "https://api.darkerdb.com/v1/health-check"
+        with urllib.request.urlopen(HEALTH_URL, timeout=15) as resp:
+            payload = json.loads(resp.read().decode('utf-8'))
+
+        build = payload.get('build')
+        patch = payload.get('patch')
+
+        if not build or patch is None:
+            raise SystemExit('Missing build or patch fields in health-check response.')
+
+        meta_path = Path('UI/assets/darkerdb_health.json')
+        if meta_path.exists():
+            try:
+                previous = json.loads(meta_path.read_text())
+            except json.JSONDecodeError:
+                previous = {}
+        else:
+            previous = {}
+
+        changed = previous.get('build') != build or previous.get('patch') != patch
+
+        print(f"Current build: {build}, patch: {patch}")
+        print(f"Previous build: {previous.get('build', '<none>')}, patch: {previous.get('patch', '<none>')}")
+        print(f"Change detected? {changed}")
+
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a', encoding='utf-8') as fh:
+                fh.write(f"build={build}\n")
+                fh.write(f"patch={patch}\n")
+                fh.write(f"changed={'true' if changed else 'false'}\n")
+        PY
+
+    - name: Log up-to-date status
+      if: steps.detect.outputs.changed != 'true'
+      run: echo "DarkerDB build/patch unchanged; skipping asset refresh."
+
   refresh-assets:
+    needs: check-darkerdb-version
+    if: needs.check-darkerdb-version.outputs.changed == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -143,6 +205,31 @@ jobs:
                 fh.write("release_summary<<EOF\n")
                 fh.write(summary)
                 fh.write("\nEOF\n")
+        PY
+
+    - name: Update DarkerDB health metadata
+      run: |
+        python - <<'PY'
+        import json
+        from pathlib import Path
+
+        build = "${{ needs.check-darkerdb-version.outputs.build }}"
+        patch_raw = "${{ needs.check-darkerdb-version.outputs.patch }}"
+
+        try:
+            patch = int(patch_raw)
+        except ValueError:
+            patch = patch_raw
+
+        data = {
+            "build": build,
+            "patch": patch,
+        }
+
+        path = Path('UI/assets/darkerdb_health.json')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+        print(f"Wrote {path} -> {data}")
         PY
 
     - name: Install jq
