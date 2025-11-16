@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from src.models.appdirs import get_settings_file, resource_path
+from src.models.hotkeys import canonicalize_hotkey, HotkeyParseError
 from src.models.item import Item
 
 
@@ -163,8 +164,15 @@ class SettingsManager:
         normalized = settings.copy()
 
         for key in ("sortHotkey", "cancelHotkey"):
-            if key in normalized and normalized[key] is not None:
-                normalized[key] = str(normalized[key]).lower()
+            raw_value = normalized.get(key)
+            if raw_value:
+                try:
+                    normalized[key] = canonicalize_hotkey(raw_value)
+                except HotkeyParseError as exc:
+                    self._logger.warning("Invalid %s '%s': %s", key, raw_value, exc)
+                    normalized[key] = canonicalize_hotkey(self._defaults[key])
+            else:
+                normalized[key] = canonicalize_hotkey(self._defaults[key])
 
         sort_speed = normalized.get("sortSpeed", self._defaults["sortSpeed"])
         try:

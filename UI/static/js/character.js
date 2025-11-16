@@ -2049,57 +2049,28 @@ if (typeof window.showNotification !== 'function') {
     }
 }
 
-// Global keyboard shortcuts and an always-ready cancel key.
-// Use capture-phase listener so the cancel key is caught before other elements (inputs, modals) can intercept it.
+// Keep a lightweight in-app escape hatch. Global hotkeys are managed natively by the desktop layer,
+// so we only watch for ESC while a sort is running to provide immediate visual feedback.
 window.addEventListener('keydown', (e) => {
     try {
-        const key = (e.key || '').toString();
-
-        // Ctrl/Cmd+S to trigger sort (preserve previous behavior)
-        if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 's') {
-            e.preventDefault();
-            e.stopImmediatePropagation();
-            const sortButton = document.querySelector('.sort-button');
-            sortButton && sortButton.click();
+        if (!abortController) {
             return;
         }
 
-        // Ctrl/Cmd+X still cancels (legacy)
-        if ((e.ctrlKey || e.metaKey) && key.toLowerCase() === 'x') {
-            if (abortController) {
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                // Abort fetch and immediately update UI
-                try { abortController.abort(); } catch (err) { /* noop */ }
-                abortController = null;
-                setSortingState(false);
-                showSortCancelNotification();
-                // Notify other listeners
-                window.dispatchEvent(new Event('sortingEnded'));
-            }
+        const rawKey = (e.key || '').toString().toLowerCase();
+        if (rawKey !== 'escape' && rawKey !== 'esc') {
             return;
         }
 
-        // Escape key: instant cancel and always listened-for (no modifier required)
-        if (key === 'Escape' || key === 'Esc') {
-            if (abortController) {
-                // Prevent other handlers from processing this event
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                // Abort the ongoing request
-                try { abortController.abort(); } catch (err) { /* noop */ }
-                abortController = null;
-                // Immediately hide sorting UI so the cancel feels instant
-                setSortingState(false);
-                // Inform the user
-                showSortCancelNotification();
-                // Notify other listeners
-                window.dispatchEvent(new Event('sortingEnded'));
-            }
-            return;
-        }
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        try { abortController.abort(); } catch (err) { /* noop */ }
+        abortController = null;
+        setSortingState(false);
+        showSortCancelNotification();
+        window.dispatchEvent(new Event('sortingEnded'));
     } catch (err) {
-        // Swallow errors in the global key handler to avoid breaking other features
         console.error('Key handler error:', err);
     }
 }, { capture: true });

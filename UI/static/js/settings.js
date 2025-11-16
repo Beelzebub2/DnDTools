@@ -621,6 +621,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             feedback.textContent = text;
         }
 
+        const suppressBrowserShortcuts = (event) => {
+            if (!isRecording) {
+                return;
+            }
+
+            // Prevent default browser shortcuts (F-keys, Ctrl+R, etc.) from triggering while recording.
+            event.preventDefault();
+
+            // If focus slipped away while recording, redirect it back so we capture correctly.
+            if (document.activeElement !== input) {
+                input.focus({ preventScroll: true });
+            }
+        };
+
+        let suppressionAttached = false;
+
         function startRecording() {
             isRecording = true;
             pressedKeys.clear();
@@ -628,6 +644,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             input.style.borderColor = 'var(--accent-gold)';
             input.value = '';
             updateFeedback('Press keys... (release all to save)');
+
+            if (!suppressionAttached) {
+                window.addEventListener('keydown', suppressBrowserShortcuts, true);
+                suppressionAttached = true;
+            }
         }
 
         function stopRecording() {
@@ -635,6 +656,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             input.style.backgroundColor = '';
             input.style.borderColor = '';
             removeFeedbackElement();
+
+            if (suppressionAttached) {
+                window.removeEventListener('keydown', suppressBrowserShortcuts, true);
+                suppressionAttached = false;
+            }
 
             if (recordingTimeout) {
                 clearTimeout(recordingTimeout);

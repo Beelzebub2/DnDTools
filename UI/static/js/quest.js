@@ -2522,6 +2522,9 @@
                     progressInput.value = submittedValue > 0 ? submittedValue : '';
                     hintParts.push(`Auto-tracked from objectives: ${autoDisplay}`);
                 }
+                if (Array.isArray(item.loot_state_requirements) && item.loot_state_requirements.length) {
+                    hintParts.push(`Counts loot-state: ${item.loot_state_requirements.join(', ')}`);
+                }
                 if (hideLocked && summary.hiddenQuestCount > 0) {
                     hintParts.push(`${summary.hiddenQuestCount} locked quest${summary.hiddenQuestCount === 1 ? '' : 's'} hidden`);
                 }
@@ -2576,7 +2579,17 @@
                     const quantityLabel = quantityRaw !== undefined && quantityRaw !== null && quantityRaw !== ''
                         ? `${quantityRaw}×`
                         : '—';
-                    tag.innerHTML = `${entry.merchant ? `<strong>${entry.merchant}</strong> — ` : ''}${questTitle} (<strong>${quantityLabel}</strong>)`;
+                    const lootLabels = Array.isArray(entry.loot_state_labels) && entry.loot_state_labels.length
+                        ? entry.loot_state_labels
+                        : entry.loot_state_label
+                            ? [entry.loot_state_label]
+                            : (entry.loot_state && typeof entry.loot_state === 'string' && entry.loot_state.trim()
+                                ? [entry.loot_state.trim()]
+                                : null);
+                    const requirementSuffix = lootLabels && lootLabels.length
+                        ? `, Loot state: ${lootLabels.join(', ')}`
+                        : '';
+                    tag.innerHTML = `${entry.merchant ? `<strong>${entry.merchant}</strong> — ` : ''}${questTitle} (<strong>${quantityLabel}</strong>${requirementSuffix})`;
                     questTags.appendChild(tag);
                 });
                 quests.appendChild(questTags);

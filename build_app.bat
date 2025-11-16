@@ -1,5 +1,5 @@
 @echo off
-REM Build the app into a single-file executable using Nuitka
+REM Build the application and updater bundles using PyInstaller
 
 REM Ensure we're in the project root
 cd /d "%~dp0"
@@ -24,9 +24,10 @@ if exist "%ASSET_STAGING%" rmdir /s /q "%ASSET_STAGING%"
 robocopy "UI\assets" "%ASSET_STAGING%" /E /XD icons >nul
 if %ERRORLEVEL% GEQ 8 goto :error
 
-REM Run pyinstaller to compile the application into a single-file executable
+REM Run pyinstaller to compile the application into an onedir build so resources stay alongside the executable
 pyinstaller ^
-  --onefile ^
+  --noconfirm ^
+  --onedir ^
   --noconsole ^
   --icon=UI\assets\logo.ico ^
   --add-data "UI\networking\protos;networking/protos" ^
@@ -47,6 +48,7 @@ pyinstaller ^
 if %ERRORLEVEL% NEQ 0 goto :error
 
 pyinstaller ^
+  --noconfirm ^
   --onefile ^
   --windowed ^
   --icon=UI\assets\logo.ico ^
@@ -56,7 +58,7 @@ pyinstaller ^
   UI\update.py
 if %ERRORLEVEL% NEQ 0 goto :error
 
-echo Build complete. Executable is in the dist folder.
+echo Build complete. Check the dist directory for the app bundle and updater executable.
 goto :eof
 
 :error
