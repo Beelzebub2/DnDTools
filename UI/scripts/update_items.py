@@ -159,7 +159,6 @@ if __name__ == "__main__":
     logger.info("DarkerDB Items Updater")
     logger.info("%s", "=" * 30)
     logger.info("API URL: %s", API_BASE_URL)
-    logger.info("Using API Key: %s", masked_key)
     logger.info("Target file: %s", ITEMS_FILE)
     logger.info("")
 
