@@ -58,6 +58,60 @@ jobs:
       working-directory: UI
       run: python scripts/build_icons_pak.py --check --skip-convert
 
+    - name: Summarize item changes
+      id: summarize-items
+      run: |
+        python - <<'PY'
+        import json
+        import subprocess
+        import datetime as dt
+        import os
+        from pathlib import Path
+
+        items_path = Path('UI/assets/items.json')
+        current = json.loads(items_path.read_text()) if items_path.exists() else {}
+
+        try:
+            prev_raw = subprocess.check_output(['git', 'show', 'HEAD:UI/assets/items.json'], text=True)
+            previous = json.loads(prev_raw)
+        except subprocess.CalledProcessError:
+            previous = {}
+
+        new_keys = sorted(set(current) - set(previous))
+        removed_keys = sorted(set(previous) - set(current))
+
+        def format_items(title, keys, data):
+            if not keys:
+                return f"{title}: none"
+            lines = [f"{title} ({len(keys)}):"]
+            limit = 20
+            for key in keys[:limit]:
+                entry = data.get(key, {})
+                name = entry.get('name', key)
+                lines.append(f"- {name} [{key}]")
+            if len(keys) > limit:
+                lines.append(f"... (+{len(keys) - limit} more)")
+            return '\n'.join(lines)
+
+        date_str = dt.datetime.utcnow().strftime('%d/%m/%Y')
+        summary_lines = [
+            f"Updated {date_str}",
+            f"Total items: {len(current)} (was {len(previous)})",
+            format_items('Added items', new_keys, current),
+            format_items('Removed items', removed_keys, previous),
+        ]
+
+        summary = '\n'.join(summary_lines)
+        print(summary)
+
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a', encoding='utf-8') as fh:
+                fh.write("release_summary<<'EOF'\n")
+                fh.write(summary)
+                fh.write("\nEOF\n")
+        PY
+
     - name: Install jq
       if: runner.os == 'Linux'
       run: |
@@ -68,6 +122,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY: ${{ github.repository }}
+        RELEASE_SUMMARY: ${{ steps.summarize-items.outputs.release_summary }}
       run: |
         set -euo pipefail
         TAG="assets-latest"
@@ -77,8 +132,12 @@ jobs:
         echo "Checking for existing release with tag $TAG"
         release_json=$(curl -s -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/tags/$TAG") || true
 
-        # Set release body to current date in DD/MM/YYYY format
-        RELEASE_BODY=$(date -u +%d/%m/%Y)
+        # Prefer the summarized release body if available; otherwise fall back to current date
+        if [ -n "${RELEASE_SUMMARY:-}" ]; then
+          RELEASE_BODY="$RELEASE_SUMMARY"
+        else
+          RELEASE_BODY=$(date -u +%d/%m/%Y)
+        fi
         echo "Release body will be: $RELEASE_BODY"
 
         if echo "$release_json" | jq -e '.id' >/dev/null 2>&1; then
