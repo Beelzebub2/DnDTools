@@ -3,7 +3,7 @@ name: Update Items and Icons
 on:
   workflow_dispatch:  # Allow manual trigger
   schedule:
-    - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
 
 jobs:
   refresh-assets:
@@ -37,6 +37,71 @@ jobs:
     - name: Verify icon pack manifest
       working-directory: UI
       run: python scripts/build_icons_pak.py --check --skip-convert
+
+    - name: Install jq
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y jq
+
+    - name: Publish assets-latest release (create or update)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        TAG="assets-latest"
+        REPO="$GITHUB_REPOSITORY"
+        TOKEN="$GITHUB_TOKEN"
+
+        echo "Checking for existing release with tag $TAG"
+        release_json=$(curl -s -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/tags/$TAG") || true
+
+        # Set release body to current date in DD/MM/YYYY format
+        RELEASE_BODY=$(date -u +%d/%m/%Y)
+        echo "Release body will be: $RELEASE_BODY"
+
+        if echo "$release_json" | jq -e '.id' >/dev/null 2>&1; then
+          release_id=$(echo "$release_json" | jq -r .id)
+          echo "Found existing release: id=$release_id"
+          # Update the existing release body to current date
+          update_payload=$(jq -n --arg body "$RELEASE_BODY" '{ body: $body }')
+          curl -s -X PATCH -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" -d "$update_payload" "https://api.github.com/repos/$REPO/releases/$release_id"
+          echo "Updated release body to current date"
+        else
+          echo "Release not found, creating release $TAG"
+          create_payload=$(jq -n --arg tag "$TAG" --arg name "$TAG" --arg body "$RELEASE_BODY" '{ tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false }')
+          release_json=$(curl -s -X POST -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" -d "$create_payload" "https://api.github.com/repos/$REPO/releases")
+          release_id=$(echo "$release_json" | jq -r .id)
+          echo "Created release: id=$release_id"
+        fi
+
+        upload_url="https://uploads.github.com/repos/$REPO/releases/$release_id/assets"
+
+        upload_asset() {
+          local path="$1"
+          local name
+          name=$(basename "$path")
+          if [ ! -f "$path" ]; then
+            echo "Warning: asset $path not found, skipping"
+            return
+          fi
+
+          # Delete existing asset with same name if present
+          assets_json=$(curl -s -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/$release_id/assets")
+          asset_id=$(echo "$assets_json" | jq -r --arg name "$name" '.[] | select(.name==$name) | .id' || true)
+          if [ -n "$asset_id" ] && [ "$asset_id" != "null" ]; then
+            echo "Deleting existing asset $name (id=$asset_id)"
+            curl -s -X DELETE -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/assets/$asset_id"
+          fi
+
+          echo "Uploading $name"
+          curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/octet-stream" --data-binary @"$path" "$upload_url?name=$name"
+        }
+
+        # List of assets to publish (relative to repo root)
+        upload_asset "UI/assets/icons.pak"
+        upload_asset "UI/assets/items.json"
 
     - name: Check for changes
       id: verify-changed-files
