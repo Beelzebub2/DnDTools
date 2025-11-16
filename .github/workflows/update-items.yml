@@ -19,10 +19,28 @@ jobs:
         python-version: '3.11'
         cache: 'pip'
 
+    - name: Prepare filtered requirements (remove platform-only packages)
+      run: |
+        python - <<'PY'
+        from pathlib import Path
+        p = Path('UI/requirements.txt')
+        out = p.with_name('requirements.filtered.txt')
+        if p.exists():
+            lines = [l for l in p.read_text().splitlines() if l.strip() and not l.strip().lower().startswith('pywin32')]
+            out.write_text('\n'.join(lines) + '\n')
+            print(f'Wrote {out}')
+        else:
+            print('No UI/requirements.txt found')
+        PY
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -r UI/requirements.txt
+        if [ -f UI/requirements.filtered.txt ]; then
+          python -m pip install -r UI/requirements.filtered.txt
+        elif [ -f UI/requirements.txt ]; then
+          python -m pip install -r UI/requirements.txt
+        fi
 
     - name: Update items data
       env:
