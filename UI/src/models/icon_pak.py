@@ -120,5 +120,18 @@ class IconPakStore:
             return None
         return io.BytesIO(data)
 
+    def invalidate_cache(self) -> None:
+        """Release any open archive handles so external updaters can replace the pak file."""
+        with self._lock:
+            if self._zip:
+                try:
+                    self._zip.close()
+                except Exception:  # pragma: no cover - defensive
+                    pass
+            self._zip = None
+            self._manifest.clear()
+            self._cache.clear()
+            self._pak_mtime = None
+
 
 icon_store = IconPakStore()

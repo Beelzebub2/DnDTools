@@ -1610,6 +1610,9 @@ asset_updater = AssetUpdater(
     logger=logger,
     window_getter=lambda: api.window,
     on_assets_applied=[api.handle_assets_updated],
+    before_asset_replace={
+        "icons.pak": (icon_store.invalidate_cache,),
+    },
 )
 api.asset_updater = asset_updater
 
