@@ -1336,46 +1336,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 600);
     }
 
-    // Reset settings
-    async function resetSettings() {
-        if (!confirm('Are you sure you want to reset all settings to defaults?')) {
-            return;
-        }
-
-        const defaultSettings = {
+    function buildDefaultSettingsSnapshot() {
+        return {
             interface: '',
             sortHotkey: 'ctrl+f11',
             cancelHotkey: 'ctrl+f12',
             sortSpeed: 0.2,
             resolution: 'Auto',
             wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : '',
-            includeDevReleases: false
+            includeDevReleases: false,
+            noDelay: false
         };
+    }
 
+    function applyDefaultSettingsLocally(defaults) {
         runWithApplyingFlag(() => {
-            interfaceSelect.value = defaultSettings.interface;
-            sortHotkeyInput.value = defaultSettings.sortHotkey;
-            cancelHotkeyInput.value = defaultSettings.cancelHotkey;
-            sortSpeedInput.value = toDisplaySpeed(defaultSettings.sortSpeed);
-            resolutionSelect.value = defaultSettings.resolution;
+            interfaceSelect.value = defaults.interface;
+            sortHotkeyInput.value = defaults.sortHotkey;
+            cancelHotkeyInput.value = defaults.cancelHotkey;
+            sortSpeedInput.value = toDisplaySpeed(defaults.sortSpeed);
+            resolutionSelect.value = defaults.resolution;
             if (wiresharkPathInput) {
-                wiresharkPathInput.value = defaultSettings.wiresharkPath;
+                wiresharkPathInput.value = defaults.wiresharkPath;
             }
             if (noDelayCheckbox) {
-                noDelayCheckbox.checked = false;
+                noDelayCheckbox.checked = Boolean(!defaults.sortSpeed || defaults.noDelay);
             }
             if (includeDevCheckbox) {
-                includeDevCheckbox.checked = Boolean(defaultSettings.includeDevReleases);
+                includeDevCheckbox.checked = Boolean(defaults.includeDevReleases);
             }
         });
 
-        lastManualSortSpeed = defaultSettings.sortSpeed;
+        lastManualSortSpeed = defaults.sortSpeed;
 
         runWithApplyingFlag(() => {
             applyNoDelayUIState();
         });
 
         evaluateUnsavedChanges();
+    }
+
+    async function applyDefaultsAndPersist() {
+        const defaults = buildDefaultSettingsSnapshot();
+        applyDefaultSettingsLocally(defaults);
 
         const saved = await saveSettings({
             showNotification: false,
@@ -1388,6 +1391,37 @@ document.addEventListener('DOMContentLoaded', async () => {
         } else {
             showNotification('Defaults applied locally, but saving failed. Please try again.', 'warning');
         }
+
+        return saved;
+    }
+
+    function showResetDefaultsModal() {
+        if (typeof createUnsavedChangesModal !== 'function') {
+            if (window.confirm('Reset all settings to their recommended defaults?')) {
+                void applyDefaultsAndPersist();
+            }
+            return;
+        }
+
+        createUnsavedChangesModal({
+            title: 'Reset all settings?',
+            message: 'This will instantly restore the recommended defaults and overwrite your current tweaks.',
+            bodyText: 'Resetting will:',
+            bodyTips: [
+                { icon: 'settings_backup_restore', text: 'Restore network interface, Wireshark path, hotkeys, timing, and release channel to their defaults.' },
+                { icon: 'cloud_done', text: 'Auto-save the defaults immediately so they persist across restarts.' }
+            ],
+            saveLabel: 'Reset to Defaults',
+            discardLabel: 'Keep Current Settings',
+            cancelLabel: 'Cancel',
+            onSave: () => applyDefaultsAndPersist(),
+            onDiscard: () => {
+                showNotification('Kept your current settings.', 'info');
+            },
+            onCancel: () => {
+                evaluateUnsavedChanges();
+            }
+        });
     }
 
     // Event listeners
@@ -1396,7 +1430,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             void saveSettings();
         });
     }
-    resetButton.addEventListener('click', resetSettings);
+    resetButton?.addEventListener('click', showResetDefaultsModal);
     refreshResolutionBtn?.addEventListener('click', loadDetectedResolution);
     browseWiresharkButton?.addEventListener('click', pickWiresharkPath);
     detectWiresharkButton?.addEventListener('click', autoDetectWireshark);
