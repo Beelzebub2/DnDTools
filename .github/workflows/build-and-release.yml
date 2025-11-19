@@ -48,6 +48,8 @@ jobs:
 
       - name: Build installer package
         shell: cmd
+        env:
+          DNDTOOLS_RELEASE_VERSION: ${{ github.event.inputs.tag }}
         run: |
           installer\build_installer.bat
 

@@ -82,6 +82,15 @@ installer\build_installer.bat
 
 This command will rebuild the standalone executable with PyInstaller, synchronize the installer metadata with the application version, and emit `DnDTools-Setup-<version>.exe` in the `dist\` directory.
 
+> Need to stamp a one-off version (for example, to match a GitHub release tag)? Set `DNDTOOLS_RELEASE_VERSION` before running the installer script:
+>
+> ```cmd
+> set DNDTOOLS_RELEASE_VERSION=v3.6.1
+> installer\build_installer.bat
+> ```
+>
+> The GitHub Actions workflow now sets this variable automatically from the `workflow_dispatch` tag input, so the CI-built installer always matches the version you typed on the Actions form.
+
 > The GitHub Actions release pipeline invokes the same script and attaches the generated installer to each tagged pre-release.
 
 ## ⚙️ Configuration
