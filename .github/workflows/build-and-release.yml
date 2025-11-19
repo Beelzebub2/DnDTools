@@ -65,8 +65,10 @@ jobs:
 
       - name: Generate update manifest
         shell: powershell
+        env:
+          DNDTOOLS_RELEASE_VERSION: ${{ github.event.inputs.tag }}
         run: |
-          python scripts/generate_update_manifest.py --release-tag "${{ github.event.inputs.tag }}"
+          python scripts/generate_update_manifest.py --release-tag "${{ github.event.inputs.tag }}" --version "${{ github.event.inputs.tag }}"
 
       - name: Create GitHub Pre-Release and Upload installer
         uses: softprops/action-gh-release@v2

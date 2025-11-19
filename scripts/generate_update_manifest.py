@@ -9,12 +9,18 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 APP_RELATIVE_PATH = Path("UI") / "app.py"
+VERSION_JSON = Path("DnDversion.json")
 DIST_DIR_NAME = "dist"
 MANIFEST_FILENAME = "update-manifest.json"
+ENV_VERSION_KEYS = (
+    "DNDTOOLS_RELEASE_VERSION",
+    "RELEASE_VERSION",
+    "GITHUB_RELEASE_VERSION",
+)
 
 
 class ManifestError(RuntimeError):
@@ -32,6 +38,46 @@ def _read_app_version(root: Path) -> str:
         raise ManifestError("Unable to determine APP_VERSION from app.py")
 
     return match.group(1)
+
+
+def _read_json_version(root: Path) -> Optional[str]:
+    json_path = root / VERSION_JSON
+    if not json_path.exists():
+        return None
+
+    try:
+        payload = json.loads(json_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+
+    version = payload.get("version")
+    if isinstance(version, str) and version.strip():
+        return version.strip()
+    return None
+
+
+def _normalize_version_tag(value: str) -> str:
+    cleaned = (value or "").strip()
+    if not cleaned:
+        raise ManifestError("Provided version override is empty")
+    normalized = cleaned.lstrip("vV")
+    return normalized or cleaned
+
+
+def _resolve_version(root: Path, cli_version: Optional[str]) -> Tuple[str, str]:
+    if cli_version:
+        return _normalize_version_tag(cli_version), "cli"
+
+    for key in ENV_VERSION_KEYS:
+        env_value = os.environ.get(key)
+        if env_value and env_value.strip():
+            return _normalize_version_tag(env_value), f"env:{key}"
+
+    json_version = _read_json_version(root)
+    if json_version:
+        return json_version, "json"
+
+    return _read_app_version(root), "app"
 
 
 def _sha256(path: Path) -> str:
@@ -63,12 +109,12 @@ def _resolve_release_tag(arg_tag: Optional[str], default_version: str) -> str:
     return f"v{default_version}"
 
 
-def generate_manifest(root: Path, release_tag: Optional[str] = None) -> Path:
+def generate_manifest(root: Path, release_tag: Optional[str] = None, version_override: Optional[str] = None) -> Path:
     root = root.resolve()
     if not root.exists():
         raise ManifestError(f"Root directory does not exist: {root}")
 
-    version = _read_app_version(root)
+    version, version_source = _resolve_version(root, version_override)
     tag = _resolve_release_tag(release_tag, version)
 
     dist_dir = root / DIST_DIR_NAME
@@ -80,6 +126,7 @@ def generate_manifest(root: Path, release_tag: Optional[str] = None) -> Path:
 
     manifest_path = dist_dir / MANIFEST_FILENAME
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    print(f"Manifest generated using version {version} (source: {version_source})")
     return manifest_path
 
 
@@ -97,13 +144,19 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Release tag to embed in the manifest (defaults to RELEASE_TAG env var or v<version>)",
     )
+    parser.add_argument(
+        "--version",
+        dest="version",
+        default=None,
+        help="Explicit installer version (e.g. v3.6.2). Defaults to env/JSON/app.py",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     try:
-        manifest_path = generate_manifest(args.root, args.release_tag)
+        manifest_path = generate_manifest(args.root, args.release_tag, args.version)
     except ManifestError as exc:
         raise SystemExit(str(exc))
 
