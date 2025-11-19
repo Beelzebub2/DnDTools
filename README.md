@@ -102,6 +102,16 @@ to grab the fresh `.proto` files from the game binary.
 
 We will try to keep the `.proto` files in the repository updated, but if they are outdated, you can use this script to generate the latest ones yourself.
 
+### Opt into development/Test builds
+
+If you want to help test unreleased builds tagged as `Test-*` on GitHub:
+
+1. Open the app and go to **Settings → Updates**.
+2. Enable **Opt into Test builds** and save.
+3. The built-in updater (and auto-update checks) will now look for the newest `Test-` prerelease instead of the latest stable release.
+
+You can switch back at any time by unchecking the option; update checks will immediately return to the stable channel.
+
 ## 🛡️ Legal
 
 This project:

@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const refreshResolutionBtn = document.getElementById('refreshResolution');
     const clearQuestDataButton = document.getElementById('clearQuestData');
     const clearCharacterDataButton = document.getElementById('clearCharacterData');
+    const includeDevCheckbox = document.getElementById('includeDevReleases');
     const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');
 
     let currentSettings = {};
@@ -28,7 +29,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         cancelHotkey: 'Cancel Sort Hotkey',
         sortSpeed: 'Sort Speed',
         resolution: 'Game Resolution',
-        wiresharkPath: 'Wireshark Path'
+        wiresharkPath: 'Wireshark Path',
+        includeDevReleases: 'Development Builds Opt-In'
     };
 
     function updateSaveButtonState() {
@@ -66,13 +68,22 @@ document.addEventListener('DOMContentLoaded', async () => {
             return Number.isFinite(numeric) ? numeric : 0;
         };
 
+        const normalizeBoolean = (value) => {
+            if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase();
+                return ['1', 'true', 'yes', 'on'].includes(normalized);
+            }
+            return Boolean(value);
+        };
+
         return {
             interface: (settings.interface || '').trim(),
             sortHotkey: (settings.sortHotkey || '').trim().toLowerCase(),
             cancelHotkey: (settings.cancelHotkey || '').trim().toLowerCase(),
             sortSpeed: toNumber(settings.sortSpeed),
             resolution: (settings.resolution || 'Auto').trim(),
-            wiresharkPath: (settings.wiresharkPath || '').trim()
+            wiresharkPath: (settings.wiresharkPath || '').trim(),
+            includeDevReleases: normalizeBoolean(settings.includeDevReleases)
         };
     }
 
@@ -83,7 +94,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkey: settings.cancelHotkey || 'ctrl+f12',
             sortSpeed: parseSortSpeed(settings.sortSpeed, 0.2),
             resolution: settings.resolution || 'Auto',
-            wiresharkPath: settings.wiresharkPath || ''
+            wiresharkPath: settings.wiresharkPath || '',
+            includeDevReleases: Boolean(settings.includeDevReleases)
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -98,7 +110,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 lastManualSortSpeed > 0 ? lastManualSortSpeed : 0.2
             ),
             resolution: resolutionSelect.value,
-            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : ''
+            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
+            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false
         };
     }
 
@@ -285,6 +298,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const detectedPath = currentSettings.wiresharkPath || '';
                 wiresharkPathInput.value = detectedPath;
                 wiresharkPathInput.dataset.defaultValue = detectedPath;
+            }
+
+            if (includeDevCheckbox) {
+                includeDevCheckbox.checked = Boolean(currentSettings.includeDevReleases);
             }
         });
 
@@ -847,7 +864,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkey: cancelHotkeyInput.value,
             sortSpeed: sortSpeedValue,
             resolution: resolutionSelect.value,
-            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : ''
+            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
+            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false
         };
 
         if (!newSettings.interface) {
@@ -1152,7 +1170,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkey: 'ctrl+f12',
             sortSpeed: 0.2,
             resolution: 'Auto',
-            wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : ''
+            wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : '',
+            includeDevReleases: false
         };
 
         runWithApplyingFlag(() => {
@@ -1166,6 +1185,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (noDelayCheckbox) {
                 noDelayCheckbox.checked = false;
+            }
+            if (includeDevCheckbox) {
+                includeDevCheckbox.checked = Boolean(defaultSettings.includeDevReleases);
             }
         });
 
@@ -1243,7 +1265,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: sortSpeedInput, events: ['input', 'change'] },
         { element: noDelayCheckbox, events: ['change'] },
         { element: resolutionSelect, events: ['change'] },
-        { element: wiresharkPathInput, events: ['input', 'change'] }
+        { element: wiresharkPathInput, events: ['input', 'change'] },
+        { element: includeDevCheckbox, events: ['change'] }
     ];
 
     trackableElements

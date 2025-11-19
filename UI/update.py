@@ -48,6 +48,8 @@ class UpdateManifest:
     url: str
     sha256: Optional[str] = None
     notes: Optional[str] = None
+    release_tag: Optional[str] = None
+    channel: Optional[str] = None
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "UpdateManifest":
@@ -61,15 +63,29 @@ class UpdateManifest:
 
         sha256_value = payload.get("sha256")
         notes_value = payload.get("notes")
-        return cls(version=version, url=url, sha256=sha256_value or None, notes=notes_value or None)
+        release_tag = payload.get("release_tag") or payload.get("_release_tag")
+        channel = payload.get("channel") or payload.get("_channel")
+        return cls(
+            version=version,
+            url=url,
+            sha256=sha256_value or None,
+            notes=notes_value or None,
+            release_tag=release_tag or None,
+            channel=channel or None,
+        )
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        payload = {
             "version": self.version,
             "url": self.url,
             "sha256": self.sha256 or "",
             "notes": self.notes or "",
         }
+        if self.release_tag:
+            payload["release_tag"] = self.release_tag
+        if self.channel:
+            payload["channel"] = self.channel
+        return payload
 
 
 class UpdateState:
@@ -105,8 +121,8 @@ class UpdateManager:
         self._state = UpdateState()
         self._cache_lock = threading.RLock()
         self._state_lock = threading.RLock()
-        self._manifest_cache: Optional[UpdateManifest] = None
-        self._manifest_timestamp: float = 0.0
+        self._manifest_cache: dict[str, UpdateManifest] = {}
+        self._manifest_timestamp: dict[str, float] = {}
 
     # ---------------------------------------------------------------------
     # Manifest helpers
@@ -132,6 +148,13 @@ class UpdateManager:
         remote_padded = remote_tuple + (0,) * (length - len(remote_tuple))
         local_padded = local_tuple + (0,) * (length - len(local_tuple))
         return remote_padded > local_padded
+
+    @staticmethod
+    def _normalize_channel(channel: Optional[str]) -> str:
+        value = (channel or "stable").strip().lower()
+        if value in {"dev", "development", "test", "testing", "testers"}:
+            return "dev"
+        return "stable"
 
     def _download_manifest_from_url(self, url: str) -> Optional[dict[str, Any]]:
         try:
@@ -166,31 +189,7 @@ class UpdateManager:
 
         return manifest
 
-    def _fetch_manifest_from_github_latest(self) -> Optional[dict[str, Any]]:
-        try:
-            api_response = requests.get(
-                "https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest",
-                headers={"User-Agent": "DnDTools-Updater"},
-                timeout=15,
-            )
-            api_response.raise_for_status()
-            release_data = api_response.json()
-        except requests.RequestException as exc:
-            self.logger.warning("Unable to query GitHub releases API: %s", exc)
-            return None
-
-        assets = release_data.get("assets") or []
-        asset_url = None
-        for asset in assets:
-            if isinstance(asset, dict) and asset.get("name") == "update-manifest.json":
-                asset_url = asset.get("browser_download_url")
-                if asset_url:
-                    break
-
-        if not asset_url:
-            self.logger.warning("No update-manifest.json asset found in latest GitHub release")
-            return None
-
+    def _download_manifest_asset(self, asset_url: str) -> Optional[dict[str, Any]]:
         try:
             asset_response = requests.get(
                 asset_url,
@@ -212,22 +211,147 @@ class UpdateManager:
 
         return manifest
 
-    def fetch_manifest(self, force: bool = False) -> Optional[UpdateManifest]:
+    def _download_manifest_from_release(
+        self,
+        release_data: dict[str, Any],
+        *,
+        channel: Optional[str] = None,
+    ) -> Optional[dict[str, Any]]:
+        assets = release_data.get("assets") or []
+        asset_url = None
+        for asset in assets:
+            if isinstance(asset, dict) and asset.get("name") == "update-manifest.json":
+                asset_url = asset.get("browser_download_url")
+                if asset_url:
+                    break
+
+        if not asset_url:
+            self.logger.warning("No update-manifest.json asset found in GitHub release %s", release_data.get("tag_name"))
+            return None
+
+        manifest = self._download_manifest_asset(asset_url)
+        if not manifest:
+            return None
+
+        if release_data.get("body") and not manifest.get("notes"):
+            manifest["notes"] = release_data["body"]
+
+        release_tag = release_data.get("tag_name") or ""
+        if release_tag:
+            manifest.setdefault("_release_tag", release_tag)
+
+        if channel:
+            manifest.setdefault("_channel", channel)
+
+        return manifest
+
+    def _fetch_release_list(self, *, per_page: int = 20) -> Optional[list[dict[str, Any]]]:
+        try:
+            response = requests.get(
+                "https://api.github.com/repos/Beelzebub2/DnDTools/releases",
+                headers={"User-Agent": "DnDTools-Updater"},
+                params={"per_page": per_page},
+                timeout=15,
+            )
+            response.raise_for_status()
+            releases = response.json()
+        except requests.RequestException as exc:
+            self.logger.warning("Unable to query GitHub releases list: %s", exc)
+            return None
+
+        if not isinstance(releases, list):
+            self.logger.warning("GitHub releases API returned unexpected payload")
+            return None
+
+        return [rel for rel in releases if isinstance(rel, dict)]
+
+    def _fetch_manifest_from_latest_test_release(self) -> Optional[dict[str, Any]]:
+        releases = self._fetch_release_list()
+        if not releases:
+            return None
+
+        candidates: list[dict[str, Any]] = []
+        for release in releases:
+            if not release.get("prerelease"):
+                continue
+            tag_name = str(release.get("tag_name") or "")
+            display_name = str(release.get("name") or "")
+            if tag_name.startswith("Test-") or display_name.startswith("Test-"):
+                candidates.append(release)
+
+        candidates.sort(
+            key=lambda rel: rel.get("published_at") or rel.get("created_at") or "",
+            reverse=True,
+        )
+
+        for release in candidates:
+            manifest = self._download_manifest_from_release(release, channel="dev")
+            if manifest:
+                return manifest
+
+        return None
+
+    def _download_manifest_for_channel(self, channel: str) -> Optional[dict[str, Any]]:
+        normalized = self._normalize_channel(channel)
+        if normalized == "dev":
+            manifest = self._fetch_manifest_from_latest_test_release()
+            if manifest:
+                return manifest
+            self.logger.info("No development releases with Test- prefix were found on GitHub")
+            return None
+
+        manifest_payload = self._download_manifest_from_url(self.manifest_url)
+        if manifest_payload:
+            manifest_payload.setdefault("_channel", "stable")
+            return manifest_payload
+
+        manifest_payload = self._fetch_manifest_from_github_latest()
+        if manifest_payload:
+            manifest_payload.setdefault("_channel", "stable")
+        return manifest_payload
+
+    def _fetch_manifest_from_github_latest(self) -> Optional[dict[str, Any]]:
+        try:
+            api_response = requests.get(
+                "https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest",
+                headers={"User-Agent": "DnDTools-Updater"},
+                timeout=15,
+            )
+            api_response.raise_for_status()
+            release_data = api_response.json()
+        except requests.RequestException as exc:
+            self.logger.warning("Unable to query GitHub releases API: %s", exc)
+            return None
+
+        manifest = self._download_manifest_from_release(release_data, channel="stable")
+        if not manifest:
+            self.logger.warning("No update-manifest.json asset found in latest GitHub release")
+        return manifest
+
+    def fetch_manifest(self, force: bool = False, channel: str = "stable") -> Optional[UpdateManifest]:
+        normalized_channel = self._normalize_channel(channel)
         now = time.time()
         with self._cache_lock:
-            if not force and self._manifest_cache and (now - self._manifest_timestamp) < self.cache_duration:
-                return self._manifest_cache
+            cached_manifest = self._manifest_cache.get(normalized_channel)
+            cached_timestamp = self._manifest_timestamp.get(normalized_channel, 0.0)
+            if not force and cached_manifest and (now - cached_timestamp) < self.cache_duration:
+                return cached_manifest
 
-            manifest_payload = self._download_manifest_from_url(self.manifest_url)
-            if manifest_payload is None:
-                manifest_payload = self._fetch_manifest_from_github_latest()
-            if manifest_payload is None:
-                return None
+        manifest_payload = self._download_manifest_for_channel(normalized_channel)
+        if manifest_payload is None:
+            with self._cache_lock:
+                self._manifest_cache.pop(normalized_channel, None)
+                self._manifest_timestamp.pop(normalized_channel, None)
+            return None
 
-            manifest = UpdateManifest.from_dict(manifest_payload)
-            self._manifest_cache = manifest
-            self._manifest_timestamp = now
-            return manifest
+        manifest_payload.setdefault("_channel", normalized_channel)
+        manifest = UpdateManifest.from_dict(manifest_payload)
+
+        with self._cache_lock:
+            self._manifest_cache[normalized_channel] = manifest
+            self._manifest_timestamp[normalized_channel] = now
+
+        return manifest
 
     # ------------------------------------------------------------------
     # State helpers
@@ -246,8 +370,23 @@ class UpdateManager:
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
-    def build_update_payload(self, manifest: Optional[UpdateManifest]) -> dict[str, Any]:
+    @staticmethod
+    def _extract_release_tag(manifest: Optional[UpdateManifest]) -> str:
+        if not manifest:
+            return ""
+        if manifest.release_tag:
+            return manifest.release_tag
+        if manifest.url:
+            match = re.search(r"/download/([^/]+)/", manifest.url)
+            if match:
+                return match.group(1)
+        return ""
+
+    def build_update_payload(self, manifest: Optional[UpdateManifest], channel: str = "stable") -> dict[str, Any]:
+        requested_channel = self._normalize_channel(channel)
+        effective_channel = manifest.channel or requested_channel if manifest else requested_channel
         remote_version = manifest.version if manifest else self.current_version
+        release_tag = self._extract_release_tag(manifest)
         payload = {
             "currentVersion": self.current_version,
             "latestVersion": remote_version,
@@ -255,20 +394,28 @@ class UpdateManager:
             "notes": manifest.notes or "" if manifest else "",
             "downloadUrl": manifest.url if manifest else "",
             "sha256": manifest.sha256 or "" if manifest else "",
+            "channel": requested_channel,
+            "effectiveChannel": effective_channel,
+            "releaseTag": release_tag,
         }
         payload.update(self.snapshot_state())
         return payload
 
-    def check_for_updates(self, force: bool = False) -> tuple[dict[str, Any], Optional[str]]:
+    def check_for_updates(self, force: bool = False, channel: str = "stable") -> tuple[dict[str, Any], Optional[str]]:
+        normalized_channel = self._normalize_channel(channel)
         manifest = None
         error = None
         try:
-            manifest = self.fetch_manifest(force=force)
+            manifest = self.fetch_manifest(force=force, channel=normalized_channel)
             if manifest is None:
+                if normalized_channel == "dev":
+                    payload = self.build_update_payload(None, normalized_channel)
+                    payload["message"] = "No Test releases are currently available."
+                    return payload, None
                 error = "Unable to retrieve update manifest"
         except UpdateError as exc:
             error = str(exc)
-        payload = self.build_update_payload(manifest)
+        payload = self.build_update_payload(manifest, normalized_channel)
         if error:
             payload["error"] = error
         return payload, error
@@ -276,29 +423,36 @@ class UpdateManager:
     # ------------------------------------------------------------------
     # Updater orchestration
     # ------------------------------------------------------------------
-    def start_update(self, api: Optional[Any] = None, force: bool = True) -> None:
+    def start_update(self, api: Optional[Any] = None, force: bool = True, channel: str = "stable") -> None:
+        normalized_channel = self._normalize_channel(channel)
         with self._state_lock:
             if self._state.in_progress:
                 raise UpdateError("Update already in progress", status_code=409)
             self._state.in_progress = True
             self._state.last_error = None
 
-        manifest = self.fetch_manifest(force=force)
+        manifest = self.fetch_manifest(force=force, channel=normalized_channel)
         if manifest is None:
-            self._set_state(in_progress=False, last_error="Unable to retrieve update manifest")
-            raise UpdateError("Unable to retrieve update manifest", status_code=503)
+            message = "No Test releases are currently available" if normalized_channel == "dev" else "Unable to retrieve update manifest"
+            self._set_state(in_progress=False, last_error=message)
+            raise UpdateError(message, status_code=503)
 
         if not self._is_remote_newer(manifest.version, self.current_version):
             self._set_state(in_progress=False, last_error="Already up to date")
             raise UpdateError("Already up to date", status_code=400)
 
-        worker = threading.Thread(target=self._update_thread, args=(manifest, api), name="DnDToolsUpdater", daemon=True)
+        worker = threading.Thread(
+            target=self._update_thread,
+            args=(manifest, api, normalized_channel),
+            name="DnDToolsUpdater",
+            daemon=True,
+        )
         worker.start()
 
     # ------------------------------------------------------------------
     # Internal implementation details
     # ------------------------------------------------------------------
-    def _update_thread(self, manifest: UpdateManifest, api: Optional[Any]) -> None:
+    def _update_thread(self, manifest: UpdateManifest, api: Optional[Any], channel: str) -> None:
         update_context: Optional[dict[str, Any]] = None
         try:
             if api is not None:
@@ -307,7 +461,7 @@ class UpdateManager:
                 except Exception as prep_exc:
                     self.logger.error("Failed to prepare application for update: %s", prep_exc, exc_info=True)
 
-            context_path = self._write_update_context(manifest)
+            context_path = self._write_update_context(manifest, channel)
             process = self._launch_updater_process(context_path)
 
             if process.poll() not in (None,):
@@ -333,7 +487,7 @@ class UpdateManager:
         finally:
             self._set_state(in_progress=False)
 
-    def _write_update_context(self, manifest: UpdateManifest) -> Path:
+    def _write_update_context(self, manifest: UpdateManifest, channel: str) -> Path:
         temp_dir = Path(tempfile.gettempdir()) / "DnDToolsUpdate"
         temp_dir.mkdir(parents=True, exist_ok=True)
         context_path = temp_dir / f"context-{os.getpid()}-{int(time.time())}.json"
@@ -347,6 +501,7 @@ class UpdateManager:
             },
             "options": {
                 "silent": self.auto_update_silent,
+                "channel": manifest.channel or channel,
             },
         }
 
@@ -1049,7 +1204,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     elif args.manifest:
         manifest = _load_manifest_from_file(Path(args.manifest))
     elif args.manifest_url:
-        payload = UpdateManager("0", args.manifest_url).fetch_manifest(force=True)
+        payload = UpdateManager("0", args.manifest_url).fetch_manifest(force=True, channel="stable")
         if payload is None:
             raise UpdateError("Unable to download manifest")
         manifest = payload

@@ -454,7 +454,11 @@ function maybeShowUpdatePopup(data, { fromCache = false } = {}) {
         normalizeVersionTag(localVersionRaw) || localVersionRaw,
         releaseUrl,
         notes,
-        remoteVersionNormalized
+        remoteVersionNormalized,
+        {
+            channel: data.effectiveChannel || data.channel || 'stable',
+            releaseTag: data.releaseTag || ''
+        }
     );
 }
 
@@ -511,7 +515,7 @@ async function checkForUpdates(force = false) {
 // Version comparison now handled by utils.js
 // Remove duplicate function that's now in utils.js
 
-function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '', trackingVersion = null) {
+function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '', trackingVersion = null, options = {}) {
     // Remove any existing popup
     const existing = document.getElementById('update-popup');
     if (existing) existing.remove();
@@ -593,9 +597,42 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '', tr
                 color: var(--text-primary, #e4c869);
                 border-color: var(--accent-gold, #e4c869);
             }
+
+            .update-badge {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 2px 10px;
+                border-radius: 999px;
+                font-size: 12px;
+                font-weight: 600;
+                margin-left: 8px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .update-badge.stable {
+                background: rgba(106, 173, 86, 0.2);
+                color: #8fe18d;
+                border: 1px solid rgba(143, 225, 141, 0.5);
+            }
+
+            .update-badge.dev {
+                background: rgba(255, 128, 0, 0.15);
+                color: #ffb46e;
+                border: 1px solid rgba(255, 180, 110, 0.4);
+            }
         `;
         document.head.appendChild(style);
     }
+
+    const channel = (options.channel || 'stable').toString().toLowerCase();
+    const releaseTag = options.releaseTag || '';
+    const badgeClass = channel === 'dev' ? 'update-badge dev' : 'update-badge stable';
+    const badgeLabel = channel === 'dev' ? 'Test build' : 'Stable release';
+    const releaseTagSnippet = releaseTag && !releaseTag.startsWith('Release')
+        ? `<div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary, #988c65);">Tag: ${releaseTag}</div>`
+        : '';
 
     popup.innerHTML = `
         <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
@@ -626,7 +663,9 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '', tr
                     <div>
                         <span style="color: var(--text-primary, #e4c869);">Latest:</span> 
                         <span style="color: var(--accent-gold, #e4c869); font-weight: 600;">v${remoteVersion}</span>
+                        <span class="${badgeClass}">${badgeLabel}</span>
                     </div>
+                    ${releaseTagSnippet}
                 </div>
                 ${notes ? `<div style="margin-top: 12px; padding: 12px; background: rgba(255, 255, 255, 0.04); border-radius: 6px; border: 1px solid rgba(228, 200, 105, 0.2); font-size: 13px; line-height: 1.6; color: var(--text-secondary, #c0b18a); white-space: pre-line;">${notes}</div>` : ''}
             </div>

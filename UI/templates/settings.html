@@ -153,6 +153,27 @@
                 </div>
             </div>
         </div>
+
+        <!-- Update Preferences -->
+        <div class="settings-section">
+            <div class="section-header">
+                <span class="material-icons">system_update</span>
+                <h2>Updates</h2>
+            </div>
+            <div class="section-content">
+                <div class="form-group form-group-inline">
+                    <label class="custom-checkbox" for="includeDevReleases">
+                        <input type="checkbox" id="includeDevReleases">
+                        <span class="checkbox-mark" aria-hidden="true"></span>
+                        <span class="checkbox-label">Opt into Test builds</span>
+                    </label>
+                    <div class="form-help warning-text">
+                        When enabled, update checks will use the latest GitHub releases whose tags start with
+                        <code>Test-</code> (development builds). These builds may be unstable.
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Action Buttons -->
