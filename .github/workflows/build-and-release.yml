@@ -70,11 +70,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
-          name: ${{ startsWith(github.event.inputs.tag, 'Test-') && format('Test Release {0}', github.event.inputs.tag) || format('Release {0}', github.event.inputs.tag) }}
+          name: Test-Release ${{ github.event.inputs.tag }}
           files: |
             dist/DnDTools-Setup-*.exe
             dist/update-manifest.json
           fail_on_unmatched_files: false
-          prerelease: ${{ startsWith(github.event.inputs.tag, 'Test-') }}
+          prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
