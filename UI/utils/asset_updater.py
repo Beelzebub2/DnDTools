@@ -5,8 +5,9 @@ import logging
 import os
 import tempfile
 import threading
+import time
 from pathlib import Path
-from typing import Callable, Iterable, Optional, Sequence
+from typing import Callable, Iterable, Mapping, Optional, Sequence
 
 import requests
 
@@ -25,6 +26,7 @@ class AssetUpdater:
         logger: Optional[logging.Logger] = None,
         window_getter: Optional[Callable[[], Optional[object]]] = None,
         on_assets_applied: Optional[Iterable[Callable[[dict], None]]] = None,
+        before_asset_replace: Optional[Mapping[str, Iterable[Callable[[], None]]]] = None,
         base_url: Optional[str] = None,
         session: Optional[requests.Session] = None,
     ) -> None:
@@ -36,6 +38,11 @@ class AssetUpdater:
         self.session = session or requests.Session()
         self.session.headers.setdefault("User-Agent", "DnDTools-AssetUpdater/1.0")
         self._hooks: tuple[Callable[[dict], None], ...] = tuple(on_assets_applied or [])
+        self._pre_replace_hooks: dict[str, tuple[Callable[[], None], ...]] = {
+            str(name): tuple(callbacks)
+            for name, callbacks in (before_asset_replace or {}).items()
+            if callbacks
+        }
         self._lock = threading.Lock()
         self._worker: Optional[threading.Thread] = None
 
@@ -198,6 +205,7 @@ class AssetUpdater:
 
     def _apply_assets(self, downloads: Sequence[tuple[str, Path]]) -> None:
         for name, tmp_path in downloads:
+            self._run_pre_replace_hooks(name)
             target = self.assets_dir / name
             backup: Optional[Path] = None
             try:
@@ -209,7 +217,7 @@ class AssetUpdater:
                         target.rename(backup)
                     except OSError:
                         backup = None
-                tmp_path.replace(target)
+                self._replace_file(tmp_path, target)
                 if backup:
                     try:
                         backup.unlink()
@@ -237,3 +245,37 @@ class AssetUpdater:
             window.evaluate_js(script)
         except Exception as exc:  # pragma: no cover - UI best effort
             self.logger.debug("Unable to push asset update status to UI: %s", exc)
+
+    def _run_pre_replace_hooks(self, name: str) -> None:
+        hooks = self._pre_replace_hooks.get(name)
+        if not hooks:
+            return
+        for hook in hooks:
+            try:
+                hook()
+            except Exception as exc:  # pragma: no cover - defensive
+                self.logger.warning("Pre-replace hook for %s failed: %s", name, exc, exc_info=True)
+
+    def _replace_file(self, tmp_path: Path, target: Path) -> None:
+        attempts = 3
+        last_error: Optional[Exception] = None
+        for attempt in range(1, attempts + 1):
+            try:
+                tmp_path.replace(target)
+                return
+            except PermissionError as exc:
+                last_error = exc
+                delay = min(0.35 * attempt, 1.0)
+                self.logger.warning(
+                    "Permission error replacing %s (attempt %s/%s): %s",
+                    target.name,
+                    attempt,
+                    attempts,
+                    exc,
+                )
+                time.sleep(delay)
+            except FileNotFoundError as exc:
+                last_error = exc
+                break
+        if last_error:
+            raise last_error
