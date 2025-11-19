@@ -13,7 +13,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const refreshResolutionBtn = document.getElementById('refreshResolution');
     const clearQuestDataButton = document.getElementById('clearQuestData');
     const clearCharacterDataButton = document.getElementById('clearCharacterData');
-    const saveButton = document.getElementById('saveSettings'); const resetButton = document.getElementById('resetSettings');
+    const includeDevCheckbox = document.getElementById('includeDevReleases');
+    const saveButton = document.getElementById('saveSettings');
+    const resetButton = document.getElementById('resetSettings');
+    const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
+    const panels = Array.from(document.querySelectorAll('.settings-panel'));
 
     let currentSettings = {};
     let normalizedSettingsSnapshot = null;
@@ -21,6 +25,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isApplyingSettings = false;
     let isDirty = false;
     let changeCheckScheduled = false;
+    const AUTOSAVE_DEBOUNCE_MS = 800;
+    let autosaveTimerId = null;
+    let autoSaveInFlight = false;
+    let autoSaveQueued = false;
     const QUEST_PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
     const FIELD_LABELS = {
         interface: 'Network Interface',
@@ -28,7 +36,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         cancelHotkey: 'Cancel Sort Hotkey',
         sortSpeed: 'Sort Speed',
         resolution: 'Game Resolution',
-        wiresharkPath: 'Wireshark Path'
+        wiresharkPath: 'Wireshark Path',
+        includeDevReleases: 'Development Builds Opt-In'
     };
 
     function updateSaveButtonState() {
@@ -60,10 +69,89 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     setUnsavedChanges(false);
 
+    function activateTab(tabId, options = {}) {
+        if (!tabId || !panels.length || !tabButtons.length) {
+            return;
+        }
+
+        const { updateHash = true, scrollIntoView = false } = options;
+
+        tabButtons.forEach((button) => {
+            const isActive = button.dataset.tab === tabId;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            if (isActive && scrollIntoView) {
+                button.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        });
+
+        panels.forEach((panel) => {
+            const isActive = panel.dataset.panel === tabId;
+            panel.classList.toggle('active', isActive);
+            panel.setAttribute('aria-hidden', isActive ? 'false' : 'true');
+        });
+
+        if (updateHash) {
+            try {
+                const newHash = `#${tabId}`;
+                if (window.location.hash !== newHash) {
+                    history.replaceState(null, '', newHash);
+                }
+            } catch (error) {
+                /* ignore hash errors */
+            }
+        }
+    }
+
+    function getPanelIdFromHash() {
+        const hashValue = window.location.hash?.replace('#', '') || '';
+        if (!hashValue) {
+            return '';
+        }
+        return panels.some((panel) => panel.dataset.panel === hashValue) ? hashValue : '';
+    }
+
+    function handleTabHashChange() {
+        const tabId = getPanelIdFromHash();
+        if (tabId) {
+            activateTab(tabId, { updateHash: false });
+        }
+    }
+
+    function initializeTabs() {
+        if (!tabButtons.length || !panels.length) {
+            return;
+        }
+
+        tabButtons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                const tabId = button.dataset.tab;
+                activateTab(tabId, { scrollIntoView: true });
+            });
+        });
+
+        window.addEventListener('hashchange', handleTabHashChange);
+
+        const hashTab = getPanelIdFromHash();
+        const fallbackTab = tabButtons[0]?.dataset.tab;
+        activateTab(hashTab || fallbackTab, { updateHash: Boolean(hashTab) });
+    }
+
+    initializeTabs();
+
     function normalizeForComparison(settings = {}) {
         const toNumber = (value) => {
             const numeric = Number(value);
             return Number.isFinite(numeric) ? numeric : 0;
+        };
+
+        const normalizeBoolean = (value) => {
+            if (typeof value === 'string') {
+                const normalized = value.trim().toLowerCase();
+                return ['1', 'true', 'yes', 'on'].includes(normalized);
+            }
+            return Boolean(value);
         };
 
         return {
@@ -72,7 +160,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkey: (settings.cancelHotkey || '').trim().toLowerCase(),
             sortSpeed: toNumber(settings.sortSpeed),
             resolution: (settings.resolution || 'Auto').trim(),
-            wiresharkPath: (settings.wiresharkPath || '').trim()
+            wiresharkPath: (settings.wiresharkPath || '').trim(),
+            includeDevReleases: normalizeBoolean(settings.includeDevReleases)
         };
     }
 
@@ -83,7 +172,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkey: settings.cancelHotkey || 'ctrl+f12',
             sortSpeed: parseSortSpeed(settings.sortSpeed, 0.2),
             resolution: settings.resolution || 'Auto',
-            wiresharkPath: settings.wiresharkPath || ''
+            wiresharkPath: settings.wiresharkPath || '',
+            includeDevReleases: Boolean(settings.includeDevReleases)
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -98,14 +188,80 @@ document.addEventListener('DOMContentLoaded', async () => {
                 lastManualSortSpeed > 0 ? lastManualSortSpeed : 0.2
             ),
             resolution: resolutionSelect.value,
-            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : ''
+            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
+            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false
         };
     }
 
+    function clearAutosaveTimer() {
+        if (autosaveTimerId) {
+            clearTimeout(autosaveTimerId);
+            autosaveTimerId = null;
+        }
+    }
+
+    function scheduleAutoSave(options = {}) {
+        const { immediate = false, force = false } = options;
+
+        if (isApplyingSettings) {
+            return;
+        }
+
+        if (immediate) {
+            clearAutosaveTimer();
+            void triggerAutoSave({ forceSave: force });
+            return;
+        }
+
+        if (!isDirty && !force) {
+            return;
+        }
+
+        clearAutosaveTimer();
+        autosaveTimerId = window.setTimeout(() => {
+            autosaveTimerId = null;
+            void triggerAutoSave({ forceSave: force });
+        }, AUTOSAVE_DEBOUNCE_MS);
+    }
+
+    async function triggerAutoSave({ forceSave = false } = {}) {
+        if (autoSaveInFlight) {
+            autoSaveQueued = true;
+            return;
+        }
+
+        if (!isDirty && !forceSave) {
+            return;
+        }
+
+        autoSaveInFlight = true;
+        try {
+            await saveSettings({
+                showNotification: true,
+                suppressSuccessToast: true,
+                showAnimation: false,
+                notifyIfUnchanged: false,
+                forceSave
+            });
+        } finally {
+            autoSaveInFlight = false;
+            if (autoSaveQueued) {
+                autoSaveQueued = false;
+                scheduleAutoSave();
+            }
+        }
+    }
+
     function setUnsavedChanges(value) {
+        const previousState = isDirty;
         isDirty = Boolean(value);
         window.hasUnsavedChanges = isDirty;
         document.body.classList.toggle('has-unsaved-settings', isDirty);
+        if (!isDirty) {
+            clearAutosaveTimer();
+        } else if (!previousState && !isApplyingSettings) {
+            scheduleAutoSave();
+        }
         updateSaveButtonState();
     }
 
@@ -212,40 +368,60 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
     }
 
-    // Load data sequentially to ensure interfaces are loaded before settings
-    try {
-        await loadInterfaces();
-        await loadSettings();
-        await loadDetectedResolution();
-    } catch (error) {
-        console.error('Error during settings initialization:', error);
-        showNotification('Some settings failed to load', 'warning');
+    async function guardedLoad(fn, label) {
+        try {
+            await fn();
+        } catch (error) {
+            console.error(`Failed to load ${label}:`, error);
+            showNotification(`Failed to load ${label}`, 'warning');
+        }
     }
+
+    await guardedLoad(loadInterfaces, 'network interfaces');
+    await guardedLoad(loadSettings, 'settings');
+    await guardedLoad(loadDetectedResolution, 'resolution detection');
 
     // Load network interfaces
     async function loadInterfaces() {
+        if (!interfaceSelect) {
+            throw new Error('Interface select element is missing');
+        }
+
         try {
             const response = await fetch('/api/network_interfaces');
+            if (!response.ok) {
+                const errorText = await response.text().catch(() => '');
+                throw new Error(errorText || `Failed to load interfaces (status ${response.status})`);
+            }
+
             const data = await response.json();
             interfaceSelect.innerHTML = '';
 
-            if (data.interfaces && data.interfaces.length > 0) {
-                data.interfaces.forEach(iface => {
+            if (Array.isArray(data.interfaces) && data.interfaces.length > 0) {
+                data.interfaces.forEach((iface) => {
                     const option = document.createElement('option');
                     option.value = iface;
                     option.textContent = iface;
                     interfaceSelect.appendChild(option);
                 });
             } else {
-                const option = document.createElement('option');
-                option.value = '';
-                option.textContent = 'No interfaces found';
-                interfaceSelect.appendChild(option);
+                setInterfaceFallbackOption('No interfaces found');
             }
         } catch (error) {
-            console.error('Failed to load interfaces:', error);
-            showNotification('Failed to load network interfaces', 'error');
+            setInterfaceFallbackOption('Unable to load interfaces');
+            throw error;
         }
+    }
+
+    function setInterfaceFallbackOption(label) {
+        if (!interfaceSelect) {
+            return;
+        }
+        interfaceSelect.innerHTML = '';
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = label;
+        interfaceSelect.appendChild(option);
     }
 
     // Load current settings
@@ -285,6 +461,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const detectedPath = currentSettings.wiresharkPath || '';
                 wiresharkPathInput.value = detectedPath;
                 wiresharkPathInput.dataset.defaultValue = detectedPath;
+            }
+
+            if (includeDevCheckbox) {
+                includeDevCheckbox.checked = Boolean(currentSettings.includeDevReleases);
             }
         });
 
@@ -817,13 +997,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             showNotification: shouldNotify = true,
             showAnimation = true,
             suppressSuccessToast = false,
+            notifyIfUnchanged = true,
             forceSave = false,
             onSuccess,
             onError
         } = options;
 
+        const canUseSaveButton = Boolean(saveButton);
+        const shouldAnimateButton = showAnimation && canUseSaveButton;
+
+        const showErrorFeedback = async () => {
+            if (shouldAnimateButton) {
+                await showSaveError();
+            } else if (canUseSaveButton) {
+                resetSaveButton();
+            }
+        };
+
+        const showSuccessFeedback = async () => {
+            if (shouldAnimateButton) {
+                await showSaveSuccess();
+            } else if (canUseSaveButton) {
+                resetSaveButton();
+            }
+        };
+
         if (!isDirty && !forceSave) {
-            if (shouldNotify && !suppressSuccessToast) {
+            if (shouldNotify && notifyIfUnchanged && !suppressSuccessToast) {
                 showNotification('All settings are already saved.', 'info');
             }
             updateSaveButtonState();
@@ -847,7 +1047,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkey: cancelHotkeyInput.value,
             sortSpeed: sortSpeedValue,
             resolution: resolutionSelect.value,
-            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : ''
+            wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
+            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false
         };
 
         if (!newSettings.interface) {
@@ -864,9 +1065,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             return false;
         }
 
-        if (showAnimation) {
+        if (shouldAnimateButton) {
             startSaveAnimation();
-        } else {
+        } else if (canUseSaveButton) {
             saveButton.classList.add('saving');
             saveButton.disabled = true;
             saveButton.setAttribute('aria-disabled', 'true');
@@ -906,11 +1107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 });
 
                 if (!confirmationPayload) {
-                    if (showAnimation) {
-                        await showSaveError();
-                    } else {
-                        resetSaveButton();
-                    }
+                    await showErrorFeedback();
 
                     if (shouldNotify) {
                         showNotification('Unable to confirm that settings were saved. Please try again.', 'warning');
@@ -930,11 +1127,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 );
 
                 if (mismatchedKeys.length > 0) {
-                    if (showAnimation) {
-                        await showSaveError();
-                    } else {
-                        resetSaveButton();
-                    }
+                    await showErrorFeedback();
 
                     const mismatchSummary = mismatchedKeys
                         .map((key) => FIELD_LABELS[key] || key)
@@ -960,11 +1153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         .forEach((warning) => showNotification(warning, 'warning'));
                 }
 
-                if (showAnimation) {
-                    await showSaveSuccess();
-                } else {
-                    resetSaveButton();
-                }
+                await showSuccessFeedback();
 
                 if (!noDelayCheckbox?.checked && typeof appliedSettings?.sortSpeed === 'number' && appliedSettings.sortSpeed > 0) {
                     lastManualSortSpeed = appliedSettings.sortSpeed;
@@ -980,11 +1169,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 success = true;
             } else {
-                if (showAnimation) {
-                    await showSaveError();
-                } else {
-                    resetSaveButton();
-                }
+                await showErrorFeedback();
 
                 const errorMessage = Array.isArray(result.errors) && result.errors.length
                     ? result.errors.join('\n')
@@ -1005,11 +1190,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error('Save error:', error);
 
-            if (showAnimation) {
-                await showSaveError();
-            } else {
-                resetSaveButton();
-            }
+            await showErrorFeedback();
 
             if (shouldNotify) {
                 showNotification(error?.message || 'Error saving settings', 'error');
@@ -1019,7 +1200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 onError(error);
             }
         } finally {
-            if (!showAnimation) {
+            if (!shouldAnimateButton && canUseSaveButton) {
                 saveButton.classList.remove('saving');
                 updateSaveButtonState();
             }
@@ -1030,6 +1211,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Start save animation
     function startSaveAnimation() {
+        if (!saveButton) {
+            return;
+        }
         saveButton.disabled = true;
         saveButton.setAttribute('aria-disabled', 'true');
         saveButton.classList.add('saving');
@@ -1055,6 +1239,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Show save success animation
     async function showSaveSuccess() {
+        if (!saveButton) {
+            return;
+        }
         return new Promise((resolve) => {
             // Success animation
             saveButton.classList.remove('saving');
@@ -1080,6 +1267,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Show save error animation
     async function showSaveError() {
+        if (!saveButton) {
+            return;
+        }
         return new Promise((resolve) => {
             saveButton.classList.remove('saving');
             saveButton.classList.add('save-error');
@@ -1104,6 +1294,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Reset save button to original state
     function resetSaveButton() {
+        if (!saveButton) {
+            return;
+        }
         saveButton.classList.remove('saving', 'save-success', 'save-error');
 
         const originalContent = saveButton.getAttribute('data-original-content');
@@ -1120,6 +1313,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Create success ripple effect
     function createSuccessRipple() {
+        if (!saveButton) {
+            return;
+        }
         const ripple = document.createElement('div');
         ripple.className = 'success-ripple';
 
@@ -1152,7 +1348,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             cancelHotkey: 'ctrl+f12',
             sortSpeed: 0.2,
             resolution: 'Auto',
-            wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : ''
+            wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : '',
+            includeDevReleases: false
         };
 
         runWithApplyingFlag(() => {
@@ -1167,6 +1364,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (noDelayCheckbox) {
                 noDelayCheckbox.checked = false;
             }
+            if (includeDevCheckbox) {
+                includeDevCheckbox.checked = Boolean(defaultSettings.includeDevReleases);
+            }
         });
 
         lastManualSortSpeed = defaultSettings.sortSpeed;
@@ -1177,13 +1377,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         evaluateUnsavedChanges();
 
-        showNotification('Settings reset to defaults', 'success');
+        const saved = await saveSettings({
+            showNotification: false,
+            showAnimation: false,
+            forceSave: true
+        });
+
+        if (saved) {
+            showNotification('Settings reset to defaults', 'success');
+        } else {
+            showNotification('Defaults applied locally, but saving failed. Please try again.', 'warning');
+        }
     }
 
     // Event listeners
-    saveButton.addEventListener('click', () => {
-        void saveSettings();
-    });
+    if (saveButton) {
+        saveButton.addEventListener('click', () => {
+            void saveSettings();
+        });
+    }
     resetButton.addEventListener('click', resetSettings);
     refreshResolutionBtn?.addEventListener('click', loadDetectedResolution);
     browseWiresharkButton?.addEventListener('click', pickWiresharkPath);
@@ -1243,7 +1455,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: sortSpeedInput, events: ['input', 'change'] },
         { element: noDelayCheckbox, events: ['change'] },
         { element: resolutionSelect, events: ['change'] },
-        { element: wiresharkPathInput, events: ['input', 'change'] }
+        { element: wiresharkPathInput, events: ['input', 'change'] },
+        { element: includeDevCheckbox, events: ['change'] }
     ];
 
     trackableElements
@@ -1255,6 +1468,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         return;
                     }
                     scheduleDirtyCheck();
+                    scheduleAutoSave();
                 });
             });
         });

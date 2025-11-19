@@ -98,6 +98,7 @@ class SettingsManager:
             "resolution": "Auto",
             "stashSortOrder": list(Item.SORTABLE_FIELDS),
             "wiresharkPath": detect_wireshark_installation(),
+            "includeDevReleases": False,
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -209,6 +210,17 @@ class SettingsManager:
             normalized["wiresharkPath"] = str(wireshark_path)
         else:
             normalized["wiresharkPath"] = ""
+
+        include_dev_value = normalized.get("includeDevReleases")
+        if isinstance(include_dev_value, str):
+            normalized["includeDevReleases"] = include_dev_value.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        else:
+            normalized["includeDevReleases"] = bool(include_dev_value)
 
         return normalized
 

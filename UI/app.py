@@ -1583,7 +1583,10 @@ def api_local_version():
 
 @server.route('/api/update/check')
 def api_update_check():
-    payload, error = update_manager.check_for_updates()
+    include_dev = bool(api.settings_manager.get('includeDevReleases')) if api else False
+    channel = 'dev' if include_dev else 'stable'
+    payload, error = update_manager.check_for_updates(channel=channel)
+    payload['includeDevReleases'] = include_dev
     status_code = 200 if not error else 503
     return jsonify(payload), status_code
 
@@ -1595,8 +1598,10 @@ def api_update_status():
 
 @server.route('/api/update/apply', methods=['POST'])
 def api_update_apply():
+    include_dev = bool(api.settings_manager.get('includeDevReleases')) if api else False
+    channel = 'dev' if include_dev else 'stable'
     try:
-        update_manager.start_update(api)
+        update_manager.start_update(api, channel=channel)
     except UpdateError as exc:
         status = getattr(exc, 'status_code', 500)
         return jsonify({'started': False, 'error': str(exc)}), status

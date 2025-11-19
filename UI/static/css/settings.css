@@ -15,10 +15,248 @@
 }
 
 .settings-container {
-    max-width: 900px;
+    max-width: 1100px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 3rem 2rem 4rem;
     background: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.settings-hero {
+    background: radial-gradient(circle at top left, rgba(228, 200, 105, 0.08), transparent 60%), var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 18px;
+    padding: 2.5rem;
+    display: flex;
+    gap: 3rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.hero-copy {
+    flex: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.hero-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.25em;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.settings-hero h1 {
+    font-size: 2.3rem;
+    margin: 0;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+.hero-body {
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    background: rgba(228, 200, 105, 0.12);
+    border: 1px solid rgba(228, 200, 105, 0.3);
+    border-radius: 999px;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+}
+
+.hero-pill.subtle {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: var(--text-secondary);
+}
+
+.hero-visual {
+    flex: 1;
+    position: relative;
+    display: grid;
+    gap: 1rem;
+}
+
+.hero-visual-card {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 1.25rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    backdrop-filter: blur(6px);
+}
+
+.hero-visual-card p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.hero-visual-card strong {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+}
+
+.hero-visual-card .material-icons {
+    font-size: 2rem;
+    color: var(--accent-gold);
+}
+
+.hero-visual-glow {
+    position: absolute;
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(228, 200, 105, 0.22), transparent 65%);
+    filter: blur(20px);
+    top: 10%;
+    right: -10%;
+    pointer-events: none;
+}
+
+.settings-tabs {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.75rem;
+}
+
+.settings-tab {
+    background: rgba(42, 33, 24, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 0.85rem 1rem;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.settings-tab .material-icons {
+    font-size: 1.4rem;
+    color: var(--accent-gold);
+}
+
+.settings-tab.active,
+.settings-tab:focus-visible,
+.settings-tab:hover {
+    border-color: var(--accent-gold);
+    color: var(--text-primary);
+    background: rgba(228, 200, 105, 0.12);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.3);
+}
+
+.settings-panels {
+    display: flex;
+    flex-direction: column;
+    gap: 2.5rem;
+}
+
+.settings-panel {
+    display: none;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.settings-panel.active {
+    display: flex;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(120deg, rgba(228, 200, 105, 0.08), rgba(0, 0, 0, 0));
+    border: 1px solid rgba(228, 200, 105, 0.1);
+    border-radius: 16px;
+    padding: 1.75rem;
+}
+
+.panel-eyebrow {
+    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    margin: 0 0 0.5rem 0;
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 1.75rem;
+    color: var(--text-primary);
+}
+
+.panel-body {
+    color: var(--text-secondary);
+    margin: 0;
+    max-width: 70ch;
+}
+
+.settings-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.settings-grid.two-column {
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.settings-grid.single-column {
+    grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+    .settings-hero {
+        flex-direction: column;
+    }
+
+    .panel-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .settings-container {
+        padding: 2rem 1.25rem 3rem;
+    }
+
+    .settings-tabs {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .hero-pills {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .settings-grid.two-column {
+        grid-template-columns: 1fr;
+    }
 }
 
 /* Header Section */
@@ -82,23 +320,24 @@
     gap: 2rem;
 }
 
+
 .settings-section {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
+    background: rgba(42, 33, 24, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
     overflow: hidden;
-    transition: all 0.3s ease;
+    transition: transform 0.25s ease, border-color 0.25s ease;
 }
 
 .settings-section:hover {
-    border-color: var(--accent-brown);
-    box-shadow: 0 2px 10px rgba(228, 200, 105, 0.05);
+    border-color: var(--accent-gold);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
 }
 
 .section-header {
-    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
+    padding: 1.5rem 1.75rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -112,7 +351,8 @@
     border-radius: 8px;
 }
 
-.section-header h2 {
+.section-header h2,
+.section-header h3 {
     color: var(--accent-gold);
     margin: 0;
     font-size: 1.3rem;
@@ -120,7 +360,8 @@
 }
 
 .section-content {
-    padding: 2rem;
+    padding: 1.75rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 /* Form Groups */
@@ -275,7 +516,7 @@
 }
 
 .form-help.warning-text {
-    color: var(--warning);
+    color: #ffcc6f;
     margin-top: 0.1rem;
     margin-left: 0;
 }
@@ -327,12 +568,13 @@
 
 /* Form Help Text */
 .form-help {
-    color: var(--text-muted);
-    font-size: 0.85rem;
+    color: #d8cdbf;
+    font-size: 0.9rem;
+    line-height: 1.55;
     margin-top: 0.5rem;
     display: flex;
-    align-items: center;
-    gap: 0.25rem;
+    align-items: flex-start;
+    gap: 0.35rem;
 }
 
 .form-help .material-icons {
@@ -1315,6 +1557,11 @@
     padding: 1.5rem;
     position: relative;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+    flex-wrap: wrap;
 }
 
 .settings-actions::before {
@@ -1365,6 +1612,51 @@
     display: flex;
     gap: 1rem;
     align-items: center;
+}
+
+.autosave-callout .btn-secondary {
+    margin-left: auto;
+}
+
+.autosave-message {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: var(--text-secondary);
+    flex: 1 1 260px;
+}
+
+.autosave-message .material-icons {
+    background: rgba(228, 200, 105, 0.12);
+    border: 1px solid rgba(228, 200, 105, 0.2);
+    border-radius: 50%;
+    padding: 0.65rem;
+    font-size: 1.5rem;
+    color: var(--accent-gold);
+}
+
+.autosave-title {
+    margin: 0;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.autosave-subtitle {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 640px) {
+    .settings-actions.autosave-callout {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .autosave-callout .btn-secondary {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 /* Button Styles */
@@ -1763,17 +2055,27 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
 
 .form-group .file-picker {
     display: flex;
-    align-items: center;
-    gap: 0.5rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
 }
 
 .file-picker input {
     flex: 1;
+    width: 100%;
 }
 
-.file-picker .btn-small {
+.file-picker-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.file-picker-actions .btn-small {
+    flex: 1 1 160px;
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 0.35rem;
     white-space: nowrap;
 }

@@ -45,11 +45,14 @@ def _sha256(path: Path) -> str:
 
 
 def _build_manifest(version: str, release_tag: str, exe_path: Path) -> dict[str, str]:
+    channel = "dev" if release_tag.startswith("Test-") else "stable"
     return {
         "version": version,
         "notes": f"Release {release_tag}",
         "url": f"https://github.com/Beelzebub2/DnDTools/releases/download/{release_tag}/DnDTools-Setup-{version}.exe",
         "sha256": _sha256(exe_path),
+        "release_tag": release_tag,
+        "channel": channel,
     }
 
 
