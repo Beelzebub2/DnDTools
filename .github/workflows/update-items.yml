@@ -302,6 +302,7 @@ jobs:
         upload_asset "UI/assets/icons.pak"
         upload_asset "UI/assets/items.json"
         upload_asset "UI/assets/changelog.json"
+        upload_asset "UI/assets/darkerdb_health.json"
 
     - name: Check for changes
       id: verify-changed-files

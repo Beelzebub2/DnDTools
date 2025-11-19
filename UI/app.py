@@ -30,6 +30,7 @@ import requests
 from networking.protos import _PacketCommand_pb2
 from update import UpdateManager, UpdateError
 
+from src.models.game_data import item_data_manager
 from src.models.icon_pak import icon_store, canonical_icon_path
 
 from src.models.character import save_packet_data
@@ -41,6 +42,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 from src.quest_service import QuestService, RARITY_ORDER
+from utils.asset_updater import AssetUpdater
 
 # Global cache for version check
 version_cache = None
@@ -557,6 +559,7 @@ class Api:
         self._current_char_id = None
         self._current_stash_id = None
         self._capture_shutdown_completed = False
+        self.asset_updater: Optional[AssetUpdater] = None
 
     def _update_closing_overlay(self, message):
         if not self.window:
@@ -568,6 +571,29 @@ class Api:
             )
         except Exception as overlay_err:
             logger.debug(f"Unable to update closing overlay: {overlay_err}")
+
+    def handle_assets_updated(self, metadata: Optional[dict] = None) -> None:
+        """Refresh local caches after runtime asset downloads complete."""
+        try:
+            item_data_manager.reload()
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            logger.warning("Failed to reload item metadata after asset update: %s", exc, exc_info=True)
+
+        try:
+            quest_service.refresh_items_index()
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            logger.warning("Failed to refresh quest item index after asset update: %s", exc, exc_info=True)
+
+        if not self.window:
+            return
+
+        detail_json = json.dumps(metadata or {})
+        try:
+            self.window.evaluate_js(
+                f"window.dispatchEvent(new CustomEvent('assetsUpdated', {{ detail: {detail_json} }}));"
+            )
+        except Exception as exc:
+            logger.debug("Unable to dispatch assetsUpdated event: %s", exc)
 
     def prepare_for_update(self) -> dict[str, object]:
         context: dict[str, object] = {
@@ -1579,6 +1605,13 @@ def api_update_apply():
 
 # Initialize API
 api = Api()
+asset_updater = AssetUpdater(
+    assets_dir=Path(resource_path("")),
+    logger=logger,
+    window_getter=lambda: api.window,
+    on_assets_applied=[api.handle_assets_updated],
+)
+api.asset_updater = asset_updater
 
 # JSON API endpoint
 @server.route('/api/characters')
@@ -2334,6 +2367,13 @@ def background_init():
                 api._initial_restart_done = True
         except Exception as ce:
             logger.error(f"Failed to restore capture state: {ce}")
+
+        try:
+            updater = getattr(api, 'asset_updater', None)
+            if updater:
+                updater.start_async_update()
+        except Exception as exc:
+            logger.error(f"Failed to start asset updater: {exc}")
 
         if api.window:
             api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')

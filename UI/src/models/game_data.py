@@ -24,6 +24,16 @@ class ItemDataManager:
                         self._data = json.load(file)
                     self._loaded = True
 
+    def reload(self) -> None:
+        """Force the item data cache to reload from disk."""
+        with self._lock:
+            self._data = None
+            self._loaded = False
+        try:
+            self._ensure_loaded()
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            logger.warning("Failed to reload items.json: %s", exc, exc_info=True)
+
     def get_item_dimensions_from_id(self, item_id):
         self._ensure_loaded()
         item = self._data.get(item_id, {})

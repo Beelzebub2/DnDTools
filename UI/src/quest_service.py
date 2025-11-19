@@ -59,6 +59,7 @@ class QuestService:
         self._quests_cache_timestamp: float = 0.0
         self._quests_lock = threading.RLock()
         self._items_index: Optional[dict[str, dict]] = None
+        self._items_lock = threading.RLock()
 
     # ------------------------------------------------------------------
     # General helpers
@@ -229,39 +230,45 @@ class QuestService:
     # Items
     # ------------------------------------------------------------------
     def load_items_index(self) -> dict[str, dict]:
-        if self._items_index is not None:
-            return self._items_index
+        with self._items_lock:
+            if self._items_index is not None:
+                return self._items_index
 
-        items_index: dict[str, dict] = {}
-        items_path = resource_path("items.json")
+            items_index: dict[str, dict] = {}
+            items_path = resource_path("items.json")
 
-        try:
-            with open(items_path, "r", encoding="utf-8") as handle:
-                raw_data = json.load(handle)
-        except FileNotFoundError:
-            self._logger.error("Quest tracker is unable to locate items.json at %s", items_path)
+            try:
+                with open(items_path, "r", encoding="utf-8") as handle:
+                    raw_data = json.load(handle)
+            except FileNotFoundError:
+                self._logger.error("Quest tracker is unable to locate items.json at %s", items_path)
+                self._items_index = items_index
+                return self._items_index
+            except Exception as exc:  # pragma: no cover - defensive
+                self._logger.error("Failed to load items data for quest tracker: %s", exc, exc_info=True)
+                self._items_index = items_index
+                return self._items_index
+
+            if isinstance(raw_data, dict):
+                for item_id, payload in raw_data.items():
+                    if not isinstance(payload, dict):
+                        continue
+                    icon_path = str(payload.get("iconPath") or "").replace("\\", "/")
+                    items_index[item_id] = {
+                        "item_id": item_id,
+                        "name": payload.get("name") or self._normalize_item_name(item_id),
+                        "rarity": payload.get("rarity") or "Unknown",
+                        "type": payload.get("type"),
+                        "iconPath": icon_path if icon_path else None,
+                    }
+
             self._items_index = items_index
             return self._items_index
-        except Exception as exc:  # pragma: no cover - defensive
-            self._logger.error("Failed to load items data for quest tracker: %s", exc, exc_info=True)
-            self._items_index = items_index
-            return self._items_index
 
-        if isinstance(raw_data, dict):
-            for item_id, payload in raw_data.items():
-                if not isinstance(payload, dict):
-                    continue
-                icon_path = str(payload.get("iconPath") or "").replace("\\", "/")
-                items_index[item_id] = {
-                    "item_id": item_id,
-                    "name": payload.get("name") or self._normalize_item_name(item_id),
-                    "rarity": payload.get("rarity") or "Unknown",
-                    "type": payload.get("type"),
-                    "iconPath": icon_path if icon_path else None,
-                }
-
-        self._items_index = items_index
-        return self._items_index
+    def refresh_items_index(self) -> dict[str, dict]:
+        with self._items_lock:
+            self._items_index = None
+        return self.load_items_index()
 
     @staticmethod
     def _normalize_item_name(item_id: str) -> str:

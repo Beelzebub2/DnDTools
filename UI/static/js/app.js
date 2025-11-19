@@ -147,6 +147,137 @@ function dismissNotification(id) {
 window.dismissNotification = dismissNotification;
 window.showNotification = showNotification;
 
+(function () {
+    const BANNER_ID = 'asset-update-banner';
+    let autoDismissTimer = null;
+
+    function ensureBanner() {
+        let banner = document.getElementById(BANNER_ID);
+        if (banner) {
+            return banner;
+        }
+
+        banner = document.createElement('div');
+        banner.id = BANNER_ID;
+        banner.style.position = 'fixed';
+        banner.style.bottom = '32px';
+        banner.style.left = '32px';
+        banner.style.width = '320px';
+        banner.style.padding = '16px 20px';
+        banner.style.background = 'var(--bg-secondary, #21170f)';
+        banner.style.color = 'var(--text-primary, #f2e2c2)';
+        banner.style.border = '1px solid rgba(226, 188, 123, 0.35)';
+        banner.style.borderRadius = '10px';
+        banner.style.boxShadow = '0 10px 24px rgba(0, 0, 0, 0.35)';
+        banner.style.zIndex = '12000';
+        banner.style.backdropFilter = 'blur(6px)';
+        banner.innerHTML = `
+            <div style="font-weight: 600; letter-spacing: 0.5px; margin-bottom: 6px; font-size: 13px; color: var(--accent-gold, #e7c470);">
+                Asset Updates
+            </div>
+            <div class="asset-update-message" style="font-size: 14px; line-height: 1.4; margin-bottom: 10px;">
+                Checking for updates...
+            </div>
+            <div class="asset-update-progress" style="height: 6px; border-radius: 999px; background: rgba(255, 255, 255, 0.1); overflow: hidden; display: none;">
+                <div class="asset-update-progress-fill" style="height: 100%; width: 0%; background: linear-gradient(90deg, #e7c470, #f4dba1);"></div>
+            </div>
+            <div class="asset-update-actions" style="display: none; justify-content: flex-end; gap: 8px; margin-top: 14px;">
+                <button data-action="restart" style="display: none; padding: 8px 14px; border-radius: 6px; border: none; background: var(--accent-gold, #e7c470); color: #1a1411; font-weight: 600; cursor: pointer;">
+                    Restart now
+                </button>
+                <button data-action="dismiss" style="display: none; padding: 8px 14px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.2); background: transparent; color: var(--text-secondary, #c8b491); font-weight: 600; cursor: pointer;">
+                    Later
+                </button>
+            </div>
+        `;
+
+        const actions = banner.querySelector('.asset-update-actions');
+        actions.addEventListener('click', async (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLButtonElement)) {
+                return;
+            }
+            const action = target.dataset.action;
+
+            if (action === 'restart') {
+                target.disabled = true;
+                target.textContent = 'Restarting...';
+                try {
+                    await fetch('/api/restart', { method: 'POST' });
+                } catch (error) {
+                    console.warn('Restart request failed', error);
+                    showNotification('Restart failed. Please restart manually.', 'error');
+                    target.disabled = false;
+                    target.textContent = 'Restart now';
+                }
+            } else if (action === 'dismiss') {
+                hideBanner();
+            }
+        });
+
+        document.body.appendChild(banner);
+        return banner;
+    }
+
+    function hideBanner() {
+        const banner = document.getElementById(BANNER_ID);
+        if (banner && banner.parentNode) {
+            banner.parentNode.removeChild(banner);
+        }
+        if (autoDismissTimer) {
+            clearTimeout(autoDismissTimer);
+            autoDismissTimer = null;
+        }
+    }
+
+    window.handleAssetUpdateStatus = function (payload = {}) {
+        if (!payload || payload.dismiss) {
+            hideBanner();
+            return;
+        }
+
+        const banner = ensureBanner();
+        const messageEl = banner.querySelector('.asset-update-message');
+        if (messageEl && typeof payload.message === 'string') {
+            messageEl.textContent = payload.message;
+        }
+
+        banner.dataset.status = payload.status || '';
+
+        const progressWrap = banner.querySelector('.asset-update-progress');
+        const progressFill = banner.querySelector('.asset-update-progress-fill');
+        if (progressWrap && progressFill && typeof payload.progress === 'number' && Number.isFinite(payload.progress)) {
+            const pct = Math.max(0, Math.min(1, payload.progress));
+            progressWrap.style.display = 'block';
+            progressFill.style.width = `${Math.round(pct * 100)}%`;
+        } else if (progressWrap) {
+            progressWrap.style.display = 'none';
+        }
+
+        const actions = banner.querySelector('.asset-update-actions');
+        const restartBtn = banner.querySelector('button[data-action="restart"]');
+        const dismissBtn = banner.querySelector('button[data-action="dismiss"]');
+        const needsRestart = Boolean(payload.promptRestart);
+        const allowDismiss = Boolean(payload.allowDismiss || payload.promptRestart);
+
+        if (actions && restartBtn && dismissBtn) {
+            actions.style.display = needsRestart || allowDismiss ? 'flex' : 'none';
+            restartBtn.style.display = needsRestart ? 'inline-flex' : 'none';
+            restartBtn.disabled = false;
+            restartBtn.textContent = 'Restart now';
+            dismissBtn.style.display = allowDismiss ? 'inline-flex' : 'none';
+        }
+
+        if (autoDismissTimer) {
+            clearTimeout(autoDismissTimer);
+            autoDismissTimer = null;
+        }
+        if (payload.autoDismiss) {
+            autoDismissTimer = setTimeout(hideBanner, 4500);
+        }
+    };
+})();
+
 window.addEventListener('sortCancelled', (event) => {
     try {
         const detail = event && typeof event.detail === 'object' ? event.detail : null;
