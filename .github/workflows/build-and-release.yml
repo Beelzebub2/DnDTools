@@ -7,6 +7,14 @@ on:
         description: 'Release tag (example: v1.0.0)'
         required: true
         default: 'v2.0.0'
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - dev
 
 permissions:
   contents: write
@@ -14,6 +22,9 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      DNDTOOLS_RELEASE_VERSION: ${{ github.event.inputs.tag }}
+      DNDTOOLS_RELEASE_CHANNEL: ${{ github.event.inputs.channel }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -48,8 +59,6 @@ jobs:
 
       - name: Build installer package
         shell: cmd
-        env:
-          DNDTOOLS_RELEASE_VERSION: ${{ github.event.inputs.tag }}
         run: |
           installer\build_installer.bat
 
@@ -65,20 +74,18 @@ jobs:
 
       - name: Generate update manifest
         shell: powershell
-        env:
-          DNDTOOLS_RELEASE_VERSION: ${{ github.event.inputs.tag }}
         run: |
-          python scripts/generate_update_manifest.py --release-tag "${{ github.event.inputs.tag }}" --version "${{ github.event.inputs.tag }}"
+          python scripts/generate_update_manifest.py --release-tag "${{ github.event.inputs.tag }}" --version "${{ github.event.inputs.tag }}" --channel "${{ github.event.inputs.channel }}"
 
       - name: Create GitHub Pre-Release and Upload installer
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
-          name: Test-Release ${{ github.event.inputs.tag }}
+          name: ${{ github.event.inputs.channel == 'dev' && 'Test-Release' || 'Release' }} ${{ github.event.inputs.tag }}
           files: |
             dist/DnDTools-Setup-*.exe
             dist/update-manifest.json
           fail_on_unmatched_files: false
-          prerelease: true
+          prerelease: ${{ github.event.inputs.channel == 'dev' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

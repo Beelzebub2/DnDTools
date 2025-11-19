@@ -89,7 +89,16 @@ This command will rebuild the standalone executable with PyInstaller, synchroniz
 > installer\build_installer.bat
 > ```
 >
-> The GitHub Actions workflow now sets this variable automatically from the `workflow_dispatch` tag input, so the CI-built installer always matches the version you typed on the Actions form.
+> If the build should be treated as a dev/Test release, also set `DNDTOOLS_RELEASE_CHANNEL`:
+>
+> ```cmd
+> set DNDTOOLS_RELEASE_VERSION=v3.6.1
+> set DNDTOOLS_RELEASE_CHANNEL=dev
+> installer\build_installer.bat
+> python scripts\generate_update_manifest.py --release-tag v3.6.1 --version v3.6.1 --channel dev
+> ```
+>
+> The GitHub Actions workflow now sets both variables automatically from the `workflow_dispatch` inputs (`tag` and `channel`), so the CI-built installer and manifest always match what you typed on the Actions form.
 
 > The GitHub Actions release pipeline invokes the same script and attaches the generated installer to each tagged pre-release.
 

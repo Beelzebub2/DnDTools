@@ -21,6 +21,11 @@ ENV_VERSION_KEYS = (
     "RELEASE_VERSION",
     "GITHUB_RELEASE_VERSION",
 )
+ENV_CHANNEL_KEYS = (
+    "DNDTOOLS_RELEASE_CHANNEL",
+    "RELEASE_CHANNEL",
+    "GITHUB_RELEASE_CHANNEL",
+)
 
 
 class ManifestError(RuntimeError):
@@ -90,8 +95,14 @@ def _sha256(path: Path) -> str:
     return sha256.hexdigest()
 
 
-def _build_manifest(version: str, release_tag: str, exe_path: Path) -> dict[str, str]:
-    channel = "dev" if release_tag.startswith("Test-") else "stable"
+def _normalize_channel(value: Optional[str]) -> str:
+    normalized = (value or "stable").strip().lower()
+    if normalized in {"dev", "development", "test", "testing", "preview", "prerelease"}:
+        return "dev"
+    return "stable"
+
+
+def _build_manifest(version: str, release_tag: str, exe_path: Path, channel: str) -> dict[str, str]:
     return {
         "version": version,
         "notes": f"Release {release_tag}",
@@ -109,24 +120,55 @@ def _resolve_release_tag(arg_tag: Optional[str], default_version: str) -> str:
     return f"v{default_version}"
 
 
-def generate_manifest(root: Path, release_tag: Optional[str] = None, version_override: Optional[str] = None) -> Path:
+def _resolve_channel(
+    channel_override: Optional[str],
+    release_tag: Optional[str],
+) -> Tuple[str, str]:
+    if channel_override:
+        return _normalize_channel(channel_override), "cli"
+
+    for key in ENV_CHANNEL_KEYS:
+        env_value = os.environ.get(key)
+        if env_value and env_value.strip():
+            return _normalize_channel(env_value), f"env:{key}"
+
+    if release_tag and release_tag.strip().lower().startswith("test-"):
+        return "dev", "tag"
+
+    return "stable", "default"
+
+
+def generate_manifest(
+    root: Path,
+    release_tag: Optional[str] = None,
+    version_override: Optional[str] = None,
+    channel_override: Optional[str] = None,
+) -> Path:
     root = root.resolve()
     if not root.exists():
         raise ManifestError(f"Root directory does not exist: {root}")
 
     version, version_source = _resolve_version(root, version_override)
     tag = _resolve_release_tag(release_tag, version)
+    channel, channel_source = _resolve_channel(channel_override, tag)
 
     dist_dir = root / DIST_DIR_NAME
     exe_path = dist_dir / f"DnDTools-Setup-{version}.exe"
     if not exe_path.exists():
         raise ManifestError(f"Installer not found: {exe_path}")
 
-    manifest = _build_manifest(version, tag, exe_path)
+    manifest = _build_manifest(version, tag, exe_path, channel)
 
     manifest_path = dist_dir / MANIFEST_FILENAME
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
-    print(f"Manifest generated using version {version} (source: {version_source})")
+    print(
+        "Manifest generated using version {version} (source: {v_source}) and channel {channel} (source: {c_source}).".format(
+            version=version,
+            v_source=version_source,
+            channel=channel,
+            c_source=channel_source,
+        )
+    )
     return manifest_path
 
 
@@ -150,13 +192,24 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Explicit installer version (e.g. v3.6.2). Defaults to env/JSON/app.py",
     )
+    parser.add_argument(
+        "--channel",
+        dest="channel",
+        default=None,
+        help="Release channel (stable/dev). Defaults to env or release tag prefix.",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
     try:
-        manifest_path = generate_manifest(args.root, args.release_tag, args.version)
+        manifest_path = generate_manifest(
+            args.root,
+            release_tag=args.release_tag,
+            version_override=args.version,
+            channel_override=args.channel,
+        )
     except ManifestError as exc:
         raise SystemExit(str(exc))
 
