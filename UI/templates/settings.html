@@ -6,185 +6,288 @@
 
 {% block content %}
 <div class="settings-container">
-    <!-- Header Section -->
-    <div class="settings-header">
-        <div class="header-content">
-            <div class="header-icon">
-                <span class="material-icons">tune</span>
-            </div>
-            <div class="header-text">
-                <h1>Settings</h1>
-                <p>Configure your Dark and Darker stash organizer</p>
-            </div>
-        </div>
-    </div> <!-- Settings Sections -->
-    <div class="settings-sections">
-        <!-- Network Settings -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span class="material-icons">wifi</span>
-                <h2>Network Settings</h2>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label for="interface">Network Interface:</label>
-                    <select id="interface">
-                        <option value="">Loading interfaces...</option>
-                    </select>
-                    <div class="form-help">Select the network interface that Dark and Darker uses</div>
-                </div>
-                <div class="form-group">
-                    <label for="wiresharkPath">Wireshark Installation:</label>
-                    <div class="file-picker">
-                        <input type="text" id="wiresharkPath" placeholder="Auto-detected Wireshark folder">
-                        <button id="detectWiresharkPath" type="button" class="btn-small">
-                            <span class="material-icons">travel_explore</span>
-                            Auto-detect
-                        </button>
-                        <button id="browseWiresharkPath" type="button" class="btn-small">
-                            <span class="material-icons">folder_open</span>
-                            Browse
-                        </button>
-                    </div>
-                    <div class="form-help">Select the folder where Wireshark is installed (the folder that contains
-                        <code>tshark.exe</code>)
-                    </div>
-                </div>
+    <div class="settings-hero">
+        <div class="hero-copy">
+            <p class="hero-eyebrow">DnDTools control center</p>
+            <h1>Craft a layout that matches your raid routine</h1>
+            <div class="hero-pills">
+                <span class="hero-pill">
+                    <span class="material-icons" aria-hidden="true">bolt</span>
+                    Live capture ready
+                </span>
+                <span class="hero-pill subtle">
+                    <span class="material-icons" aria-hidden="true">verified</span>
+                    Version {{ app_version }}
+                </span>
             </div>
         </div>
-
-        <!-- Hotkey Settings -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span class="material-icons">keyboard</span>
-                <h2>Hotkey Settings</h2>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label for="sortHotkey">Sort Stash Hotkey:</label>
-                    <input type="text" id="sortHotkey" class="hotkey-input" placeholder="Click to record hotkey..."
-                        readonly>
-                    <div class="form-help">Global hotkey to sort the current stash</div>
-                </div>
-                <div class="form-group">
-                    <label for="cancelHotkey">Cancel Sort Hotkey:</label>
-                    <input type="text" id="cancelHotkey" class="hotkey-input" placeholder="Click to record hotkey..."
-                        readonly>
-                    <div class="form-help">Global hotkey to cancel sorting operation</div>
+        <div class="hero-visual">
+            <div class="hero-visual-card">
+                <span class="material-icons" aria-hidden="true">autorenew</span>
+                <div>
+                    <p>Auto-sort cadence</p>
+                    <strong>Adaptive</strong>
                 </div>
             </div>
-        </div>
-
-        <!-- Performance Settings -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span class="material-icons">speed</span>
-                <h2>Performance Settings</h2>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label for="sortSpeed">Sort Speed (seconds):</label>
-                    <input type="number" id="sortSpeed" min="0" max="1.0" step="0.01" value="0.2">
-                    <div class="form-help">Delay between sort operations (0.00-1.0s: lower = faster, higher = more
-                        stable)</div>
-                </div>
-                <div class="form-group form-group-inline">
-                    <label class="custom-checkbox" for="noDelay">
-                        <input type="checkbox" id="noDelay">
-                        <span class="checkbox-mark" aria-hidden="true"></span>
-                        <span class="checkbox-label">No delay (experimental)</span>
-                    </label>
-                    <div class="form-help warning-text">Sets sorting delay to zero and removes timing buffers. May
-                        reduce
-                        stability.</div>
-                </div>
-                <div class="form-group">
-                    <label for="resolution">Game Resolution:</label>
-                    <select id="resolution">
-                        <option value="Auto">Auto Detection</option>
-                        <option value="3840x2160">3840 × 2160</option>
-                        <option value="2560x1440">2560 × 1440</option>
-                        <option value="1920x1080">1920 × 1080</option>
-                        <option value="1680x1050">1680 × 1050</option>
-                        <option value="1440x900">1440 × 900</option>
-                        <option value="1366x768">1366 × 768</option>
-                        <option value="1360x768">1360 × 768</option>
-                        <option value="1280x800">1280 × 800</option>
-                        <option value="1280x768">1280 × 768</option>
-                        <option value="1280x720">1280 × 720</option>
-                    </select>
-                    <div class="form-help">
-                        Current detected: <span id="detectedResolution">Loading...</span>
-                        <button id="refreshResolution" class="btn-small">Refresh</button>
-                    </div>
+            <div class="hero-visual-card">
+                <span class="material-icons" aria-hidden="true">dataset</span>
+                <div>
+                    <p>Local data footprint</p>
+                    <strong>Manage here</strong>
                 </div>
             </div>
-        </div>
-
-        <!-- Data Settings -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span class="material-icons">storage</span>
-                <h2>Data</h2>
-            </div>
-            <div class="section-content">
-                <div class="form-group">
-                    <label for="clearQuestData">Quest Tracker Cache</label>
-                    <div class="form-help">
-                        Quest information and your quest progress are stored locally for faster loading. Clear the cache
-                        below to force a fresh download and reset saved progress.
-                    </div>
-                    <button id="clearQuestData" type="button" class="btn-small danger">
-                        <span class="material-icons" aria-hidden="true">delete_sweep</span>
-                        Clear quest data
-                    </button>
-                </div>
-                <div class="form-group">
-                    <label for="clearCharacterData">Captured Character Data</label>
-                    <div class="form-help">
-                        Captured packets and stash snapshots for your characters are saved on this device. Delete them
-                        to
-                        reclaim space or start fresh.
-                    </div>
-                    <button id="clearCharacterData" type="button" class="btn-small danger">
-                        <span class="material-icons" aria-hidden="true">delete_forever</span>
-                        Delete character data
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Update Preferences -->
-        <div class="settings-section">
-            <div class="section-header">
-                <span class="material-icons">system_update</span>
-                <h2>Updates</h2>
-            </div>
-            <div class="section-content">
-                <div class="form-group form-group-inline">
-                    <label class="custom-checkbox" for="includeDevReleases">
-                        <input type="checkbox" id="includeDevReleases">
-                        <span class="checkbox-mark" aria-hidden="true"></span>
-                        <span class="checkbox-label">Opt into Test builds</span>
-                    </label>
-                    <div class="form-help warning-text">
-                        When enabled, update checks will use the latest GitHub releases whose tags start with
-                        <code>Test-</code> (development builds). These builds may be unstable.
-                    </div>
-                </div>
-            </div>
+            <div class="hero-visual-glow"></div>
         </div>
     </div>
 
-    <!-- Action Buttons -->
-    <div class="settings-actions">
+    <div class="settings-tabs" role="tablist">
+        <button class="settings-tab active" type="button" id="capture-tab" data-tab="capture" role="tab"
+            aria-selected="true">
+            <span class="material-icons" aria-hidden="true">tune</span>
+            Capture & Controls
+        </button>
+        <button class="settings-tab" type="button" id="performance-tab" data-tab="performance" role="tab"
+            aria-selected="false">
+            <span class="material-icons" aria-hidden="true">speed</span>
+            Performance
+        </button>
+        <button class="settings-tab" type="button" id="data-tab" data-tab="data" role="tab" aria-selected="false">
+            <span class="material-icons" aria-hidden="true">inventory_2</span>
+            Data & Maintenance
+        </button>
+        <button class="settings-tab" type="button" id="updates-tab" data-tab="updates" role="tab" aria-selected="false">
+            <span class="material-icons" aria-hidden="true">system_update</span>
+            Updates
+        </button>
+    </div>
+
+    <div class="settings-panels">
+        <section class="settings-panel active" data-panel="capture" aria-labelledby="capture-tab" aria-hidden="false">
+            <header class="panel-header">
+                <div>
+                    <p class="panel-eyebrow">Step 1</p>
+                    <h2>Keep packet capture locked onto the correct route</h2>
+                    <p class="panel-body">Select the interface Dark and Darker uses, verify Wireshark, and adjust the
+                        automation hotkeys without leaving this view.</p>
+                </div>
+            </header>
+            <div class="settings-grid two-column">
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">wifi</span>
+                        <h3>Network interface</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="interface">Interface</label>
+                            <select id="interface">
+                                <option value="">Loading interfaces...</option>
+                            </select>
+                            <div class="form-help">Pick the adapter Dark and Darker is currently streaming through.
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="wiresharkPath">Wireshark installation</label>
+                            <div class="file-picker">
+                                <input type="text" id="wiresharkPath" placeholder="Auto-detected Wireshark folder">
+                                <div class="file-picker-actions">
+                                    <button id="detectWiresharkPath" type="button" class="btn-small">
+                                        <span class="material-icons">travel_explore</span>
+                                        Auto-detect
+                                    </button>
+                                    <button id="browseWiresharkPath" type="button" class="btn-small">
+                                        <span class="material-icons">folder_open</span>
+                                        Browse
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="form-help">Point to the folder containing tshark.exe to unlock
+                                auto-capture.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">keyboard</span>
+                        <h3>Global hotkeys</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="sortHotkey">Sort stash</label>
+                            <input type="text" id="sortHotkey" class="hotkey-input"
+                                placeholder="Click to record hotkey..." readonly>
+                            <div class="form-help">Trigger sorting from anywhere - even while Dark and Darker is
+                                focused.
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="cancelHotkey">Cancel sort</label>
+                            <input type="text" id="cancelHotkey" class="hotkey-input"
+                                placeholder="Click to record hotkey..." readonly>
+                            <div class="form-help">Use a safety hotkey to stop auto-sorting mid run.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-panel" data-panel="performance" aria-labelledby="performance-tab" aria-hidden="true">
+            <header class="panel-header">
+                <div>
+                    <p class="panel-eyebrow">Step 2</p>
+                    <h2>Nail the timing and resolution</h2>
+                    <p class="panel-body">Fine tune how fast items move and map the UI to your monitor resolution.</p>
+                </div>
+            </header>
+            <div class="settings-grid two-column">
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">timer</span>
+                        <h3>Sort pacing</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="sortSpeed">Sort speed (seconds)</label>
+                            <input type="number" id="sortSpeed" min="0" max="1.0" step="0.01" value="0.2">
+                            <div class="form-help">Lower values = faster. Higher values = extra stability.</div>
+                        </div>
+                        <div class="form-group form-group-inline">
+                            <label class="custom-checkbox" for="noDelay">
+                                <input type="checkbox" id="noDelay">
+                                <span class="checkbox-mark" aria-hidden="true"></span>
+                                <span class="checkbox-label">No delay (experimental)</span>
+                            </label>
+                            <div class="form-help warning-text">Removes timing buffers. Might miss items more often use
+                                carefully.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">desktop_windows</span>
+                        <h3>Game resolution</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="resolution">Primary resolution</label>
+                            <select id="resolution">
+                                <option value="Auto">Auto Detection</option>
+                                <option value="3840x2160">3840 × 2160</option>
+                                <option value="2560x1440">2560 × 1440</option>
+                                <option value="1920x1080">1920 × 1080</option>
+                                <option value="1680x1050">1680 × 1050</option>
+                                <option value="1440x900">1440 × 900</option>
+                                <option value="1366x768">1366 × 768</option>
+                                <option value="1360x768">1360 × 768</option>
+                                <option value="1280x800">1280 × 800</option>
+                                <option value="1280x768">1280 × 768</option>
+                                <option value="1280x720">1280 × 720</option>
+                            </select>
+                            <div class="form-help">
+                                Current detected: <span id="detectedResolution">Loading...</span>
+                                <button id="refreshResolution" class="btn-small">Refresh</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-panel" data-panel="data" aria-labelledby="data-tab" aria-hidden="true">
+            <header class="panel-header">
+                <div>
+                    <p class="panel-eyebrow">Step 3</p>
+                    <h2>Keep your local data lean</h2>
+                    <p class="panel-body">Clear cached quests or character captures in a couple of clicks, which is
+                        perfect after big patches.</p>
+                </div>
+            </header>
+            <div class="settings-grid single-column">
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">task</span>
+                        <h3>Quest tracker cache</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="clearQuestData">Quest payload</label>
+                            <div class="form-help">
+                                Stored quests keep browsing fast. Clear them to force a fresh pull or when merchants get
+                                reshuffled.
+                            </div>
+                            <button id="clearQuestData" type="button" class="btn-small danger">
+                                <span class="material-icons" aria-hidden="true">delete_sweep</span>
+                                Clear quest data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">inventory</span>
+                        <h3>Captured character data</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group">
+                            <label for="clearCharacterData">Snapshots & packets</label>
+                            <div class="form-help">
+                                Remove local captures to reclaim disk space or start fresh before the next wipe.</div>
+                            <button id="clearCharacterData" type="button" class="btn-small danger">
+                                <span class="material-icons" aria-hidden="true">delete_forever</span>
+                                Delete character data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="settings-panel" data-panel="updates" aria-labelledby="updates-tab" aria-hidden="true">
+            <header class="panel-header">
+                <div>
+                    <p class="panel-eyebrow">Optional</p>
+                    <h2>Choose your release channel</h2>
+                    <p class="panel-body">Stick with rock-solid builds or jump onto Test releases as soon as they land.
+                    </p>
+                </div>
+            </header>
+            <div class="settings-grid single-column">
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">science</span>
+                        <h3>Development builds</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group form-group-inline">
+                            <label class="custom-checkbox" for="includeDevReleases">
+                                <input type="checkbox" id="includeDevReleases">
+                                <span class="checkbox-mark" aria-hidden="true"></span>
+                                <span class="checkbox-label">Opt into Test builds</span>
+                            </label>
+                            <div class="form-help warning-text">Fetch GitHub development releases
+                                These builds are pre-release and may be unstable.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="settings-actions autosave-callout">
+        <div class="autosave-message">
+            <span class="material-icons" aria-hidden="true">autorenew</span>
+            <div>
+                <p class="autosave-title">Auto-save enabled</p>
+                <p class="autosave-subtitle">Every tweak writes instantly. Need a clean slate? Tap reset.</p>
+            </div>
+        </div>
         <button id="resetSettings" class="btn btn-secondary">
             <span class="material-icons">restore</span>
             Reset to Defaults
-        </button>
-        <button id="saveSettings" class="btn btn-primary">
-            <span class="material-icons">save</span>
-            Save Settings
         </button>
     </div>
     <div class="settings-footer">
@@ -195,5 +298,6 @@
 {% endblock %}
 
 {% block scripts %}
+{{ super() }}
 <script src="{{ url_for('static', filename='js/settings.js') }}"></script>
 {% endblock %}
