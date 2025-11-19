@@ -271,6 +271,9 @@ class PacketCapture:
         self.capture_info = {}
         self._state_lock = threading.Lock()
         self._stop_event = threading.Event()
+        self._cleanup_lock = threading.Lock()
+        self._cleanup_complete = threading.Event()
+        self._cleanup_complete.set()
         self.STATE_FILE = get_capture_state_file()
         self.tshark_path = resolve_tshark_executable(wireshark_path) or resolve_tshark_executable(settings_manager.get('wiresharkPath'))
         self._apply_tshark_environment()
@@ -747,106 +750,116 @@ class PacketCapture:
             
     def _cleanup_capture(self):
         """Clean up capture resources and terminate helper processes."""
-        capture = getattr(self, '_current_capture', None)
-        loop = getattr(self, '_current_loop', None)
+        if self._cleanup_complete.is_set():
+            return
+
+        if not self._cleanup_lock.acquire(blocking=False):
+            return
 
         try:
-            if capture:
-                try:
-                    result = capture.close() if hasattr(capture, 'close') else None
-                    if asyncio.iscoroutine(result):
-                        cleanup_loop = asyncio.new_event_loop()
+            capture = getattr(self, '_current_capture', None)
+            loop = getattr(self, '_current_loop', None)
+
+            try:
+                if capture:
+                    try:
+                        result = capture.close() if hasattr(capture, 'close') else None
+                        if asyncio.iscoroutine(result):
+                            cleanup_loop = asyncio.new_event_loop()
+                            try:
+                                cleanup_loop.run_until_complete(result)
+                            finally:
+                                cleanup_loop.close()
+                    except Exception as sync_error:
+                        self.logger.debug(f"capture.close raised {sync_error}; attempting async close")
                         try:
-                            cleanup_loop.run_until_complete(result)
-                        finally:
-                            cleanup_loop.close()
-                except Exception as sync_error:
-                    self.logger.debug(f"capture.close raised {sync_error}; attempting async close")
-                    try:
-                        if hasattr(capture, 'close_async'):
-                            async_result = capture.close_async()
-                            if asyncio.iscoroutine(async_result):
-                                cleanup_loop = asyncio.new_event_loop()
-                                try:
-                                    cleanup_loop.run_until_complete(async_result)
-                                finally:
-                                    cleanup_loop.close()
-                    except Exception as async_error:
-                        self.logger.warning(f"Could not close capture async: {async_error}")
-                finally:
-                    try:
-                        processes = getattr(capture, '_running_processes', None)
-                        if processes:
-                            for proc in list(processes):
-                                try:
-                                    _finalize_asyncio_subprocess(proc, loop, self.logger)
-                                except Exception as proc_error:
-                                    self.logger.debug(f"Unable to finalize subprocess cleanly: {proc_error}")
+                            if hasattr(capture, 'close_async'):
+                                async_result = capture.close_async()
+                                if asyncio.iscoroutine(async_result):
+                                    cleanup_loop = asyncio.new_event_loop()
+                                    try:
+                                        cleanup_loop.run_until_complete(async_result)
+                                    finally:
+                                        cleanup_loop.close()
+                        except Exception as async_error:
+                            self.logger.warning(f"Could not close capture async: {async_error}")
+                    finally:
+                        try:
+                            processes = getattr(capture, '_running_processes', None)
+                            if processes:
+                                for proc in list(processes):
+                                    try:
+                                        _finalize_asyncio_subprocess(proc, loop, self.logger)
+                                    except Exception as proc_error:
+                                        self.logger.debug(f"Unable to finalize subprocess cleanly: {proc_error}")
 
-                            if hasattr(processes, 'clear'):
-                                processes.clear()
-                            else:
-                                capture._running_processes = []
-                    except Exception as proc_error:
-                        self.logger.debug(f"Unable to clear running processes: {proc_error}")
+                                if hasattr(processes, 'clear'):
+                                    processes.clear()
+                                else:
+                                    capture._running_processes = []
+                        except Exception as proc_error:
+                            self.logger.debug(f"Unable to clear running processes: {proc_error}")
 
+                        try:
+                            if hasattr(capture, 'eventloop'):
+                                capture.eventloop = None
+                        except Exception as loop_attr_error:
+                            self.logger.debug(f"Unable to reset capture eventloop: {loop_attr_error}")
+            except Exception as e:
+                self.logger.error(f"Error during capture cleanup: {e}")
+            finally:
+                if hasattr(self, '_current_capture'):
+                    del self._current_capture
+
+                if loop:
                     try:
-                        if hasattr(capture, 'eventloop'):
-                            capture.eventloop = None
-                    except Exception as loop_attr_error:
-                        self.logger.debug(f"Unable to reset capture eventloop: {loop_attr_error}")
-        except Exception as e:
-            self.logger.error(f"Error during capture cleanup: {e}")
+                        if not loop.is_closed():
+                            try:
+                                pending = list(asyncio.all_tasks(loop=loop))
+                            except TypeError:
+                                pending = list(asyncio.all_tasks())
+
+                            for task in pending:
+                                task.cancel()
+
+                            if pending and not loop.is_running():
+                                try:
+                                    loop.run_until_complete(
+                                        asyncio.gather(*pending, return_exceptions=True)
+                                    )
+                                except Exception as gather_error:
+                                    self.logger.debug(f"Error awaiting pending tasks: {gather_error}")
+
+                            try:
+                                loop.call_soon_threadsafe(loop.stop)
+                            except RuntimeError:
+                                pass
+
+                            if not loop.is_running():
+                                try:
+                                    if hasattr(loop, 'shutdown_asyncgens'):
+                                        loop.run_until_complete(loop.shutdown_asyncgens())
+                                except Exception as shutdown_error:
+                                    self.logger.debug(f"Error during loop shutdown_asyncgens: {shutdown_error}")
+                                loop.close()
+                    except Exception as loop_error:
+                        self.logger.warning(f"Error closing event loop: {loop_error}")
+                    finally:
+                        self._current_loop = None
+
+                self.reset_state()
+                self._terminate_capture_processes()
+
+                temp_dir = tempfile.gettempdir()
+                for pcap in glob.glob(os.path.join(temp_dir, '*.pcapng')):
+                    try:
+                        os.remove(pcap)
+                        self.logger.info(f"Deleted temp capture file: {pcap}")
+                    except Exception as file_error:
+                        self.logger.warning(f"Could not delete {pcap}: {file_error}")
         finally:
-            if hasattr(self, '_current_capture'):
-                del self._current_capture
-
-            if loop:
-                try:
-                    if not loop.is_closed():
-                        try:
-                            pending = list(asyncio.all_tasks(loop=loop))
-                        except TypeError:
-                            pending = list(asyncio.all_tasks())
-
-                        for task in pending:
-                            task.cancel()
-
-                        if pending and not loop.is_running():
-                            try:
-                                loop.run_until_complete(
-                                    asyncio.gather(*pending, return_exceptions=True)
-                                )
-                            except Exception as gather_error:
-                                self.logger.debug(f"Error awaiting pending tasks: {gather_error}")
-
-                        try:
-                            loop.call_soon_threadsafe(loop.stop)
-                        except RuntimeError:
-                            pass
-
-                        if not loop.is_running():
-                            try:
-                                if hasattr(loop, 'shutdown_asyncgens'):
-                                    loop.run_until_complete(loop.shutdown_asyncgens())
-                            except Exception as shutdown_error:
-                                self.logger.debug(f"Error during loop shutdown_asyncgens: {shutdown_error}")
-                            loop.close()
-                except Exception as loop_error:
-                    self.logger.warning(f"Error closing event loop: {loop_error}")
-                finally:
-                    self._current_loop = None
-
-            self.reset_state()
-            self._terminate_capture_processes()
-
-            temp_dir = tempfile.gettempdir()
-            for pcap in glob.glob(os.path.join(temp_dir, '*.pcapng')):
-                try:
-                    os.remove(pcap)
-                    self.logger.info(f"Deleted temp capture file: {pcap}")
-                except Exception as file_error:
-                    self.logger.warning(f"Could not delete {pcap}: {file_error}")
+            self._cleanup_complete.set()
+            self._cleanup_lock.release()
 
     def is_active(self) -> bool:
         """Return True if capture thread is alive or running flag is set."""
@@ -877,6 +890,7 @@ class PacketCapture:
             self._user_requested_stop = False
 
             self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
+            self._cleanup_complete.clear()
             self.capture_thread.start()
 
         self._start_memory_guard()
@@ -907,48 +921,7 @@ class PacketCapture:
 
         self._stop_memory_guard()
 
-        capture = getattr(self, '_current_capture', None)
-        loop = getattr(self, '_current_loop', None)
-
-        if capture:
-            try:
-                async_close = None
-                loop_running = False
-                if loop:
-                    try:
-                        loop_running = loop.is_running() and not loop.is_closed()
-                    except Exception:
-                        loop_running = False
-
-                if loop_running:
-                    try:
-                        async_close = capture.close_async()
-                    except AttributeError:
-                        async_close = None
-
-                    if asyncio.iscoroutine(async_close):
-                        try:
-                            future = asyncio.run_coroutine_threadsafe(async_close, loop)
-                            future.result(timeout=5)
-                        except FutureTimeout:
-                            self.logger.warning("Timed out waiting for capture to close asynchronously")
-                        except Exception as async_err:
-                            self.logger.debug(f"Error awaiting capture close_async: {async_err}")
-                        finally:
-                            try:
-                                loop.call_soon_threadsafe(loop.stop)
-                            except Exception as stop_err:
-                                self.logger.debug(f"Unable to signal event loop stop: {stop_err}")
-                    else:
-                        # Schedule a simple stop if async close isn't available
-                        try:
-                            loop.call_soon_threadsafe(loop.stop)
-                        except Exception as stop_err:
-                            self.logger.debug(f"Unable to signal event loop stop: {stop_err}")
-                else:
-                    capture.close()
-            except Exception as close_error:
-                self.logger.debug(f"Error closing capture during stop: {close_error}")
+        self._request_capture_shutdown(timeout=6.0)
 
         if thread and thread.is_alive():
             for timeout in [1.0, 3.0, 6.0]:
@@ -960,7 +933,8 @@ class PacketCapture:
             if thread.is_alive():
                 self.logger.warning("Capture thread still running after timeouts, forcing cleanup")
 
-        self._cleanup_capture()
+        if not self._cleanup_complete.wait(timeout=5.0):
+            self.logger.warning("Timed out waiting for capture cleanup to finish")
 
         with self._state_lock:
             self.capture_thread = None
@@ -969,6 +943,66 @@ class PacketCapture:
 
         self.logger.info("Capture switch turned OFF")
         return True
+
+    def _request_capture_shutdown(self, timeout: float = 5.0) -> None:
+        """Signal the capture loop to close pyshark resources on its own event loop."""
+        capture = getattr(self, '_current_capture', None)
+        loop = getattr(self, '_current_loop', None)
+
+        if not capture and not loop:
+            return
+
+        closed_via_loop = False
+
+        if loop and not loop.is_closed():
+            async def _close_and_stop():
+                try:
+                    if capture and hasattr(capture, 'close_async'):
+                        try:
+                            result = capture.close_async()
+                        except Exception as close_err:
+                            self.logger.debug(f"close_async failed: {close_err}")
+                            result = None
+
+                        if asyncio.iscoroutine(result):
+                            await result
+                    elif capture and hasattr(capture, 'close'):
+                        maybe = capture.close()
+                        if asyncio.iscoroutine(maybe):
+                            await maybe
+                finally:
+                    loop.call_soon(loop.stop)
+
+            try:
+                future = asyncio.run_coroutine_threadsafe(_close_and_stop(), loop)
+                future.result(timeout=timeout)
+                closed_via_loop = True
+            except FutureTimeout:
+                self.logger.warning("Timed out waiting for capture loop to exit cleanly")
+            except RuntimeError as runtime_err:
+                self.logger.debug(f"Capture loop not running during shutdown request: {runtime_err}")
+            except Exception as exc:
+                self.logger.debug(f"Unexpected error during async capture shutdown: {exc}")
+
+        if capture and not closed_via_loop:
+            try:
+                result = capture.close() if hasattr(capture, 'close') else None
+                if asyncio.iscoroutine(result):
+                    cleanup_loop = asyncio.new_event_loop()
+                    try:
+                        cleanup_loop.run_until_complete(result)
+                    finally:
+                        cleanup_loop.close()
+            except Exception as close_error:
+                self.logger.debug(f"Error closing capture synchronously: {close_error}")
+
+        if loop and not loop.is_closed():
+            try:
+                loop.call_soon_threadsafe(loop.stop)
+            except RuntimeError:
+                pass
+            except Exception as stop_error:
+                self.logger.debug(f"Unable to signal event loop stop: {stop_error}")
 
     def _process_packet_wrapper(self, packet):
         if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
