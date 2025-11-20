@@ -51,9 +51,9 @@
             <span class="material-icons" aria-hidden="true">inventory_2</span>
             Data & Maintenance
         </button>
-        <button class="settings-tab" type="button" id="updates-tab" data-tab="updates" role="tab" aria-selected="false">
-            <span class="material-icons" aria-hidden="true">system_update</span>
-            Updates
+        <button class="settings-tab" type="button" id="misc-tab" data-tab="misc" role="tab" aria-selected="false">
+            <span class="material-icons" aria-hidden="true">settings</span>
+            Misc
         </button>
     </div>
 
@@ -241,13 +241,13 @@
             </div>
         </section>
 
-        <section class="settings-panel" data-panel="updates" aria-labelledby="updates-tab" aria-hidden="true">
+        <section class="settings-panel" data-panel="misc" aria-labelledby="misc-tab" aria-hidden="true">
             <header class="panel-header">
                 <div>
                     <p class="panel-eyebrow">Optional</p>
-                    <h2>Choose your release channel</h2>
-                    <p class="panel-body">Stick with rock-solid builds or jump onto Test releases as soon as they land.
-                    </p>
+                    <h2>Dial in the extras</h2>
+                    <p class="panel-body">Toggle the quality-of-life settings that make DnDTools feel right on your
+                        desktop.</p>
                 </div>
             </header>
             <div class="settings-grid single-column">
@@ -269,6 +269,27 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="settings-section">
+                    <div class="section-header">
+                        <span class="material-icons">system_update_alt</span>
+                        <h3>Window behavior</h3>
+                    </div>
+                    <div class="section-content">
+                        <div class="form-group form-group-inline">
+                            <label class="custom-checkbox" for="closeToTrayEnabled">
+                                <input type="checkbox" id="closeToTrayEnabled" checked>
+                                <span class="checkbox-mark" aria-hidden="true"></span>
+                                <span class="checkbox-label">Keep running in tray when closed</span>
+                            </label>
+                            <div class="form-help">
+                                Stop showing the closing animation when you only want DnDTools to hide in the system
+                                tray.
+                                Disable this if you prefer the app to shut down fully when you click close.
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </section>
     </div>
@@ -285,10 +306,6 @@
             <span class="material-icons">restore</span>
             Reset to Defaults
         </button>
-    </div>
-    <div class="settings-footer">
-        <span class="material-icons">info</span>
-        <span class="app-version">DnDTools v{{ app_version }}</span>
     </div>
 </div>
 {% endblock %}

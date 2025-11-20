@@ -99,6 +99,7 @@ class SettingsManager:
             "stashSortOrder": list(Item.SORTABLE_FIELDS),
             "wiresharkPath": detect_wireshark_installation(),
             "includeDevReleases": False,
+            "closeToTrayEnabled": True,
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -221,6 +222,19 @@ class SettingsManager:
             }
         else:
             normalized["includeDevReleases"] = bool(include_dev_value)
+
+        close_to_tray_value = normalized.get("closeToTrayEnabled")
+        if isinstance(close_to_tray_value, str):
+            normalized["closeToTrayEnabled"] = close_to_tray_value.strip().lower() not in {
+                "0",
+                "false",
+                "no",
+                "off",
+            }
+        else:
+            normalized["closeToTrayEnabled"] = bool(
+                self._defaults.get("closeToTrayEnabled", True) if close_to_tray_value is None else close_to_tray_value
+            )
 
         return normalized
 
