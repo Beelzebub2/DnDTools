@@ -14,6 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearQuestDataButton = document.getElementById('clearQuestData');
     const clearCharacterDataButton = document.getElementById('clearCharacterData');
     const includeDevCheckbox = document.getElementById('includeDevReleases');
+    const closeToTrayCheckbox = document.getElementById('closeToTrayEnabled');
     const saveButton = document.getElementById('saveSettings');
     const resetButton = document.getElementById('resetSettings');
     const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
@@ -37,7 +38,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         sortSpeed: 'Sort Speed',
         resolution: 'Game Resolution',
         wiresharkPath: 'Wireshark Path',
-        includeDevReleases: 'Development Builds Opt-In'
+        includeDevReleases: 'Development Builds Opt-In',
+        closeToTrayEnabled: 'Close to Tray'
     };
 
     function updateSaveButtonState() {
@@ -161,7 +163,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortSpeed: toNumber(settings.sortSpeed),
             resolution: (settings.resolution || 'Auto').trim(),
             wiresharkPath: (settings.wiresharkPath || '').trim(),
-            includeDevReleases: normalizeBoolean(settings.includeDevReleases)
+            includeDevReleases: normalizeBoolean(settings.includeDevReleases),
+            closeToTrayEnabled: normalizeBoolean(
+                settings.closeToTrayEnabled === undefined ? true : settings.closeToTrayEnabled
+            )
         };
     }
 
@@ -173,7 +178,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortSpeed: parseSortSpeed(settings.sortSpeed, 0.2),
             resolution: settings.resolution || 'Auto',
             wiresharkPath: settings.wiresharkPath || '',
-            includeDevReleases: Boolean(settings.includeDevReleases)
+            includeDevReleases: Boolean(settings.includeDevReleases),
+            closeToTrayEnabled: settings.closeToTrayEnabled !== false
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -189,7 +195,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             ),
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
-            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false
+            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
+            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true
         };
     }
 
@@ -466,11 +473,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (includeDevCheckbox) {
                 includeDevCheckbox.checked = Boolean(currentSettings.includeDevReleases);
             }
+
+            if (closeToTrayCheckbox) {
+                closeToTrayCheckbox.checked = currentSettings.closeToTrayEnabled !== false;
+            }
         });
 
         runWithApplyingFlag(() => {
             applyNoDelayUIState();
         });
+
+        if (typeof window.setCloseToTrayEnabled === 'function') {
+            window.setCloseToTrayEnabled(currentSettings.closeToTrayEnabled !== false);
+        }
 
         evaluateUnsavedChanges();
 
@@ -1048,7 +1063,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortSpeed: sortSpeedValue,
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
-            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false
+            includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
+            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true
         };
 
         if (!newSettings.interface) {
@@ -1345,6 +1361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: 'Auto',
             wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : '',
             includeDevReleases: false,
+            closeToTrayEnabled: true,
             noDelay: false
         };
     }
@@ -1365,6 +1382,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (includeDevCheckbox) {
                 includeDevCheckbox.checked = Boolean(defaults.includeDevReleases);
             }
+            if (closeToTrayCheckbox) {
+                closeToTrayCheckbox.checked = defaults.closeToTrayEnabled !== false;
+            }
         });
 
         lastManualSortSpeed = defaults.sortSpeed;
@@ -1372,6 +1392,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         runWithApplyingFlag(() => {
             applyNoDelayUIState();
         });
+
+        if (typeof window.setCloseToTrayEnabled === 'function') {
+            window.setCloseToTrayEnabled(defaults.closeToTrayEnabled !== false);
+        }
 
         evaluateUnsavedChanges();
     }
@@ -1490,7 +1514,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: noDelayCheckbox, events: ['change'] },
         { element: resolutionSelect, events: ['change'] },
         { element: wiresharkPathInput, events: ['input', 'change'] },
-        { element: includeDevCheckbox, events: ['change'] }
+        { element: includeDevCheckbox, events: ['change'] },
+        { element: closeToTrayCheckbox, events: ['change'] }
     ];
 
     trackableElements

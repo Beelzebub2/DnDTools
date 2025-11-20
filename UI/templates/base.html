@@ -920,6 +920,30 @@
             };
         };
 
+        window.closeToTrayEnabled = JSON.parse('{{ close_to_tray_enabled | tojson | safe }}');
+
+        window.setCloseToTrayEnabled = function (value) {
+            window.closeToTrayEnabled = !!value;
+        };
+
+        window.isCloseToTrayEnabled = function () {
+            if (typeof window.closeToTrayEnabled === 'boolean') {
+                return window.closeToTrayEnabled;
+            }
+            return true;
+        };
+
+        window.hideClosingOverlay = function () {
+            try {
+                const overlay = document.getElementById('closing-overlay');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+            } catch (err) {
+                console.error('Unable to hide closing overlay', err);
+            }
+        };
+
         window.updateClosingStatus = function (message) {
             try {
                 const statusEl = document.getElementById('closing-overlay-status');
@@ -932,7 +956,7 @@
         };
 
         window.handleWindowClose = function () {
-            const proceedWithClose = () => {
+            const showClosingOverlay = () => {
                 try {
                     const overlay = document.getElementById('closing-overlay');
                     if (overlay && !overlay.classList.contains('active')) {
@@ -942,21 +966,46 @@
                 } catch (err) {
                     console.error('Failed to show closing overlay', err);
                 }
+            };
 
-                const triggerClose = () => {
-                    try {
-                        if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
-                            window.pywebview.api.close_window();
-                        }
-                    } catch (closeErr) {
-                        console.error('Failed to invoke close_window()', closeErr);
+            const invokeCloseWindow = () => {
+                try {
+                    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
+                        return window.pywebview.api.close_window();
                     }
-                };
+                } catch (closeErr) {
+                    console.error('Failed to invoke close_window()', closeErr);
+                }
+                return null;
+            };
 
-                if (window.requestAnimationFrame) {
-                    window.requestAnimationFrame(() => setTimeout(triggerClose, 60));
-                } else {
-                    setTimeout(triggerClose, 60);
+            const proceedWithClose = () => {
+                const closeToTray = typeof window.isCloseToTrayEnabled === 'function'
+                    ? window.isCloseToTrayEnabled()
+                    : window.closeToTrayEnabled !== false;
+
+                if (!closeToTray) {
+                    showClosingOverlay();
+                    invokeCloseWindow();
+                    return;
+                }
+
+                const result = invokeCloseWindow();
+                if (result && typeof result.then === 'function') {
+                    result.then((payload) => {
+                        if (!payload || payload.hidden !== true) {
+                            showClosingOverlay();
+                        } else if (typeof window.hideClosingOverlay === 'function') {
+                            window.hideClosingOverlay();
+                        }
+                    }).catch((error) => {
+                        console.error('Close-to-tray request failed:', error);
+                        showClosingOverlay();
+                    });
+                } else if (!result || result.hidden !== true) {
+                    showClosingOverlay();
+                } else if (typeof window.hideClosingOverlay === 'function') {
+                    window.hideClosingOverlay();
                 }
             };
 
