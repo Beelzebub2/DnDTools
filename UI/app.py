@@ -760,10 +760,26 @@ class Api:
         if not self.window:
             return
         try:
-            safe_message = (message or "").replace('\\', '\\\\').replace('"', '\\"')
-            self.window.evaluate_js(
-                f"window.updateClosingStatus && window.updateClosingStatus(\"{safe_message}\");"
+            safe_message = json.dumps(message or "")
+            script = (
+                "(function () {"
+                " try {"
+                "   const overlay = document.getElementById('closing-overlay');"
+                "   if (overlay && !overlay.classList.contains('active')) {"
+                "     overlay.classList.add('active');"
+                "   }"
+                "   if (window.updateClosingStatus) {"
+                f"     window.updateClosingStatus({safe_message});"
+                "   } else {"
+                "     const statusEl = document.getElementById('closing-overlay-status');"
+                f"     if (statusEl) {{ statusEl.textContent = {safe_message}; }}"
+                "   }"
+                " } catch (err) {"
+                "   console.error('Unable to update closing overlay', err);"
+                " }"
+                "})();"
             )
+            self.window.evaluate_js(script)
         except Exception as overlay_err:
             logger.debug(f"Unable to update closing overlay: {overlay_err}")
 
