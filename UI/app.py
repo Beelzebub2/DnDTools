@@ -1538,16 +1538,6 @@ class Api:
         }
         return True
 
-    def start_capture(self):
-        # perform capture synchronously; return True only when valid data file is saved
-        asyncio.set_event_loop(asyncio.new_event_loop())
-        result = self.packet_capture.capture()
-        if result:
-            # Reload data after successful capture
-            self.stash_manager.characters_cache = {}
-            self.stash_manager._load_data()
-        return result
-
     def get_character_stash_previews(self, character_id):
         return self.stash_manager.get_character_stash_previews(character_id)
 
@@ -2416,21 +2406,6 @@ def api_capture_settings():
         logger.error(f"Error processing capture settings: {e}")
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
-@server.route('/api/capture/start', methods=['POST'])
-def api_capture_start():
-    try:
-        return jsonify({'success': api.start_capture()})
-    except Exception as e:
-        logger.error(f"Error starting capture: {e}")
-        return jsonify({'success': False, 'error': 'Failed to start capture'}), 500
-
-@server.route('/api/record_character/<character_id>', methods=['POST'])
-def api_record_character(character_id):
-    # Validate character_id format (basic validation)
-    if not character_id or not character_id.strip():
-        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
-    return jsonify({'success': False, 'error': 'Recording individual characters is no longer supported'})
-
 @server.route('/api/capture/switch/start', methods=['POST'])
 def capture_switch_start():
     try:
@@ -2546,8 +2521,6 @@ def api_set_current_stash(character_id, stash_id):
 
 @server.route('/')
 def index():
-    # if not check_tshark():
-    #     return redirect(url_for('installing'))
     sort_hotkey = format_hotkey_display(settings_manager.get('sortHotkey', 'ctrl+f11'), 'ctrl+f11')
     cancel_hotkey = format_hotkey_display(settings_manager.get('cancelHotkey', 'ctrl+f12'), 'ctrl+f12')
     return render_template(
@@ -2899,7 +2872,7 @@ def main():
     # Expose API methods in parallel
     for method_name in [
         'minimize', 'toggle_maximize', 'close_window', 'shutdown_application', 'sort_stash', '_save_settings',
-        'start_capture', 'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
+        'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
         'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path'
