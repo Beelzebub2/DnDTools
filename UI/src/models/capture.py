@@ -5,231 +5,88 @@ import asyncio
 import tempfile
 import glob
 import logging
-from typing import Tuple, Optional, List
-
-# 1) Grab the original asyncio.spawn functions
-_orig_create_exec = asyncio.create_subprocess_exec
-_orig_create_shell = asyncio.create_subprocess_shell
-
-
-async def _create_no_window_exec(*args, **kwargs):
-    """Wrapper for create_subprocess_exec that suppresses console windows and defaults pipes."""
-    kwargs.setdefault('stdin', subprocess.DEVNULL)
-    kwargs.setdefault('stdout', subprocess.DEVNULL)
-    kwargs.setdefault('stderr', subprocess.DEVNULL)
-
-    if sys.platform == 'win32':
-        kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
-
-    proc = await _orig_create_exec(*args, **kwargs)
-    return proc
-
-
-async def _create_no_window_shell(*args, **kwargs):
-    """Wrapper for create_subprocess_shell mirroring the exec variant."""
-    kwargs.setdefault('stdin', subprocess.DEVNULL)
-    kwargs.setdefault('stdout', subprocess.DEVNULL)
-    kwargs.setdefault('stderr', subprocess.DEVNULL)
-
-    if sys.platform == 'win32':
-        kwargs.setdefault('creationflags', subprocess.CREATE_NO_WINDOW)
-
-    proc = await _orig_create_shell(*args, **kwargs)
-    return proc
-
-
-# 3) Monkey-patch asyncio so PyShark’s captures inherit this behaviour
-asyncio.create_subprocess_exec = _create_no_window_exec
-asyncio.create_subprocess_shell = _create_no_window_shell
-
-
-async def _terminate_asyncio_subprocess(proc: asyncio.subprocess.Process):
-    """Gracefully terminate an asyncio subprocess, escalating to kill when needed."""
-    if proc is None or proc.returncode is not None:
-        return
-
-    try:
-        proc.terminate()
-    except ProcessLookupError:
-        return
-    except Exception:
-        pass
-
-    try:
-        await asyncio.wait_for(proc.wait(), timeout=5)
-    except (asyncio.TimeoutError, ProcessLookupError):
-        try:
-            proc.kill()
-        except ProcessLookupError:
-            return
-        await proc.wait()
-
-
-def _finalize_asyncio_subprocess(proc: asyncio.subprocess.Process, loop: Optional[asyncio.AbstractEventLoop], logger: Optional[logging.Logger] = None) -> None:
-    """Synchronously ensure an asyncio subprocess is terminated, regardless of loop state."""
-    if proc is None or proc.returncode is not None:
-        return
-
-    async def _runner():
-        await _terminate_asyncio_subprocess(proc)
-
-    if loop and not loop.is_closed():
-        try:
-            if loop.is_running():
-                future = asyncio.run_coroutine_threadsafe(_runner(), loop)
-                future.result(timeout=6)
-            else:
-                loop.run_until_complete(_runner())
-        except Exception as exc:
-            if logger:
-                logger.debug(f"Failed to finalize subprocess via existing loop: {exc}")
-    else:
-        temp_loop = asyncio.new_event_loop()
-        try:
-            temp_loop.run_until_complete(_runner())
-        except Exception as exc:
-            if logger:
-                logger.debug(f"Failed to finalize subprocess via temp loop: {exc}")
-        finally:
-            temp_loop.close()
-
-
-import pyshark
-
-# Make pyshark shutdown safe when event loops are already closed (prevents noisy
-# "Event loop is closed"/unawaited coroutine warnings during app exit).
-try:
-    from pyshark.capture.capture import Capture as _PysharkCapture  # type: ignore
-
-    _orig_ps_close = _PysharkCapture.close
-
-    def _safe_ps_close(self):  # type: ignore
-        try:
-            running = getattr(self, '_running_processes', None)
-            if not running:
-                return
-
-            loop = getattr(self, 'eventloop', None)
-
-            # If there is no usable loop (None or closed), run close_async in a fresh loop
-            def _run_close_async_in_temp_loop():
-                try:
-                    coro = self.close_async()
-                    if asyncio.iscoroutine(coro):
-                        _tmp = asyncio.new_event_loop()
-                        try:
-                            _tmp.run_until_complete(coro)
-                        finally:
-                            _tmp.close()
-                except Exception:
-                    pass
-
-            if loop is None:
-                _run_close_async_in_temp_loop()
-                return
-
-            try:
-                is_closed = loop.is_closed()
-            except Exception:
-                is_closed = True
-
-            if is_closed:
-                _run_close_async_in_temp_loop()
-                return
-
-            # Normal case
-            return _orig_ps_close(self)
-        except Exception:
-            return
-
-    def _safe_ps_del(self):  # type: ignore
-        try:
-            if getattr(self, '_running_processes', None):
-                self.close()
-        except Exception:
-            # Swallow all exceptions in destructor path
-            return
-
-    _PysharkCapture.close = _safe_ps_close  # type: ignore
-    _PysharkCapture.__del__ = _safe_ps_del  # type: ignore
-except Exception as _patch_err:
-    # Best-effort: if patching fails, just continue
-    pass
 import socket
 import psutil
 import struct
 import json
-from datetime import datetime
 import threading
 import time
 import importlib
+from datetime import datetime
+from typing import Tuple, Optional, List, Dict, Any
 from concurrent.futures import TimeoutError as FutureTimeout
 from google.protobuf.json_format import MessageToDict
 
+import pyshark
 
-DEFAULT_TSHARK_MEMORY_LIMIT_MB = 500.0
-DEFAULT_TSHARK_MEMORY_CHECK_SEC = 15.0
-DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC = 120.0
-DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES = 2
-
-
-def _read_positive_float_env(var_name: str, default: float) -> float:
-    raw_value = os.environ.get(var_name)
-    if raw_value is None:
-        return default
-    try:
-        value = float(raw_value)
-    except (TypeError, ValueError):
-        return default
-    if value <= 0:
-        return default
-    return value
-
-from .appdirs import get_capture_state_file, get_data_dir, is_frozen
+from .appdirs import get_capture_state_file, is_frozen
 from src.models.settings import settings_manager, resolve_tshark_executable
-from networking.protos import _PacketCommand_pb2
+from src.models.capture_utils import patch_asyncio, patch_pyshark, finalize_asyncio_subprocess
+from src.models.memory_guard import MemoryGuard
+
+# Apply patches
+patch_asyncio()
+patch_pyshark()
+
+logger = logging.getLogger(__name__)
 
 # Determine paths
 current_dir = os.path.dirname(os.path.abspath(__file__))
-ui_root     = os.path.abspath(os.path.join(current_dir, "..", ".."))
+ui_root = os.path.abspath(os.path.join(current_dir, "..", ".."))
 protos_path = os.path.join(ui_root, "networking", "protos")
 
 # Ensure the protos path is on sys.path
 if protos_path not in sys.path:
     sys.path.insert(0, protos_path)
 
-# Dynamically load each _pb2 module under the package name networking.protos.xxx_pb2
-for filename in os.listdir(protos_path):
-    if not filename.endswith("_pb2.py"):
-        continue
+# Dynamically load protos
+# This is kept at module level to ensure protos are available globally as expected by other parts of the app
+# that might import from here or rely on the side effects.
+# Ideally, this should be moved to a separate module responsible for proto loading.
+def _load_protos():
+    loaded_protos = {}
+    if not os.path.exists(protos_path):
+        logger.warning(f"Protos path not found: {protos_path}")
+        return loaded_protos
 
-    module_name = filename[:-3]  # "Account_pb2"
-    full_name   = f"networking.protos.{module_name}"
-    file_path   = os.path.join(protos_path, filename)
+    for filename in os.listdir(protos_path):
+        if not filename.endswith("_pb2.py"):
+            continue
 
-    # Create a module spec
-    spec = importlib.util.spec_from_file_location(full_name, file_path)
-    module = importlib.util.module_from_spec(spec)
+        module_name = filename[:-3]
+        full_name = f"networking.protos.{module_name}"
+        file_path = os.path.join(protos_path, filename)
 
-    # Insert into sys.modules so relative imports inside will resolve
-    sys.modules[full_name] = module
+        try:
+            spec = importlib.util.spec_from_file_location(full_name, file_path)
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[full_name] = module
+                spec.loader.exec_module(module)
+                
+                # Bring public names into globals() - mimicking original behavior
+                for attr in dir(module):
+                    if not attr.startswith("_"):
+                        globals()[attr] = getattr(module, attr)
+                        loaded_protos[attr] = getattr(module, attr)
+        except Exception as e:
+            logger.error(f"Failed to load proto {filename}: {e}")
+    return loaded_protos
 
-    # Execute the module
-    spec.loader.exec_module(module)
+_load_protos()
 
-    # Bring its public names into globals()
-    for attr in dir(module):
-        if not attr.startswith("_"):
-            globals()[attr] = getattr(module, attr)
-
+# Import PacketCommand after dynamic loading
+try:
+    from networking.protos import _PacketCommand_pb2
+except ImportError:
+    logger.error("Could not import _PacketCommand_pb2. Ensure protos are generated and path is correct.")
+    _PacketCommand_pb2 = None # Handle gracefully
 
 # Configure subprocess to hide console windows when in executable mode
 if is_frozen():
-    # Replace subprocess.Popen with a version that hides console windows
     original_popen = subprocess.Popen
     
     def hidden_popen(*args, **kwargs):
-        # Add startupinfo to hide console windows on Windows
         if os.name == 'nt':
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
@@ -237,7 +94,6 @@ if is_frozen():
             kwargs['startupinfo'] = startupinfo
         return original_popen(*args, **kwargs)
     
-    # Replace the subprocess.Popen with our modified version
     subprocess.Popen = hidden_popen
 
 
@@ -255,20 +111,35 @@ def _format_hexdump(data: bytes, width: int = 16) -> List[str]:
 
     return lines
 
+def _read_positive_float_env(var_name: str, default: float) -> float:
+    raw_value = os.environ.get(var_name)
+    if raw_value is None:
+        return default
+    try:
+        value = float(raw_value)
+    except (TypeError, ValueError):
+        return default
+    if value <= 0:
+        return default
+    return value
+
 class PacketCapture:
+    DEFAULT_TSHARK_MEMORY_LIMIT_MB = 500.0
+    DEFAULT_TSHARK_MEMORY_CHECK_SEC = 15.0
+    DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC = 120.0
+
     def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), wireshark_path: Optional[str] = None):
         self.interface = interface
         self.port_range = port_range
         self.packet_data = b""
-        logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger(__name__)
         self.MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
         self.expected_packet_length = None
         self.expected_proto_type = None
-        self.running = False  # Initialize as False first
-        self.capture_thread = None
+        self.running = False
+        self.capture_thread: Optional[threading.Thread] = None
         self._cleanup_capture_on_exit = False
-        self.capture_info = {}
+        self.capture_info: Dict[int, Any] = {}
         self._state_lock = threading.Lock()
         self._stop_event = threading.Event()
         self._cleanup_lock = threading.Lock()
@@ -279,48 +150,39 @@ class PacketCapture:
         self._apply_tshark_environment()
         self._user_requested_stop = False
         self._force_closing = False
-        self._memory_guard_thread: Optional[threading.Thread] = None
-        self._memory_guard_stop_event: Optional[threading.Event] = None
+        
+        # Memory Guard
+        self._memory_guard: Optional[MemoryGuard] = None
         self._memory_guard_last_restart: float = 0.0
-        self._memory_guard_threshold_mb: float = DEFAULT_TSHARK_MEMORY_LIMIT_MB
-        self._memory_guard_poll_interval: float = DEFAULT_TSHARK_MEMORY_CHECK_SEC
-        self._memory_guard_restart_cooldown: float = DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC
-        self._memory_guard_required_samples: int = DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES
+        self._memory_guard_restart_cooldown: float = self.DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC
 
-        # NOTE: persisting raw quest packet captures to disk has been disabled.
-        # The app previously created and wrote files under data/quests; that is
-        # noisy and can leak packet data. To stop saving captures, we don't
-        # create the directory and short-circuit persistence logic below.
+        # Quest persistence
         self.quests_dir = None
-        # Toggle to control whether quest packets are persisted. Set to False
-        # to avoid writing any files. This can be made configurable later.
         self._save_quest_packets = False
         self._quest_packet_types = {}
-        for packet_name in (
-            'S2C_MERCHANT_LIST_RES',
-            'S2C_MERCHANT_QUEST_LIST_INFO_RES',
-            'S2C_MERCHANT_QUEST_LOG_LIST_RES',
-        ):
-            try:
-                value = _PacketCommand_pb2.PacketCommand.Value(packet_name)
-                self._quest_packet_types[value] = packet_name
-            except ValueError:
-                self.logger.debug(f"Quest packet {packet_name} not present in PacketCommand enum")
+        if _PacketCommand_pb2:
+            for packet_name in (
+                'S2C_MERCHANT_LIST_RES',
+                'S2C_MERCHANT_QUEST_LIST_INFO_RES',
+                'S2C_MERCHANT_QUEST_LOG_LIST_RES',
+            ):
+                try:
+                    value = _PacketCommand_pb2.PacketCommand.Value(packet_name)
+                    self._quest_packet_types[value] = packet_name
+                except ValueError:
+                    self.logger.debug(f"Quest packet {packet_name} not present in PacketCommand enum")
         
-        # Restore state - keep track of what the previous state was
+        # Restore state
         self.saved_state = self._restore_state()
         self.was_running_before = self.saved_state.get('running', False)
         
-        # Automatically restore previous capture state
         if self.was_running_before:
             self.logger.info("Previous session had capture running - restoring state")
-            # Use a timer to start capture after initialization completes
             threading.Timer(0.1, self._delayed_start).start()
         else:
             self.logger.info("Previous session had capture stopped")
 
     def _delayed_start(self):
-        """Start capture after a brief delay to ensure full initialization"""
         self.start_capture_switch()
 
     def _apply_tshark_environment(self):
@@ -349,54 +211,69 @@ class PacketCapture:
         self._apply_tshark_environment()
         return True
 
-    def _refresh_memory_guard_settings(self) -> None:
-        self._memory_guard_threshold_mb = _read_positive_float_env(
-            "DND_TSHARK_MEMORY_LIMIT_MB",
-            DEFAULT_TSHARK_MEMORY_LIMIT_MB,
+    def _init_memory_guard(self):
+        threshold_mb = _read_positive_float_env("DND_TSHARK_MEMORY_LIMIT_MB", self.DEFAULT_TSHARK_MEMORY_LIMIT_MB)
+        check_interval = max(5.0, _read_positive_float_env("DND_TSHARK_MEMORY_CHECK_SEC", self.DEFAULT_TSHARK_MEMORY_CHECK_SEC))
+        self._memory_guard_restart_cooldown = max(60.0, _read_positive_float_env("DND_TSHARK_MEMORY_RESTART_COOLDOWN_SEC", self.DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC))
+        
+        self._memory_guard = MemoryGuard(
+            threshold_mb=threshold_mb,
+            check_interval=check_interval,
+            on_threshold_exceeded=self._on_memory_threshold_exceeded
         )
-        self._memory_guard_poll_interval = max(
-            5.0,
-            _read_positive_float_env(
-                "DND_TSHARK_MEMORY_CHECK_SEC",
-                DEFAULT_TSHARK_MEMORY_CHECK_SEC,
-            ),
-        )
-        self._memory_guard_restart_cooldown = max(
-            60.0,
-            _read_positive_float_env(
-                "DND_TSHARK_MEMORY_RESTART_COOLDOWN_SEC",
-                DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC,
-            ),
-        )
-        required_samples = _read_positive_float_env(
-            "DND_TSHARK_MEMORY_REQUIRED_SAMPLES",
-            float(DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES),
-        )
-        try:
-            samples_int = int(required_samples)
-        except (TypeError, ValueError):
-            samples_int = DEFAULT_TSHARK_MEMORY_REQUIRED_SAMPLES
-        self._memory_guard_required_samples = max(1, samples_int)
 
-    def background_init(self):
-        """Initialize capture in background, restoring previous state if needed"""
-        # This method is now optional since auto-restore happens in __init__
-        if not self.running and self.was_running_before:
-            self.logger.info("Manual restore requested - starting capture")
+    def _start_memory_guard(self):
+        if not self._memory_guard:
+            self._init_memory_guard()
+        if self._memory_guard:
+            self._memory_guard.start()
+
+    def _stop_memory_guard(self):
+        if self._memory_guard:
+            self._memory_guard.stop()
+
+    def _on_memory_threshold_exceeded(self):
+        # This runs in the MemoryGuard thread
+        now = time.time()
+        if now - self._memory_guard_last_restart < self._memory_guard_restart_cooldown:
+            return
+
+        self._memory_guard_last_restart = now
+        self.logger.warning("Restarting capture due to memory threshold exceeded.")
+        
+        threading.Thread(
+            target=self._restart_capture_due_to_memory,
+            name="TsharkMemoryGuardRestart",
+            daemon=True,
+        ).start()
+
+    def _restart_capture_due_to_memory(self):
+        with self._state_lock:
+            should_restart = self.running or (self.capture_thread is not None and self.capture_thread.is_alive())
+
+        if not should_restart:
+            return
+
+        if self._user_requested_stop or self._force_closing:
+            return
+
+        try:
+            self.stop_capture_switch(persist_running_state=True)
+            time.sleep(1.0)
             self.start_capture_switch()
-        else:
-            self.logger.info("Background init called - capture state already correct")
-            
+        except Exception as exc:
+            self.logger.error(f"Failed to restart capture after memory guard stop: {exc}", exc_info=True)
+
     def should_auto_start(self):
-        """Return whether capture should auto-start based on previous state"""
         return self.was_running_before
 
     def parse_proto(self, packet_data, proto_type):
+        if not _PacketCommand_pb2:
+            return None
+            
         data = packet_data[8:]
-
-        command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
-
         try:
+            command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
             # For server packets
             message_class = globals().get("S" + command_name)
             if message_class:
@@ -418,33 +295,32 @@ class PacketCapture:
         return None
 
     def validate_packet_header(self, length: int, proto_type: int, padding: int) -> bool:
-        """Validate packet header values"""
-        valid_packet_range = (8, 2 * 1024 * 1024)  # Between 100 bytes and 2MB
+        if not _PacketCommand_pb2:
+            return False
+        valid_packet_range = (8, 2 * 1024 * 1024)
         return (
             valid_packet_range[0] <= length <= valid_packet_range[1] and
             proto_type in _PacketCommand_pb2.PacketCommand.values() and 
-            padding in [0, 256]  # Common padding values
+            padding in [0, 256]
         )
 
     def process_packet(self, data: bytes) -> Optional[bool]:
         if len(data) > 0:
-            # Add incoming data to buffer
             self.packet_data += data
             current_size = len(self.packet_data)
             
-            # Reset if buffer gets too large
             if current_size > self.MAX_BUFFER_SIZE:
                 self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
                 self.reset_state()
                 return False
 
-            # Try to parse/validate header
             if self.expected_packet_length is None and current_size >= 8:
                 try:
                     packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
                     
-                    # Get packet type name from _PacketCommand_pb2 before validation
-                    packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name if proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number else "Unknown"
+                    packet_type_name = "Unknown"
+                    if _PacketCommand_pb2 and proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number:
+                        packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name
                     
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
                         self.logger.warning(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
@@ -459,25 +335,20 @@ class PacketCapture:
                     self.reset_state()
                     return False
 
-            # Process packet data
             if self.expected_packet_length and self.expected_proto_type:
-                # Handle overflow by trimming
                 if current_size > self.expected_packet_length:
                     self.logger.info(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
                     self.packet_data = self.packet_data[:self.expected_packet_length]
                     current_size = self.expected_packet_length
 
-                # Complete packet
                 if current_size == self.expected_packet_length:
                     self.handle_packet(self.packet_data, self.expected_proto_type)
                     self.reset_state()
-                # Progress update
                 elif current_size % 8192 == 0:
                     self.logger.info(f"Accumulating: {current_size}/{self.expected_packet_length}")
         return False
 
     def reset_state(self) -> None:
-        """Reset all packet processing state"""
         self.packet_data = b""
         self.expected_packet_length = None
         self.expected_proto_type = None
@@ -501,9 +372,7 @@ class PacketCapture:
         return targets
 
     def _terminate_capture_processes(self, timeout: float = 3.0) -> None:
-        """Ensure helper capture processes like tshark/dumpcap are terminated."""
         targets = self._collect_capture_processes()
-
         if not targets:
             return
 
@@ -526,143 +395,7 @@ class PacketCapture:
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
 
-    def _start_memory_guard(self) -> None:
-        if psutil is None:
-            return
-        if self._memory_guard_thread and self._memory_guard_thread.is_alive():
-            return
-
-        self._refresh_memory_guard_settings()
-        stop_event = threading.Event()
-        self._memory_guard_stop_event = stop_event
-        self._memory_guard_last_restart = 0.0
-
-        thread = threading.Thread(
-            target=self._memory_guard_loop,
-            name="TsharkMemoryGuard",
-            daemon=True,
-        )
-        self._memory_guard_thread = thread
-        thread.start()
-        self.logger.debug(
-            "Memory guard started (threshold=%.1f MB, interval=%.1f s)",
-            self._memory_guard_threshold_mb,
-            self._memory_guard_poll_interval,
-        )
-
-    def _stop_memory_guard(self) -> None:
-        stop_event = self._memory_guard_stop_event
-        thread = self._memory_guard_thread
-        if stop_event:
-            stop_event.set()
-        if thread and thread.is_alive():
-            thread.join(timeout=2.5)
-
-        self._memory_guard_stop_event = None
-        self._memory_guard_thread = None
-        self._memory_guard_last_restart = 0.0
-
-    def _memory_guard_loop(self) -> None:
-        stop_event = self._memory_guard_stop_event
-        if stop_event is None:
-            return
-
-        consecutive_breaches = 0
-        triggered_value = 0.0
-
-        while not stop_event.wait(self._memory_guard_poll_interval):
-            if not self.running:
-                consecutive_breaches = 0
-                continue
-
-            processes = self._collect_capture_processes()
-            if not processes:
-                consecutive_breaches = 0
-                continue
-
-            triggered = False
-            max_seen = 0.0
-
-            for proc in processes:
-                try:
-                    rss_bytes = proc.memory_info().rss
-                except (psutil.Error, OSError) as exc:
-                    self.logger.debug(f"Unable to inspect tshark memory usage: {exc}")
-                    continue
-
-                rss_mb = rss_bytes / (1024 * 1024)
-                if rss_mb > max_seen:
-                    max_seen = rss_mb
-
-                if rss_mb >= self._memory_guard_threshold_mb:
-                    triggered = True
-                    triggered_value = rss_mb
-                    break
-
-            if not triggered:
-                consecutive_breaches = 0
-                continue
-
-            consecutive_breaches += 1
-            if consecutive_breaches < self._memory_guard_required_samples:
-                continue
-
-            consecutive_breaches = 0
-            now = time.time()
-            if now - self._memory_guard_last_restart < self._memory_guard_restart_cooldown:
-                continue
-
-            self._memory_guard_last_restart = now
-            self.logger.warning(
-                "Restarting capture: tshark memory usage %.1f MB exceeded limit %.1f MB",
-                triggered_value,
-                self._memory_guard_threshold_mb,
-            )
-
-            threading.Thread(
-                target=self._restart_capture_due_to_memory,
-                args=(triggered_value,),
-                name="TsharkMemoryGuardRestart",
-                daemon=True,
-            ).start()
-
-    def _restart_capture_due_to_memory(self, observed_mb: float) -> None:
-        # Prevent restart cycles when capture is shutting down intentionally
-        with self._state_lock:
-            should_restart = self.running or (
-                self.capture_thread is not None and self.capture_thread.is_alive()
-            )
-
-        if not should_restart:
-            return
-
-        if self._user_requested_stop or self._force_closing:
-            self.logger.debug(
-                "Skipping memory guard restart because capture was stopped by the user"
-            )
-            return
-
-        try:
-            self.stop_capture_switch(persist_running_state=True)
-        except Exception as exc:
-            self.logger.error(
-                f"Failed to stop capture during memory guard restart ({observed_mb:.1f} MB): {exc}",
-                exc_info=True,
-            )
-            return
-
-        time.sleep(1.0)
-
-        try:
-            self.start_capture_switch()
-        except Exception as exc:
-            self.logger.error(
-                f"Failed to restart capture after memory guard stop ({observed_mb:.1f} MB): {exc}",
-                exc_info=True,
-            )
-
     def _save_state(self, running: bool):
-        """Save capture state to persistent storage"""
         try:
             state = {
                 "running": running,
@@ -677,7 +410,6 @@ class PacketCapture:
             self.logger.error(f"Failed to save capture state: {e}")
 
     def _restore_state(self) -> dict:
-        """Restore capture state from persistent storage"""
         try:
             if os.path.exists(self.STATE_FILE):
                 with open(self.STATE_FILE, "r") as f:
@@ -687,8 +419,8 @@ class PacketCapture:
         except Exception as e:
             self.logger.error(f"Failed to restore capture state: {e}")
             return {"running": False}
+
     def capture_loop(self) -> None:
-        """Main capture loop that runs in a separate thread."""
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -716,8 +448,6 @@ class PacketCapture:
                     tshark_path=self.tshark_path
                 )
 
-                # Prevent pyshark from retaining every packet in memory (older versions don't
-                # accept the keep_packets kwarg during construction, so configure it afterwards).
                 if hasattr(self._current_capture, "keep_packets"):
                     try:
                         self._current_capture.keep_packets = False
@@ -749,7 +479,6 @@ class PacketCapture:
             self._stop_event.set()
             
     def _cleanup_capture(self):
-        """Clean up capture resources and terminate helper processes."""
         if self._cleanup_complete.is_set():
             return
 
@@ -789,7 +518,7 @@ class PacketCapture:
                             if processes:
                                 for proc in list(processes):
                                     try:
-                                        _finalize_asyncio_subprocess(proc, loop, self.logger)
+                                        finalize_asyncio_subprocess(proc, loop, self.logger)
                                     except Exception as proc_error:
                                         self.logger.debug(f"Unable to finalize subprocess cleanly: {proc_error}")
 
@@ -862,7 +591,6 @@ class PacketCapture:
             self._cleanup_lock.release()
 
     def is_active(self) -> bool:
-        """Return True if capture thread is alive or running flag is set."""
         if self.running:
             return True
         if self.capture_thread and self.capture_thread.is_alive():
@@ -870,14 +598,12 @@ class PacketCapture:
         return False
 
     def shutdown(self, persist_running_state: Optional[bool] = None):
-        """Properly shutdown capture and persist the desired running state."""
         try:
             self.stop_capture_switch(persist_running_state=persist_running_state)
         except Exception as e:
             self.logger.error(f"Error during capture shutdown: {e}")
 
     def start_capture_switch(self) -> bool:
-        """Start packet capture in a background thread if not already running."""
         with self._state_lock:
             if self.running and self.capture_thread and self.capture_thread.is_alive():
                 self.logger.info("Capture already running, ignoring start request")
@@ -899,13 +625,6 @@ class PacketCapture:
         return True
         
     def stop_capture_switch(self, persist_running_state: Optional[bool] = None) -> bool:
-        """Stop packet capture gracefully.
-
-        Args:
-            persist_running_state: When provided, overrides the persisted running flag
-                saved to disk. This allows the caller to remember user intent across
-                app restarts even though the capture has to stop for cleanup.
-        """
         with self._state_lock:
             self._force_closing = True
             if not self.running and not (self.capture_thread and self.capture_thread.is_alive()):
@@ -945,7 +664,6 @@ class PacketCapture:
         return True
 
     def _request_capture_shutdown(self, timeout: float = 5.0) -> None:
-        """Signal the capture loop to close pyshark resources on its own event loop."""
         capture = getattr(self, '_current_capture', None)
         loop = getattr(self, '_current_loop', None)
 
@@ -1004,11 +722,10 @@ class PacketCapture:
             except Exception as stop_error:
                 self.logger.debug(f"Unable to signal event loop stop: {stop_error}")
 
-    def _process_packet_wrapper(self, packet):
-        if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-            self.process_packet(packet.tcp.payload.binary_value)
-    
     def handle_packet(self, packet_data, proto_type):
+        if not _PacketCommand_pb2:
+            return
+            
         name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
         message = self.parse_proto(packet_data, proto_type)
 
@@ -1030,18 +747,14 @@ class PacketCapture:
                     self.logger.warning("Invalid Packet")
 
     def _persist_quest_packet(self, packet_data: bytes, proto_type: int, packet_name: str, message) -> None:
-        # Respect runtime toggle: if saving quest packets is disabled, skip.
         if not getattr(self, '_save_quest_packets', False):
-            self.logger.debug(f"Quest packet persistence disabled; skipping {packet_name}")
             return
 
         now = datetime.utcnow()
         timestamp_safe = now.strftime('%Y-%m-%dT%H-%M-%S.%fZ')
         iso_timestamp = now.isoformat() + 'Z'
         base_name = f"{timestamp_safe}_{packet_name}"
-        # Ensure quests_dir is present and writable before constructing paths
         if not self.quests_dir:
-            self.logger.debug("No quests_dir configured; aborting persistence")
             return
 
         json_path = os.path.join(self.quests_dir, f"{base_name}.json")
@@ -1125,18 +838,10 @@ def main():
     from src.models.character import policy
     capture = PacketCapture()
     capture_info = {
-        # S2C_LOBBY_CHARACTER_INFO_RES: print,
-        # S2C_ACCOUNT_CHARACTER_LIST_RES: print,
-        # S2C_INVENTORY_MOVE_RES: print,
-        # S2C_INVENTORY_SWAP_RES: print,
-        # S2C_INVENTORY_MERGE_RES: print,
-        # S2C_STORAGE_INFO_RES: print,
-        # S2C_PING_INFO_RES: print,
         _PacketCommand_pb2.PacketCommand.S2C_SERVICE_POLICY_NOT: policy,
     }
     capture.capture_info = capture_info
 
-    # Simulate switch: start background capture
     capture.start_capture_switch()
     try:
         while True:
