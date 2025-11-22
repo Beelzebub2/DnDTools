@@ -74,31 +74,36 @@
                         <h3>Network interface</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group">
-                            <label for="interface">Interface</label>
-                            <select id="interface">
-                                <option value="">Loading interfaces...</option>
-                            </select>
-                            <div class="form-help">Pick the adapter Dark and Darker is currently streaming through.
+                        <div class="setting-item vertical">
+                            <div class="setting-info">
+                                <label class="setting-label" for="interface">Interface</label>
+                                <div class="setting-description">Pick the adapter Dark and Darker is currently streaming
+                                    through.</div>
+                            </div>
+                            <div class="setting-control full-width">
+                                <select id="interface" class="modern-select">
+                                    <option value="">Loading interfaces...</option>
+                                </select>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="wiresharkPath">Wireshark installation</label>
-                            <div class="file-picker">
-                                <input type="text" id="wiresharkPath" placeholder="Auto-detected Wireshark folder">
-                                <div class="file-picker-actions">
+
+                        <div class="setting-item vertical">
+                            <div class="setting-info">
+                                <label class="setting-label" for="wiresharkPath">Wireshark installation</label>
+                                <div class="setting-description">Point to the folder containing tshark.exe to unlock
+                                    auto-capture.</div>
+                            </div>
+                            <div class="setting-control full-width">
+                                <div class="file-picker-row">
+                                    <input type="text" id="wiresharkPath" placeholder="Auto-detected Wireshark folder">
                                     <button id="detectWiresharkPath" type="button" class="btn-small">
                                         <span class="material-icons">travel_explore</span>
-                                        Auto-detect
                                     </button>
                                     <button id="browseWiresharkPath" type="button" class="btn-small">
                                         <span class="material-icons">folder_open</span>
-                                        Browse
                                     </button>
                                 </div>
                             </div>
-                            <div class="form-help">Point to the folder containing tshark.exe to unlock
-                                auto-capture.</div>
                         </div>
                     </div>
                 </div>
@@ -109,19 +114,30 @@
                         <h3>Global hotkeys</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group">
-                            <label for="sortHotkey">Sort stash</label>
-                            <input type="text" id="sortHotkey" class="hotkey-input"
-                                placeholder="Click to record hotkey..." readonly>
-                            <div class="form-help">Trigger sorting from anywhere - even while Dark and Darker is
-                                focused.
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label" for="sortHotkey">Sort stash</label>
+                                <div class="setting-description">Trigger sorting from anywhere.</div>
+                            </div>
+                            <div class="setting-control">
+                                <div class="hotkey-container">
+                                    <input type="text" id="sortHotkey" class="hotkey-input-modern"
+                                        placeholder="Record..." readonly>
+                                </div>
                             </div>
                         </div>
-                        <div class="form-group">
-                            <label for="cancelHotkey">Cancel sort</label>
-                            <input type="text" id="cancelHotkey" class="hotkey-input"
-                                placeholder="Click to record hotkey..." readonly>
-                            <div class="form-help">Use a safety hotkey to stop auto-sorting mid run.</div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label" for="cancelHotkey">Cancel sort</label>
+                                <div class="setting-description">Safety hotkey to stop auto-sorting.</div>
+                            </div>
+                            <div class="setting-control">
+                                <div class="hotkey-container">
+                                    <input type="text" id="cancelHotkey" class="hotkey-input-modern"
+                                        placeholder="Record..." readonly>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -143,19 +159,31 @@
                         <h3>Sort pacing</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group">
-                            <label for="sortSpeed">Sort speed (seconds)</label>
-                            <input type="number" id="sortSpeed" min="0" max="1.0" step="0.01" value="0.2">
-                            <div class="form-help">Lower values = faster. Higher values = extra stability.</div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label" for="sortSpeed">Sort speed (seconds)</label>
+                                <div class="setting-description">Lower values = faster. Higher = stable.</div>
+                            </div>
+                            <div class="setting-control">
+                                <input type="number" id="sortSpeed" min="0" max="1.0" step="0.01" value="0.2"
+                                    style="width: 80px; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-dark); color: var(--text-primary);">
+                            </div>
                         </div>
-                        <div class="form-group form-group-inline">
-                            <label class="custom-checkbox" for="noDelay">
-                                <input type="checkbox" id="noDelay">
-                                <span class="checkbox-mark" aria-hidden="true"></span>
-                                <span class="checkbox-label">No delay (experimental)</span>
-                            </label>
-                            <div class="form-help warning-text">Removes timing buffers. Might miss items more often use
-                                carefully.</div>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label" for="noDelay">No delay (experimental)</label>
+                                <div class="setting-description">
+                                    <span class="warning-text"><span class="material-icons">warning</span>This will most
+                                        likely miss items.</span>
+                                </div>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="noDelay">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -166,24 +194,30 @@
                         <h3>Game resolution</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group">
-                            <label for="resolution">Primary resolution</label>
-                            <select id="resolution">
-                                <option value="Auto">Auto Detection</option>
-                                <option value="3840x2160">3840 × 2160</option>
-                                <option value="2560x1440">2560 × 1440</option>
-                                <option value="1920x1080">1920 × 1080</option>
-                                <option value="1680x1050">1680 × 1050</option>
-                                <option value="1440x900">1440 × 900</option>
-                                <option value="1366x768">1366 × 768</option>
-                                <option value="1360x768">1360 × 768</option>
-                                <option value="1280x800">1280 × 800</option>
-                                <option value="1280x768">1280 × 768</option>
-                                <option value="1280x720">1280 × 720</option>
-                            </select>
-                            <div class="form-help">
-                                Current detected: <span id="detectedResolution">Loading...</span>
-                                <button id="refreshResolution" class="btn-small">Refresh</button>
+                        <div class="setting-item vertical">
+                            <div class="setting-info">
+                                <label class="setting-label" for="resolution">Primary resolution</label>
+                                <div class="setting-description">
+                                    Current detected: <span id="detectedResolution"
+                                        style="color: var(--accent-gold);">Loading...</span>
+                                    <button id="refreshResolution" class="btn-small"
+                                        style="margin-left: 0.5rem;">Refresh</button>
+                                </div>
+                            </div>
+                            <div class="setting-control full-width">
+                                <select id="resolution" class="modern-select">
+                                    <option value="Auto">Auto Detection</option>
+                                    <option value="3840x2160">3840 × 2160</option>
+                                    <option value="2560x1440">2560 × 1440</option>
+                                    <option value="1920x1080">1920 × 1080</option>
+                                    <option value="1680x1050">1680 × 1050</option>
+                                    <option value="1440x900">1440 × 900</option>
+                                    <option value="1366x768">1366 × 768</option>
+                                    <option value="1360x768">1360 × 768</option>
+                                    <option value="1280x800">1280 × 800</option>
+                                    <option value="1280x768">1280 × 768</option>
+                                    <option value="1280x720">1280 × 720</option>
+                                </select>
                             </div>
                         </div>
                     </div>
@@ -196,8 +230,7 @@
                 <div>
                     <p class="panel-eyebrow">Step 3</p>
                     <h2>Keep your local data lean</h2>
-                    <p class="panel-body">Clear cached quests or character captures in a couple of clicks, which is
-                        perfect after big patches.</p>
+                    <p class="panel-body">Clear cached quests or character captures in a couple of clicks.</p>
                 </div>
             </header>
             <div class="settings-grid single-column">
@@ -207,16 +240,18 @@
                         <h3>Quest tracker cache</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group">
-                            <label for="clearQuestData">Quest payload</label>
-                            <div class="form-help">
-                                Stored quests keep browsing fast. Clear them to force a fresh pull or when merchants get
-                                reshuffled.
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Quest payload</label>
+                                <div class="setting-description">Stored quests keep browsing fast. Clear them to force a
+                                    fresh pull.</div>
                             </div>
-                            <button id="clearQuestData" type="button" class="btn-small danger">
-                                <span class="material-icons" aria-hidden="true">delete_sweep</span>
-                                Clear quest data
-                            </button>
+                            <div class="setting-control">
+                                <button id="clearQuestData" type="button" class="btn-small danger">
+                                    <span class="material-icons" aria-hidden="true">delete_sweep</span>
+                                    Clear Data
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -227,14 +262,17 @@
                         <h3>Captured character data</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group">
-                            <label for="clearCharacterData">Snapshots & packets</label>
-                            <div class="form-help">
-                                Remove local captures to reclaim disk space or start fresh before the next wipe.</div>
-                            <button id="clearCharacterData" type="button" class="btn-small danger">
-                                <span class="material-icons" aria-hidden="true">delete_forever</span>
-                                Delete character data
-                            </button>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label">Snapshots & packets</label>
+                                <div class="setting-description">Remove local captures to reclaim disk space.</div>
+                            </div>
+                            <div class="setting-control">
+                                <button id="clearCharacterData" type="button" class="btn-small danger">
+                                    <span class="material-icons" aria-hidden="true">delete_forever</span>
+                                    Delete Data
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -246,8 +284,7 @@
                 <div>
                     <p class="panel-eyebrow">Optional</p>
                     <h2>Dial in the extras</h2>
-                    <p class="panel-body">Toggle the quality-of-life settings that make DnDTools feel right on your
-                        desktop.</p>
+                    <p class="panel-body">Toggle the quality-of-life settings that make DnDTools feel right.</p>
                 </div>
             </header>
             <div class="settings-grid single-column">
@@ -257,14 +294,18 @@
                         <h3>Development builds</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group form-group-inline">
-                            <label class="custom-checkbox" for="includeDevReleases">
-                                <input type="checkbox" id="includeDevReleases">
-                                <span class="checkbox-mark" aria-hidden="true"></span>
-                                <span class="checkbox-label">Opt into Test builds</span>
-                            </label>
-                            <div class="form-help warning-text">Fetch GitHub development releases
-                                These builds are pre-release and may be unstable.
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label" for="includeDevReleases">Opt into Test builds</label>
+                                <div class="setting-description">
+                                    <span class="warning-text">Fetch GitHub development releases (unstable).</span>
+                                </div>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="includeDevReleases">
+                                    <span class="toggle-slider"></span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -276,16 +317,18 @@
                         <h3>Window behavior</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group form-group-inline">
-                            <label class="custom-checkbox" for="closeToTrayEnabled">
-                                <input type="checkbox" id="closeToTrayEnabled" checked>
-                                <span class="checkbox-mark" aria-hidden="true"></span>
-                                <span class="checkbox-label">Keep running in tray when closed</span>
-                            </label>
-                            <div class="form-help">
-                                Stop showing the closing animation when you only want DnDTools to hide in the system
-                                tray.
-                                Disable this if you prefer the app to shut down fully when you click close.
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label" for="closeToTrayEnabled">Keep running in tray when
+                                    closed</label>
+                                <div class="setting-description">Stop showing the closing animation when you only want
+                                    to hide.</div>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="closeToTrayEnabled" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -297,14 +340,18 @@
                         <h3>Developer mode</h3>
                     </div>
                     <div class="section-content">
-                        <div class="form-group form-group-inline">
-                            <label class="custom-checkbox" for="developerMode">
-                                <input type="checkbox" id="developerMode">
-                                <span class="checkbox-mark" aria-hidden="true"></span>
-                                <span class="checkbox-label">Show diagnostics in tooltips</span>
-                            </label>
-                            <div class="form-help">Adds stash slot numbers, loot-state metadata, and internal IDs to
-                                character tooltips.</div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label class="setting-label" for="developerMode">Show diagnostics in tooltips</label>
+                                <div class="setting-description">Adds stash slot numbers and internal IDs to tooltips.
+                                </div>
+                            </div>
+                            <div class="setting-control">
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="developerMode">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </div>

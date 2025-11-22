@@ -2101,3 +2101,221 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     color: var(--accent-gold);
     font-weight: 500;
 }
+
+/* Modern Setting Item Layout */
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.setting-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.setting-item.vertical {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+}
+
+.setting-info {
+    flex: 1;
+    padding-right: 2rem;
+}
+
+.setting-label {
+    display: block;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.35rem;
+}
+
+.setting-description {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.setting-control {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.setting-control.full-width {
+    width: 100%;
+}
+
+/* Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.1);
+    transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    border-radius: 34px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: var(--text-muted);
+    transition: .3s cubic-bezier(0.4, 0.0, 0.2, 1);
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.toggle-switch input:checked+.toggle-slider {
+    background-color: rgba(207, 163, 70, 0.15);
+    border-color: var(--accent-gold);
+}
+
+.toggle-switch input:checked+.toggle-slider:before {
+    transform: translateX(24px);
+    background-color: var(--accent-gold);
+    box-shadow: 0 0 10px rgba(207, 163, 70, 0.4);
+}
+
+.toggle-switch input:focus+.toggle-slider {
+    box-shadow: 0 0 0 3px rgba(207, 163, 70, 0.1);
+}
+
+.toggle-switch:hover .toggle-slider:before {
+    transform: scale(1.1);
+}
+
+.toggle-switch input:checked:hover+.toggle-slider:before {
+    transform: translateX(24px) scale(1.1);
+}
+
+/* Modern Select */
+.modern-select {
+    width: 100%;
+    padding: 0.85rem 1rem;
+    background-color: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='%23cfa346' viewBox='0 0 16 16'%3e%3cpath d='m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 1rem center;
+    background-size: 12px;
+    padding-right: 2.5rem;
+    transition: all 0.2s ease;
+}
+
+.modern-select:hover {
+    border-color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+}
+
+.modern-select:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 0 3px rgba(207, 163, 70, 0.1);
+}
+
+/* File Picker in Setting Item */
+.file-picker-row {
+    display: flex;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.file-picker-row input {
+    flex: 1;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    color: var(--text-primary);
+}
+
+.file-picker-row .btn-small {
+    margin: 0;
+    height: auto;
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Hotkey Input in Setting Item */
+.hotkey-container {
+    position: relative;
+    width: auto;
+}
+
+.hotkey-input-modern {
+    width: 140px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    color: var(--accent-gold);
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    letter-spacing: 0.5px;
+}
+
+.hotkey-input-modern:hover {
+    border-color: var(--text-secondary);
+    background: var(--bg-tertiary);
+}
+
+.hotkey-input-modern:focus {
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 0 3px rgba(207, 163, 70, 0.1);
+    outline: none;
+    background: var(--bg-dark);
+}
+
+/* Warning Text in Description */
+.setting-description .warning-text {
+    color: #e0b85d;
+    display: inline-block;
+    margin-top: 0.25rem;
+}
+
+.setting-description .material-icons {
+    font-size: 1rem;
+    vertical-align: text-bottom;
+    margin-right: 0.25rem;
+}

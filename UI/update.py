@@ -931,7 +931,7 @@ class UpdaterUI:
         statuses = [
             ("Ensuring DnDTools is closed...", f"Phantom PID {phantom_pid}", 20),
             ("Downloading update...", "Simulated download (demo mode)", 60),
-            ("Applying update. This will take a minute, The app will start automatically", "Simulated installer (demo mode)", 90),
+            ("This will take a minute", "Simulated installer (demo mode)", 90),
         ]
 
         progress = 0
