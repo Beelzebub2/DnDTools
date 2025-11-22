@@ -1,7 +1,13 @@
 name: Update Items and Icons
 
 on:
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      skip_patch_check:
+        description: 'Skip patch version check and force update'
+        required: false
+        default: false
+        type: boolean
   schedule:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
 
@@ -22,6 +28,8 @@ jobs:
 
     - name: Detect DarkerDB build changes
       id: detect
+      env:
+        SKIP_CHECK: ${{ github.event.inputs.skip_patch_check }}
       run: |
         python - <<'PY'
         import json
@@ -49,6 +57,10 @@ jobs:
             previous = {}
 
         changed = previous.get('build') != build or previous.get('patch') != patch
+
+        if os.environ.get('SKIP_CHECK') == 'true':
+            print("Manual override: forcing update regardless of version change.")
+            changed = True
 
         print(f"Current build: {build}, patch: {patch}")
         print(f"Previous build: {previous.get('build', '<none>')}, patch: {previous.get('patch', '<none>')}")
