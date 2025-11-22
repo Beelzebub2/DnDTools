@@ -1529,11 +1529,7 @@ const renderInteractiveGrid = (stashId, items) => {
                     if (doesItemMeetQuestLootState(normalizedId, lootState)) {
                         const questBadge = document.createElement('div');
                         questBadge.className = 'item-quest-badge';
-                        const meta = getQuestLootStateMeta(normalizedId);
                         const badgeLines = ['Needed for active quests'];
-                        if (meta && Array.isArray(meta.labels) && meta.labels.length) {
-                            badgeLines.push(`Counts loot-state: ${meta.labels.join(', ')}`);
-                        }
                         questBadge.setAttribute('title', badgeLines.join('\n'));
                         questBadge.textContent = '!';
                         itemEl.appendChild(questBadge);
@@ -1579,11 +1575,6 @@ const renderInteractiveGrid = (stashId, items) => {
                     if (by && Array.isArray(by) && by.length) {
                         const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
                         html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
-                    }
-                    const questLootMeta = getQuestLootStateMeta(id);
-                    if (questLootMeta && Array.isArray(questLootMeta.labels) && questLootMeta.labels.length) {
-                        const labelText = escapeHtml(questLootMeta.labels.join(', '));
-                        html += `\n<div class="tooltip-body tooltip-needed">\n<div class="tooltip-section">\n<strong>Counts loot-state:</strong>\n<div class="tooltip-quest-name">${labelText}</div>\n</div>\n</div>`;
                     }
                 } catch (e) {
                     // ignore
@@ -3287,7 +3278,7 @@ function getOrderingOptions() {
 window.questNeededItems = new Set();
 // Map of item_id -> array of merchant names that need the item
 window.questNeededBy = Object.create(null);
-// Map of item_id -> loot state metadata ({ values: number[], labels?: string[] })
+// Map of item_id -> loot state metadata ({ values: number[] })
 window.questNeededLootStates = Object.create(null);
 
 const LOOT_STATE_VALUE_TO_LABEL = {
@@ -3452,8 +3443,6 @@ function buildLootStateMetaFromItem(item) {
     }
 
     const values = new Set();
-    const labels = [];
-    const seenLabels = new Set();
 
     quests.forEach(entry => {
         if (!entry || typeof entry !== 'object') {
@@ -3467,16 +3456,6 @@ function buildLootStateMetaFromItem(item) {
                 const normalized = normalizeLootStateValue(val);
                 if (normalized !== null) {
                     values.add(normalized);
-                }
-            });
-            const rawLabels = Array.isArray(entry.loot_state_labels)
-                ? entry.loot_state_labels
-                : (entry.loot_state_label ? [entry.loot_state_label] : []);
-            rawLabels.forEach(label => {
-                const trimmed = typeof label === 'string' ? label.trim() : '';
-                if (trimmed && !seenLabels.has(trimmed)) {
-                    seenLabels.add(trimmed);
-                    labels.push(trimmed);
                 }
             });
         } else {
@@ -3494,7 +3473,6 @@ function buildLootStateMetaFromItem(item) {
 
     return {
         values: sortedValues,
-        labels: labels.length ? labels : null,
     };
 }
 
