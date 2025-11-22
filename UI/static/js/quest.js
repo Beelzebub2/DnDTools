@@ -1814,26 +1814,30 @@
         const dialogWidth = dialogRect.width || dialog.offsetWidth || 0;
         const dialogHeight = dialogRect.height || dialog.offsetHeight || 0;
 
-        let top;
-        let left;
+        // Horizontal: Always center
+        let left = (viewportWidth - dialogWidth) / 2;
+
+        // Vertical: Start with center
+        let top = (viewportHeight - dialogHeight) / 2;
 
         if (anchorRect) {
-            const spaceBelow = viewportHeight - anchorRect.bottom;
-            const showBelow = spaceBelow >= dialogHeight + margin || anchorRect.top <= margin;
-            if (showBelow) {
-                top = anchorRect.bottom + margin;
-            } else {
-                top = anchorRect.top - dialogHeight - margin;
-            }
+            // Check for vertical overlap
+            // Overlap if dialog top < anchor bottom AND dialog bottom > anchor top
+            const dialogBottom = top + dialogHeight;
+            const overlaps = top < anchorRect.bottom && dialogBottom > anchorRect.top;
 
-            if (top < margin) {
-                top = margin;
-            }
+            if (overlaps) {
+                const itemCenterY = anchorRect.top + (anchorRect.height / 2);
+                const isTopHalf = itemCenterY < (viewportHeight / 2);
 
-            left = anchorRect.left + (anchorRect.width / 2) - (dialogWidth / 2);
-        } else {
-            top = (viewportHeight - dialogHeight) / 2;
-            left = (viewportWidth - dialogWidth) / 2;
+                if (isTopHalf) {
+                    // Item is in top half, push dialog below
+                    top = anchorRect.bottom + margin;
+                } else {
+                    // Item is in bottom half, push dialog above
+                    top = anchorRect.top - dialogHeight - margin;
+                }
+            }
         }
 
         if (left < margin) {
@@ -1843,11 +1847,11 @@
             left = Math.max(margin, viewportWidth - dialogWidth - margin);
         }
 
-        if (dialogHeight && top + dialogHeight > viewportHeight - margin) {
-            top = Math.max(margin, viewportHeight - dialogHeight - margin);
-        }
         if (top < margin) {
             top = margin;
+        }
+        if (top + dialogHeight > viewportHeight - margin) {
+            top = Math.max(margin, viewportHeight - dialogHeight - margin);
         }
 
         state.activeHoldingsAnchor = anchorRect;
