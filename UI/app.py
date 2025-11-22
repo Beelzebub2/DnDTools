@@ -1,3 +1,4 @@
+import ctypes
 from typing import Any, Callable, Dict, Iterable, Optional, Set
 
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir
@@ -58,6 +59,7 @@ from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 from src.quest_service import QuestService, RARITY_ORDER
+from src.system_tray import SystemTray
 from utils.asset_updater import AssetUpdater
 from utils.tshark_cleanup import schedule_tshark_cleanup
 
@@ -267,177 +269,6 @@ def handle_character(message):
     return saved
 
 
-class SystemTrayManager:
-    """Lightweight helper that creates and updates the Windows system tray icon."""
-
-    def __init__(
-        self,
-        icon_path: Optional[Path],
-        app_version: str,
-        on_restore: Optional[Callable[[], None]],
-        on_quit: Optional[Callable[[], None]],
-        logger: logging.Logger,
-    ) -> None:
-        self.available = bool(pystray and Image)
-        self.logger = logger
-        self._icon_path = Path(icon_path) if icon_path else None
-        self._app_version = app_version
-        self._on_restore = on_restore
-        self._on_quit = on_quit
-        self._capture_running = False
-        self._icon: Optional[Any] = None
-        self._icon_thread: Optional[threading.Thread] = None
-        self._icon_ready = threading.Event()
-        self._notification_shown = False
-        self._lock = threading.RLock()
-
-    # ---------------------------- internal helpers ----------------------------
-    def _load_image(self):
-        if not Image:
-            return None
-
-        if self._icon_path and self._icon_path.exists():
-            try:
-                with Image.open(self._icon_path) as resource:
-                    return resource.copy()
-            except Exception as exc:
-                self.logger.debug("Failed to load tray icon from %s: %s", self._icon_path, exc)
-
-        try:
-            image = Image.new('RGBA', (64, 64), (16, 17, 24, 255))
-            if ImageDraw:
-                draw = ImageDraw.Draw(image)
-                draw.ellipse((6, 6, 58, 58), fill=(32, 35, 54, 255))
-                draw.text((22, 18), 'D', fill=(241, 196, 67, 255))
-            return image
-        except Exception as exc:
-            self.logger.debug("Unable to generate fallback tray icon: %s", exc)
-            return None
-
-    def _capture_label(self, _item=None):
-        return f"Capture: {'Running' if self._capture_running else 'Stopped'}"
-
-    def _version_label(self, _item=None):
-        return f"Version {self._app_version}"
-
-    def _build_menu(self):
-        if not pystray:
-            return None
-        return pystray.Menu(
-            pystray.MenuItem(self._capture_label, None, enabled=False),
-            pystray.MenuItem(self._version_label, None, enabled=False),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem('Bring to front', self._handle_restore_request),
-            pystray.MenuItem('Exit DnDTools', self._handle_quit_request),
-        )
-
-    def _handle_restore_request(self, icon, item):  # pragma: no cover - UI callback
-        if not self._on_restore:
-            return
-        try:
-            self._on_restore()
-        except Exception as exc:
-            self.logger.debug("Tray restore callback failed: %s", exc, exc_info=True)
-
-    def _handle_quit_request(self, icon, item):  # pragma: no cover - UI callback
-        if not self._on_quit:
-            return
-        try:
-            self._on_quit()
-        except Exception as exc:
-            self.logger.error("Tray quit callback failed: %s", exc, exc_info=True)
-
-    def _run_icon(self):  # pragma: no cover - blocking GUI loop
-        icon = self._icon
-        if not icon:
-            return
-
-        def setup(_icon):
-            try:
-                _icon.visible = True
-            except Exception:
-                pass
-            self._icon_ready.set()
-
-        try:
-            icon.run(setup=setup)
-        except Exception as exc:
-            self.logger.error("System tray icon loop stopped: %s", exc, exc_info=True)
-        finally:
-            self._icon_ready.clear()
-
-    # ------------------------------ public API ------------------------------
-    def start(self) -> bool:
-        if not self.available:
-            return False
-
-        with self._lock:
-            if self._icon_thread and self._icon_thread.is_alive():
-                return True
-
-            image = self._load_image()
-            if image is None:
-                self.logger.warning("Unable to initialize tray icon imagery; tray support disabled")
-                return False
-
-            self._icon = pystray.Icon('DnDTools', image, 'DnDTools', menu=self._build_menu())
-            self._icon_ready.clear()
-            self._icon_thread = threading.Thread(target=self._run_icon, name='tray-icon', daemon=True)
-            self._icon_thread.start()
-
-        initialized = self._icon_ready.wait(timeout=5)
-        if not initialized:
-            self.logger.warning("System tray icon did not signal readiness")
-        return initialized
-
-    def notify_hidden(self):
-        if not self.start():
-            return
-
-        if not self._notification_shown:
-            self._notification_shown = True
-            icon = self._icon
-            if icon:
-                try:
-                    icon.notify(
-                        "DnDTools is still running in the system tray.",
-                        "Minimized to tray",
-                    )
-                except Exception as exc:
-                    self.logger.debug("Failed to publish tray notification: %s", exc)
-
-    def mark_window_visible(self):
-        self._notification_shown = False
-
-    def update_capture_state(self, running: Optional[bool]):
-        self._capture_running = bool(running)
-        icon = self._icon
-        if icon:
-            try:
-                icon.update_menu()
-            except Exception:
-                pass
-
-    def shutdown(self):
-        with self._lock:
-            icon = self._icon
-            thread = self._icon_thread
-            self._icon = None
-            self._icon_thread = None
-
-        if icon:
-            try:
-                icon.visible = False
-                icon.stop()
-            except Exception as exc:
-                self.logger.debug("Failed to stop system tray icon cleanly: %s", exc)
-
-        if thread and thread.is_alive():
-            thread.join(timeout=2)
-
-        self._icon_ready.clear()
-
-
 class CaptureController:
     """Encapsulates PacketCapture lifecycle and user intent state."""
 
@@ -644,7 +475,7 @@ class Api:
         self._capture_shutdown_completed = False
         self.asset_updater: Optional[AssetUpdater] = None
         self._close_to_tray_enabled = bool(settings.get('closeToTrayEnabled', True))
-        self.tray_manager: Optional[SystemTrayManager] = None
+        self.tray_manager: Optional[SystemTray] = None
         self._allow_window_close = False
         self._closing_subscription_attached = False
         self._initialize_tray_manager()
@@ -697,12 +528,13 @@ class Api:
                 continue
 
         try:
-            manager = SystemTrayManager(
-                icon_path=icon_path,
+            manager = SystemTray(
+                app_name="DnDTools",
                 app_version=APP_VERSION,
+                icon_path=icon_path,
                 on_restore=self.restore_from_tray,
                 on_quit=self.shutdown_application,
-                logger=logger,
+                capture_controller=self.capture_controller,
             )
         except Exception as exc:
             logger.warning("System tray initialization failed: %s", exc, exc_info=True)
@@ -713,29 +545,21 @@ class Api:
             return
 
         self.tray_manager = manager
-        self._update_tray_capture_state(self.capture_controller.state())
+        self.tray_manager.start()
+        # Initial state update is handled by the tray itself on click, but we can force one if needed
+        # self._update_tray_capture_state(self.capture_controller.state())
 
     def _update_tray_capture_state(self, state: Optional[dict] = None):
         if not self.tray_manager:
             return
-
-        running = None
-        if isinstance(state, dict):
-            running = state.get('running')
-
-        if running is None:
-            try:
-                running = bool(self.capture_controller.state().get('running'))
-            except Exception:
-                running = False
-
-        self.tray_manager.update_capture_state(running)
+        # New tray implementation queries state directly from controller
+        self.tray_manager.update_menu()
 
     def _handle_native_close_event(self, *_, **__):  # pragma: no cover - GUI event hook
         if self._allow_window_close or not self.is_close_to_tray_enabled():
-            return False
+            return True
         self.hide_to_tray()
-        return True
+        return False
 
     def hide_to_tray(self):
         if not self.is_close_to_tray_enabled():
@@ -743,6 +567,19 @@ class Api:
         window = self.window
         if not window:
             return False
+
+        # Windows-specific native hide to avoid pywebview issues
+        if sys.platform == 'win32':
+            try:
+                native = window.native
+                hwnd = native.Handle if hasattr(native, 'Handle') else native
+                if isinstance(hwnd, int):
+                    ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
+                    if self.tray_manager:
+                        self.tray_manager.notify_minimized()
+                    return True
+            except Exception as e:
+                logger.debug(f"Failed to hide window via ctypes: {e}")
 
         try:
             if hasattr(window, 'hide'):
@@ -762,7 +599,7 @@ class Api:
                 pass
 
         if self.tray_manager:
-            self.tray_manager.notify_hidden()
+            self.tray_manager.notify_minimized()
         return True
 
     def restore_from_tray(self):
@@ -782,8 +619,8 @@ class Api:
             pass
 
         brought = self.bring_window_to_front()
-        if self.tray_manager:
-            self.tray_manager.mark_window_visible()
+        # if self.tray_manager:
+        #     self.tray_manager.mark_window_visible()
         return brought
 
     def handle_assets_updated(self, metadata: Optional[dict] = None) -> None:
@@ -1196,8 +1033,8 @@ class Api:
         self.window = window
         # Do NOT access window.width/height/x/y here!
         # These will be set after the window is loaded
-        if self.tray_manager:
-            self.tray_manager.mark_window_visible()
+        # if self.tray_manager:
+        #     self.tray_manager.mark_window_visible()
 
         events = getattr(window, 'events', None)
         if events and not self._closing_subscription_attached:
@@ -1224,8 +1061,25 @@ class Api:
         try:
             if hasattr(self.window, 'restore'):
                 self.window.restore()
+            if hasattr(self.window, 'show'):
+                self.window.show()
         except Exception as exc:
             logger.debug(f"Failed to restore window before foreground request: {exc}")
+
+        # Windows-specific force show via ctypes (bypasses threading issues)
+        if sys.platform == 'win32':
+            try:
+                # Handle both int HWND and .NET object with Handle property
+                native = self.window.native
+                hwnd = native.Handle if hasattr(native, 'Handle') else native
+                
+                if isinstance(hwnd, int):
+                    # SW_RESTORE = 9
+                    ctypes.windll.user32.ShowWindow(hwnd, 9)
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+                    success = True
+            except Exception as e:
+                logger.debug(f"Failed to force window to front via ctypes: {e}")
 
         for method_name in ('activate', 'bring_to_front', 'focus'):
             if hasattr(self.window, method_name):
@@ -1647,18 +1501,33 @@ class Api:
                         pass
         except Exception as e:
             logger.error(f"Error stopping packet capture on close: {e}")
+        
+        # Start exit timer immediately to ensure shutdown even if UI hangs
+        threading.Timer(0.5, lambda: os._exit(0)).start()
+
         # Remove delay - close immediately
         try:
             if getattr(self, 'tray_manager', None):
                 try:
-                    self.tray_manager.shutdown()
+                    self.tray_manager.stop()
                 except Exception as exc:
                     logger.debug("Tray manager shutdown failed: %s", exc)
+            
             if self.window:
-                self.window.destroy()
+                # Only destroy window if on main thread to avoid GIL/COM issues
+                if threading.current_thread() is threading.main_thread():
+                    self.window.destroy()
+                else:
+                    # If on background thread (e.g. Tray), just hide and let os._exit kill it
+                    try:
+                        if sys.platform == 'win32':
+                            native = self.window.native
+                            hwnd = native.Handle if hasattr(native, 'Handle') else native
+                            if isinstance(hwnd, int):
+                                ctypes.windll.user32.ShowWindow(hwnd, 0)
+                    except Exception:
+                        pass
         finally:
-            # Ensure the process actually terminates; fallback to hard exit if needed
-            threading.Timer(1.0, lambda: os._exit(0)).start()
             self._capture_shutdown_completed = False
         
     def set_sort_order(self, order):
