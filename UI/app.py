@@ -15,6 +15,7 @@ from src.models.stash_manager import StashManager
 import psutil
 import json
 import sys
+import multiprocessing
 import logging
 import re
 from pathlib import Path
@@ -65,7 +66,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.6.2"
+APP_VERSION = "3.6.5"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -1176,7 +1177,7 @@ class Api:
                 detected = os.path.dirname(on_path)
 
         if detected:
-            return {"success": True, "path": detected}
+            return {"success": True, "path": detected }
 
         return {"success": False, "error": "Wireshark installation not found in common locations."}
 
@@ -2661,6 +2662,7 @@ def background_init():
                 f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
             )
 def main():
+    multiprocessing.freeze_support()
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
         # Instead of replacing the exe, just start a new instance and exit
