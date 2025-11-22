@@ -2529,6 +2529,9 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
+        # Clean up any lingering tshark instances
+        cleanup_tshark_instances()
+
         # Check for updates on startup
         try:
             get_version_info()
@@ -2608,83 +2611,28 @@ def background_init():
                 f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
             )
 
-def check_tshark():
-    # Check if tshark is in PATH
-    tshark_path = shutil.which("tshark")
-    if not tshark_path:
-        custom_path = resolve_tshark_executable(settings_manager.get('wiresharkPath'))
-        if custom_path:
-            tshark_path = custom_path
-    if not tshark_path:
-        logger.error("❌ tshark is NOT in the system PATH.")
-        return False
-    logger.info(f"✅ tshark is found at: {tshark_path}")
-
-    # Check if tshark can run
-    try:
-        subprocess.run(
-            ["tshark", "--version"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        logger.info("✅ tshark runs successfully.")
-        return True
-    except Exception as e:
-        logger.error(f"❌ tshark was found but failed to run: {e}")
-        return False
-
-
-@server.route('/api/check_npcap')
-def check_npcap():
-    return jsonify({'installed': check_tshark()})
-
-# Cache for market price data
-market_price_cache = {}
-PRICE_CACHE_EXPIRY = 600  # 10 minutes in seconds
-
-@server.route('/api/market/price/<item_id>')
-def proxy_market_price(item_id):
-    """Proxy endpoint to fetch market price from dndtools.rrmtools.uk and avoid CORS issues."""
-    global market_price_cache
-    current_time = time.time()
+def cleanup_tshark_instances():
+    """Kill any lingering tshark instances from previous runs."""
+    logger.info("Checking for lingering tshark instances...")
+    killed_count = 0
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            if proc.info['name'] and 'tshark' in proc.info['name'].lower():
+                logger.info(f"Killing lingering tshark process: {proc.info['name']} (PID: {proc.info['pid']})")
+                proc.kill()
+                killed_count += 1
+        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+            pass
     
-    # Check if we have a cached response that's still valid
-    if item_id in market_price_cache:
-        cached_data = market_price_cache[item_id]
-        if current_time - cached_data['timestamp'] < PRICE_CACHE_EXPIRY:
-            return jsonify(cached_data['data'])
-    
-    # No valid cache, fetch from API
-    try:
-        url = f'https://dndtools.rrmtools.uk/api/market/price/{item_id}'
-        headers = {"X-Requested-With": "DnDTools"}
-        resp = requests.get(url, headers=headers, timeout=5)
-        
-        if resp.ok:
-            # Parse JSON to ensure it's valid before caching
-            data = resp.json()
-            # Store in cache with timestamp
-            market_price_cache[item_id] = {
-                'timestamp': current_time,
-                'data': data
-            }
-            return jsonify(data)
-        else:
-            # Return error response without caching
-            return (resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'application/json')})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@server.route('/api/sort_order', methods=['GET', 'POST'])
-def api_sort_order():
-    if request.method == 'GET':
-        return jsonify({'success': True, 'order': api.get_sort_order()})
-
-    data = request.get_json() or {}
-    success = api.set_sort_order(data.get('order'))
-    response = {'success': success, 'order': api.get_sort_order()}
-    return (jsonify(response), 200) if success else (jsonify(response), 500)
+    if killed_count > 0:
+        logger.info(f"Cleaned up {killed_count} lingering tshark instance(s).")
+        if api.window:
+            msg = f"Closed {killed_count} wrongfully terminated tshark instance(s)."
+            # Escape single quotes in message just in case
+            msg = msg.replace("'", "\\'")
+            api.window.evaluate_js(f"showNotification('{msg}', 'warning');")
+    else:
+        logger.info("No lingering tshark instances found.")
 
 def main():
     # --- Updater logic ---
