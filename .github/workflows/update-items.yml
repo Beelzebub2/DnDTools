@@ -120,7 +120,7 @@ jobs:
       working-directory: UI
       run: python scripts/build_icons_pak.py --check --skip-convert
 
-    - name: Summarize item changes
+    - name: Summarize item and icon changes
       id: summarize-items
       run: |
         python - <<'PY'
@@ -142,6 +142,43 @@ jobs:
         new_keys = sorted(set(current) - set(previous))
         removed_keys = sorted(set(previous) - set(current))
 
+        icon_status_raw = subprocess.check_output([
+          'git',
+          'status',
+          '--porcelain',
+          'UI/assets/icons'
+        ], text=True, stderr=subprocess.STDOUT)
+
+        icon_changes = {
+          'added': [],
+          'modified': [],
+          'deleted': []
+        }
+
+        for line in icon_status_raw.splitlines():
+          if not line.strip():
+            continue
+          status = line[:2]
+          path = line[3:].strip()
+          if not path:
+            continue
+            normalized = path.replace('\\', '/')
+          if status.strip() in {'A', '??'}:
+            icon_changes['added'].append(normalized)
+          elif 'D' in status:
+            icon_changes['deleted'].append(normalized)
+          else:
+            icon_changes['modified'].append(normalized)
+
+        def preview_list(values, limit=20):
+          if not values:
+            return []
+          selected = values[:limit]
+          lines = [f"- {value}" for value in selected]
+          if len(values) > limit:
+            lines.append(f"... (+{len(values) - limit} more)")
+          return lines
+
         def format_items(title, keys, data):
             if not keys:
                 return f"{title}: none"
@@ -157,11 +194,20 @@ jobs:
 
         date_str = dt.datetime.utcnow().strftime('%d/%m/%Y')
         summary_lines = [
-            f"Updated {date_str}",
-            f"Total items: {len(current)} (was {len(previous)})",
-            format_items('Added items', new_keys, current),
-            format_items('Removed items', removed_keys, previous),
+          f"Updated {date_str}",
+          f"Total items: {len(current)} (was {len(previous)})",
+          format_items('Added items', new_keys, current),
+          format_items('Removed items', removed_keys, previous),
+          f"Icon changes — added: {len(icon_changes['added'])}, modified: {len(icon_changes['modified'])}, removed: {len(icon_changes['deleted'])}",
         ]
+
+        icon_preview_sections = []
+        for label, values in icon_changes.items():
+          lines = preview_list(values)
+          if lines:
+            icon_preview_sections.append(f"{label.capitalize()} icons ({len(values)}):\n" + '\n'.join(lines))
+        if icon_preview_sections:
+          summary_lines.append('\n'.join(icon_preview_sections))
 
         summary = '\n'.join(summary_lines)
         print(summary)
@@ -192,7 +238,12 @@ jobs:
             "has_added": bool(new_keys),
             "has_removed": bool(removed_keys),
             "added_items": added_preview,
-            "removed_items": removed_preview,
+          "removed_items": removed_preview,
+          "icon_changes": {
+            "added": icon_changes['added'],
+            "modified": icon_changes['modified'],
+            "removed": icon_changes['deleted'],
+          }
         }
 
         changelog_path = Path('UI/assets/changelog.json')

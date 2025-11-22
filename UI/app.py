@@ -58,6 +58,7 @@ sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 from src.quest_service import QuestService, RARITY_ORDER
 from utils.asset_updater import AssetUpdater
+from utils.tshark_cleanup import schedule_tshark_cleanup
 
 # Global cache for version check
 version_cache = None
@@ -2586,13 +2587,7 @@ def background_init():
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
                 
                 # Clean up any lingering tshark instances after data is loaded
-                def _cleanup_worker():
-                    try:
-                        cleanup_tshark_instances()
-                    except Exception as cleanup_err:
-                        logger.error(f"Tshark cleanup failed: {cleanup_err}")
-
-                threading.Thread(target=_cleanup_worker, daemon=True).start()
+                schedule_tshark_cleanup(logger, api.window, delay_seconds=1.0)
             except Exception as e:
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
@@ -2645,35 +2640,6 @@ def background_init():
             api.window.evaluate_js(
                 f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
             )
-
-def cleanup_tshark_instances():
-    """Kill any lingering tshark instances from previous runs."""
-    logger.info("Checking for lingering tshark instances...")
-    killed_count = 0
-    current_pid = os.getpid()
-    for proc in psutil.process_iter(['pid', 'name', 'ppid']):
-        try:
-            if proc.info['name'] and 'tshark' in proc.info['name'].lower():
-                # Skip tshark instances that are children of the current process
-                if proc.info['ppid'] == current_pid:
-                    continue
-                    
-                logger.info(f"Killing lingering tshark process: {proc.info['name']} (PID: {proc.info['pid']})")
-                proc.kill()
-                killed_count += 1
-        except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
-            pass
-    
-    if killed_count > 0:
-        logger.info(f"Cleaned up {killed_count} lingering tshark instance(s).")
-        if api.window:
-            msg = f"Closed {killed_count} wrongfully terminated tshark instance(s)."
-            # Escape single quotes in message just in case
-            msg = msg.replace("'", "\\'")
-            api.window.evaluate_js(f"showNotification('{msg}', 'warning');")
-    else:
-        logger.info("No lingering tshark instances found.")
-
 def main():
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
