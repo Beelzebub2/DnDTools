@@ -1,18 +1,22 @@
 :root {
-    --bg-primary: #1a1412;
-    /* Dark brown background */
-    --bg-secondary: #241c17;
-    /* Slightly lighter brown */
-    --text-primary: #e4c869;
-    /* Gold text */
-    --text-secondary: #a89a6c;
-    /* Darker gold */
-    --accent-gold: #e4c869;
-    /* Gold accent */
-    --border-color: #392e24;
-    /* Brown border */
-    --hover-color: #2a2018;
-    /* Hover state */
+    --bg-primary: #0b0b0b;
+    /* Deep black/gray */
+    --bg-secondary: #141414;
+    /* Dark gray for cards/sidebars */
+    --bg-tertiary: #1a1a1a;
+    /* Slightly lighter dark gray */
+    --text-primary: #e6e6e6;
+    /* Light gray/white */
+    --text-secondary: #888888;
+    /* Muted gray */
+    --accent-gold: #cfa346;
+    /* Richer gold */
+    --accent-color: #cfa346;
+    /* Alias for accent gold */
+    --border-color: #2a2a2a;
+    /* Subtle dark border */
+    --hover-color: #202020;
+    /* Dark hover */
 }
 
 * {

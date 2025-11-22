@@ -1,6 +1,7 @@
+import ctypes
 from typing import Any, Callable, Dict, Iterable, Optional, Set
 
-from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, get_data_dir
+from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir
 from src.models.settings import (
     settings_manager,
     SettingsManager,
@@ -15,6 +16,7 @@ from src.models.stash_manager import StashManager
 import psutil
 import json
 import sys
+import multiprocessing
 import logging
 import re
 from pathlib import Path
@@ -48,19 +50,25 @@ from src.models.character import save_packet_data
 from src.models.item import Item
 from src.models.game_overlay import overlay_manager, register_overlay_logging
 from src.models.hotkeys import GlobalHotkeyManager, HotkeyError, format_hotkey_display
+from src.models.loot import (
+    extract_loot_state_filter,
+    format_loot_state_label,
+)
 
 from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 from src.quest_service import QuestService, RARITY_ORDER
+from src.system_tray import SystemTray
 from utils.asset_updater import AssetUpdater
+from utils.tshark_cleanup import schedule_tshark_cleanup
 
 # Global cache for version check
 version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.6.2"
+APP_VERSION = "3.6.5"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -73,134 +81,14 @@ SORT_CANCEL_NOTIFICATION_MESSAGE = (
 )
 
 
-LOOT_STATE_VALUE_TO_LABEL: Dict[int, str] = {
-    0: "None",
-    1: "Supplied",
-    2: "Looted",
-    3: "Handled",
-    4: "Crafted",
-    5: "Ally",
-}
 
-_LOOT_STATE_ALIAS_MAP: Dict[str, int] = {}
-for _value, _label in LOOT_STATE_VALUE_TO_LABEL.items():
-    _normalized_label = _label.lower()
-    _LOOT_STATE_ALIAS_MAP[str(_value)] = _value
-    _LOOT_STATE_ALIAS_MAP[_normalized_label] = _value
-    _LOOT_STATE_ALIAS_MAP[_normalized_label.replace(" ", "")] = _value
-
-_LOOT_STATE_ALIAS_MAP.update(
-    {
-        "none": 0,
-        "none_source": 0,
-        "nonesource": 0,
-        "supplies": 1,
-        "loot": 2,
-        "handled": 3,
-        "handle": 3,
-        "craft": 4,
-        "crafted": 4,
-        "ally": 5,
-    }
-)
-
-
-def _normalize_loot_state_key(raw: str) -> str:
-    cleaned = raw.lower().strip()
-    if not cleaned:
-        return ""
-    cleaned = cleaned.replace("-", " ").replace("_", " ")
-    cleaned = cleaned.replace("only", "")
-    return " ".join(part for part in cleaned.split() if part)
-
-
-def _parse_single_loot_state(raw) -> Optional[int]:
-    if raw is None:
-        return None
-    if isinstance(raw, int):
-        return raw
-    text = str(raw).strip()
-    if not text:
-        return None
-    key = _normalize_loot_state_key(text)
-    if not key or key in {"any", "all", "*"}:
-        return None
-    return _LOOT_STATE_ALIAS_MAP.get(key)
-
-
-def extract_loot_state_filter(raw) -> Optional[Set[int]]:
-    """Return a set of acceptable loot state values or None when unrestricted."""
-
-    if raw is None:
-        return None
-
-    if isinstance(raw, (list, tuple, set)):
-        collected: Set[int] = set()
-        for entry in raw:
-            values = extract_loot_state_filter(entry)
-            if values is None:
-                return None
-            collected.update(values)
-        return collected or None
-
-    value = _parse_single_loot_state(raw)
-    if value is None:
-        return None
-    return {value}
-
-
-def format_loot_state_label(value: int) -> str:
-    return LOOT_STATE_VALUE_TO_LABEL.get(value, str(value))
-
-
-def collect_item_loot_state_requirements(
-    quests: Iterable[dict],
-    item_filter: Optional[Set[str]] = None,
-) -> Dict[str, Optional[Set[int]]]:
-    """Map item ids to acceptable loot state values based on quest objectives."""
-
-    filtered_items = set(item_filter) if item_filter else None
-    requirements: Dict[str, Optional[Set[int]]] = {}
-
-    for quest in quests or []:
-        objectives = quest.get("objectives") or []
-        for objective in objectives:
-            if not isinstance(objective, dict):
-                continue
-
-            item_id = objective.get("item_id")
-            if not item_id:
-                continue
-            if filtered_items is not None and item_id not in filtered_items:
-                continue
-
-            values = extract_loot_state_filter(
-                objective.get("loot_state") or objective.get("lootState")
-            )
-
-            if values is None:
-                requirements[item_id] = None
-                continue
-
-            if not values:
-                continue
-
-            current = requirements.get(item_id)
-            if current is None and item_id in requirements:
-                continue
-            if current is None:
-                requirements[item_id] = set(values)
-            else:
-                current.update(values)
-
-    return requirements
 
 
 def _clear_character_storage() -> dict[str, object]:
     removed_files: list[str] = []
     failed_files: list[str] = []
 
-    data_dir = Path(get_data_dir())
+    data_dir = Path(get_characters_dir())
     if data_dir.exists():
         for candidate in data_dir.glob('*.json'):
             try:
@@ -257,6 +145,12 @@ update_manager = UpdateManager(
     logger=logger,
 )
 
+# Migrate data files to new structure
+try:
+    migrate_data_files()
+except Exception as e:
+    logger.error(f"Failed to migrate data files: {e}")
+
 quest_service = QuestService(logger)
 CHARACTER_STORAGE_PROTECTED_FILES = set(quest_service.protected_filenames)
 
@@ -291,7 +185,8 @@ server.secret_key = secrets.token_hex(32)  # Generate a secure random key
 @server.context_processor
 def inject_desktop_preferences():
     return {
-        'close_to_tray_enabled': settings_manager.get('closeToTrayEnabled', True)
+        'close_to_tray_enabled': settings_manager.get('closeToTrayEnabled', True),
+        'developer_mode_enabled': settings_manager.get('developerMode', False),
     }
 
 # Initialize StashManager with explicit path, but defer actual data loading
@@ -372,177 +267,6 @@ def handle_character(message):
             logger.error(f"Error extracting character info for animation: {e}")
     
     return saved
-
-
-class SystemTrayManager:
-    """Lightweight helper that creates and updates the Windows system tray icon."""
-
-    def __init__(
-        self,
-        icon_path: Optional[Path],
-        app_version: str,
-        on_restore: Optional[Callable[[], None]],
-        on_quit: Optional[Callable[[], None]],
-        logger: logging.Logger,
-    ) -> None:
-        self.available = bool(pystray and Image)
-        self.logger = logger
-        self._icon_path = Path(icon_path) if icon_path else None
-        self._app_version = app_version
-        self._on_restore = on_restore
-        self._on_quit = on_quit
-        self._capture_running = False
-        self._icon: Optional[Any] = None
-        self._icon_thread: Optional[threading.Thread] = None
-        self._icon_ready = threading.Event()
-        self._notification_shown = False
-        self._lock = threading.RLock()
-
-    # ---------------------------- internal helpers ----------------------------
-    def _load_image(self):
-        if not Image:
-            return None
-
-        if self._icon_path and self._icon_path.exists():
-            try:
-                with Image.open(self._icon_path) as resource:
-                    return resource.copy()
-            except Exception as exc:
-                self.logger.debug("Failed to load tray icon from %s: %s", self._icon_path, exc)
-
-        try:
-            image = Image.new('RGBA', (64, 64), (16, 17, 24, 255))
-            if ImageDraw:
-                draw = ImageDraw.Draw(image)
-                draw.ellipse((6, 6, 58, 58), fill=(32, 35, 54, 255))
-                draw.text((22, 18), 'D', fill=(241, 196, 67, 255))
-            return image
-        except Exception as exc:
-            self.logger.debug("Unable to generate fallback tray icon: %s", exc)
-            return None
-
-    def _capture_label(self, _item=None):
-        return f"Capture: {'Running' if self._capture_running else 'Stopped'}"
-
-    def _version_label(self, _item=None):
-        return f"Version {self._app_version}"
-
-    def _build_menu(self):
-        if not pystray:
-            return None
-        return pystray.Menu(
-            pystray.MenuItem(self._capture_label, None, enabled=False),
-            pystray.MenuItem(self._version_label, None, enabled=False),
-            pystray.Menu.SEPARATOR,
-            pystray.MenuItem('Bring to front', self._handle_restore_request),
-            pystray.MenuItem('Exit DnDTools', self._handle_quit_request),
-        )
-
-    def _handle_restore_request(self, icon, item):  # pragma: no cover - UI callback
-        if not self._on_restore:
-            return
-        try:
-            self._on_restore()
-        except Exception as exc:
-            self.logger.debug("Tray restore callback failed: %s", exc, exc_info=True)
-
-    def _handle_quit_request(self, icon, item):  # pragma: no cover - UI callback
-        if not self._on_quit:
-            return
-        try:
-            self._on_quit()
-        except Exception as exc:
-            self.logger.error("Tray quit callback failed: %s", exc, exc_info=True)
-
-    def _run_icon(self):  # pragma: no cover - blocking GUI loop
-        icon = self._icon
-        if not icon:
-            return
-
-        def setup(_icon):
-            try:
-                _icon.visible = True
-            except Exception:
-                pass
-            self._icon_ready.set()
-
-        try:
-            icon.run(setup=setup)
-        except Exception as exc:
-            self.logger.error("System tray icon loop stopped: %s", exc, exc_info=True)
-        finally:
-            self._icon_ready.clear()
-
-    # ------------------------------ public API ------------------------------
-    def start(self) -> bool:
-        if not self.available:
-            return False
-
-        with self._lock:
-            if self._icon_thread and self._icon_thread.is_alive():
-                return True
-
-            image = self._load_image()
-            if image is None:
-                self.logger.warning("Unable to initialize tray icon imagery; tray support disabled")
-                return False
-
-            self._icon = pystray.Icon('DnDTools', image, 'DnDTools', menu=self._build_menu())
-            self._icon_ready.clear()
-            self._icon_thread = threading.Thread(target=self._run_icon, name='tray-icon', daemon=True)
-            self._icon_thread.start()
-
-        initialized = self._icon_ready.wait(timeout=5)
-        if not initialized:
-            self.logger.warning("System tray icon did not signal readiness")
-        return initialized
-
-    def notify_hidden(self):
-        if not self.start():
-            return
-
-        if not self._notification_shown:
-            self._notification_shown = True
-            icon = self._icon
-            if icon:
-                try:
-                    icon.notify(
-                        "DnDTools is still running in the system tray.",
-                        "Minimized to tray",
-                    )
-                except Exception as exc:
-                    self.logger.debug("Failed to publish tray notification: %s", exc)
-
-    def mark_window_visible(self):
-        self._notification_shown = False
-
-    def update_capture_state(self, running: Optional[bool]):
-        self._capture_running = bool(running)
-        icon = self._icon
-        if icon:
-            try:
-                icon.update_menu()
-            except Exception:
-                pass
-
-    def shutdown(self):
-        with self._lock:
-            icon = self._icon
-            thread = self._icon_thread
-            self._icon = None
-            self._icon_thread = None
-
-        if icon:
-            try:
-                icon.visible = False
-                icon.stop()
-            except Exception as exc:
-                self.logger.debug("Failed to stop system tray icon cleanly: %s", exc)
-
-        if thread and thread.is_alive():
-            thread.join(timeout=2)
-
-        self._icon_ready.clear()
 
 
 class CaptureController:
@@ -751,7 +475,7 @@ class Api:
         self._capture_shutdown_completed = False
         self.asset_updater: Optional[AssetUpdater] = None
         self._close_to_tray_enabled = bool(settings.get('closeToTrayEnabled', True))
-        self.tray_manager: Optional[SystemTrayManager] = None
+        self.tray_manager: Optional[SystemTray] = None
         self._allow_window_close = False
         self._closing_subscription_attached = False
         self._initialize_tray_manager()
@@ -804,12 +528,13 @@ class Api:
                 continue
 
         try:
-            manager = SystemTrayManager(
-                icon_path=icon_path,
+            manager = SystemTray(
+                app_name="DnDTools",
                 app_version=APP_VERSION,
+                icon_path=icon_path,
                 on_restore=self.restore_from_tray,
                 on_quit=self.shutdown_application,
-                logger=logger,
+                capture_controller=self.capture_controller,
             )
         except Exception as exc:
             logger.warning("System tray initialization failed: %s", exc, exc_info=True)
@@ -820,29 +545,21 @@ class Api:
             return
 
         self.tray_manager = manager
-        self._update_tray_capture_state(self.capture_controller.state())
+        self.tray_manager.start()
+        # Initial state update is handled by the tray itself on click, but we can force one if needed
+        # self._update_tray_capture_state(self.capture_controller.state())
 
     def _update_tray_capture_state(self, state: Optional[dict] = None):
         if not self.tray_manager:
             return
-
-        running = None
-        if isinstance(state, dict):
-            running = state.get('running')
-
-        if running is None:
-            try:
-                running = bool(self.capture_controller.state().get('running'))
-            except Exception:
-                running = False
-
-        self.tray_manager.update_capture_state(running)
+        # New tray implementation queries state directly from controller
+        self.tray_manager.update_menu()
 
     def _handle_native_close_event(self, *_, **__):  # pragma: no cover - GUI event hook
         if self._allow_window_close or not self.is_close_to_tray_enabled():
-            return False
+            return True
         self.hide_to_tray()
-        return True
+        return False
 
     def hide_to_tray(self):
         if not self.is_close_to_tray_enabled():
@@ -850,6 +567,19 @@ class Api:
         window = self.window
         if not window:
             return False
+
+        # Windows-specific native hide to avoid pywebview issues
+        if sys.platform == 'win32':
+            try:
+                native = window.native
+                hwnd = native.Handle if hasattr(native, 'Handle') else native
+                if isinstance(hwnd, int):
+                    ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
+                    if self.tray_manager:
+                        self.tray_manager.notify_minimized()
+                    return True
+            except Exception as e:
+                logger.debug(f"Failed to hide window via ctypes: {e}")
 
         try:
             if hasattr(window, 'hide'):
@@ -869,7 +599,7 @@ class Api:
                 pass
 
         if self.tray_manager:
-            self.tray_manager.notify_hidden()
+            self.tray_manager.notify_minimized()
         return True
 
     def restore_from_tray(self):
@@ -889,8 +619,8 @@ class Api:
             pass
 
         brought = self.bring_window_to_front()
-        if self.tray_manager:
-            self.tray_manager.mark_window_visible()
+        # if self.tray_manager:
+        #     self.tray_manager.mark_window_visible()
         return brought
 
     def handle_assets_updated(self, metadata: Optional[dict] = None) -> None:
@@ -1290,7 +1020,7 @@ class Api:
                 detected = os.path.dirname(on_path)
 
         if detected:
-            return {"success": True, "path": detected}
+            return {"success": True, "path": detected }
 
         return {"success": False, "error": "Wireshark installation not found in common locations."}
 
@@ -1303,8 +1033,8 @@ class Api:
         self.window = window
         # Do NOT access window.width/height/x/y here!
         # These will be set after the window is loaded
-        if self.tray_manager:
-            self.tray_manager.mark_window_visible()
+        # if self.tray_manager:
+        #     self.tray_manager.mark_window_visible()
 
         events = getattr(window, 'events', None)
         if events and not self._closing_subscription_attached:
@@ -1331,8 +1061,25 @@ class Api:
         try:
             if hasattr(self.window, 'restore'):
                 self.window.restore()
+            if hasattr(self.window, 'show'):
+                self.window.show()
         except Exception as exc:
             logger.debug(f"Failed to restore window before foreground request: {exc}")
+
+        # Windows-specific force show via ctypes (bypasses threading issues)
+        if sys.platform == 'win32':
+            try:
+                # Handle both int HWND and .NET object with Handle property
+                native = self.window.native
+                hwnd = native.Handle if hasattr(native, 'Handle') else native
+                
+                if isinstance(hwnd, int):
+                    # SW_RESTORE = 9
+                    ctypes.windll.user32.ShowWindow(hwnd, 9)
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+                    success = True
+            except Exception as e:
+                logger.debug(f"Failed to force window to front via ctypes: {e}")
 
         for method_name in ('activate', 'bring_to_front', 'focus'):
             if hasattr(self.window, method_name):
@@ -1538,8 +1285,8 @@ class Api:
         }
         return True
 
-    def get_character_stash_previews(self, character_id):
-        return self.stash_manager.get_character_stash_previews(character_id)
+    def get_character_stash_previews(self, character_id, stash_ids=None):
+        return self.stash_manager.get_character_stash_previews(character_id, stash_ids=stash_ids)
 
     def start_capture_switch(self):
         success, state = self.capture_controller.start()
@@ -1754,18 +1501,40 @@ class Api:
                         pass
         except Exception as e:
             logger.error(f"Error stopping packet capture on close: {e}")
+        
+        # Start exit timer as a fallback to ensure shutdown even if UI hangs
+        threading.Timer(2.0, lambda: os._exit(0)).start()
+
         # Remove delay - close immediately
         try:
             if getattr(self, 'tray_manager', None):
                 try:
-                    self.tray_manager.shutdown()
+                    self.tray_manager.stop()
                 except Exception as exc:
                     logger.debug("Tray manager shutdown failed: %s", exc)
+            
             if self.window:
-                self.window.destroy()
+                # Only destroy window if on main thread to avoid GIL/COM issues
+                if threading.current_thread() is threading.main_thread():
+                    self.window.destroy()
+                else:
+                    # If on background thread (e.g. Tray), post a close message to the main thread
+                    try:
+                        if sys.platform == 'win32':
+                            native = self.window.native
+                            hwnd = native.Handle if hasattr(native, 'Handle') else native
+                            if isinstance(hwnd, int):
+                                # WM_CLOSE = 0x0010
+                                ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
+                            else:
+                                # Fallback: just hide and let timer kill it
+                                self.window.minimize()
+                        else:
+                            # Non-Windows fallback
+                            self.window.destroy()
+                    except Exception as e:
+                        logger.debug(f"Failed to post close message: {e}")
         finally:
-            # Ensure the process actually terminates; fallback to hard exit if needed
-            threading.Timer(1.0, lambda: os._exit(0)).start()
             self._capture_shutdown_completed = False
         
     def set_sort_order(self, order):
@@ -1966,18 +1735,26 @@ def api_update_apply():
 
     return jsonify({'started': True})
 
-# Initialize API
-api = Api()
-asset_updater = AssetUpdater(
-    assets_dir=Path(resource_path("")),
-    logger=logger,
-    window_getter=lambda: api.window,
-    on_assets_applied=[api.handle_assets_updated],
-    before_asset_replace={
-        "icons.pak": (icon_store.invalidate_cache,),
-    },
-)
-api.asset_updater = asset_updater
+# Initialize API globals
+api = None
+asset_updater = None
+
+def _init_api():
+    global api, asset_updater
+    if api is not None:
+        return
+
+    api = Api()
+    asset_updater = AssetUpdater(
+        assets_dir=Path(resource_path("")),
+        logger=logger,
+        window_getter=lambda: api.window,
+        on_assets_applied=[api.handle_assets_updated],
+        before_asset_replace={
+            "icons.pak": (icon_store.invalidate_cache,),
+        },
+    )
+    api.asset_updater = asset_updater
 
 # JSON API endpoint
 @server.route('/api/characters')
@@ -1986,7 +1763,11 @@ def api_characters():
 
 @server.route('/api/character/<character_id>/stashes')
 def api_character_stashes(character_id):
-    return jsonify(api.get_character_stash_previews(character_id))
+    stash_ids_param = request.args.get('stashIds')
+    stash_ids = None
+    if stash_ids_param:
+        stash_ids = [segment.strip() for segment in stash_ids_param.split(',') if segment.strip()]
+    return jsonify(api.get_character_stash_previews(character_id, stash_ids=stash_ids))
 
 @server.route('/api/character/<character_id>/details')
 def api_character_details(character_id):
@@ -2241,21 +2022,8 @@ def api_quests_item_holdings():
     if not item_ids:
         return jsonify({'success': False, 'error': 'No valid item ids provided'}), 400
 
-    loot_state_requirements: Dict[str, Optional[Set[int]]] = {}
     try:
-        quests_snapshot = quest_service.fetch_quests()
-        loot_state_requirements = collect_item_loot_state_requirements(quests_snapshot, set(item_ids))
-    except Exception as exc:
-        logger.debug("Unable to resolve loot state requirements for holdings: %s", exc, exc_info=True)
-
-    loot_state_filter = {
-        item_id: values
-        for item_id, values in loot_state_requirements.items()
-        if values
-    }
-
-    try:
-        holdings_map = api.stash_manager.get_item_holdings(item_ids, loot_state_map=loot_state_filter)
+        holdings_map = api.stash_manager.get_item_holdings(item_ids)
     except Exception as exc:
         logger.error("Failed to aggregate quest item holdings: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to calculate holdings'}), 500
@@ -2286,7 +2054,8 @@ def api_quests_item_holdings():
                 stashes_payload.append({
                     'stash_id': stash.get('stash_id'),
                     'count': count_value,
-                    'slot_id': stash.get('slot_id')
+                    'slot_id': stash.get('slot_id'),
+                    'loot_state': stash.get('loot_state')
                 })
 
             characters.append({
@@ -2616,6 +2385,31 @@ def api_set_stack_mode_route():
         logger.error(f"Error updating stack mode: {exc}")
         return jsonify({'success': False, 'error': 'Failed to set stack mode'}), 500
 
+
+@server.route('/api/sort_order', methods=['GET', 'POST'])
+def api_sort_order():
+    """Retrieve or persist the user's preferred stash sort ordering."""
+    if request.method == 'GET':
+        try:
+            return jsonify({'success': True, 'order': api.get_sort_order()})
+        except Exception as exc:
+            logger.error(f"Error retrieving sort order: {exc}")
+            return jsonify({'success': False, 'error': 'Failed to fetch sort order'}), 500
+
+    payload = request.get_json(silent=True) or {}
+    order = payload.get('order')
+    if order is None:
+        return jsonify({'success': False, 'error': 'Missing order payload'}), 400
+
+    try:
+        success = api.set_sort_order(order)
+        if not success:
+            return jsonify({'success': False, 'error': 'Failed to save sort order'}), 500
+        return jsonify({'success': True, 'order': api.get_sort_order()})
+    except Exception as exc:
+        logger.error(f"Error updating sort order: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to persist sort order'}), 500
+
 @server.route('/assets/<path:filename>')
 def serve_file(filename):
     canonical = canonical_icon_path(filename)
@@ -2682,6 +2476,21 @@ def background_init():
 
                 if api.window:
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
+                
+                # Clean up any lingering tshark instances after data is loaded
+                protected_pids = ()
+                try:
+                    capture = getattr(api.capture_controller, 'packet_capture', None)
+                    if capture:
+                        protected_pids = capture.get_active_helper_pids()
+                except Exception as cleanup_err:
+                    logger.debug("Unable to determine active capture PIDs: %s", cleanup_err)
+                schedule_tshark_cleanup(
+                    logger,
+                    api.window,
+                    delay_seconds=1.0,
+                    protected_pids=protected_pids,
+                )
             except Exception as e:
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
@@ -2734,86 +2543,8 @@ def background_init():
             api.window.evaluate_js(
                 f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
             )
-
-def check_tshark():
-    # Check if tshark is in PATH
-    tshark_path = shutil.which("tshark")
-    if not tshark_path:
-        custom_path = resolve_tshark_executable(settings_manager.get('wiresharkPath'))
-        if custom_path:
-            tshark_path = custom_path
-    if not tshark_path:
-        logger.error("❌ tshark is NOT in the system PATH.")
-        return False
-    logger.info(f"✅ tshark is found at: {tshark_path}")
-
-    # Check if tshark can run
-    try:
-        subprocess.run(
-            ["tshark", "--version"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
-        logger.info("✅ tshark runs successfully.")
-        return True
-    except Exception as e:
-        logger.error(f"❌ tshark was found but failed to run: {e}")
-        return False
-
-
-@server.route('/api/check_npcap')
-def check_npcap():
-    return jsonify({'installed': check_tshark()})
-
-# Cache for market price data
-market_price_cache = {}
-PRICE_CACHE_EXPIRY = 600  # 10 minutes in seconds
-
-@server.route('/api/market/price/<item_id>')
-def proxy_market_price(item_id):
-    """Proxy endpoint to fetch market price from dndtools.rrmtools.uk and avoid CORS issues."""
-    global market_price_cache
-    current_time = time.time()
-    
-    # Check if we have a cached response that's still valid
-    if item_id in market_price_cache:
-        cached_data = market_price_cache[item_id]
-        if current_time - cached_data['timestamp'] < PRICE_CACHE_EXPIRY:
-            return jsonify(cached_data['data'])
-    
-    # No valid cache, fetch from API
-    try:
-        url = f'https://dndtools.rrmtools.uk/api/market/price/{item_id}'
-        headers = {"X-Requested-With": "DnDTools"}
-        resp = requests.get(url, headers=headers, timeout=5)
-        
-        if resp.ok:
-            # Parse JSON to ensure it's valid before caching
-            data = resp.json()
-            # Store in cache with timestamp
-            market_price_cache[item_id] = {
-                'timestamp': current_time,
-                'data': data
-            }
-            return jsonify(data)
-        else:
-            # Return error response without caching
-            return (resp.content, resp.status_code, {'Content-Type': resp.headers.get('Content-Type', 'application/json')})
-    except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@server.route('/api/sort_order', methods=['GET', 'POST'])
-def api_sort_order():
-    if request.method == 'GET':
-        return jsonify({'success': True, 'order': api.get_sort_order()})
-
-    data = request.get_json() or {}
-    success = api.set_sort_order(data.get('order'))
-    response = {'success': success, 'order': api.get_sort_order()}
-    return (jsonify(response), 200) if success else (jsonify(response), 500)
-
 def main():
+    multiprocessing.freeze_support()
     # --- Updater logic ---
     if len(sys.argv) >= 3 and sys.argv[1] == "/update":
         # Instead of replacing the exe, just start a new instance and exit
@@ -2827,6 +2558,9 @@ def main():
     # Using the global time module
     start_time = time.time()
     logger.info("Starting DnDTools application")
+
+    # Initialize API context (prevents side effects in multiprocessing workers)
+    _init_api()
     
     # Preload only essential settings for faster startup
     SettingsManager.migrate_from_legacy(logger=logger, defer_heavy_operations=True)

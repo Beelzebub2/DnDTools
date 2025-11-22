@@ -246,6 +246,20 @@
         hideLockedQuests: false
     };
 
+    let globalRenderTimeout = null;
+    const scheduleGlobalRender = () => {
+        if (globalRenderTimeout) {
+            window.clearTimeout(globalRenderTimeout);
+        }
+        globalRenderTimeout = window.setTimeout(() => {
+            globalRenderTimeout = null;
+            renderMerchantView();
+            if (state.itemsLoaded) {
+                renderItemsList();
+            }
+        }, 500);
+    };
+
     // Load archived completed quests from localStorage (if any)
     const loadArchivedCompletedQuests = () => {
         if (typeof window === 'undefined' || !window.localStorage) return [];
@@ -418,22 +432,10 @@
         return stringValue.replace(/[^a-zA-Z0-9_-]/g, match => `\\${match}`);
     };
 
-    const updateOwnedLabels = (itemId, total) => {
-        if (!itemId) {
-            return;
-        }
-        const numericTotal = Number(total);
-        const sanitizedTotal = Number.isFinite(numericTotal) ? numericTotal : 0;
-        const selector = `.item-owned-value[data-item-id="${cssEscape(itemId)}"]`;
-        document.querySelectorAll(selector).forEach(node => {
-            node.textContent = sanitizedTotal;
-        });
-    };
-
     const holdingsPrefetchQueue = new Set();
     let holdingsPrefetchInFlight = false;
 
-    const getCachedHoldingsTotal = (itemId) => {
+    const getCachedHoldingsTotal = (itemId, allowedLootStates = null) => {
         if (!itemId) {
             return null;
         }
@@ -441,8 +443,51 @@
         if (!cached || !cached.data) {
             return null;
         }
-        const total = Number(cached.data.total);
-        return Number.isFinite(total) ? total : 0;
+
+        if (!allowedLootStates) {
+            const total = Number(cached.data.total);
+            return Number.isFinite(total) ? total : 0;
+        }
+
+        let filteredTotal = 0;
+        const characters = Array.isArray(cached.data.characters) ? cached.data.characters : [];
+        characters.forEach(char => {
+            const stashes = Array.isArray(char.stashes) ? char.stashes : [];
+            stashes.forEach(stash => {
+                const count = Number(stash.count) || 0;
+                if (count <= 0) return;
+
+                const lootState = stash.loot_state !== undefined ? Number(stash.loot_state) : null;
+                if (allowedLootStates.has(lootState)) {
+                    filteredTotal += count;
+                }
+            });
+        });
+        return filteredTotal;
+    };
+
+    const updateOwnedLabels = (itemId) => {
+        if (!itemId) {
+            return;
+        }
+        const selector = `.item-owned-value[data-item-id="${cssEscape(itemId)}"]`;
+        document.querySelectorAll(selector).forEach(node => {
+            const filterRaw = node.dataset.lootFilter;
+            let allowedLootStates = null;
+            if (filterRaw) {
+                try {
+                    const parsed = JSON.parse(filterRaw);
+                    if (Array.isArray(parsed)) {
+                        allowedLootStates = new Set(parsed.map(Number));
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            const total = getCachedHoldingsTotal(itemId, allowedLootStates);
+            node.textContent = total !== null ? total : '—';
+        });
     };
 
     const isHoldingsCacheFresh = (itemId) => {
@@ -477,7 +522,7 @@
             }
             const cachedTotal = getCachedHoldingsTotal(normalized);
             if (cachedTotal !== null) {
-                updateOwnedLabels(normalized, cachedTotal);
+                updateOwnedLabels(normalized);
             }
             if (isHoldingsCacheFresh(normalized)) {
                 return;
@@ -520,7 +565,7 @@
                             data: summary,
                             timestamp: now
                         };
-                        updateOwnedLabels(id, Number(summary.total) || 0);
+                        updateOwnedLabels(id);
                         if (state.itemsOwnedFirst) {
                             shouldRerenderItems = true;
                         }
@@ -604,6 +649,60 @@
         } else {
             state.progress.objectives[key] = record;
         }
+
+        schedulePersistProgress(state.progress);
+        scheduleServerPersistProgress();
+    };
+
+    const distributeItemProgress = (itemId, totalValue) => {
+        if (!itemId) {
+            return;
+        }
+
+        // Clear manual override first
+        if (state.progress.items && state.progress.items[itemId] !== undefined) {
+            delete state.progress.items[itemId];
+        }
+
+        const sanitizedTotal = Math.max(0, Number(totalValue) || 0);
+        let remainingToDistribute = sanitizedTotal;
+
+        // Find all active objectives for this item
+        const targets = [];
+        state.quests.forEach(quest => {
+            if (!quest.objectives) return;
+            quest.objectives.forEach((obj, index) => {
+                if (obj.type === 'Fetch' && obj.item_id === itemId && obj.count > 0) {
+                    targets.push({ quest, obj, index });
+                }
+            });
+        });
+
+        // Sort targets? Maybe by quest ID to be deterministic
+        targets.sort((a, b) => {
+            const qA = String(a.quest.id || '');
+            const qB = String(b.quest.id || '');
+            return qA.localeCompare(qB) || (a.index - b.index);
+        });
+
+        targets.forEach(({ quest, obj, index }) => {
+            const key = makeObjectiveKey(quest, index, obj);
+            const needed = obj.count;
+            const take = Math.min(needed, remainingToDistribute);
+
+            const completed = take >= needed;
+
+            setObjectiveProgress(key, {
+                quest_id: quest.id,
+                objective_index: index,
+                type: obj.type,
+                item_id: obj.item_id,
+                submitted: take,
+                completed: completed
+            });
+
+            remainingToDistribute -= take;
+        });
 
         schedulePersistProgress(state.progress);
         scheduleServerPersistProgress();
@@ -1218,12 +1317,14 @@
             viewMode = 'active',
             objectivesOverride,
             isLocked = false,
-            lockedPrerequisites = []
+            lockedPrerequisites = [],
+            index = 0
         } = options;
         const objectivesToRender = objectivesOverride || quest.objectives || [];
 
         const card = document.createElement('article');
         card.className = 'quest-card';
+        card.style.animationDelay = `${index * 50}ms`;
 
         if (isLocked) {
             card.classList.add('quest-card--locked');
@@ -1300,6 +1401,12 @@
             const content = document.createElement('div');
             content.className = 'objective-content';
 
+            const headerRow = document.createElement('div');
+            headerRow.className = 'objective-header';
+
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'objective-title';
+
             let titleText = '';
             if (obj.type === 'Fetch') {
                 const targetName = obj.item && obj.item.name ? obj.item.name : (obj.item_id || 'Unknown Item');
@@ -1316,7 +1423,21 @@
                 titleText = `${obj.type || 'Objective'} – ${obj.count || 0}`;
             }
 
-            content.innerHTML = `<strong>${titleText}</strong>`;
+            titleDiv.innerHTML = `<strong>${titleText}</strong>`;
+            headerRow.appendChild(titleDiv);
+
+            const toggleLabel = document.createElement('label');
+            toggleLabel.className = 'objective-progress-toggle';
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.checked = objectiveCompleted;
+            const toggleText = document.createElement('span');
+            toggleText.textContent = 'Completed';
+            toggleLabel.appendChild(checkbox);
+            toggleLabel.appendChild(toggleText);
+            headerRow.appendChild(toggleLabel);
+
+            content.appendChild(headerRow);
 
             if (obj.item && obj.item.rarity) {
                 const rarity = document.createElement('span');
@@ -1338,17 +1459,6 @@
             const progressContainer = document.createElement('div');
             progressContainer.className = 'objective-progress';
 
-            const toggleLabel = document.createElement('label');
-            toggleLabel.className = 'objective-progress-toggle';
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.checked = objectiveCompleted;
-            const toggleText = document.createElement('span');
-            toggleText.textContent = 'Completed';
-            toggleLabel.appendChild(checkbox);
-            toggleLabel.appendChild(toggleText);
-            progressContainer.appendChild(toggleLabel);
-
             const updateCompletionClass = () => {
                 item.classList.toggle('completed', checkbox.checked);
             };
@@ -1367,10 +1477,7 @@
 
             const rerenderMerchantAndItems = (animationClass) => {
                 const performRenders = () => {
-                    renderMerchantView();
-                    if (state.itemsLoaded) {
-                        renderItemsList();
-                    }
+                    scheduleGlobalRender();
                 };
 
                 if (animationClass && item && item.isConnected) {
@@ -1470,6 +1577,7 @@
                 fetchInput.addEventListener('input', (event) => handleFetchInput(event.target.value));
 
                 progressContainer.appendChild(countWrapper);
+                content.appendChild(progressContainer);
             }
 
             checkbox.addEventListener('change', () => {
@@ -1706,12 +1814,13 @@
         }
 
         const fragment = document.createDocumentFragment();
-        questsForView.forEach(({ quest, objectives, isLocked, lockedPrerequisites }) => {
+        questsForView.forEach(({ quest, objectives, isLocked, lockedPrerequisites }, index) => {
             fragment.appendChild(createQuestCard(quest, {
                 viewMode,
                 objectivesOverride: objectives,
                 isLocked,
-                lockedPrerequisites
+                lockedPrerequisites,
+                index
             }));
         });
         elements.questList.innerHTML = '';
@@ -1783,26 +1892,30 @@
         const dialogWidth = dialogRect.width || dialog.offsetWidth || 0;
         const dialogHeight = dialogRect.height || dialog.offsetHeight || 0;
 
-        let top;
-        let left;
+        // Horizontal: Always center
+        let left = (viewportWidth - dialogWidth) / 2;
+
+        // Vertical: Start with center
+        let top = (viewportHeight - dialogHeight) / 2;
 
         if (anchorRect) {
-            const spaceBelow = viewportHeight - anchorRect.bottom;
-            const showBelow = spaceBelow >= dialogHeight + margin || anchorRect.top <= margin;
-            if (showBelow) {
-                top = anchorRect.bottom + margin;
-            } else {
-                top = anchorRect.top - dialogHeight - margin;
-            }
+            // Check for vertical overlap
+            // Overlap if dialog top < anchor bottom AND dialog bottom > anchor top
+            const dialogBottom = top + dialogHeight;
+            const overlaps = top < anchorRect.bottom && dialogBottom > anchorRect.top;
 
-            if (top < margin) {
-                top = margin;
-            }
+            if (overlaps) {
+                const itemCenterY = anchorRect.top + (anchorRect.height / 2);
+                const isTopHalf = itemCenterY < (viewportHeight / 2);
 
-            left = anchorRect.left + (anchorRect.width / 2) - (dialogWidth / 2);
-        } else {
-            top = (viewportHeight - dialogHeight) / 2;
-            left = (viewportWidth - dialogWidth) / 2;
+                if (isTopHalf) {
+                    // Item is in top half, push dialog below
+                    top = anchorRect.bottom + margin;
+                } else {
+                    // Item is in bottom half, push dialog above
+                    top = anchorRect.top - dialogHeight - margin;
+                }
+            }
         }
 
         if (left < margin) {
@@ -1812,11 +1925,11 @@
             left = Math.max(margin, viewportWidth - dialogWidth - margin);
         }
 
-        if (dialogHeight && top + dialogHeight > viewportHeight - margin) {
-            top = Math.max(margin, viewportHeight - dialogHeight - margin);
-        }
         if (top < margin) {
             top = margin;
+        }
+        if (top + dialogHeight > viewportHeight - margin) {
+            top = Math.max(margin, viewportHeight - dialogHeight - margin);
         }
 
         state.activeHoldingsAnchor = anchorRect;
@@ -2058,7 +2171,7 @@
         }
     };
 
-    const renderItemHoldingsModal = (item, summary) => {
+    const renderItemHoldingsModal = (item, summary, allowedLootStates = null) => {
         if (!elements.itemHoldingsBody || !elements.itemHoldingsSummary) {
             return;
         }
@@ -2069,12 +2182,49 @@
             elements.itemHoldingsTitle.textContent = `${itemName} Holdings`;
         }
 
-        const total = Number(summary && summary.total);
-        const totalValue = Number.isFinite(total) ? total : 0;
-        elements.itemHoldingsSummary.innerHTML = `Total owned across captured characters: <strong>${totalValue}</strong>`;
-        updateOwnedLabels(itemId, totalValue);
+        // Default to Looted (2) if no filter provided, to match character view behavior
+        const effectiveAllowedLootStates = (allowedLootStates && allowedLootStates.length > 0)
+            ? allowedLootStates
+            : [2];
 
-        const characters = Array.isArray(summary && summary.characters) ? summary.characters : [];
+        const allowedSet = new Set(effectiveAllowedLootStates.map(Number));
+
+        let totalValue = 0;
+        let characters = [];
+
+        if (summary) {
+            const rawCharacters = Array.isArray(summary.characters) ? summary.characters : [];
+
+            rawCharacters.forEach(char => {
+                let charTotal = 0;
+                const stashes = Array.isArray(char.stashes) ? char.stashes : [];
+                const filteredStashes = [];
+
+                stashes.forEach(stash => {
+                    const count = Number(stash.count) || 0;
+                    if (count <= 0) return;
+
+                    const lootState = stash.loot_state !== undefined ? Number(stash.loot_state) : null;
+                    if (allowedSet.has(lootState)) {
+                        charTotal += count;
+                        filteredStashes.push(stash);
+                    }
+                });
+
+                if (charTotal > 0) {
+                    totalValue += charTotal;
+                    characters.push({
+                        ...char,
+                        total: charTotal,
+                        stashes: filteredStashes
+                    });
+                }
+            });
+        }
+
+        elements.itemHoldingsSummary.innerHTML = `Total owned across captured characters: <strong>${totalValue}</strong>`;
+        updateOwnedLabels(itemId);
+
         if (!characters.length) {
             elements.itemHoldingsBody.innerHTML = '<div class="item-holdings-empty">No captured characters currently hold this item.</div>';
             scheduleHoldingsPositionUpdate();
@@ -2115,7 +2265,7 @@
         const now = Date.now();
         const cached = state.itemHoldingsCache[normalizedId];
         if (cached && (now - cached.timestamp) < HOLDINGS_CACHE_TTL) {
-            updateOwnedLabels(normalizedId, cached.data && cached.data.total);
+            updateOwnedLabels(normalizedId);
             return cached.data;
         }
 
@@ -2144,11 +2294,11 @@
             data: summary,
             timestamp: now
         };
-        updateOwnedLabels(normalizedId, summary.total || 0);
+        updateOwnedLabels(normalizedId);
         return summary;
     };
 
-    const openItemHoldingsModal = (item, triggerElement) => {
+    const openItemHoldingsModal = (item, triggerElement, allowedLootStates = null) => {
         if (!elements.itemHoldingsModal || !elements.itemHoldingsOverlay) {
             return;
         }
@@ -2186,7 +2336,7 @@
                 if (state.activeHoldingsItemId !== itemId) {
                     return;
                 }
-                renderItemHoldingsModal({ item_id: itemId, name: itemName }, summary);
+                renderItemHoldingsModal({ item_id: itemId, name: itemName }, summary, allowedLootStates);
             })
             .catch((error) => {
                 console.error('Failed to load item holdings', error);
@@ -2263,6 +2413,15 @@
             let totalFromQuests = 0;
             let visibleTotalFromQuests = 0;
 
+            const allowedLootStates = new Set();
+            const pushAllowedLootState = (value) => {
+                const numeric = Number(value);
+                if (Number.isFinite(numeric)) {
+                    allowedLootStates.add(numeric);
+                }
+            };
+            const DEFAULT_LOOT_STATE = 2;
+
             questEntries.forEach((entry) => {
                 const questKey = resolveQuestKeyFromEntry(entry);
                 if (questKey) {
@@ -2272,6 +2431,13 @@
                 const countValue = Number(entry.count ?? entry.total ?? entry.quantity ?? entry.requirement ?? entry.amount) || 0;
                 totalFromQuests += countValue;
                 const questTitle = entry.title || entry.quest_title || entry.questTitle || entry.name || entry.id || questKey;
+
+                const lootStateValues = entry.loot_state_values;
+                if (Array.isArray(lootStateValues) && lootStateValues.length > 0) {
+                    lootStateValues.forEach(value => pushAllowedLootState(value));
+                } else {
+                    pushAllowedLootState(DEFAULT_LOOT_STATE);
+                }
 
                 if (locked) {
                     lockedQuestCount += 1;
@@ -2311,6 +2477,10 @@
                 ? visibleQuests.map(entry => entry.questKey).filter(Boolean)
                 : allQuestIds.filter(Boolean);
 
+            const finalAllowedLootStates = allowedLootStates.size > 0
+                ? Array.from(allowedLootStates).sort((a, b) => a - b)
+                : null;
+
             return {
                 totalRequired: Math.max(0, Number.isFinite(effectiveTotal) ? effectiveTotal : 0),
                 visibleQuests,
@@ -2319,7 +2489,8 @@
                 lockedQuestCount,
                 hasQuestAssociations: questEntries.length > 0,
                 isFullyLocked: hideLocked && questEntries.length > 0 && visibleQuests.length === 0 && lockedQuestCount > 0,
-                allowedQuestIds: allowedQuestIds.length ? allowedQuestIds : null
+                allowedQuestIds: allowedQuestIds.length ? allowedQuestIds : null,
+                allowedLootStates: finalAllowedLootStates
             };
         };
 
@@ -2366,7 +2537,19 @@
         const itemsWithIndex = processedItems.map(({ item, summary }, index) => ({ item, summary, index }));
         if (state.itemsOwnedFirst) {
             itemsWithIndex.sort((a, b) => {
-                const ownedDiff = getOwnedTotalForItem(b.item) - getOwnedTotalForItem(a.item);
+                const getEffectiveOwned = (entry) => {
+                    const itemId = entry.item.item_id || entry.item.itemId || '';
+                    let allowedSet = null;
+                    if (entry.summary.allowedLootStates && entry.summary.allowedLootStates.length > 0) {
+                        allowedSet = new Set(entry.summary.allowedLootStates);
+                    } else {
+                        allowedSet = new Set([2]);
+                    }
+                    const total = getCachedHoldingsTotal(itemId, allowedSet);
+                    return total !== null ? total : 0;
+                };
+
+                const ownedDiff = getEffectiveOwned(b) - getEffectiveOwned(a);
                 if (ownedDiff !== 0) {
                     return ownedDiff;
                 }
@@ -2377,11 +2560,12 @@
         const fragment = document.createDocumentFragment();
         const visibleItemIds = [];
 
-        itemsWithIndex.forEach(({ item, summary }) => {
+        itemsWithIndex.forEach(({ item, summary }, displayIndex) => {
             const itemIdentifier = item.item_id || item.itemId || '';
             const normalizedItem = { ...item, item_id: itemIdentifier };
             const row = document.createElement('div');
             row.className = 'quest-item';
+            row.style.animationDelay = `${displayIndex * 30}ms`;
 
             const totalRequired = Number(summary.totalRequired) || 0;
             const maxValue = totalRequired > 0 ? totalRequired : Number.MAX_SAFE_INTEGER;
@@ -2472,10 +2656,19 @@
             ownedLabel.textContent = 'Owned: ';
             const ownedValue = document.createElement('span');
             ownedValue.className = 'item-owned-value';
+
+            if (summary.allowedLootStates) {
+                ownedValue.dataset.lootFilter = JSON.stringify(summary.allowedLootStates);
+            }
+
             let cachedOwnedTotal = null;
             if (itemIdentifier) {
                 ownedValue.dataset.itemId = itemIdentifier;
-                cachedOwnedTotal = getCachedHoldingsTotal(itemIdentifier);
+                let allowedSet = null;
+                if (summary.allowedLootStates) {
+                    allowedSet = new Set(summary.allowedLootStates);
+                }
+                cachedOwnedTotal = getCachedHoldingsTotal(itemIdentifier, allowedSet);
             }
             ownedValue.textContent = cachedOwnedTotal !== null ? cachedOwnedTotal : '—';
             ownedLabel.appendChild(ownedValue);
@@ -2490,7 +2683,7 @@
                 holdingsButton.disabled = true;
                 holdingsButton.title = 'Item identifier unavailable';
             } else {
-                holdingsButton.addEventListener('click', (event) => openItemHoldingsModal(normalizedItem, event.currentTarget || holdingsButton));
+                holdingsButton.addEventListener('click', (event) => openItemHoldingsModal(normalizedItem, event.currentTarget || holdingsButton, summary.allowedLootStates));
             }
             holdingsBar.appendChild(holdingsButton);
 
@@ -2499,7 +2692,7 @@
             if (itemIdentifier) {
                 visibleItemIds.push(itemIdentifier);
                 if (cachedOwnedTotal !== null) {
-                    updateOwnedLabels(itemIdentifier, cachedOwnedTotal);
+                    updateOwnedLabels(itemIdentifier);
                 }
             }
 
@@ -2509,22 +2702,24 @@
             };
 
             const refreshFromState = () => {
+                // We no longer use manual overrides for display in this mode, 
+                // but we check if one exists just in case legacy data is present.
                 const manual = getManualItemProgress(normalizedItem.item_id);
                 const auto = getObjectiveSubmissionsForItem(normalizedItem.item_id, { allowedQuestIds });
+
+                // If we have a manual override, we might want to respect it for display, 
+                // but our new logic prefers auto-distribution. 
+                // For now, let's show the auto-tracked value which reflects the distributed amount.
+
                 const autoDisplay = totalRequired > 0 ? Math.min(auto, totalRequired) : auto;
-                const effective = manual !== undefined ? clampNumber(manual, 0, maxValue) : clampNumber(auto, 0, maxValue);
+                const effective = auto; // Always use auto-tracked value as source of truth
+
                 const submittedValue = Number.isFinite(effective) ? effective : 0;
                 const hintParts = [];
-                if (manual !== undefined) {
-                    progressInput.value = submittedValue;
-                    hintParts.push(`Manual override • Auto-tracked: ${autoDisplay}`);
-                } else {
-                    progressInput.value = submittedValue > 0 ? submittedValue : '';
-                    hintParts.push(`Auto-tracked from objectives: ${autoDisplay}`);
-                }
-                if (Array.isArray(item.loot_state_requirements) && item.loot_state_requirements.length) {
-                    hintParts.push(`Counts loot-state: ${item.loot_state_requirements.join(', ')}`);
-                }
+
+                progressInput.value = submittedValue > 0 ? submittedValue : '';
+                hintParts.push(`Tracked across objectives: ${autoDisplay}`);
+
                 if (hideLocked && summary.hiddenQuestCount > 0) {
                     hintParts.push(`${summary.hiddenQuestCount} locked quest${summary.hiddenQuestCount === 1 ? '' : 's'} hidden`);
                 }
@@ -2538,16 +2733,16 @@
 
             const handleItemInput = (rawValue) => {
                 if (rawValue === '') {
-                    setItemProgress(normalizedItem.item_id, '');
-                    refreshFromState();
+                    distributeItemProgress(normalizedItem.item_id, 0);
+                    scheduleGlobalRender(); // Re-render everything to update quest cards
                     return;
                 }
                 const clamped = clampNumber(rawValue, 0, maxValue);
                 if (!Number.isFinite(clamped)) {
                     return;
                 }
-                setItemProgress(normalizedItem.item_id, clamped);
-                refreshFromState();
+                distributeItemProgress(normalizedItem.item_id, clamped);
+                scheduleGlobalRender(); // Re-render everything to update quest cards
             };
 
             progressInput.addEventListener('input', (event) => handleItemInput(event.target.value));
@@ -2677,7 +2872,8 @@
                     merchantMapNorm.get(key).push(q);
                 });
 
-                // Filter: only include merchants that have at least one non-time-limited quest
+                // Filter: only include merchants that have at least one non-time-limited
+                // quest
                 const frequencyRegex = /\b(daily|weekly|seasonal|season)\b/i;
                 const visibleMerchants = allMerchants.filter(m => {
                     if (!m) return false;
@@ -2842,7 +3038,7 @@
                 if (elements.clearItemSearch) {
                     elements.clearItemSearch.classList.toggle('visible', Boolean(state.itemSearch));
                 }
-                renderItemsList();
+                scheduleGlobalRender();
             });
         }
 

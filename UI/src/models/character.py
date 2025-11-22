@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from google.protobuf.json_format import MessageToJson
 from networking.protos import _Defins_pb2
-from .appdirs import get_data_dir
+from .appdirs import get_characters_dir
 import logging
 logger = logging.getLogger(__name__)
 
@@ -17,7 +17,7 @@ def policy(message):
 SHARED_STASH_IDS = {20, 30}
 SHARED_STASH_ID_STRINGS = {str(stash_id) for stash_id in SHARED_STASH_IDS}
 
-data_dir = get_data_dir()
+data_dir = get_characters_dir()
 os.makedirs(data_dir, exist_ok=True)
 
 

@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearCharacterDataButton = document.getElementById('clearCharacterData');
     const includeDevCheckbox = document.getElementById('includeDevReleases');
     const closeToTrayCheckbox = document.getElementById('closeToTrayEnabled');
+    const developerModeCheckbox = document.getElementById('developerMode');
     const saveButton = document.getElementById('saveSettings');
     const resetButton = document.getElementById('resetSettings');
     const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
@@ -26,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isApplyingSettings = false;
     let isDirty = false;
     let changeCheckScheduled = false;
-    const AUTOSAVE_DEBOUNCE_MS = 800;
+    const AUTOSAVE_DEBOUNCE_MS = 200;
     let autosaveTimerId = null;
     let autoSaveInFlight = false;
     let autoSaveQueued = false;
@@ -39,7 +40,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         resolution: 'Game Resolution',
         wiresharkPath: 'Wireshark Path',
         includeDevReleases: 'Development Builds Opt-In',
-        closeToTrayEnabled: 'Close to Tray'
+        closeToTrayEnabled: 'Close to Tray',
+        developerMode: 'Developer Mode'
     };
 
     function updateSaveButtonState() {
@@ -59,12 +61,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const beforeUnloadHandler = (event) => {
-        if (!isDirty) {
-            return undefined;
-        }
-        event.preventDefault();
-        event.returnValue = '';
-        return '';
+        // Save on exit popup disabled to prevent user confusion
+        return undefined;
     };
 
     window.addEventListener('beforeunload', beforeUnloadHandler);
@@ -128,6 +126,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         tabButtons.forEach((button) => {
             button.addEventListener('click', (event) => {
                 event.preventDefault();
+                // Force immediate save when switching settings tabs
+                if (isDirty) {
+                    scheduleAutoSave({ immediate: true });
+                }
                 const tabId = button.dataset.tab;
                 activateTab(tabId, { scrollIntoView: true });
             });
@@ -166,7 +168,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             includeDevReleases: normalizeBoolean(settings.includeDevReleases),
             closeToTrayEnabled: normalizeBoolean(
                 settings.closeToTrayEnabled === undefined ? true : settings.closeToTrayEnabled
-            )
+            ),
+            developerMode: normalizeBoolean(settings.developerMode)
         };
     }
 
@@ -179,7 +182,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: settings.resolution || 'Auto',
             wiresharkPath: settings.wiresharkPath || '',
             includeDevReleases: Boolean(settings.includeDevReleases),
-            closeToTrayEnabled: settings.closeToTrayEnabled !== false
+            closeToTrayEnabled: settings.closeToTrayEnabled !== false,
+            developerMode: Boolean(settings.developerMode)
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -196,7 +200,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
-            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true
+            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
+            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false
         };
     }
 
@@ -270,6 +275,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             scheduleAutoSave();
         }
         updateSaveButtonState();
+    }
+
+    function syncDeveloperModeFlag(enabled) {
+        try {
+            if (typeof window.setDeveloperModeEnabled === 'function') {
+                window.setDeveloperModeEnabled(Boolean(enabled));
+            } else {
+                window.developerModeEnabled = Boolean(enabled);
+            }
+        } catch (error) {
+            console.warn('Failed to sync developer mode flag', error);
+            window.developerModeEnabled = Boolean(enabled);
+        }
     }
 
     function evaluateUnsavedChanges() {
@@ -361,16 +379,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function setupUnsavedChangesGuard() {
         window.unsavedChangesGuard = {
-            shouldPrompt: () => isDirty,
+            shouldPrompt: () => false,
             requestNavigation: (href) => {
-                showUnsavedPrompt(() => navigateTo(href), 'navigation');
+                navigateTo(href);
             },
             requestClose: (proceed) => {
-                showUnsavedPrompt(() => {
-                    if (typeof proceed === 'function') {
-                        proceed();
-                    }
-                }, 'close');
+                if (typeof proceed === 'function') {
+                    proceed();
+                }
             }
         };
     }
@@ -477,11 +493,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (closeToTrayCheckbox) {
                 closeToTrayCheckbox.checked = currentSettings.closeToTrayEnabled !== false;
             }
+
+            if (developerModeCheckbox) {
+                developerModeCheckbox.checked = Boolean(currentSettings.developerMode);
+            }
         });
 
         runWithApplyingFlag(() => {
             applyNoDelayUIState();
         });
+
+        syncDeveloperModeFlag(Boolean(currentSettings.developerMode));
 
         if (typeof window.setCloseToTrayEnabled === 'function') {
             window.setCloseToTrayEnabled(currentSettings.closeToTrayEnabled !== false);
@@ -786,7 +808,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 text-align: center;
                 z-index: 1000;
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(228, 200, 105, 0.3);
+                box-shadow: 0 4px 12px rgba(207, 163, 70, 0.3);
                 animation: slideDown 0.2s ease;
             `;
 
@@ -835,7 +857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         function startRecording() {
             isRecording = true;
             pressedKeys.clear();
-            input.style.backgroundColor = 'rgba(228, 200, 105, 0.1)';
+            input.style.backgroundColor = 'rgba(207, 163, 70, 0.1)';
             input.style.borderColor = 'var(--accent-gold)';
             input.value = '';
             updateFeedback('Press keys... (release all to save)');
@@ -1064,7 +1086,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
-            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true
+            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
+            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false
         };
 
         if (!newSettings.interface) {
@@ -1362,7 +1385,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : '',
             includeDevReleases: false,
             closeToTrayEnabled: true,
-            noDelay: false
+            noDelay: false,
+            developerMode: false
         };
     }
 
@@ -1385,6 +1409,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (closeToTrayCheckbox) {
                 closeToTrayCheckbox.checked = defaults.closeToTrayEnabled !== false;
             }
+
+            if (developerModeCheckbox) {
+                developerModeCheckbox.checked = Boolean(defaults.developerMode);
+            }
         });
 
         lastManualSortSpeed = defaults.sortSpeed;
@@ -1396,6 +1424,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof window.setCloseToTrayEnabled === 'function') {
             window.setCloseToTrayEnabled(defaults.closeToTrayEnabled !== false);
         }
+
+        syncDeveloperModeFlag(Boolean(defaults.developerMode));
 
         evaluateUnsavedChanges();
     }
@@ -1515,7 +1545,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: resolutionSelect, events: ['change'] },
         { element: wiresharkPathInput, events: ['input', 'change'] },
         { element: includeDevCheckbox, events: ['change'] },
-        { element: closeToTrayCheckbox, events: ['change'] }
+        { element: closeToTrayCheckbox, events: ['change'] },
+        { element: developerModeCheckbox, events: ['change'] }
     ];
 
     trackableElements
@@ -1533,6 +1564,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
     setupUnsavedChangesGuard();
+
+    // Save immediately when the user switches browser tabs or minimizes the window
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && isDirty) {
+            scheduleAutoSave({ immediate: true });
+        }
+    });
+
+    // Also save when the window loses focus (e.g. Alt+Tab)
+    window.addEventListener('blur', () => {
+        if (isDirty) {
+            scheduleAutoSave({ immediate: true });
+        }
+    });
 
     window.addEventListener('unload', () => {
         window.unsavedChangesGuard = null;

@@ -1,8 +1,9 @@
 import os
 import sys
-import logging
-import tempfile
 import shutil
+import logging
+from pathlib import Path
+import platform
 
 def is_frozen():
     return globals().get("__compiled__", False) or hasattr(sys, 'frozen') or hasattr(sys, '_MEIPASS')
@@ -66,6 +67,67 @@ def get_data_dir():
     data_dir = os.path.join(get_appdata_dir(), 'data')
     os.makedirs(data_dir, exist_ok=True)
     return data_dir
+
+def get_quests_dir():
+    quests_dir = os.path.join(get_data_dir(), 'quests')
+    os.makedirs(quests_dir, exist_ok=True)
+    return quests_dir
+
+def get_characters_dir():
+    chars_dir = os.path.join(get_data_dir(), 'characters')
+    os.makedirs(chars_dir, exist_ok=True)
+    return chars_dir
+
+def migrate_data_files():
+    """Move files from old flat data structure to new subdirectories."""
+    data_dir = get_data_dir()
+    quests_dir = get_quests_dir()
+    chars_dir = get_characters_dir()
+    
+    # Quest files to move
+    quest_files = ['quests_cache.json', 'quests_progress.json']
+    
+    try:
+        # Move quest files
+        for filename in quest_files:
+            src = os.path.join(data_dir, filename)
+            dst = os.path.join(quests_dir, filename)
+            if os.path.exists(src) and not os.path.exists(dst):
+                try:
+                    shutil.move(src, dst)
+                    logging.getLogger(__name__).info(f"Migrated {filename} to quests directory")
+                except Exception as e:
+                    logging.getLogger(__name__).error(f"Failed to migrate {filename}: {e}")
+
+        # Move character files (all other .json files)
+        # We iterate over the data_dir and move any .json file that isn't a quest file
+        # and isn't in a subdirectory (os.listdir only lists immediate children)
+        for filename in os.listdir(data_dir):
+            src = os.path.join(data_dir, filename)
+            
+            # Skip directories
+            if os.path.isdir(src):
+                continue
+                
+            # Only process .json files
+            if not filename.lower().endswith('.json'):
+                continue
+                
+            # Skip files we just moved or are about to move (though they should be gone if moved)
+            if filename in quest_files:
+                continue
+                
+            # Move to characters directory
+            dst = os.path.join(chars_dir, filename)
+            if not os.path.exists(dst):
+                try:
+                    shutil.move(src, dst)
+                    logging.getLogger(__name__).info(f"Migrated {filename} to characters directory")
+                except Exception as e:
+                    logging.getLogger(__name__).error(f"Failed to migrate {filename}: {e}")
+                    
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Error during data migration: {e}")
 
 def get_output_dir():
     output_dir = os.path.join(get_appdata_dir(), 'output')

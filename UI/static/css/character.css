@@ -1,15 +1,15 @@
 /* Character Page Variables */
 :root {
-    --accent-gold: #e4c869;
-    --accent-brown: #8b6914;
-    --bg-dark: #1a1a1a;
-    --bg-secondary: #2a2118;
-    --bg-tertiary: #3a2d1e;
-    --border-color: #4a3a2a;
-    --text-primary: #f0f0f0;
-    --text-secondary: #c0c0c0;
-    --text-muted: #888;
-    --hover-color: rgba(228, 200, 105, 0.1);
+    --accent-gold: #cfa346;
+    --accent-brown: #5a4a3a;
+    --bg-dark: #0b0b0b;
+    --bg-secondary: #141414;
+    --bg-tertiary: #1a1a1a;
+    --border-color: #2a2a2a;
+    --text-primary: #e6e6e6;
+    --text-secondary: #888888;
+    --text-muted: #555;
+    --hover-color: rgba(207, 163, 70, 0.1);
 }
 
 /* Character Hero Section */
@@ -17,7 +17,7 @@
     display: flex;
     align-items: center;
     gap: 2rem;
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(36, 28, 23, 0.8) 100%);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(20, 20, 20, 0.8) 100%);
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 2rem;
@@ -177,7 +177,7 @@
 
 /* Stash Section Header */
 .stash-section-header {
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(36, 28, 23, 0.8) 100%);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(20, 20, 20, 0.8) 100%);
     border: 1px solid var(--border-color);
     border-radius: 12px;
     padding: 1.5rem 2rem;
@@ -239,69 +239,57 @@
 
 .stash-tabs {
     display: flex;
-    justify-content: center;
-    gap: 1rem;
+    justify-content: flex-start;
+    gap: 4px;
     margin-bottom: 0;
     flex-wrap: wrap;
     width: 100%;
-    padding: 0 1rem;
+    padding: 0 2rem;
     animation: slideUp 0.5s ease-out 0.1s both;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .stash-tab {
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.875rem 1.75rem;
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 0.75rem 1.5rem;
     color: var(--text-secondary);
     cursor: pointer;
     font-weight: 500;
-    font-size: 0.95rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
     position: relative;
-    min-width: 120px;
+    min-width: 100px;
     text-align: center;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-    backdrop-filter: blur(5px);
-    letter-spacing: 0.025em;
-}
-
-.stash-tab::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-    border-radius: 10px 10px 0 0;
-    transform: scaleX(0);
-    transform-origin: center;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: -1px;
+    letter-spacing: 0.02em;
 }
 
 .stash-tab:hover {
-    background: linear-gradient(135deg, rgba(228, 200, 105, 0.15) 0%, rgba(228, 200, 105, 0.05) 100%);
-    border-color: rgba(228, 200, 105, 0.4);
+    background: rgba(228, 200, 105, 0.08);
     color: var(--accent-gold);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(228, 200, 105, 0.25);
-}
-
-.stash-tab:hover::before {
-    transform: scaleX(0.8);
 }
 
 .stash-tab.active {
-    background: linear-gradient(135deg, rgba(228, 200, 105, 0.2) 0%, rgba(228, 200, 105, 0.08) 100%);
-    border-color: var(--accent-gold);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--bg-secondary);
     color: var(--accent-gold);
-    box-shadow: 0 6px 20px rgba(228, 200, 105, 0.4);
-    transform: translateY(-2px);
+    font-weight: 600;
+    z-index: 2;
 }
 
 .stash-tab.active::before {
-    transform: scaleX(1);
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    height: 2px;
+    background: var(--accent-gold);
+    border-radius: 8px 8px 0 0;
 }
 
 /* Stash Content Area */
@@ -310,45 +298,57 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Stash Controls */
 .stash-controls {
-    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
-    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
-    border-bottom: 1px solid var(--border-color);
     gap: 1rem;
-    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    padding: 1rem 2rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    animation: slideUp 0.5s ease-out 0.2s both;
+    position: relative;
+    z-index: 20;
+}
+
+.stash-controls-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
 }
 
 .stash-value-indicator {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    color: var(--accent-gold);
+    font-weight: 600;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(228, 200, 105, 0.2);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    color: var(--accent-gold);
-    font-weight: 500;
-    font-size: 0.95rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    gap: 0.5rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .stash-value-indicator .material-icons {
     margin-right: 0.5rem;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: var(--accent-gold);
 }
 
 #totalStashValue {
     margin: 0 0.25rem;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
 }
 
 /* Interactive Stash Grid Styles */
@@ -361,9 +361,9 @@
     position: relative;
     margin: 0 auto;
     min-height: 400px;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+    /* Use grid for centering that respects overflow better than flex */
+    display: grid;
+    place-items: start center;
 }
 
 .interactive-stash-grid {
@@ -387,17 +387,32 @@
     /* Allow natural width */
     overflow: visible;
     /* Allow visibility of all content */
+    flex-shrink: 0;
+}
+
+.item-text-content {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.75rem;
+    line-height: 1.1;
+    padding: 2px;
+    width: 100%;
+    word-break: break-word;
+    pointer-events: none;
 }
 
 .stash-grid-cell {
-    background-color: rgba(30, 25, 20, 0.8);
-    border: 1px solid rgba(80, 70, 60, 0.6);
+    background-color: rgba(30, 30, 30, 0.8);
+    border: 1px solid rgba(80, 80, 80, 0.6);
     min-width: 45px;
     min-height: 45px;
 }
 
 .stash-item {
-    background-color: rgba(40, 35, 30, 0.9);
+    background-color: rgba(40, 40, 40, 0.9);
     border: 2px solid #666;
     display: flex;
     align-items: center;
@@ -511,8 +526,8 @@
 
 /* Equipment specific styles */
 .equipment-slot {
-    background-color: rgba(60, 50, 40, 0.3);
-    border: 1px dashed rgba(120, 100, 80, 0.6);
+    background-color: rgba(60, 60, 60, 0.3);
+    border: 1px dashed rgba(120, 120, 120, 0.6);
 }
 
 /* Item tooltip styles */
@@ -643,30 +658,64 @@
     overflow: hidden;
 }
 
-.stash-action-button {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
-    border: 1px solid var(--border-color);
+.tooltip-developer {
+    border-top: 1px dashed rgba(160, 200, 255, 0.15);
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.tooltip-dev-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Roboto Mono', Consolas, monospace;
+    font-size: 11px;
+    color: #a8d4ff;
+    margin-top: 2px;
+}
+
+.tooltip-dev-row code {
+    background: rgba(168, 212, 255, 0.08);
+    border: 1px solid rgba(168, 212, 255, 0.2);
     border-radius: 4px;
-    padding: 6px 12px;
+    padding: 1px 4px;
+    font-size: 10px;
+    color: #eaf6ff;
+    word-break: break-all;
+}
+
+.tooltip-dev-label {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.stash-action-button {
+    background: rgba(20, 20, 20, 0.6);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 0.9rem;
     font-weight: 500;
-    font-size: 0.9em;
+    transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.5rem;
     will-change: transform, background-color, border-color;
     transform: translateZ(0);
 }
 
 .stash-action-button:hover {
-    background: var(--hover-color);
+    background: rgba(228, 200, 105, 0.1);
     border-color: var(--accent-gold);
     color: var(--accent-gold);
+    transform: translateY(-1px);
 }
 
 .stash-action-button:active {
-    transform: translateY(1px);
+    transform: translateY(0);
 }
 
 .stash-action-button:disabled {
@@ -971,7 +1020,7 @@
     align-items: center;
     justify-content: center;
     padding: 32px 24px;
-    background: radial-gradient(ellipse at top, rgba(36, 28, 23, 0.85), rgba(17, 12, 10, 0.94));
+    background: radial-gradient(ellipse at top, rgba(20, 20, 20, 0.85), rgba(10, 10, 10, 0.94));
     border-radius: 12px;
     z-index: 120;
     backdrop-filter: blur(6px);
@@ -987,7 +1036,7 @@
 .sorting-overlay-card {
     position: relative;
     width: min(480px, 92%);
-    background: linear-gradient(135deg, rgba(42, 33, 24, 0.98), rgba(24, 18, 14, 0.96));
+    background: linear-gradient(135deg, rgba(30, 30, 30, 0.98), rgba(15, 15, 15, 0.96));
     border: 1px solid rgba(228, 200, 105, 0.35);
     border-radius: 18px;
     padding: 28px 32px 32px;
@@ -1108,7 +1157,7 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    background: rgba(30, 25, 20, 0.6);
+    background: rgba(30, 30, 30, 0.6);
     border-radius: 8px;
     padding: 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -1124,7 +1173,7 @@
 }
 
 .equipment-grid {
-    background-color: rgba(20, 15, 10, 0.6);
+    background-color: rgba(20, 20, 20, 0.6);
     border: 2px solid #d4af37;
     position: relative;
     margin: 0 auto;
@@ -1139,7 +1188,7 @@
 }
 
 .bag-grid {
-    background-color: rgba(20, 15, 10, 0.6);
+    background-color: rgba(20, 20, 20, 0.6);
     border: 2px solid #d4af37;
     position: relative;
     margin: 0 auto;

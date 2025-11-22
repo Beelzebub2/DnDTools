@@ -100,6 +100,7 @@ class SettingsManager:
             "wiresharkPath": detect_wireshark_installation(),
             "includeDevReleases": False,
             "closeToTrayEnabled": True,
+            "developerMode": False,
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -235,6 +236,17 @@ class SettingsManager:
             normalized["closeToTrayEnabled"] = bool(
                 self._defaults.get("closeToTrayEnabled", True) if close_to_tray_value is None else close_to_tray_value
             )
+
+        developer_mode_value = normalized.get("developerMode")
+        if isinstance(developer_mode_value, str):
+            normalized["developerMode"] = developer_mode_value.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        else:
+            normalized["developerMode"] = bool(developer_mode_value)
 
         return normalized
 
