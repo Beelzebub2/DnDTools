@@ -11,7 +11,7 @@ from .sort import StashSorter
 from src.models.game_data import item_data_manager
 from src.models import macros
 import pygetwindow as gw
-from .appdirs import get_data_dir, get_output_dir, resource_path
+from .appdirs import get_output_dir, resource_path, get_characters_dir
 from src.models.icon_pak import canonical_icon_path
 import asyncio
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
@@ -25,7 +25,7 @@ PRIORITY_STASH_IDS: Tuple[str, ...] = ('3', '2')  # equipment first, then bag
 
 class StashManager:
     def __init__(self, resource_dir: str, defer_loading=False):
-        self.data_dir = get_data_dir()
+        self.data_dir = get_characters_dir()
         self.output_dir = get_output_dir()
         # Only ensure data directory exists, not output directory
         os.makedirs(self.data_dir, exist_ok=True)

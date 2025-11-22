@@ -10,7 +10,7 @@ from typing import Callable, Optional
 
 import requests
 
-from src.models.appdirs import get_data_dir, resource_path
+from src.models.appdirs import get_quests_dir, resource_path
 
 
 RARITY_ORDER = {
@@ -51,7 +51,7 @@ class QuestService:
 
     def __init__(self, logger) -> None:
         self._logger = logger
-        self._data_dir = Path(get_data_dir())
+        self._data_dir = Path(get_quests_dir())
         self._cache_file = self._data_dir / "quests_cache.json"
         self._progress_file = self._data_dir / "quests_progress.json"
 

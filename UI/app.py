@@ -1,6 +1,6 @@
 from typing import Any, Callable, Dict, Iterable, Optional, Set
 
-from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, get_data_dir
+from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir
 from src.models.settings import (
     settings_manager,
     SettingsManager,
@@ -86,7 +86,7 @@ def _clear_character_storage() -> dict[str, object]:
     removed_files: list[str] = []
     failed_files: list[str] = []
 
-    data_dir = Path(get_data_dir())
+    data_dir = Path(get_characters_dir())
     if data_dir.exists():
         for candidate in data_dir.glob('*.json'):
             try:
@@ -142,6 +142,12 @@ update_manager = UpdateManager(
     auto_update_silent=AUTO_UPDATE_SILENT,
     logger=logger,
 )
+
+# Migrate data files to new structure
+try:
+    migrate_data_files()
+except Exception as e:
+    logger.error(f"Failed to migrate data files: {e}")
 
 quest_service = QuestService(logger)
 CHARACTER_STORAGE_PROTECTED_FILES = set(quest_service.protected_filenames)
