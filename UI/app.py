@@ -1502,8 +1502,8 @@ class Api:
         except Exception as e:
             logger.error(f"Error stopping packet capture on close: {e}")
         
-        # Start exit timer immediately to ensure shutdown even if UI hangs
-        threading.Timer(0.5, lambda: os._exit(0)).start()
+        # Start exit timer as a fallback to ensure shutdown even if UI hangs
+        threading.Timer(2.0, lambda: os._exit(0)).start()
 
         # Remove delay - close immediately
         try:
@@ -1518,15 +1518,22 @@ class Api:
                 if threading.current_thread() is threading.main_thread():
                     self.window.destroy()
                 else:
-                    # If on background thread (e.g. Tray), just hide and let os._exit kill it
+                    # If on background thread (e.g. Tray), post a close message to the main thread
                     try:
                         if sys.platform == 'win32':
                             native = self.window.native
                             hwnd = native.Handle if hasattr(native, 'Handle') else native
                             if isinstance(hwnd, int):
-                                ctypes.windll.user32.ShowWindow(hwnd, 0)
-                    except Exception:
-                        pass
+                                # WM_CLOSE = 0x0010
+                                ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
+                            else:
+                                # Fallback: just hide and let timer kill it
+                                self.window.minimize()
+                        else:
+                            # Non-Windows fallback
+                            self.window.destroy()
+                    except Exception as e:
+                        logger.debug(f"Failed to post close message: {e}")
         finally:
             self._capture_shutdown_completed = False
         
