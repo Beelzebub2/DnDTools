@@ -1,14 +1,14 @@
 /* Modern Character Index Page */
 :root {
-    --accent-gold: #e4c869;
-    --accent-brown: #8b6914;
-    --bg-dark: #1a1a1a;
-    --bg-secondary: #2a2118;
-    --bg-tertiary: #3a2d1e;
-    --border-color: #4a3a2a;
-    --text-primary: #f0f0f0;
-    --text-secondary: #c0c0c0;
-    --text-muted: #888;
+    --accent-gold: #cfa346;
+    --accent-brown: #5a4a3a;
+    --bg-dark: #0b0b0b;
+    --bg-secondary: #141414;
+    --bg-tertiary: #1a1a1a;
+    --border-color: #2a2a2a;
+    --text-primary: #e6e6e6;
+    --text-secondary: #888888;
+    --text-muted: #555;
     --danger: #e74c3c;
     --success: #27ae60;
     --warning: #f39c12;
@@ -35,7 +35,7 @@
 
 /* Header Section */
 .characters-header {
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(36, 28, 23, 0.9) 100%);
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(20, 20, 20, 0.9) 100%);
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 2.5rem;
@@ -122,7 +122,7 @@
 }
 
 .character-card {
-    background: linear-gradient(145deg, #222, #1a1a1a);
+    background: linear-gradient(145deg, #1a1a1a, #111);
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: 0;
@@ -227,7 +227,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
-    background: linear-gradient(to bottom, rgba(26, 26, 26, 0.7) 0%, rgba(26, 26, 26, 0.95) 100%);
+    background: linear-gradient(to bottom, rgba(15, 15, 15, 0.7) 0%, rgba(15, 15, 15, 0.95) 100%);
 }
 
 .card-header {

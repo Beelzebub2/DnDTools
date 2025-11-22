@@ -1,13 +1,13 @@
 :root {
-    --quest-card-bg: rgba(26, 20, 16, 0.95);
-    --quest-border: rgba(228, 200, 105, 0.15);
-    --quest-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-    --quest-tab-bg: rgba(16, 10, 8, 0.6);
-    --quest-tab-active: linear-gradient(135deg, rgba(228, 200, 105, 0.25) 0%, rgba(228, 200, 105, 0.05) 100%);
-    --quest-muted: rgba(180, 165, 120, 0.75);
-    --quest-bg-gradient: linear-gradient(180deg, rgba(19, 13, 10, 0.98) 0%, rgba(26, 20, 16, 0.95) 100%);
-    --accent-gold: #e4c869;
-    --text-secondary: #e7d8b5;
+    --quest-card-bg: rgba(20, 20, 20, 0.95);
+    --quest-border: rgba(207, 163, 70, 0.15);
+    --quest-card-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --quest-tab-bg: rgba(11, 11, 11, 0.8);
+    --quest-tab-active: linear-gradient(135deg, rgba(207, 163, 70, 0.25) 0%, rgba(207, 163, 70, 0.05) 100%);
+    --quest-muted: rgba(150, 150, 150, 0.75);
+    --quest-bg-gradient: linear-gradient(180deg, rgba(11, 11, 11, 0.98) 0%, rgba(20, 20, 20, 0.95) 100%);
+    --accent-gold: #cfa346;
+    --text-secondary: #e6e6e6;
 }
 
 /* Animations */
@@ -73,7 +73,7 @@
     padding: 24px 28px;
     border: 1px solid var(--quest-border);
     border-radius: 16px;
-    background: linear-gradient(135deg, rgba(36, 28, 23, 0.95) 0%, rgba(26, 20, 16, 0.9) 100%);
+    background: linear-gradient(135deg, rgba(25, 25, 25, 0.95) 0%, rgba(20, 20, 20, 0.9) 100%);
     box-shadow: var(--quest-card-shadow);
     position: relative;
     overflow: hidden;
@@ -835,7 +835,7 @@
 .quest-item:hover {
     border-color: rgba(228, 200, 105, 0.3);
     transform: translateY(-4px);
-    background: linear-gradient(180deg, rgba(26, 20, 16, 0.95) 0%, rgba(36, 28, 23, 0.95) 100%);
+    background: linear-gradient(180deg, rgba(20, 20, 20, 0.95) 0%, rgba(25, 25, 25, 0.95) 100%);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 

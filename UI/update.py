@@ -598,17 +598,17 @@ class UpdaterUI:
         self.ttk = ttk
 
         self.colors = {
-            "bg": "#0d1118",
-            "panel": "#151c27",
-            "panel_border": "#1f2734",
-            "panel_hover": "#1b2330",
-            "text_primary": "#fdfbff",
-            "text_muted": "#c4ccda",
-            "text_subtle": "#8e99ad",
-            "accent": "#ff7b26",
-            "accent_hover": "#ff9553",
-            "accent_dark": "#c8621d",
-            "progress_trough": "#1c2433",
+            "bg": "#0b0b0b",
+            "panel": "#141414",
+            "panel_border": "#2a2a2a",
+            "panel_hover": "#1a1a1a",
+            "text_primary": "#e6e6e6",
+            "text_muted": "#888888",
+            "text_subtle": "#666666",
+            "accent": "#cfa346",
+            "accent_hover": "#e0b85d",
+            "accent_dark": "#8b6914",
+            "progress_trough": "#1a1a1a",
         }
 
         self.root = tk.Tk()

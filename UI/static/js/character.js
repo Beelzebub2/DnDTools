@@ -1509,7 +1509,10 @@ const renderInteractiveGrid = (stashId, items) => {
                 img.className = 'item-image';
                 itemEl.appendChild(img);
             } else {
-                itemEl.textContent = item.name || 'Unknown';
+                const textSpan = document.createElement('span');
+                textSpan.className = 'item-text-content';
+                textSpan.textContent = item.name || 'Unknown';
+                itemEl.appendChild(textSpan);
             }
             if (item.itemCount > 1) {
                 const countBadge = document.createElement('div');
@@ -2662,7 +2665,10 @@ const renderCombinedCharacterView = async (stashes = null) => {
             img.className = 'item-image';
             itemEl.appendChild(img);
         } else {
-            itemEl.textContent = item.name || 'Unknown';
+            const textSpan = document.createElement('span');
+            textSpan.className = 'item-text-content';
+            textSpan.textContent = item.name || 'Unknown';
+            itemEl.appendChild(textSpan);
         }
         if (item.itemCount > 1) {
             const countBadge = document.createElement('div');
@@ -2842,7 +2848,10 @@ const renderCombinedCharacterView = async (stashes = null) => {
                 itemEl.appendChild(img);
             } else {
                 // No image, just display the name
-                itemEl.textContent = item.name || 'Unknown';
+                const textSpan = document.createElement('span');
+                textSpan.className = 'item-text-content';
+                textSpan.textContent = item.name || 'Unknown';
+                itemEl.appendChild(textSpan);
             }
 
             if (rawSlotId !== null) {

@@ -15,8 +15,8 @@
 
 .app-notification {
     /* Removed fixed positioning as it's now handled by container */
-    background: var(--bg-secondary, #2a2a2a);
-    color: var(--text-primary, #ffffff);
+    background: var(--bg-secondary, #141414);
+    color: var(--text-primary, #e6e6e6);
     padding: 12px 16px;
     border-radius: 8px;
     display: flex;
@@ -153,8 +153,8 @@
 .spinner {
     width: 32px;
     height: 32px;
-    border: 3px solid var(--bg-tertiary, #333);
-    border-top: 3px solid var(--accent-color, #00d4aa);
+    border: 3px solid var(--bg-tertiary, #1a1a1a);
+    border-top: 3px solid var(--accent-color, #cfa346);
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin-bottom: 16px;

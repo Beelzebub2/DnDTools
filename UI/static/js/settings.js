@@ -808,7 +808,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 text-align: center;
                 z-index: 1000;
                 transform: translateY(-2px);
-                box-shadow: 0 4px 12px rgba(228, 200, 105, 0.3);
+                box-shadow: 0 4px 12px rgba(207, 163, 70, 0.3);
                 animation: slideDown 0.2s ease;
             `;
 
@@ -857,7 +857,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         function startRecording() {
             isRecording = true;
             pressedKeys.clear();
-            input.style.backgroundColor = 'rgba(228, 200, 105, 0.1)';
+            input.style.backgroundColor = 'rgba(207, 163, 70, 0.1)';
             input.style.borderColor = 'var(--accent-gold)';
             input.value = '';
             updateFeedback('Press keys... (release all to save)');
