@@ -1852,18 +1852,26 @@ def api_update_apply():
 
     return jsonify({'started': True})
 
-# Initialize API
-api = Api()
-asset_updater = AssetUpdater(
-    assets_dir=Path(resource_path("")),
-    logger=logger,
-    window_getter=lambda: api.window,
-    on_assets_applied=[api.handle_assets_updated],
-    before_asset_replace={
-        "icons.pak": (icon_store.invalidate_cache,),
-    },
-)
-api.asset_updater = asset_updater
+# Initialize API globals
+api = None
+asset_updater = None
+
+def _init_api():
+    global api, asset_updater
+    if api is not None:
+        return
+
+    api = Api()
+    asset_updater = AssetUpdater(
+        assets_dir=Path(resource_path("")),
+        logger=logger,
+        window_getter=lambda: api.window,
+        on_assets_applied=[api.handle_assets_updated],
+        before_asset_replace={
+            "icons.pak": (icon_store.invalidate_cache,),
+        },
+    )
+    api.asset_updater = asset_updater
 
 # JSON API endpoint
 @server.route('/api/characters')
@@ -2587,7 +2595,19 @@ def background_init():
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
                 
                 # Clean up any lingering tshark instances after data is loaded
-                schedule_tshark_cleanup(logger, api.window, delay_seconds=1.0)
+                protected_pids = ()
+                try:
+                    capture = getattr(api.capture_controller, 'packet_capture', None)
+                    if capture:
+                        protected_pids = capture.get_active_helper_pids()
+                except Exception as cleanup_err:
+                    logger.debug("Unable to determine active capture PIDs: %s", cleanup_err)
+                schedule_tshark_cleanup(
+                    logger,
+                    api.window,
+                    delay_seconds=1.0,
+                    protected_pids=protected_pids,
+                )
             except Exception as e:
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
@@ -2654,6 +2674,9 @@ def main():
     # Using the global time module
     start_time = time.time()
     logger.info("Starting DnDTools application")
+
+    # Initialize API context (prevents side effects in multiprocessing workers)
+    _init_api()
     
     # Preload only essential settings for faster startup
     SettingsManager.migrate_from_legacy(logger=logger, defer_heavy_operations=True)

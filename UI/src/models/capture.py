@@ -13,7 +13,7 @@ import threading
 import time
 import importlib
 from datetime import datetime
-from typing import Tuple, Optional, List, Dict, Any
+from typing import Tuple, Optional, List, Dict, Any, Set
 from concurrent.futures import TimeoutError as FutureTimeout
 from google.protobuf.json_format import MessageToDict
 
@@ -370,6 +370,10 @@ class PacketCapture:
             if 'tshark' in name or 'dumpcap' in name:
                 targets.append(child)
         return targets
+
+    def get_active_helper_pids(self) -> Set[int]:
+        """Return the PIDs of any tshark/dumpcap helpers this process spawned."""
+        return {proc.pid for proc in self._collect_capture_processes() if proc and proc.pid}
 
     def _terminate_capture_processes(self, timeout: float = 3.0) -> None:
         targets = self._collect_capture_processes()
