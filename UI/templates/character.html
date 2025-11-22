@@ -29,66 +29,28 @@
         <!-- Stash content area -->
         <div id="stashPreview" class="stash-content-area hidden">
             <div class="stash-controls">
-                <div class="stash-value-indicator">
-                    <span class="material-icons">monetization_on</span>
-                    <span>Total Value: </span>
-                    <span id="totalStashValue">0</span>
-                    <span> coins</span>
-                </div>
-
-                <div class="stash-actions-row">
-                    <div class="primary-actions">
-                        <button class="stash-action-button sort-button">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
-                            </svg>
-                            <!-- Jelly Triangle Animation Container -->
-                            <div class="jelly-triangle-container">
-                                <div class="dot"></div>
-                                <div class="traveler"></div>
-                            </div>
-                            Sort Stash
-                        </button>
-                        <button class="stash-action-button preview-button" id="previewToggleButton">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
-                            </svg>
-                            <div class="jelly-triangle-container">
-                                <div class="dot"></div>
-                                <div class="traveler"></div>
-                            </div>
-                            Show Sort Preview
-                        </button>
-                    </div>
-
-                    <div class="sort-options">
-                        <div class="checkbox-group">
-                            <label class="custom-checkbox" for="packItemsToggle">
-                                <input type="checkbox" id="packItemsToggle">
-                                <span class="checkbox-mark"></span>
-                                <span class="checkbox-label">Pack Items</span>
-                            </label>
-                            <label class="custom-checkbox" for="stackItemsToggle">
-                                <input type="checkbox" id="stackItemsToggle">
-                                <span class="checkbox-mark"></span>
-                                <span class="checkbox-label">Stack Items</span>
-                            </label>
+                <div class="stash-controls-group">
+                    <button class="stash-action-button sort-button">
+                        <span class="material-icons">sort</span>
+                        <!-- Jelly Triangle Animation Container -->
+                        <div class="jelly-triangle-container">
+                            <div class="dot"></div>
+                            <div class="traveler"></div>
                         </div>
-                    </div>
-                </div>
+                        Sort Stash
+                    </button>
+                    <button class="stash-action-button preview-button" id="previewToggleButton">
+                        <span class="material-icons">visibility</span>
+                        <div class="jelly-triangle-container">
+                            <div class="dot"></div>
+                            <div class="traveler"></div>
+                        </div>
+                        Show Sort Preview
+                    </button>
 
-                <div class="ordering-actions-row">
                     <div class="ordering-dropdown">
                         <button class="stash-action-button sort-button" id="orderingButton">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
-                            </svg>
+                            <span class="material-icons">tune</span>
                             <!-- Jelly Triangle Animation Container -->
                             <div class="jelly-triangle-container">
                                 <div class="dot"></div>
@@ -132,58 +94,78 @@
                                     Restore Default Order
                                 </button>
                             </div>
-
-                            <!-- Space for future options -->
                         </div>
                     </div>
                 </div>
-                <!-- Replace static image with interactive grid container -->
-                <div id="interactiveStashGrid" class="stash-grid-container"></div>
-                <!-- Keep the image as a fallback but hide it by default -->
-                <img id="currentStashPreview" class="stash-preview-image hidden" src="" alt="Stash Preview">
-                <!-- Sorting overlay with jelly triangle animation -->
-                <div id="sortingOverlay" class="sorting-overlay hidden">
-                    <div class="sorting-overlay-card">
-                        <div class="sorting-overlay-header">
-                            <div class="sorting-overlay-logo" aria-hidden="true">
-                                <img src="{{ url_for('serve_file', filename='logo.png') }}" alt="DnDTools logo">
-                            </div>
-                            <div class="sorting-overlay-heading">
-                                <span class="sorting-overlay-title">DnDTools</span>
-                                <span class="sorting-overlay-subtitle">Advanced Stash Sorting</span>
+
+                <div class="stash-controls-group">
+                    <div class="checkbox-group">
+                        <label class="custom-checkbox" for="packItemsToggle">
+                            <input type="checkbox" id="packItemsToggle">
+                            <span class="checkbox-mark"></span>
+                            <span class="checkbox-label">Pack Items</span>
+                        </label>
+                        <label class="custom-checkbox" for="stackItemsToggle">
+                            <input type="checkbox" id="stackItemsToggle">
+                            <span class="checkbox-mark"></span>
+                            <span class="checkbox-label">Stack Items</span>
+                        </label>
+                    </div>
+                    <div class="stash-value-indicator">
+                        <span class="material-icons">monetization_on</span>
+                        <span>Total Value: </span>
+                        <span id="totalStashValue">0</span>
+                        <span> coins</span>
+                    </div>
+                </div>
+            </div>
+            <!-- Replace static image with interactive grid container -->
+            <div id="interactiveStashGrid" class="stash-grid-container"></div>
+            <!-- Keep the image as a fallback but hide it by default -->
+            <img id="currentStashPreview" class="stash-preview-image hidden" src="" alt="Stash Preview">
+            <!-- Sorting overlay with jelly triangle animation -->
+            <div id="sortingOverlay" class="sorting-overlay hidden">
+                <div class="sorting-overlay-card">
+                    <div class="sorting-overlay-header">
+                        <div class="sorting-overlay-logo" aria-hidden="true">
+                            <img src="{{ url_for('serve_file', filename='logo.png') }}" alt="DnDTools logo">
+                        </div>
+                        <div class="sorting-overlay-heading">
+                            <span class="sorting-overlay-title">DnDTools</span>
+                            <span class="sorting-overlay-subtitle">Advanced Stash Sorting</span>
+                        </div>
+                    </div>
+                    <div class="sorting-overlay-body">
+                        <div class="sorting-animation-container">
+                            <div class="jelly-triangle-container">
+                                <div class="dot"></div>
+                                <div class="traveler"></div>
                             </div>
                         </div>
-                        <div class="sorting-overlay-body">
-                            <div class="sorting-animation-container">
-                                <div class="jelly-triangle-container">
-                                    <div class="dot"></div>
-                                    <div class="traveler"></div>
-                                </div>
-                            </div>
-                            <div class="sorting-text" id="sortingText">Sorting items...</div>
-                            <div class="sorting-overlay-description">
-                                Sit tight while we arrange your stash for peak efficiency.
-                            </div>
+                        <div class="sorting-text" id="sortingText">Sorting items...</div>
+                        <div class="sorting-overlay-description">
+                            Sit tight while we arrange your stash for peak efficiency.
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- SVG Filter for Jelly Triangle Animation -->
-    <svg width="0" height="0" class="jelly-svg">
-        <defs>
-            <filter id="uib-jelly-triangle-ooze">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="3.333" result="blur" />
-                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
-                    result="ooze" />
-                <feBlend in="SourceGraphic" in2="ooze" />
-            </filter>
-        </defs>
-    </svg>
-    {% endblock %}
+<!-- SVG Filter for Jelly Triangle Animation -->
+<svg width="0" height="0" class="jelly-svg">
+    <defs>
+        <filter id="uib-jelly-triangle-ooze">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3.333" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
+                result="ooze" />
+            <feBlend in="SourceGraphic" in2="ooze" />
+        </filter>
+    </defs>
+</svg>
+{% endblock %}
 
-    {% block scripts %}
-    <script src="{{ url_for('static', filename='js/character.js') }}"></script>
-    {% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/character.js') }}"></script>
+{% endblock %}

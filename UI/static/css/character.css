@@ -239,69 +239,57 @@
 
 .stash-tabs {
     display: flex;
-    justify-content: center;
-    gap: 1rem;
+    justify-content: flex-start;
+    gap: 4px;
     margin-bottom: 0;
     flex-wrap: wrap;
     width: 100%;
-    padding: 0 1rem;
+    padding: 0 2rem;
     animation: slideUp 0.5s ease-out 0.1s both;
+    border-bottom: 1px solid var(--border-color);
 }
 
 .stash-tab {
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.4) 0%, rgba(0, 0, 0, 0.2) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 10px;
-    padding: 0.875rem 1.75rem;
+    background: rgba(20, 15, 10, 0.6);
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    padding: 0.75rem 1.5rem;
     color: var(--text-secondary);
     cursor: pointer;
     font-weight: 500;
-    font-size: 0.95rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
     position: relative;
-    min-width: 120px;
+    min-width: 100px;
     text-align: center;
-    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
-    backdrop-filter: blur(5px);
-    letter-spacing: 0.025em;
-}
-
-.stash-tab::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-    border-radius: 10px 10px 0 0;
-    transform: scaleX(0);
-    transform-origin: center;
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: -1px;
+    letter-spacing: 0.02em;
 }
 
 .stash-tab:hover {
-    background: linear-gradient(135deg, rgba(228, 200, 105, 0.15) 0%, rgba(228, 200, 105, 0.05) 100%);
-    border-color: rgba(228, 200, 105, 0.4);
+    background: rgba(228, 200, 105, 0.08);
     color: var(--accent-gold);
-    transform: translateY(-3px);
-    box-shadow: 0 8px 25px rgba(228, 200, 105, 0.25);
-}
-
-.stash-tab:hover::before {
-    transform: scaleX(0.8);
 }
 
 .stash-tab.active {
-    background: linear-gradient(135deg, rgba(228, 200, 105, 0.2) 0%, rgba(228, 200, 105, 0.08) 100%);
-    border-color: var(--accent-gold);
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--bg-secondary);
     color: var(--accent-gold);
-    box-shadow: 0 6px 20px rgba(228, 200, 105, 0.4);
-    transform: translateY(-2px);
+    font-weight: 600;
+    z-index: 2;
 }
 
 .stash-tab.active::before {
-    transform: scaleX(1);
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    height: 2px;
+    background: var(--accent-gold);
+    border-radius: 8px 8px 0 0;
 }
 
 /* Stash Content Area */
@@ -310,45 +298,57 @@
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    overflow: hidden;
+    overflow: visible;
 }
 
 /* Stash Controls */
 .stash-controls {
-    width: 100%;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
-    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
-    border-bottom: 1px solid var(--border-color);
     gap: 1rem;
-    flex-wrap: wrap;
+    margin-bottom: 1.5rem;
+    width: 100%;
+    padding: 1rem 2rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    animation: slideUp 0.5s ease-out 0.2s both;
+    position: relative;
+    z-index: 20;
+}
+
+.stash-controls-group {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
 }
 
 .stash-value-indicator {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    color: var(--accent-gold);
+    font-weight: 600;
+    font-size: 0.95rem;
     display: flex;
     align-items: center;
-    background: rgba(0, 0, 0, 0.3);
-    border: 1px solid rgba(228, 200, 105, 0.2);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    color: var(--accent-gold);
-    font-weight: 500;
-    font-size: 0.95rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    gap: 0.5rem;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .stash-value-indicator .material-icons {
     margin-right: 0.5rem;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: var(--accent-gold);
 }
 
 #totalStashValue {
     margin: 0 0.25rem;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
 }
 
 /* Interactive Stash Grid Styles */
@@ -676,29 +676,31 @@
 }
 
 .stash-action-button {
-    background: var(--bg-secondary);
-    color: var(--text-primary);
+    background: rgba(20, 15, 10, 0.6);
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 6px 12px;
+    color: var(--text-secondary);
+    padding: 0.6rem 1.2rem;
+    border-radius: 6px;
     cursor: pointer;
+    font-size: 0.9rem;
     font-weight: 500;
-    font-size: 0.9em;
+    transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 0.5rem;
     will-change: transform, background-color, border-color;
     transform: translateZ(0);
 }
 
 .stash-action-button:hover {
-    background: var(--hover-color);
+    background: rgba(228, 200, 105, 0.1);
     border-color: var(--accent-gold);
     color: var(--accent-gold);
+    transform: translateY(-1px);
 }
 
 .stash-action-button:active {
-    transform: translateY(1px);
+    transform: translateY(0);
 }
 
 .stash-action-button:disabled {

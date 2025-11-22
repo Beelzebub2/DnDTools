@@ -1182,9 +1182,7 @@ function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder
 
 function buildPreviewButtonMarkup() {
     return `
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-        </svg>
+        <span class="material-icons">visibility</span>
         <div class="jelly-triangle-container">
             <div class="dot"></div>
             <div class="traveler"></div>
@@ -1884,9 +1882,11 @@ function setSortingState(isSorting) {
         // Show sorting state on button
         sortButton.classList.add('sorting');
         sortButton.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <!-- Jelly Triangle Animation Container -->
+            <div class="jelly-triangle-container">
+                <div class="dot"></div>
+                <div class="traveler"></div>
+            </div>
             Sorting...
         `;
 
@@ -1905,9 +1905,12 @@ function setSortingState(isSorting) {
         // Restore normal button state
         sortButton.classList.remove('sorting');
         sortButton.innerHTML = `
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
+            <span class="material-icons">sort</span>
+            <!-- Jelly Triangle Animation Container -->
+            <div class="jelly-triangle-container">
+                <div class="dot"></div>
+                <div class="traveler"></div>
+            </div>
             Sort Stash
         `;
 
