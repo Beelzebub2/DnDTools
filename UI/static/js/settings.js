@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let isApplyingSettings = false;
     let isDirty = false;
     let changeCheckScheduled = false;
-    const AUTOSAVE_DEBOUNCE_MS = 800;
+    const AUTOSAVE_DEBOUNCE_MS = 200;
     let autosaveTimerId = null;
     let autoSaveInFlight = false;
     let autoSaveQueued = false;
@@ -61,12 +61,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     const beforeUnloadHandler = (event) => {
-        if (!isDirty) {
-            return undefined;
-        }
-        event.preventDefault();
-        event.returnValue = '';
-        return '';
+        // Save on exit popup disabled to prevent user confusion
+        return undefined;
     };
 
     window.addEventListener('beforeunload', beforeUnloadHandler);
@@ -130,6 +126,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         tabButtons.forEach((button) => {
             button.addEventListener('click', (event) => {
                 event.preventDefault();
+                // Force immediate save when switching settings tabs
+                if (isDirty) {
+                    scheduleAutoSave({ immediate: true });
+                }
                 const tabId = button.dataset.tab;
                 activateTab(tabId, { scrollIntoView: true });
             });
@@ -379,16 +379,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function setupUnsavedChangesGuard() {
         window.unsavedChangesGuard = {
-            shouldPrompt: () => isDirty,
+            shouldPrompt: () => false,
             requestNavigation: (href) => {
-                showUnsavedPrompt(() => navigateTo(href), 'navigation');
+                navigateTo(href);
             },
             requestClose: (proceed) => {
-                showUnsavedPrompt(() => {
-                    if (typeof proceed === 'function') {
-                        proceed();
-                    }
-                }, 'close');
+                if (typeof proceed === 'function') {
+                    proceed();
+                }
             }
         };
     }
@@ -1566,6 +1564,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
     setupUnsavedChangesGuard();
+
+    // Save immediately when the user switches browser tabs or minimizes the window
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'hidden' && isDirty) {
+            scheduleAutoSave({ immediate: true });
+        }
+    });
+
+    // Also save when the window loses focus (e.g. Alt+Tab)
+    window.addEventListener('blur', () => {
+        if (isDirty) {
+            scheduleAutoSave({ immediate: true });
+        }
+    });
 
     window.addEventListener('unload', () => {
         window.unsavedChangesGuard = null;
