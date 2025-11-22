@@ -2089,7 +2089,7 @@
         }
     };
 
-    const renderItemHoldingsModal = (item, summary) => {
+    const renderItemHoldingsModal = (item, summary, allowedLootStates = null) => {
         if (!elements.itemHoldingsBody || !elements.itemHoldingsSummary) {
             return;
         }
@@ -2100,12 +2100,49 @@
             elements.itemHoldingsTitle.textContent = `${itemName} Holdings`;
         }
 
-        const total = Number(summary && summary.total);
-        const totalValue = Number.isFinite(total) ? total : 0;
+        // Default to Looted (2) if no filter provided, to match character view behavior
+        const effectiveAllowedLootStates = (allowedLootStates && allowedLootStates.length > 0)
+            ? allowedLootStates
+            : [2];
+
+        const allowedSet = new Set(effectiveAllowedLootStates.map(Number));
+
+        let totalValue = 0;
+        let characters = [];
+
+        if (summary) {
+            const rawCharacters = Array.isArray(summary.characters) ? summary.characters : [];
+
+            rawCharacters.forEach(char => {
+                let charTotal = 0;
+                const stashes = Array.isArray(char.stashes) ? char.stashes : [];
+                const filteredStashes = [];
+
+                stashes.forEach(stash => {
+                    const count = Number(stash.count) || 0;
+                    if (count <= 0) return;
+
+                    const lootState = stash.loot_state !== undefined ? Number(stash.loot_state) : null;
+                    if (allowedSet.has(lootState)) {
+                        charTotal += count;
+                        filteredStashes.push(stash);
+                    }
+                });
+
+                if (charTotal > 0) {
+                    totalValue += charTotal;
+                    characters.push({
+                        ...char,
+                        total: charTotal,
+                        stashes: filteredStashes
+                    });
+                }
+            });
+        }
+
         elements.itemHoldingsSummary.innerHTML = `Total owned across captured characters: <strong>${totalValue}</strong>`;
         updateOwnedLabels(itemId);
 
-        const characters = Array.isArray(summary && summary.characters) ? summary.characters : [];
         if (!characters.length) {
             elements.itemHoldingsBody.innerHTML = '<div class="item-holdings-empty">No captured characters currently hold this item.</div>';
             scheduleHoldingsPositionUpdate();
@@ -2179,7 +2216,7 @@
         return summary;
     };
 
-    const openItemHoldingsModal = (item, triggerElement) => {
+    const openItemHoldingsModal = (item, triggerElement, allowedLootStates = null) => {
         if (!elements.itemHoldingsModal || !elements.itemHoldingsOverlay) {
             return;
         }
@@ -2217,7 +2254,7 @@
                 if (state.activeHoldingsItemId !== itemId) {
                     return;
                 }
-                renderItemHoldingsModal({ item_id: itemId, name: itemName }, summary);
+                renderItemHoldingsModal({ item_id: itemId, name: itemName }, summary, allowedLootStates);
             })
             .catch((error) => {
                 console.error('Failed to load item holdings', error);
@@ -2295,8 +2332,13 @@
             let visibleTotalFromQuests = 0;
 
             const allowedLootStates = new Set();
-            let hasRestrictedQuests = false;
-            let hasUnrestrictedQuests = false;
+            const pushAllowedLootState = (value) => {
+                const numeric = Number(value);
+                if (Number.isFinite(numeric)) {
+                    allowedLootStates.add(numeric);
+                }
+            };
+            const DEFAULT_LOOT_STATE = 2;
 
             questEntries.forEach((entry) => {
                 const questKey = resolveQuestKeyFromEntry(entry);
@@ -2310,10 +2352,9 @@
 
                 const lootStateValues = entry.loot_state_values;
                 if (Array.isArray(lootStateValues) && lootStateValues.length > 0) {
-                    hasRestrictedQuests = true;
-                    lootStateValues.forEach(v => allowedLootStates.add(v));
+                    lootStateValues.forEach(value => pushAllowedLootState(value));
                 } else {
-                    hasUnrestrictedQuests = true;
+                    pushAllowedLootState(DEFAULT_LOOT_STATE);
                 }
 
                 if (locked) {
@@ -2354,7 +2395,9 @@
                 ? visibleQuests.map(entry => entry.questKey).filter(Boolean)
                 : allQuestIds.filter(Boolean);
 
-            const finalAllowedLootStates = hasUnrestrictedQuests ? null : (allowedLootStates.size > 0 ? Array.from(allowedLootStates) : null);
+            const finalAllowedLootStates = allowedLootStates.size > 0
+                ? Array.from(allowedLootStates).sort((a, b) => a - b)
+                : null;
 
             return {
                 totalRequired: Math.max(0, Number.isFinite(effectiveTotal) ? effectiveTotal : 0),
@@ -2412,7 +2455,19 @@
         const itemsWithIndex = processedItems.map(({ item, summary }, index) => ({ item, summary, index }));
         if (state.itemsOwnedFirst) {
             itemsWithIndex.sort((a, b) => {
-                const ownedDiff = getOwnedTotalForItem(b.item) - getOwnedTotalForItem(a.item);
+                const getEffectiveOwned = (entry) => {
+                    const itemId = entry.item.item_id || entry.item.itemId || '';
+                    let allowedSet = null;
+                    if (entry.summary.allowedLootStates && entry.summary.allowedLootStates.length > 0) {
+                        allowedSet = new Set(entry.summary.allowedLootStates);
+                    } else {
+                        allowedSet = new Set([2]);
+                    }
+                    const total = getCachedHoldingsTotal(itemId, allowedSet);
+                    return total !== null ? total : 0;
+                };
+
+                const ownedDiff = getEffectiveOwned(b) - getEffectiveOwned(a);
                 if (ownedDiff !== 0) {
                     return ownedDiff;
                 }
@@ -2545,7 +2600,7 @@
                 holdingsButton.disabled = true;
                 holdingsButton.title = 'Item identifier unavailable';
             } else {
-                holdingsButton.addEventListener('click', (event) => openItemHoldingsModal(normalizedItem, event.currentTarget || holdingsButton));
+                holdingsButton.addEventListener('click', (event) => openItemHoldingsModal(normalizedItem, event.currentTarget || holdingsButton, summary.allowedLootStates));
             }
             holdingsBar.appendChild(holdingsButton);
 
