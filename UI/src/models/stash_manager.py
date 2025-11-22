@@ -21,6 +21,8 @@ from src.models.loot import format_loot_state_label
 
 logger = logging.getLogger(__name__)
 
+PRIORITY_STASH_IDS: Tuple[str, ...] = ('3', '2')  # equipment first, then bag
+
 class StashManager:
     def __init__(self, resource_dir: str, defer_loading=False):
         self.data_dir = get_data_dir()
@@ -40,7 +42,8 @@ class StashManager:
             'average_load_time_per_file': None
         }
         
-        # Initialize preview generator (lightweight)        self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
+        # Initialize preview generator (lightweight)
+        self.preview_generator = StashPreviewGenerator(resource_dir=resource_dir)
         
         # Load data immediately unless deferred
         if not defer_loading:
@@ -110,7 +113,7 @@ class StashManager:
                 class_name = raw_class.replace("DesignDataPlayerCharacter:Id_PlayerCharacter_", "")
                 nickname_data = char_data.get("nickName", {})
                 
-                return {
+                character_payload = {
                     'id': char_id,
                     'file_path': file_path,
                     'character_data': {
@@ -128,6 +131,9 @@ class StashManager:
                         }
                     }
                 }
+
+                self._precompute_priority_stashes(character_payload['character_data'])
+                return character_payload
             except Exception as e:
                 logger.error(f"Error loading packet data file {file_path}: {str(e)}")
                 return None
@@ -184,6 +190,88 @@ class StashManager:
 
         # Mark data as loaded
         self._is_loaded = True
+
+    @staticmethod
+    def _normalize_stash_id(value: Union[str, int, None]) -> Optional[str]:
+        """Normalize incoming stash identifiers to their string form."""
+        if value is None:
+            return None
+        try:
+            normalized = str(value).strip()
+        except Exception:
+            return None
+        if not normalized:
+            return None
+        if normalized.lower() == 'character':
+            # Character view is a UI abstraction that maps to bag + equipment
+            return 'character'
+        return normalized
+
+    @staticmethod
+    def _compute_stash_signature(items: Iterable[Dict]) -> int:
+        """Generate a lightweight hash representing stash contents."""
+        signature = 0
+        for item in items or []:
+            if not isinstance(item, dict):
+                continue
+            slot_id = item.get('slotId') or 0
+            count = item.get('itemCount') or 0
+            data = item.get('data') or {}
+            unique_id = data.get('itemUniqueId') or item.get('itemId') or slot_id
+            signature = ((signature * 1315423911) ^ hash((unique_id, slot_id, count))) & 0xFFFFFFFFFFFFFFFF
+        return signature
+
+    @staticmethod
+    def _get_stash_cache(char_data: Optional[Dict]) -> Optional[Dict[str, Dict]]:
+        if char_data is None:
+            return None
+        cache = char_data.get('_stash_cache')
+        if cache is None:
+            cache = {}
+            char_data['_stash_cache'] = cache
+        return cache
+
+    def _precompute_priority_stashes(
+        self,
+        char_data: Optional[Dict],
+        stash_ids: Optional[Iterable[str]] = None,
+    ) -> None:
+        """Eagerly build cache entries for stashes the UI opens first."""
+        if not char_data:
+            return
+
+        stashes = char_data.get('stashes') or {}
+        if not isinstance(stashes, dict):
+            return
+
+        targets = [str(stash_id) for stash_id in (stash_ids or PRIORITY_STASH_IDS)]
+        if not targets:
+            return
+
+        stash_cache = self._get_stash_cache(char_data)
+        if stash_cache is None:
+            return
+
+        for stash_id in targets:
+            items = stashes.get(stash_id)
+            if not isinstance(items, list):
+                continue
+
+            signature = self._compute_stash_signature(items)
+            cached_entry = stash_cache.get(stash_id)
+            if cached_entry and cached_entry.get('signature') == signature:
+                continue
+
+            try:
+                _, enhanced_items = self._process_stash_items(stash_id, items)
+            except Exception as exc:
+                logger.error("Failed to precompute stash %s for character %s: %s", stash_id, char_data.get('id'), exc)
+                continue
+            stash_cache[stash_id] = {
+                'signature': signature,
+                'items': enhanced_items,
+                'timestamp': time.time(),
+            }
 
     def get_performance_stats(self) -> Dict:
         """Get performance statistics for data loading and memory usage"""
@@ -482,97 +570,187 @@ class StashManager:
 
         return output
 
-    def get_character_stash_previews(self, character_id):
-        """Get detailed item data for all stashes of a character without generating image previews"""
-        stashes = self.get_character_stashes(character_id)
-        preview_paths = {}  # Keep empty dictionary for backward compatibility
-        stash_data = {}
-        for stash_id, items in stashes.items():
-            try:
-                enhanced_items = []
-                for item in items:
-                    try:
-                        design_str = item.get("itemId", "")
-                        item_id = item_data_manager.get_item_id_from_design_str(design_str)
-                        name = item_data_manager.get_item_name_from_id(item_id)
-                        rarity = item_data_manager.get_item_rarity_from_id(item_id)
-                        width, height = item_data_manager.get_item_dimensions_from_id(item_id)
-                        img_path = item_data_manager.get_item_image_path_from_id(item_id)
-                        data = item.get("data", {})
-                        effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
-                        pp = []
-                        for p in data.get("primaryPropertyArray", []):
-                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
-                                prop_name = p["propertyTypeId"].replace(effect_str, "")
-                                pp.append([prop_name, p["propertyValue"]])
-                        sp = []
-                        for p in data.get("secondaryPropertyArray", []):
-                            if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
-                                prop_name = p["propertyTypeId"].replace(effect_str, "")
-                                sp.append([prop_name, p["propertyValue"]])
-                        image_url = None
-                        if img_path:
-                            image_url_path = canonical_icon_path(img_path)
-                            if image_url_path:
-                                image_url = f"/assets/{image_url_path}"
-                        max_stack = item_data_manager.get_item_max_stack_size(item_id)
-                        loot_state_raw = item.get("data", {}).get("lootState")
-                        loot_state_value = None
-                        loot_state_label = None
-                        if loot_state_raw is not None:
-                            try:
-                                loot_state_value = int(loot_state_raw)
-                            except (TypeError, ValueError):
-                                loot_state_value = None
-                            if loot_state_value is not None:
-                                loot_state_label = format_loot_state_label(loot_state_value)
-                            else:
-                                loot_state_label = str(loot_state_raw)
-                        enhanced_item = {
-                            'name': name,
-                            'itemId': item_id,
-                            'itemUniqueId': str(data.get("itemUniqueId", "")),
-                            'originalData': data,
-                            'slotId': item.get("slotId", 0),
-                            'itemCount': item.get("itemCount", 1),
-                            'rarity': rarity,
-                            'width': width or 1,
-                            'height': height or 1,
-                            'pp': pp,
-                            'sp': sp,
-                            'imagePath': image_url,
-                            'vendor_price': item_data_manager.get_item_vendor_price(item_id),
-                            'maxStackSize': max_stack,
-                            'max_stack_size': max_stack
-                        }
+    def _process_stash_items(self, stash_id, items):
+        """Process items for a single stash to generate enhanced data"""
+        enhanced_items = []
+        try:
+            for item in items:
+                try:
+                    design_str = item.get("itemId", "")
+                    item_id = item_data_manager.get_item_id_from_design_str(design_str)
+                    name = item_data_manager.get_item_name_from_id(item_id)
+                    rarity = item_data_manager.get_item_rarity_from_id(item_id)
+                    width, height = item_data_manager.get_item_dimensions_from_id(item_id)
+                    img_path = item_data_manager.get_item_image_path_from_id(item_id)
+                    data = item.get("data", {})
+                    effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
+                    pp = []
+                    for p in data.get("primaryPropertyArray", []):
+                        if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
+                            prop_name = p["propertyTypeId"].replace(effect_str, "")
+                            pp.append([prop_name, p["propertyValue"]])
+                    sp = []
+                    for p in data.get("secondaryPropertyArray", []):
+                        if isinstance(p, dict) and "propertyTypeId" in p and "propertyValue" in p:
+                            prop_name = p["propertyTypeId"].replace(effect_str, "")
+                            sp.append([prop_name, p["propertyValue"]])
+                    image_url = None
+                    if img_path:
+                        image_url_path = canonical_icon_path(img_path)
+                        if image_url_path:
+                            image_url = f"/assets/{image_url_path}"
+                    max_stack = item_data_manager.get_item_max_stack_size(item_id)
+                    loot_state_raw = item.get("data", {}).get("lootState")
+                    loot_state_value = None
+                    loot_state_label = None
+                    if loot_state_raw is not None:
+                        try:
+                            loot_state_value = int(loot_state_raw)
+                        except (TypeError, ValueError):
+                            loot_state_value = None
                         if loot_state_value is not None:
-                            enhanced_item['lootState'] = loot_state_value
-                        if loot_state_label:
-                            enhanced_item['lootStateLabel'] = loot_state_label
-                        enhanced_items.append(enhanced_item)
-                    except Exception as e:
-                        logger.error(f"Error enhancing item data: {str(e)}")
-                        enhanced_items.append({
-                            'name': 'Unknown Item',
-                            'itemId': item.get("itemId", "unknown"),
-                            'slotId': item.get("slotId", 0),
-                            'itemCount': item.get("itemCount", 1),
-                            'rarity': 'Common',
-                            'width': 1,
-                            'height': 1
-                        })
-                stash_data[stash_id] = enhanced_items
-                preview_paths[stash_id] = "/static/img/placeholder.png"
-            except Exception as e:
-                logger.error(f"Error processing stash {stash_id}: {str(e)}")
-                import traceback
-                traceback.print_exc()
-                preview_paths[stash_id] = "/static/img/error.png"
+                            loot_state_label = format_loot_state_label(loot_state_value)
+                        else:
+                            loot_state_label = str(loot_state_raw)
+                    enhanced_item = {
+                        'name': name,
+                        'itemId': item_id,
+                        'itemUniqueId': str(data.get("itemUniqueId", "")),
+                        'originalData': data,
+                        'slotId': item.get("slotId", 0),
+                        'itemCount': item.get("itemCount", 1),
+                        'rarity': rarity,
+                        'width': width or 1,
+                        'height': height or 1,
+                        'pp': pp,
+                        'sp': sp,
+                        'imagePath': image_url,
+                        'vendor_price': item_data_manager.get_item_vendor_price(item_id),
+                        'maxStackSize': max_stack,
+                        'max_stack_size': max_stack
+                    }
+                    if loot_state_value is not None:
+                        enhanced_item['lootState'] = loot_state_value
+                    if loot_state_label:
+                        enhanced_item['lootStateLabel'] = loot_state_label
+                    enhanced_items.append(enhanced_item)
+                except Exception as e:
+                    logger.error(f"Error enhancing item data: {str(e)}")
+                    enhanced_items.append({
+                        'name': 'Unknown Item',
+                        'itemId': item.get("itemId", "unknown"),
+                        'slotId': item.get("slotId", 0),
+                        'itemCount': item.get("itemCount", 1),
+                        'rarity': 'Common',
+                        'width': 1,
+                        'height': 1
+                    })
+            return stash_id, enhanced_items
+        except Exception as e:
+            logger.error(f"Error processing stash {stash_id}: {str(e)}")
+            return stash_id, []
+
+    def get_character_stash_previews(
+        self,
+        character_id,
+        stash_ids: Optional[Iterable[Union[str, int]]] = None,
+    ):
+        """Get detailed item data for character stashes.
+
+        Optionally limit processing to the provided stash IDs to avoid
+        regenerating every stash when the UI only needs a subset.
+        """
+        char_data = self.characters_cache.get(str(character_id))
+        stashes = self.get_character_stashes(character_id)
+        preview_paths = {str(stash_id): "/static/img/placeholder.png" for stash_id in stashes.keys()}
+        stash_stats = {
+            str(stash_id): {
+                'itemCount': len(items) if isinstance(items, list) else 0,
+            }
+            for stash_id, items in stashes.items()
+        }
+
+        if not stashes:
+            return {'previewImages': preview_paths, 'stashData': {}, 'stashStats': stash_stats}
+
+        requested_ids: Optional[Set[str]] = None
+        if stash_ids is not None:
+            requested_ids = set()
+            for raw_id in stash_ids:
+                normalized = self._normalize_stash_id(raw_id)
+                if not normalized:
+                    continue
+                if normalized == 'character':
+                    requested_ids.update({'2', '3'})
+                    continue
+                requested_ids.add(normalized)
+            if not requested_ids:
+                requested_ids = None
+
+        stash_queue: List[str] = []
+        if requested_ids is None:
+            stash_queue = list(stashes.keys())
+        else:
+            stash_queue = [stash_id for stash_id in stashes.keys() if stash_id in requested_ids]
+
+        if not stash_queue:
+            return {'previewImages': preview_paths, 'stashData': {}, 'stashStats': stash_stats}
+
+        stash_cache = self._get_stash_cache(char_data)
+        stash_data: Dict[str, List[Dict]] = {}
+
+        tasks: List[Tuple[str, int, List[Dict]]] = []
+        for stash_id in stash_queue:
+            items = stashes.get(stash_id)
+            if not isinstance(items, list):
                 stash_data[stash_id] = []
+                continue
+
+            signature = self._compute_stash_signature(items)
+            cached_entry = (stash_cache or {}).get(stash_id) if stash_cache else None
+            if cached_entry and cached_entry.get('signature') == signature:
+                stash_data[stash_id] = cached_entry.get('items', [])
+                continue
+
+            tasks.append((stash_id, signature, items))
+
+        if len(tasks) == 1:
+            stash_id, signature, items = tasks[0]
+            _, enhanced_items = self._process_stash_items(stash_id, items)
+            stash_data[stash_id] = enhanced_items
+            if stash_cache is not None:
+                stash_cache[stash_id] = {
+                    'signature': signature,
+                    'items': enhanced_items,
+                    'timestamp': time.time(),
+                }
+        elif tasks:
+            max_workers = min(len(tasks), os.cpu_count() or 4, 8)
+            with ThreadPool(max_workers=max_workers) as pool:
+                futures = []
+                for stash_id, signature, items in tasks:
+                    futures.append((stash_id, signature, pool.submit(self._process_stash_items, stash_id, items)))
+
+                for stash_id, signature, future in futures:
+                    try:
+                        _, enhanced_items = future.result()
+                    except Exception as exc:
+                        logger.error(f"Error in stash processing future for stash {stash_id}: {exc}")
+                        enhanced_items = []
+                    stash_data[stash_id] = enhanced_items
+                    if stash_cache is not None:
+                        stash_cache[stash_id] = {
+                            'signature': signature,
+                            'items': enhanced_items,
+                            'timestamp': time.time(),
+                        }
+
         response = {
             'previewImages': preview_paths,
-            'stashData': stash_data
+            'stashData': stash_data,
+            'stashStats': stash_stats,
         }
+
         return response
 
     def sort_stash(

@@ -1423,8 +1423,8 @@ class Api:
         }
         return True
 
-    def get_character_stash_previews(self, character_id):
-        return self.stash_manager.get_character_stash_previews(character_id)
+    def get_character_stash_previews(self, character_id, stash_ids=None):
+        return self.stash_manager.get_character_stash_previews(character_id, stash_ids=stash_ids)
 
     def start_capture_switch(self):
         success, state = self.capture_controller.start()
@@ -1871,7 +1871,11 @@ def api_characters():
 
 @server.route('/api/character/<character_id>/stashes')
 def api_character_stashes(character_id):
-    return jsonify(api.get_character_stash_previews(character_id))
+    stash_ids_param = request.args.get('stashIds')
+    stash_ids = None
+    if stash_ids_param:
+        stash_ids = [segment.strip() for segment in stash_ids_param.split(',') if segment.strip()]
+    return jsonify(api.get_character_stash_previews(character_id, stash_ids=stash_ids))
 
 @server.route('/api/character/<character_id>/details')
 def api_character_details(character_id):
@@ -2582,7 +2586,13 @@ def background_init():
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
                 
                 # Clean up any lingering tshark instances after data is loaded
-                cleanup_tshark_instances()
+                def _cleanup_worker():
+                    try:
+                        cleanup_tshark_instances()
+                    except Exception as cleanup_err:
+                        logger.error(f"Tshark cleanup failed: {cleanup_err}")
+
+                threading.Thread(target=_cleanup_worker, daemon=True).start()
             except Exception as e:
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
