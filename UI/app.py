@@ -2489,6 +2489,31 @@ def api_set_stack_mode_route():
         logger.error(f"Error updating stack mode: {exc}")
         return jsonify({'success': False, 'error': 'Failed to set stack mode'}), 500
 
+
+@server.route('/api/sort_order', methods=['GET', 'POST'])
+def api_sort_order():
+    """Retrieve or persist the user's preferred stash sort ordering."""
+    if request.method == 'GET':
+        try:
+            return jsonify({'success': True, 'order': api.get_sort_order()})
+        except Exception as exc:
+            logger.error(f"Error retrieving sort order: {exc}")
+            return jsonify({'success': False, 'error': 'Failed to fetch sort order'}), 500
+
+    payload = request.get_json(silent=True) or {}
+    order = payload.get('order')
+    if order is None:
+        return jsonify({'success': False, 'error': 'Missing order payload'}), 400
+
+    try:
+        success = api.set_sort_order(order)
+        if not success:
+            return jsonify({'success': False, 'error': 'Failed to save sort order'}), 500
+        return jsonify({'success': True, 'order': api.get_sort_order()})
+    except Exception as exc:
+        logger.error(f"Error updating sort order: {exc}")
+        return jsonify({'success': False, 'error': 'Failed to persist sort order'}), 500
+
 @server.route('/assets/<path:filename>')
 def serve_file(filename):
     canonical = canonical_icon_path(filename)
