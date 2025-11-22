@@ -418,22 +418,10 @@
         return stringValue.replace(/[^a-zA-Z0-9_-]/g, match => `\\${match}`);
     };
 
-    const updateOwnedLabels = (itemId, total) => {
-        if (!itemId) {
-            return;
-        }
-        const numericTotal = Number(total);
-        const sanitizedTotal = Number.isFinite(numericTotal) ? numericTotal : 0;
-        const selector = `.item-owned-value[data-item-id="${cssEscape(itemId)}"]`;
-        document.querySelectorAll(selector).forEach(node => {
-            node.textContent = sanitizedTotal;
-        });
-    };
-
     const holdingsPrefetchQueue = new Set();
     let holdingsPrefetchInFlight = false;
 
-    const getCachedHoldingsTotal = (itemId) => {
+    const getCachedHoldingsTotal = (itemId, allowedLootStates = null) => {
         if (!itemId) {
             return null;
         }
@@ -441,8 +429,51 @@
         if (!cached || !cached.data) {
             return null;
         }
-        const total = Number(cached.data.total);
-        return Number.isFinite(total) ? total : 0;
+
+        if (!allowedLootStates) {
+            const total = Number(cached.data.total);
+            return Number.isFinite(total) ? total : 0;
+        }
+
+        let filteredTotal = 0;
+        const characters = Array.isArray(cached.data.characters) ? cached.data.characters : [];
+        characters.forEach(char => {
+            const stashes = Array.isArray(char.stashes) ? char.stashes : [];
+            stashes.forEach(stash => {
+                const count = Number(stash.count) || 0;
+                if (count <= 0) return;
+
+                const lootState = stash.loot_state !== undefined ? Number(stash.loot_state) : null;
+                if (allowedLootStates.has(lootState)) {
+                    filteredTotal += count;
+                }
+            });
+        });
+        return filteredTotal;
+    };
+
+    const updateOwnedLabels = (itemId) => {
+        if (!itemId) {
+            return;
+        }
+        const selector = `.item-owned-value[data-item-id="${cssEscape(itemId)}"]`;
+        document.querySelectorAll(selector).forEach(node => {
+            const filterRaw = node.dataset.lootFilter;
+            let allowedLootStates = null;
+            if (filterRaw) {
+                try {
+                    const parsed = JSON.parse(filterRaw);
+                    if (Array.isArray(parsed)) {
+                        allowedLootStates = new Set(parsed.map(Number));
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+
+            const total = getCachedHoldingsTotal(itemId, allowedLootStates);
+            node.textContent = total !== null ? total : '—';
+        });
     };
 
     const isHoldingsCacheFresh = (itemId) => {
@@ -477,7 +508,7 @@
             }
             const cachedTotal = getCachedHoldingsTotal(normalized);
             if (cachedTotal !== null) {
-                updateOwnedLabels(normalized, cachedTotal);
+                updateOwnedLabels(normalized);
             }
             if (isHoldingsCacheFresh(normalized)) {
                 return;
@@ -520,7 +551,7 @@
                             data: summary,
                             timestamp: now
                         };
-                        updateOwnedLabels(id, Number(summary.total) || 0);
+                        updateOwnedLabels(id);
                         if (state.itemsOwnedFirst) {
                             shouldRerenderItems = true;
                         }
@@ -2072,7 +2103,7 @@
         const total = Number(summary && summary.total);
         const totalValue = Number.isFinite(total) ? total : 0;
         elements.itemHoldingsSummary.innerHTML = `Total owned across captured characters: <strong>${totalValue}</strong>`;
-        updateOwnedLabels(itemId, totalValue);
+        updateOwnedLabels(itemId);
 
         const characters = Array.isArray(summary && summary.characters) ? summary.characters : [];
         if (!characters.length) {
@@ -2115,7 +2146,7 @@
         const now = Date.now();
         const cached = state.itemHoldingsCache[normalizedId];
         if (cached && (now - cached.timestamp) < HOLDINGS_CACHE_TTL) {
-            updateOwnedLabels(normalizedId, cached.data && cached.data.total);
+            updateOwnedLabels(normalizedId);
             return cached.data;
         }
 
@@ -2144,7 +2175,7 @@
             data: summary,
             timestamp: now
         };
-        updateOwnedLabels(normalizedId, summary.total || 0);
+        updateOwnedLabels(normalizedId);
         return summary;
     };
 
@@ -2263,6 +2294,10 @@
             let totalFromQuests = 0;
             let visibleTotalFromQuests = 0;
 
+            const allowedLootStates = new Set();
+            let hasRestrictedQuests = false;
+            let hasUnrestrictedQuests = false;
+
             questEntries.forEach((entry) => {
                 const questKey = resolveQuestKeyFromEntry(entry);
                 if (questKey) {
@@ -2272,6 +2307,14 @@
                 const countValue = Number(entry.count ?? entry.total ?? entry.quantity ?? entry.requirement ?? entry.amount) || 0;
                 totalFromQuests += countValue;
                 const questTitle = entry.title || entry.quest_title || entry.questTitle || entry.name || entry.id || questKey;
+
+                const lootStateValues = entry.loot_state_values;
+                if (Array.isArray(lootStateValues) && lootStateValues.length > 0) {
+                    hasRestrictedQuests = true;
+                    lootStateValues.forEach(v => allowedLootStates.add(v));
+                } else {
+                    hasUnrestrictedQuests = true;
+                }
 
                 if (locked) {
                     lockedQuestCount += 1;
@@ -2311,6 +2354,8 @@
                 ? visibleQuests.map(entry => entry.questKey).filter(Boolean)
                 : allQuestIds.filter(Boolean);
 
+            const finalAllowedLootStates = hasUnrestrictedQuests ? null : (allowedLootStates.size > 0 ? Array.from(allowedLootStates) : null);
+
             return {
                 totalRequired: Math.max(0, Number.isFinite(effectiveTotal) ? effectiveTotal : 0),
                 visibleQuests,
@@ -2319,7 +2364,8 @@
                 lockedQuestCount,
                 hasQuestAssociations: questEntries.length > 0,
                 isFullyLocked: hideLocked && questEntries.length > 0 && visibleQuests.length === 0 && lockedQuestCount > 0,
-                allowedQuestIds: allowedQuestIds.length ? allowedQuestIds : null
+                allowedQuestIds: allowedQuestIds.length ? allowedQuestIds : null,
+                allowedLootStates: finalAllowedLootStates
             };
         };
 
@@ -2472,10 +2518,19 @@
             ownedLabel.textContent = 'Owned: ';
             const ownedValue = document.createElement('span');
             ownedValue.className = 'item-owned-value';
+
+            if (summary.allowedLootStates) {
+                ownedValue.dataset.lootFilter = JSON.stringify(summary.allowedLootStates);
+            }
+
             let cachedOwnedTotal = null;
             if (itemIdentifier) {
                 ownedValue.dataset.itemId = itemIdentifier;
-                cachedOwnedTotal = getCachedHoldingsTotal(itemIdentifier);
+                let allowedSet = null;
+                if (summary.allowedLootStates) {
+                    allowedSet = new Set(summary.allowedLootStates);
+                }
+                cachedOwnedTotal = getCachedHoldingsTotal(itemIdentifier, allowedSet);
             }
             ownedValue.textContent = cachedOwnedTotal !== null ? cachedOwnedTotal : '—';
             ownedLabel.appendChild(ownedValue);
@@ -2499,7 +2554,7 @@
             if (itemIdentifier) {
                 visibleItemIds.push(itemIdentifier);
                 if (cachedOwnedTotal !== null) {
-                    updateOwnedLabels(itemIdentifier, cachedOwnedTotal);
+                    updateOwnedLabels(itemIdentifier);
                 }
             }
 
@@ -2521,9 +2576,6 @@
                 } else {
                     progressInput.value = submittedValue > 0 ? submittedValue : '';
                     hintParts.push(`Auto-tracked from objectives: ${autoDisplay}`);
-                }
-                if (Array.isArray(item.loot_state_requirements) && item.loot_state_requirements.length) {
-                    hintParts.push(`Counts loot-state: ${item.loot_state_requirements.join(', ')}`);
                 }
                 if (hideLocked && summary.hiddenQuestCount > 0) {
                     hintParts.push(`${summary.hiddenQuestCount} locked quest${summary.hiddenQuestCount === 1 ? '' : 's'} hidden`);

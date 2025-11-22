@@ -49,7 +49,6 @@ from src.models.item import Item
 from src.models.game_overlay import overlay_manager, register_overlay_logging
 from src.models.hotkeys import GlobalHotkeyManager, HotkeyError, format_hotkey_display
 from src.models.loot import (
-    collect_item_loot_state_requirements,
     extract_loot_state_filter,
     format_loot_state_label,
 )
@@ -176,7 +175,8 @@ server.secret_key = secrets.token_hex(32)  # Generate a secure random key
 @server.context_processor
 def inject_desktop_preferences():
     return {
-        'close_to_tray_enabled': settings_manager.get('closeToTrayEnabled', True)
+        'close_to_tray_enabled': settings_manager.get('closeToTrayEnabled', True),
+        'developer_mode_enabled': settings_manager.get('developerMode', False),
     }
 
 # Initialize StashManager with explicit path, but defer actual data loading
@@ -2126,21 +2126,8 @@ def api_quests_item_holdings():
     if not item_ids:
         return jsonify({'success': False, 'error': 'No valid item ids provided'}), 400
 
-    loot_state_requirements: Dict[str, Optional[Set[int]]] = {}
     try:
-        quests_snapshot = quest_service.fetch_quests()
-        loot_state_requirements = collect_item_loot_state_requirements(quests_snapshot, set(item_ids))
-    except Exception as exc:
-        logger.debug("Unable to resolve loot state requirements for holdings: %s", exc, exc_info=True)
-
-    loot_state_filter = {
-        item_id: values
-        for item_id, values in loot_state_requirements.items()
-        if values
-    }
-
-    try:
-        holdings_map = api.stash_manager.get_item_holdings(item_ids, loot_state_map=loot_state_filter)
+        holdings_map = api.stash_manager.get_item_holdings(item_ids)
     except Exception as exc:
         logger.error("Failed to aggregate quest item holdings: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to calculate holdings'}), 500
@@ -2171,7 +2158,8 @@ def api_quests_item_holdings():
                 stashes_payload.append({
                     'stash_id': stash.get('stash_id'),
                     'count': count_value,
-                    'slot_id': stash.get('slot_id')
+                    'slot_id': stash.get('slot_id'),
+                    'loot_state': stash.get('loot_state')
                 })
 
             characters.append({

@@ -643,6 +643,38 @@
     overflow: hidden;
 }
 
+.tooltip-developer {
+    border-top: 1px dashed rgba(160, 200, 255, 0.15);
+    margin-top: 8px;
+    padding-top: 8px;
+}
+
+.tooltip-dev-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-family: 'Roboto Mono', Consolas, monospace;
+    font-size: 11px;
+    color: #a8d4ff;
+    margin-top: 2px;
+}
+
+.tooltip-dev-row code {
+    background: rgba(168, 212, 255, 0.08);
+    border: 1px solid rgba(168, 212, 255, 0.2);
+    border-radius: 4px;
+    padding: 1px 4px;
+    font-size: 10px;
+    color: #eaf6ff;
+    word-break: break-all;
+}
+
+.tooltip-dev-label {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.85);
+}
+
 .stash-action-button {
     background: var(--bg-secondary);
     color: var(--text-primary);

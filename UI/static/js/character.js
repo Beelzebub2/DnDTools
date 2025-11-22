@@ -1369,15 +1369,25 @@ const renderInteractiveGrid = (stashId, items) => {
                 countBadge.textContent = item.itemCount;
                 itemEl.appendChild(countBadge);
             }
-            // Quest-needed badge: show a yellow exclamation if this item can be submitted to incomplete quests
+            // Quest-needed badge honors loot-state gating
             try {
-                const itemId = item.item_id || item.itemId || item.itemId || item.itemId || item.name || '';
-                if (itemId && window && window.questNeededItems && typeof window.questNeededItems.has === 'function' && window.questNeededItems.has(String(itemId))) {
-                    const questBadge = document.createElement('div');
-                    questBadge.className = 'item-quest-badge';
-                    questBadge.setAttribute('title', 'Needed for active quests');
-                    questBadge.textContent = '!';
-                    itemEl.appendChild(questBadge);
+                const itemId = item.item_id || item.itemId || item.id || item.name || '';
+                const normalizedId = String(itemId);
+                const questSet = window && window.questNeededItems;
+                if (normalizedId && questSet && typeof questSet.has === 'function' && questSet.has(normalizedId)) {
+                    const lootState = item.lootState ?? item.loot_state;
+                    if (doesItemMeetQuestLootState(normalizedId, lootState)) {
+                        const questBadge = document.createElement('div');
+                        questBadge.className = 'item-quest-badge';
+                        const meta = getQuestLootStateMeta(normalizedId);
+                        const badgeLines = ['Needed for active quests'];
+                        if (meta && Array.isArray(meta.labels) && meta.labels.length) {
+                            badgeLines.push(`Counts loot-state: ${meta.labels.join(', ')}`);
+                        }
+                        questBadge.setAttribute('title', badgeLines.join('\n'));
+                        questBadge.textContent = '!';
+                        itemEl.appendChild(questBadge);
+                    }
                 }
             } catch (e) {
                 // ignore any errors accessing quest data
@@ -1402,6 +1412,16 @@ const renderInteractiveGrid = (stashId, items) => {
                         </div>
                     </div>
                 `;
+                const lootStateLabel = getItemLootStateLabel(item);
+                if (lootStateLabel) {
+                    html += `
+                    <div class="tooltip-body">
+                        <div class="tooltip-section">
+                            <strong>Loot state:</strong>
+                            <div class="tooltip-quest-name">${escapeHtml(lootStateLabel)}</div>
+                        </div>
+                    </div>`;
+                }
                 // Append needed-for quests if available
                 try {
                     const id = item.item_id || item.itemId || item.id || item.name || '';
@@ -1410,8 +1430,27 @@ const renderInteractiveGrid = (stashId, items) => {
                         const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
                         html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
                     }
+                    const questLootMeta = getQuestLootStateMeta(id);
+                    if (questLootMeta && Array.isArray(questLootMeta.labels) && questLootMeta.labels.length) {
+                        const labelText = escapeHtml(questLootMeta.labels.join(', '));
+                        html += `\n<div class="tooltip-body tooltip-needed">\n<div class="tooltip-section">\n<strong>Counts loot-state:</strong>\n<div class="tooltip-quest-name">${labelText}</div>\n</div>\n</div>`;
+                    }
                 } catch (e) {
                     // ignore
+                }
+
+                if (isDeveloperModeActive()) {
+                    const devSection = buildDeveloperTooltipSection(item, {
+                        stashId,
+                        slotIndex,
+                        rawSlotId,
+                        displaySlotId,
+                        gridX: x,
+                        gridY: y,
+                    });
+                    if (devSection) {
+                        html += devSection;
+                    }
                 }
                 showGlobalTooltip(html, e.clientX, e.clientY);
             });
@@ -2667,6 +2706,16 @@ const renderCombinedCharacterView = async (stashes) => {
                         </div>
                     </div>
                 `;
+                const lootStateLabel = getItemLootStateLabel(item);
+                if (lootStateLabel) {
+                    html += `
+                    <div class="tooltip-body">
+                        <div class="tooltip-section">
+                            <strong>Loot state:</strong>
+                            <div class="tooltip-quest-name">${escapeHtml(lootStateLabel)}</div>
+                        </div>
+                    </div>`;
+                }
                 try {
                     const id = item.item_id || item.itemId || item.id || item.name || '';
                     const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
@@ -3056,6 +3105,17 @@ function getOrderingOptions() {
 window.questNeededItems = new Set();
 // Map of item_id -> array of merchant names that need the item
 window.questNeededBy = Object.create(null);
+// Map of item_id -> loot state metadata ({ values: number[], labels?: string[] })
+window.questNeededLootStates = Object.create(null);
+
+const LOOT_STATE_VALUE_TO_LABEL = {
+    0: 'None',
+    1: 'Supplied',
+    2: 'Looted',
+    3: 'Handled',
+    4: 'Crafted',
+    5: 'Ally'
+};
 
 function escapeHtml(str) {
     if (!str) return '';
@@ -3067,6 +3127,218 @@ function escapeHtml(str) {
         .replaceAll("'", '&#39;');
 }
 
+function isDeveloperModeActive() {
+    try {
+        if (typeof window !== 'undefined') {
+            if (typeof window.isDeveloperModeEnabled === 'function') {
+                return Boolean(window.isDeveloperModeEnabled());
+            }
+            if (typeof window.developerModeEnabled === 'boolean') {
+                return window.developerModeEnabled;
+            }
+        }
+    } catch (error) {
+        console.debug('Developer mode check failed', error);
+    }
+    return false;
+}
+
+function buildDeveloperTooltipSection(item, context = {}) {
+    if (!item || !isDeveloperModeActive()) {
+        return '';
+    }
+
+    const diagnostics = [];
+    const normalize = (value) => {
+        if (value === undefined || value === null) {
+            return null;
+        }
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            return trimmed ? trimmed : null;
+        }
+        return value;
+    };
+
+    const uniqueId = normalize(item.itemUniqueId ?? item.uniqueId ?? item.item_unique_id ?? item.unique_id);
+    if (uniqueId !== null) {
+        diagnostics.push({ label: 'itemUniqueId', value: uniqueId });
+    }
+
+    const itemId = normalize(item.itemId ?? item.item_id ?? item.id);
+    if (itemId !== null) {
+        diagnostics.push({ label: 'itemId', value: itemId });
+    }
+
+    const stashValue = normalize(context.stashId);
+    if (stashValue !== null) {
+        diagnostics.push({ label: 'Stash', value: stashValue });
+    }
+
+    const slotParts = [];
+    const slotIndexValue = normalize(context.slotIndex);
+    if (slotIndexValue !== null) {
+        slotParts.push(`index ${slotIndexValue}`);
+    }
+    const rawSlotValue = normalize(context.rawSlotId);
+    if (rawSlotValue !== null && rawSlotValue !== slotIndexValue) {
+        slotParts.push(`raw ${rawSlotValue}`);
+    }
+    const displaySlotValue = normalize(context.displaySlotId);
+    if (displaySlotValue !== null && displaySlotValue !== slotIndexValue && displaySlotValue !== rawSlotValue) {
+        slotParts.push(`display ${displaySlotValue}`);
+    }
+    if (slotParts.length) {
+        diagnostics.push({ label: 'Slot', value: slotParts.join(' | ') });
+    }
+
+    if (context.gridX !== undefined && context.gridY !== undefined) {
+        diagnostics.push({ label: 'Grid', value: `${context.gridX}, ${context.gridY}` });
+    }
+
+    const lootState = normalize(item.lootState ?? item.loot_state);
+    if (lootState !== null) {
+        diagnostics.push({ label: 'lootState', value: lootState });
+        const readable = formatLootStateLabel(lootState);
+        if (readable) {
+            diagnostics.push({ label: 'lootStateLabel', value: readable });
+        }
+    }
+
+    const inventoryId = normalize(item.inventoryId ?? item.inventory_id);
+    if (inventoryId !== null) {
+        diagnostics.push({ label: 'Inventory ID', value: inventoryId });
+    }
+
+    const originType = normalize(item.originType ?? item.origin_type);
+    if (originType !== null) {
+        diagnostics.push({ label: 'Origin Type', value: originType });
+    }
+
+    if (!diagnostics.length) {
+        return '';
+    }
+
+    const rows = diagnostics.map(({ label, value }) => {
+        const safeLabel = escapeHtml(String(label));
+        const safeValue = escapeHtml(String(value));
+        return `<div class="tooltip-dev-row"><span class="tooltip-dev-label">${safeLabel}:</span><code>${safeValue}</code></div>`;
+    }).join('');
+
+    return `<div class="tooltip-body tooltip-developer"><div class="tooltip-section"><strong>Developer diagnostics</strong>${rows}</div></div>`;
+}
+
+function formatLootStateLabel(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    const numeric = Number(value);
+    if (Number.isFinite(numeric) && Object.prototype.hasOwnProperty.call(LOOT_STATE_VALUE_TO_LABEL, numeric)) {
+        return LOOT_STATE_VALUE_TO_LABEL[numeric];
+    }
+    if (typeof value === 'string') {
+        const trimmed = value.trim();
+        return trimmed || null;
+    }
+    return null;
+}
+
+function getItemLootStateLabel(item) {
+    if (!item) {
+        return null;
+    }
+    const explicit = item.lootStateLabel || item.loot_state_label;
+    if (explicit && typeof explicit === 'string' && explicit.trim()) {
+        return explicit.trim();
+    }
+    const fallback = item.lootState ?? item.loot_state;
+    return formatLootStateLabel(fallback);
+}
+
+function normalizeLootStateValue(value) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function buildLootStateMetaFromItem(item) {
+    const quests = Array.isArray(item?.quests) ? item.quests : [];
+    if (!quests.length) {
+        return null;
+    }
+
+    const values = new Set();
+    const labels = [];
+    const seenLabels = new Set();
+
+    quests.forEach(entry => {
+        if (!entry || typeof entry !== 'object') {
+            return;
+        }
+        const rawValues = Array.isArray(entry.loot_state_values)
+            ? entry.loot_state_values
+            : (entry.loot_state_value !== undefined ? [entry.loot_state_value] : []);
+        if (rawValues.length) {
+            rawValues.forEach(val => {
+                const normalized = normalizeLootStateValue(val);
+                if (normalized !== null) {
+                    values.add(normalized);
+                }
+            });
+            const rawLabels = Array.isArray(entry.loot_state_labels)
+                ? entry.loot_state_labels
+                : (entry.loot_state_label ? [entry.loot_state_label] : []);
+            rawLabels.forEach(label => {
+                const trimmed = typeof label === 'string' ? label.trim() : '';
+                if (trimmed && !seenLabels.has(trimmed)) {
+                    seenLabels.add(trimmed);
+                    labels.push(trimmed);
+                }
+            });
+        } else {
+            // Default to Looted (2) if no specific requirement
+            values.add(2);
+        }
+    });
+
+    if (!values.size) {
+        return null;
+    }
+
+    const sortedValues = Array.from(values);
+    sortedValues.sort((a, b) => a - b);
+
+    return {
+        values: sortedValues,
+        labels: labels.length ? labels : null,
+    };
+}
+
+function getQuestLootStateMeta(itemId) {
+    if (!itemId || !window.questNeededLootStates) {
+        return null;
+    }
+    return window.questNeededLootStates[String(itemId)] || null;
+}
+
+function doesItemMeetQuestLootState(itemId, lootStateValue) {
+    const meta = getQuestLootStateMeta(itemId);
+    const normalized = normalizeLootStateValue(lootStateValue);
+
+    if (normalized === null) {
+        return false;
+    }
+
+    if (!meta || !Array.isArray(meta.values) || !meta.values.length) {
+        // Default to Looted (2)
+        return normalized === 2;
+    }
+
+    return meta.values.includes(normalized);
+}
+
 async function refreshQuestNeededItems() {
     try {
         // Fetch aggregated quest item requirements
@@ -3075,6 +3347,8 @@ async function refreshQuestNeededItems() {
         if (!itemsResp.ok || !itemsData || !Array.isArray(itemsData.items)) {
             // clear if failed
             window.questNeededItems.clear();
+            window.questNeededBy = Object.create(null);
+            window.questNeededLootStates = Object.create(null);
             return;
         }
 
@@ -3088,6 +3362,7 @@ async function refreshQuestNeededItems() {
 
         const needed = new Set();
         const neededBy = Object.create(null);
+        const lootStateMetaMap = Object.create(null);
 
         // Build map of objective-submitted totals by item_id
         const objectiveSubmissionsByItem = {};
@@ -3102,6 +3377,11 @@ async function refreshQuestNeededItems() {
             const itemId = item && (item.item_id || item.itemId || item.id);
             if (!itemId) return;
             const totalRequired = Number(item.total_required) || 0;
+
+            const lootMeta = buildLootStateMetaFromItem(item);
+            if (lootMeta) {
+                lootStateMetaMap[String(itemId)] = lootMeta;
+            }
 
             // Manual override takes precedence (same behavior as quest UI)
             let isNeeded = false;
@@ -3150,9 +3430,12 @@ async function refreshQuestNeededItems() {
 
         window.questNeededItems = needed;
         window.questNeededBy = neededBy;
+        window.questNeededLootStates = lootStateMetaMap;
     } catch (err) {
         console.warn('Failed to refresh quest-needed items:', err);
         window.questNeededItems = new Set();
+        window.questNeededBy = Object.create(null);
+        window.questNeededLootStates = Object.create(null);
     } finally {
         // Re-render current stash view so badges show up
         try {

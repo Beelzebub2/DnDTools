@@ -17,6 +17,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 import logging
 from src.models.game_overlay import NullOverlaySession, SortOverlaySession
+from src.models.loot import format_loot_state_label
 
 logger = logging.getLogger(__name__)
 
@@ -266,13 +267,8 @@ class StashManager:
     def get_item_holdings(
         self,
         item_ids: Iterable[str],
-        loot_state_map: Optional[Dict[str, Set[int]]] = None,
     ) -> Dict[str, List[Dict]]:
-        """Aggregate how many of the specified items exist across all characters.
-
-        When ``loot_state_map`` is provided, only items whose ``lootState`` value is
-        present in the corresponding set will be counted for that item id.
-        """
+        """Aggregate how many of the specified items exist across all characters."""
         if not item_ids:
             return {}
 
@@ -285,11 +281,6 @@ class StashManager:
 
         target_set = set(targets)
         aggregated: Dict[str, List[Dict]] = {item_id: [] for item_id in target_set}
-        loot_state_filter = {
-            str(item_id): set(values)
-            for item_id, values in (loot_state_map or {}).items()
-            if values
-        }
 
         for char in self.get_characters():
             if not isinstance(char, dict):
@@ -318,16 +309,11 @@ class StashManager:
                     if canonical_id not in target_set:
                         continue
 
-                    loot_state_raw = item.get("lootState")
+                    loot_state_raw = item.get("data", {}).get("lootState")
                     try:
                         loot_state_value = int(loot_state_raw)
                     except (TypeError, ValueError):
                         loot_state_value = None
-
-                    allowed_states = loot_state_filter.get(canonical_id)
-                    if allowed_states is not None:
-                        if loot_state_value is None or loot_state_value not in allowed_states:
-                            continue
 
                     count_raw = item.get("itemCount", 1)
                     try:
@@ -410,7 +396,7 @@ class StashManager:
                         try:
                             item_id = item_data_manager.get_item_id_from_design_str(design_str)
                         except Exception:
-                            item_id = design_str or item.get("itemUniqueId") or "unknown"
+                            item_id = design_str or item.get("data", {}).get("itemUniqueId") or "unknown"
 
                         try:
                             name = item_data_manager.get_item_name_from_id(item_id)
@@ -530,9 +516,23 @@ class StashManager:
                             if image_url_path:
                                 image_url = f"/assets/{image_url_path}"
                         max_stack = item_data_manager.get_item_max_stack_size(item_id)
+                        loot_state_raw = item.get("data", {}).get("lootState")
+                        loot_state_value = None
+                        loot_state_label = None
+                        if loot_state_raw is not None:
+                            try:
+                                loot_state_value = int(loot_state_raw)
+                            except (TypeError, ValueError):
+                                loot_state_value = None
+                            if loot_state_value is not None:
+                                loot_state_label = format_loot_state_label(loot_state_value)
+                            else:
+                                loot_state_label = str(loot_state_raw)
                         enhanced_item = {
                             'name': name,
                             'itemId': item_id,
+                            'itemUniqueId': str(data.get("itemUniqueId", "")),
+                            'originalData': data,
                             'slotId': item.get("slotId", 0),
                             'itemCount': item.get("itemCount", 1),
                             'rarity': rarity,
@@ -545,6 +545,10 @@ class StashManager:
                             'maxStackSize': max_stack,
                             'max_stack_size': max_stack
                         }
+                        if loot_state_value is not None:
+                            enhanced_item['lootState'] = loot_state_value
+                        if loot_state_label:
+                            enhanced_item['lootStateLabel'] = loot_state_label
                         enhanced_items.append(enhanced_item)
                     except Exception as e:
                         logger.error(f"Error enhancing item data: {str(e)}")

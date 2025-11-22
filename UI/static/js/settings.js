@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearCharacterDataButton = document.getElementById('clearCharacterData');
     const includeDevCheckbox = document.getElementById('includeDevReleases');
     const closeToTrayCheckbox = document.getElementById('closeToTrayEnabled');
+    const developerModeCheckbox = document.getElementById('developerMode');
     const saveButton = document.getElementById('saveSettings');
     const resetButton = document.getElementById('resetSettings');
     const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
@@ -39,7 +40,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         resolution: 'Game Resolution',
         wiresharkPath: 'Wireshark Path',
         includeDevReleases: 'Development Builds Opt-In',
-        closeToTrayEnabled: 'Close to Tray'
+        closeToTrayEnabled: 'Close to Tray',
+        developerMode: 'Developer Mode'
     };
 
     function updateSaveButtonState() {
@@ -166,7 +168,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             includeDevReleases: normalizeBoolean(settings.includeDevReleases),
             closeToTrayEnabled: normalizeBoolean(
                 settings.closeToTrayEnabled === undefined ? true : settings.closeToTrayEnabled
-            )
+            ),
+            developerMode: normalizeBoolean(settings.developerMode)
         };
     }
 
@@ -179,7 +182,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: settings.resolution || 'Auto',
             wiresharkPath: settings.wiresharkPath || '',
             includeDevReleases: Boolean(settings.includeDevReleases),
-            closeToTrayEnabled: settings.closeToTrayEnabled !== false
+            closeToTrayEnabled: settings.closeToTrayEnabled !== false,
+            developerMode: Boolean(settings.developerMode)
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -196,7 +200,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
-            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true
+            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
+            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false
         };
     }
 
@@ -270,6 +275,19 @@ document.addEventListener('DOMContentLoaded', async () => {
             scheduleAutoSave();
         }
         updateSaveButtonState();
+    }
+
+    function syncDeveloperModeFlag(enabled) {
+        try {
+            if (typeof window.setDeveloperModeEnabled === 'function') {
+                window.setDeveloperModeEnabled(Boolean(enabled));
+            } else {
+                window.developerModeEnabled = Boolean(enabled);
+            }
+        } catch (error) {
+            console.warn('Failed to sync developer mode flag', error);
+            window.developerModeEnabled = Boolean(enabled);
+        }
     }
 
     function evaluateUnsavedChanges() {
@@ -477,11 +495,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (closeToTrayCheckbox) {
                 closeToTrayCheckbox.checked = currentSettings.closeToTrayEnabled !== false;
             }
+
+            if (developerModeCheckbox) {
+                developerModeCheckbox.checked = Boolean(currentSettings.developerMode);
+            }
         });
 
         runWithApplyingFlag(() => {
             applyNoDelayUIState();
         });
+
+        syncDeveloperModeFlag(Boolean(currentSettings.developerMode));
 
         if (typeof window.setCloseToTrayEnabled === 'function') {
             window.setCloseToTrayEnabled(currentSettings.closeToTrayEnabled !== false);
@@ -1064,7 +1088,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
-            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true
+            closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
+            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false
         };
 
         if (!newSettings.interface) {
@@ -1362,7 +1387,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : '',
             includeDevReleases: false,
             closeToTrayEnabled: true,
-            noDelay: false
+            noDelay: false,
+            developerMode: false
         };
     }
 
@@ -1385,6 +1411,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (closeToTrayCheckbox) {
                 closeToTrayCheckbox.checked = defaults.closeToTrayEnabled !== false;
             }
+
+            if (developerModeCheckbox) {
+                developerModeCheckbox.checked = Boolean(defaults.developerMode);
+            }
         });
 
         lastManualSortSpeed = defaults.sortSpeed;
@@ -1396,6 +1426,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (typeof window.setCloseToTrayEnabled === 'function') {
             window.setCloseToTrayEnabled(defaults.closeToTrayEnabled !== false);
         }
+
+        syncDeveloperModeFlag(Boolean(defaults.developerMode));
 
         evaluateUnsavedChanges();
     }
@@ -1515,7 +1547,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: resolutionSelect, events: ['change'] },
         { element: wiresharkPathInput, events: ['input', 'change'] },
         { element: includeDevCheckbox, events: ['change'] },
-        { element: closeToTrayCheckbox, events: ['change'] }
+        { element: closeToTrayCheckbox, events: ['change'] },
+        { element: developerModeCheckbox, events: ['change'] }
     ];
 
     trackableElements
