@@ -2529,9 +2529,6 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
-        # Clean up any lingering tshark instances
-        cleanup_tshark_instances()
-
         # Check for updates on startup
         try:
             get_version_info()
@@ -2558,6 +2555,9 @@ def background_init():
 
                 if api.window:
                     api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
+                
+                # Clean up any lingering tshark instances after data is loaded
+                cleanup_tshark_instances()
             except Exception as e:
                 logger.error(f"Background data loading failed: {e}")
                 if api.window:
@@ -2615,9 +2615,14 @@ def cleanup_tshark_instances():
     """Kill any lingering tshark instances from previous runs."""
     logger.info("Checking for lingering tshark instances...")
     killed_count = 0
-    for proc in psutil.process_iter(['pid', 'name']):
+    current_pid = os.getpid()
+    for proc in psutil.process_iter(['pid', 'name', 'ppid']):
         try:
             if proc.info['name'] and 'tshark' in proc.info['name'].lower():
+                # Skip tshark instances that are children of the current process
+                if proc.info['ppid'] == current_pid:
+                    continue
+                    
                 logger.info(f"Killing lingering tshark process: {proc.info['name']} (PID: {proc.info['pid']})")
                 proc.kill()
                 killed_count += 1

@@ -1,10 +1,20 @@
 /* Common utility styles for notifications and error states */
 
 /* Notification styles */
-.app-notification {
+#notifications-container {
     position: fixed;
     top: 20px;
     right: 20px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+    /* Allow clicks to pass through container */
+}
+
+.app-notification {
+    /* Removed fixed positioning as it's now handled by container */
     background: var(--bg-secondary, #2a2a2a);
     color: var(--text-primary, #ffffff);
     padding: 12px 16px;
@@ -13,10 +23,12 @@
     align-items: center;
     gap: 8px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    z-index: 10000;
     max-width: 400px;
     font-size: 14px;
     animation: slideInRight 0.3s ease-out;
+    pointer-events: auto;
+    /* Re-enable clicks for notifications */
+    transition: all 0.3s ease;
 }
 
 .app-notification.notification-success {
@@ -76,6 +88,18 @@
     to {
         transform: translateX(0);
         opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateX(100%);
+        opacity: 0;
     }
 }
 
