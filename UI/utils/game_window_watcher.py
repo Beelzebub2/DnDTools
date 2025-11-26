@@ -20,11 +20,13 @@ if sys.platform.startswith('win'):
     WINEVENT_SKIPOWNTHREAD = 0x0004
     PM_REMOVE = 0x0001
     WM_QUIT = 0x0012
+    EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
 else:
     EVENT_SYSTEM_FOREGROUND = EVENT_OBJECT_CREATE = EVENT_OBJECT_DESTROY = EVENT_OBJECT_SHOW = EVENT_OBJECT_NAMECHANGE = OBJID_WINDOW = 0
     WINEVENT_OUTOFCONTEXT = WINEVENT_SKIPOWNPROCESS = WINEVENT_SKIPOWNTHREAD = 0
     PM_REMOVE = 0
     WM_QUIT = 0
+    EnumWindowsProc = None
 
 PID_NAME_CACHE_SECONDS = 10.0
 
@@ -102,7 +104,12 @@ class GameWindowWatcherProcess(mp.Process):
                 self.logger.debug("SetWinEventHook failed for %s: %s", event_id, exc)
 
         if not hooks:
-            self.logger.error("Failed to install any window hooks")
+            last_error = ctypes.get_last_error()
+            if last_error:
+                self.logger.error("Failed to install any window hooks (last_error=%s)", last_error)
+            else:
+                self.logger.error("Failed to install any window hooks")
+            self._poll_windows_loop()
             return
 
         self.logger.info("Game window watcher started with %d hooks", len(hooks))
@@ -148,30 +155,30 @@ class GameWindowWatcherProcess(mp.Process):
         except Exception:
             pass
 
-    def _check_and_report(self, hwnd):
+    def _check_and_report(self, hwnd) -> bool:
         # Check if this window belongs to our target process
         pid = wintypes.DWORD()
         self._user32.GetWindowThreadProcessId(hwnd, ctypes.byref(pid))
         pid_value = int(pid.value)
         if not pid_value:
-            return
+            return False
 
         name = self._resolve_process_name(pid_value)
         if not name or name.lower() not in self._target_names:
-            return
+            return False
 
         # It matches the process. Check title.
         title = self._read_window_text(hwnd)
         if not title:
-            return
+            return False
             
         if title in self._excluded_titles:
-            return
+            return False
 
         # It's a valid game window. Get details.
         rect = wintypes.RECT()
         if not self._user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-            return
+            return False
 
         visible = bool(self._user32.IsWindowVisible(hwnd))
         focused = hwnd == self._user32.GetForegroundWindow()
@@ -187,6 +194,7 @@ class GameWindowWatcherProcess(mp.Process):
         }
         
         self._report_state(state)
+        return True
 
     def _report_state(self, state):
         # Only send if state changed (ignoring timestamp)
@@ -237,3 +245,35 @@ class GameWindowWatcherProcess(mp.Process):
         if self._user32.GetWindowTextW(hwnd, buffer, length + 1):
             return buffer.value
         return ""
+
+    def _poll_windows_loop(self):
+        if not EnumWindowsProc:
+            return
+
+        poll_interval = 0.5
+
+        while True:
+            state = {'found': False}
+
+            @EnumWindowsProc
+            def _enum_cb(hwnd, _lparam):
+                matched = False
+                try:
+                    matched = self._check_and_report(hwnd)
+                except Exception:
+                    matched = False
+                if matched:
+                    state['found'] = True
+                    if self._target_titles:
+                        return False
+                return True
+
+            try:
+                self._user32.EnumWindows(_enum_cb, 0)
+            except Exception as exc:
+                self.logger.debug("EnumWindows failed during polling: %s", exc)
+
+            if not state['found']:
+                self._report_state(None)
+
+            time.sleep(poll_interval)
