@@ -1,0 +1,40 @@
+{
+  "files": [
+    {
+      "content_type": "application/octet-stream",
+      "path": "changelog.json",
+      "sha256": "ff7f176f8b3abb92dc0d272d7e6fcc55eead53dbacbf5c98c3eb39ddc52d851d",
+      "size": 81033,
+      "updated_at": "2025-11-26T10:40:25Z",
+      "url": "https://dndtools.rrmtools.uk/assets/changelog.json"
+    },
+    {
+      "content_type": "application/octet-stream",
+      "path": "darkerdb_health.json",
+      "sha256": "cda4220efd5190b1a3fc0dc53ce792237df387bee392c0644333e4dfd72571a2",
+      "size": 46,
+      "updated_at": "2025-11-26T10:40:26Z",
+      "url": "https://dndtools.rrmtools.uk/assets/darkerdb_health.json"
+    },
+    {
+      "content_type": "application/octet-stream",
+      "path": "icons.pak",
+      "sha256": "cc3a7e090b136d9c03e0c60066f508f79b115f6539699530333cb78afda99dd7",
+      "size": 17332496,
+      "updated_at": "2025-11-26T10:40:22Z",
+      "url": "https://dndtools.rrmtools.uk/assets/icons.pak"
+    },
+    {
+      "content_type": "application/octet-stream",
+      "path": "items.json",
+      "sha256": "c0a550150d5f3b86ada0ceebb13afb692e770bec387ec4c5c8fd76eb80cc372a",
+      "size": 12506836,
+      "updated_at": "2025-11-26T10:40:24Z",
+      "url": "https://dndtools.rrmtools.uk/assets/items.json"
+    }
+  ],
+  "generated_at": "2025-11-26T10:42:01.861Z",
+  "release_tag": "assets-latest",
+  "release_url": "https://github.com/Beelzebub2/DnDTools/releases/tag/assets-latest",
+  "version": "assets-latest"
+}
