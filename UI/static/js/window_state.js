@@ -71,37 +71,42 @@
                     };
                 }
 
-                // Drag-to-restore logic using native drag for Windows snap support
+                // Custom drag region limited to the titlebar
                 if (dragRegion) {
                     dragRegion.addEventListener('mousedown', (e) => {
                         try {
-                            if (e.button !== 0) return;
+                            if (e.button !== 0) {
+                                return;
+                            }
 
                             const api = window.pywebview && window.pywebview.api;
-                            if (!api || !api.begin_drag) return;
+                            if (!api || typeof api.begin_drag !== 'function') {
+                                return;
+                            }
 
                             const startNativeDrag = () => {
                                 try {
-                                    // Fire and forget; the bridge call is async but we don't need to await it
                                     api.begin_drag();
                                 } catch (callErr) {
                                     console.error('Failed to start native drag:', callErr);
                                 }
                             };
 
-                            const needsRestore = isMaximized && api.toggle_maximize;
+                            const needsRestore = isMaximized && typeof api.toggle_maximize === 'function';
 
+                            e.preventDefault();
                             if (needsRestore) {
-                                e.preventDefault();
                                 Promise.resolve(api.toggle_maximize())
-                                    .then(() => setTimeout(startNativeDrag, 20))
-                                    .catch((toggleErr) => console.error('Failed to restore window before drag:', toggleErr));
+                                    .then(() => setTimeout(startNativeDrag, 16))
+                                    .catch((err) => {
+                                        console.error('Failed to restore window before drag:', err);
+                                        startNativeDrag();
+                                    });
                             } else {
-                                e.preventDefault();
                                 startNativeDrag();
                             }
-                        } catch (error) {
-                            console.error('Error handling drag region:', error);
+                        } catch (err) {
+                            console.error('Drag handler failed:', err);
                         }
                     });
                 }
