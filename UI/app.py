@@ -36,6 +36,7 @@ from update import UpdateManager, UpdateError
 from utils.asset_updater import AssetUpdater
 from utils.tshark_cleanup import schedule_tshark_cleanup
 from utils.game_window_watcher import GameWindowWatcherProcess
+from utils.active_ping import ActivePingService
 
 try:
     import pystray
@@ -71,14 +72,13 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.6.8"
+APP_VERSION = "3.6.9"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
 )
 UPDATE_CACHE_DURATION = 5 * 60
 AUTO_UPDATE_SILENT = os.environ.get("DND_UPDATE_SILENT", "1").lower() not in {"0", "false", "no", "off"}
-
 SORT_CANCEL_NOTIFICATION_MESSAGE = (
     "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again."
 )
@@ -557,8 +557,14 @@ class Api:
         self._game_process_cache = False
         self._game_process_cache_timestamp = 0.0
         self._last_window_fallback_scan = 0.0
-        self._game_window_watcher: Optional[GameWindowWatcher] = None
+        self._active_ping_service = ActivePingService(
+            settings_manager=self.settings_manager,
+            app_version=APP_VERSION,
+            logger=logger,
+        )
+        self._active_ping_service.set_developer_mode(self._developer_mode_enabled)
         self._initialize_game_monitor()
+        self._active_ping_service.start()
 
     def _update_closing_overlay(self, message):
         if not self.window:
@@ -1252,6 +1258,10 @@ class Api:
             if previous_dev_mode is None or new_dev_mode != previous_dev_mode:
                 self._developer_mode_enabled = new_dev_mode
                 self._apply_logging_preferences(new_dev_mode)
+                try:
+                    self._active_ping_service.set_developer_mode(new_dev_mode)
+                except Exception as exc:
+                    logger.debug("Unable to update active ping developer mode flag: %s", exc)
 
             previous_close_to_tray = None
             if isinstance(previous_settings, dict) and 'closeToTrayEnabled' in previous_settings:
@@ -1802,6 +1812,10 @@ class Api:
     def shutdown_application(self):
         """Fully stop capture threads and exit the application."""
         self._allow_window_close = True
+        try:
+            self._active_ping_service.stop()
+        except Exception as exc:
+            logger.debug("Active ping service stop failed: %s", exc)
         self._stop_game_monitor()
         try:
             self._update_closing_overlay("Stopping capture...")
@@ -1867,6 +1881,10 @@ class Api:
     def force_close_window(self):
         # Quick shutdown without delays
         self._allow_window_close = True
+        try:
+            self._active_ping_service.stop()
+        except Exception as exc:
+            logger.debug("Active ping service stop failed: %s", exc)
         self._stop_game_monitor()
         try:
             if getattr(self, 'hotkey_manager', None):
