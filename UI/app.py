@@ -595,8 +595,8 @@ class Api:
 
     def _initialize_tray_manager(self):
         icon_candidates = [
-            Path(resource_path(os.path.join('assets', 'logo.ico'))),
-            Path(resource_path(os.path.join('assets', 'logo.png'))),
+            Path(resource_path('logo.ico')),
+            Path(resource_path('logo.png')),
         ]
         icon_path = None
         for candidate in icon_candidates:
@@ -606,6 +606,9 @@ class Api:
                     break
             except Exception:
                 continue
+
+        logger.info(f"Tray icon candidates: {[str(c) for c in icon_candidates]}")
+        logger.info(f"Selected icon path: {icon_path}")
 
         try:
             manager = SystemTray(

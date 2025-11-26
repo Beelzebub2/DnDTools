@@ -44,7 +44,7 @@ class SystemTray:
         self.capture_controller = capture_controller
         self.discord_url = discord_url
 
-        self._icon: Optional[pystray.Icon] = None
+        self._icon: Optional[Any] = None
         self._icon_thread: Optional[threading.Thread] = None
         self._running = False
         self._lock = threading.RLock()
@@ -66,13 +66,17 @@ class SystemTray:
         if not Image:
             return None
 
+        logger.info(f"Loading tray icon from: {self.icon_path}")
         if self.icon_path and self.icon_path.exists():
+            logger.info(f"Icon file exists: {self.icon_path}")
             try:
                 with Image.open(self.icon_path) as img:
                     # Ensure icon is RGBA for transparency support
                     return img.convert("RGBA")
             except Exception as e:
                 logger.warning(f"Failed to load tray icon from {self.icon_path}: {e}")
+
+        logger.info(f"Icon file not found or not set: {self.icon_path}")
 
         # Fallback: Generate a themed icon (Dark background, Gold 'D')
         try:
