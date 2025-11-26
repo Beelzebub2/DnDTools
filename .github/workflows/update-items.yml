@@ -23,8 +23,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        ref: main
 
     - name: Detect DarkerDB build changes
       id: detect
@@ -86,8 +84,6 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        ref: main
 
     - name: Set up Python
       uses: actions/setup-python@v6
