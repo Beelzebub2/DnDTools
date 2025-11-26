@@ -22,7 +22,7 @@ import logging
 import re
 from pathlib import Path
 from urllib.parse import urlparse
-from utils.logging_setup import setup_logging
+from utils.logging_setup import setup_logging, set_logging_level
 import secrets
 import time
 import shutil
@@ -178,7 +178,14 @@ def _clear_character_storage() -> dict[str, object]:
     }
 
 # Initialize logging first
-setup_logging()
+# Check developer mode from settings before initializing logging
+try:
+    dev_mode = settings_manager.get('developerMode', False)
+    initial_level = logging.INFO if dev_mode else logging.WARNING
+except Exception:
+    initial_level = logging.WARNING
+
+setup_logging(initial_level)
 register_overlay_logging()
 logger = logging.getLogger(__name__)
 settings_manager.set_logger(logger)
@@ -470,6 +477,8 @@ class Api:
         self.settings_manager = settings_manager
         self.overlay_manager = overlay_manager
         settings = self.settings_manager.reload()
+        self._developer_mode_enabled = bool(settings.get('developerMode', False))
+        self._apply_logging_preferences(self._developer_mode_enabled)
 
         # Apply persisted sort order preference if available
         try:
@@ -596,6 +605,13 @@ class Api:
         # Initial state update is handled by the tray itself on click, but we can force one if needed
         # self._update_tray_capture_state(self.capture_controller.state())
 
+    def _apply_logging_preferences(self, developer_mode_enabled: bool) -> None:
+        target_level = logging.INFO if developer_mode_enabled else logging.WARNING
+        try:
+            set_logging_level(target_level)
+        except Exception as exc:
+            logger.debug("Failed to adjust logging level: %s", exc, exc_info=True)
+
     def _initialize_game_monitor(self):
         self._game_monitor_stop = threading.Event()
         self._game_monitor_thread: Optional[threading.Thread] = None
@@ -625,7 +641,7 @@ class Api:
                 state = self._collect_game_window_state()
                 previously_running = getattr(self, '_game_was_running', False)
                 if state.game_running and not previously_running:
-                    logger.info("Detected Dark and Darker launch. Restoring DnDTools window.")
+                    self._log_game_monitor(logging.INFO, "Detected Dark and Darker launch. Restoring DnDTools window.")
                     self._restore_window_after_game_launch()
                 self._game_was_running = state.game_running
                 self._log_game_state_if_needed(state)
@@ -650,6 +666,11 @@ class Api:
             return bool(self.settings_manager.get('developerMode', False))
         except Exception:
             return False
+
+    def _log_game_monitor(self, level: int, message: str, *args, **kwargs) -> None:
+        if level < logging.WARNING and not self._should_log_game_state():
+            return
+        logger.log(level, message, *args, **kwargs)
 
     def _collect_game_window_state(self) -> GameWindowState:
         info = self._locate_game_window()
@@ -1126,6 +1147,15 @@ class Api:
                         )
                 if not resolved and new_wireshark_path:
                     result['warnings'].append('Wireshark path could not be verified. Using the provided value.')
+
+            previous_dev_mode = None
+            if isinstance(previous_settings, dict) and 'developerMode' in previous_settings:
+                previous_dev_mode = bool(previous_settings.get('developerMode'))
+
+            new_dev_mode = bool(updated_settings.get('developerMode', False))
+            if previous_dev_mode is None or new_dev_mode != previous_dev_mode:
+                self._developer_mode_enabled = new_dev_mode
+                self._apply_logging_preferences(new_dev_mode)
 
             previous_close_to_tray = None
             if isinstance(previous_settings, dict) and 'closeToTrayEnabled' in previous_settings:
