@@ -158,7 +158,6 @@ For support or questions, please [open an issue](https://github.com/Beelzebub2/d
 
 ## 📝 TODO
 ```diff 
-- Run in background popout when game opens
 - Show crafting usage for items
 ```
 ---

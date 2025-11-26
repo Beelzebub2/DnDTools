@@ -1,4 +1,5 @@
 import ctypes
+from ctypes import wintypes
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
@@ -32,6 +33,9 @@ from datetime import datetime
 import requests
 from networking.protos import _PacketCommand_pb2
 from update import UpdateManager, UpdateError
+from utils.asset_updater import AssetUpdater
+from utils.tshark_cleanup import schedule_tshark_cleanup
+from utils.game_window_watcher import GameWindowWatcherProcess
 
 try:
     import pystray
@@ -61,8 +65,6 @@ sys.path.append(os.path.dirname(__file__))
 from src.models.capture import PacketCapture  # Add capture import
 from src.quest_service import QuestService, RARITY_ORDER
 from src.system_tray import SystemTray
-from utils.asset_updater import AssetUpdater
-from utils.tshark_cleanup import schedule_tshark_cleanup
 
 # Global cache for version check
 version_cache = None
@@ -93,6 +95,22 @@ GAME_MONITOR_POLL_SECONDS = 2.5
 EXCLUDED_WINDOW_TITLES = (
     "Dark and Darker Stash Organizer",
 )
+GAME_PROCESS_CACHE_SECONDS = 5.0
+WINDOW_FALLBACK_SCAN_SECONDS = 10.0
+PID_NAME_CACHE_SECONDS = 10.0
+
+if sys.platform.startswith('win'):
+    EVENT_SYSTEM_FOREGROUND = 0x0003
+    EVENT_OBJECT_CREATE = 0x8000
+    EVENT_OBJECT_DESTROY = 0x8001
+    EVENT_OBJECT_SHOW = 0x8002
+    OBJID_WINDOW = 0x00000000
+    WINEVENT_OUTOFCONTEXT = 0x0000
+    WINEVENT_SKIPOWNPROCESS = 0x0002
+    WINEVENT_SKIPOWNTHREAD = 0x0004
+else:
+    EVENT_SYSTEM_FOREGROUND = EVENT_OBJECT_CREATE = EVENT_OBJECT_DESTROY = EVENT_OBJECT_SHOW = OBJID_WINDOW = 0
+    WINEVENT_OUTOFCONTEXT = WINEVENT_SKIPOWNPROCESS = WINEVENT_SKIPOWNTHREAD = 0
 
 
 @dataclass(frozen=True)
@@ -125,6 +143,8 @@ class GameWindowState:
             "window_focused": self.window_focused,
             "window_rect": rect_payload,
         }
+
+
 
 
 
@@ -534,6 +554,10 @@ class Api:
         self._allow_window_close = False
         self._closing_subscription_attached = False
         self._initialize_tray_manager()
+        self._game_process_cache = False
+        self._game_process_cache_timestamp = 0.0
+        self._last_window_fallback_scan = 0.0
+        self._game_window_watcher: Optional[GameWindowWatcher] = None
         self._initialize_game_monitor()
 
     def _update_closing_overlay(self, message):
@@ -617,6 +641,23 @@ class Api:
         self._game_monitor_thread: Optional[threading.Thread] = None
         self._game_was_running = False
         self._last_logged_game_state: Optional[GameWindowState] = None
+        self._game_window_watcher_process: Optional[GameWindowWatcherProcess] = None
+        self._game_window_queue: Optional[multiprocessing.Queue] = None
+        self._cached_watcher_state: Optional[Dict[str, object]] = None
+
+        if sys.platform.startswith('win'):
+            try:
+                self._game_window_queue = multiprocessing.Queue()
+                self._game_window_watcher_process = GameWindowWatcherProcess(
+                    result_queue=self._game_window_queue,
+                    target_process_names=list(GAME_PROCESS_NAMES),
+                    target_window_titles=list(GAME_WINDOW_TITLES),
+                    excluded_window_titles=list(EXCLUDED_WINDOW_TITLES),
+                    log_level=logger.getEffectiveLevel()
+                )
+                self._game_window_watcher_process.start()
+            except Exception as exc:
+                logger.debug("Unable to start game window watcher process: %s", exc, exc_info=True)
 
         try:
             thread = threading.Thread(
@@ -637,6 +678,19 @@ class Api:
 
         while not stop_event.is_set():
             loop_started = time.perf_counter()
+            
+            # Drain queue to get latest state
+            if self._game_window_queue:
+                try:
+                    while True:
+                        # Non-blocking get
+                        new_state = self._game_window_queue.get_nowait()
+                        self._cached_watcher_state = new_state
+                except multiprocessing.queues.Empty:
+                    pass
+                except Exception as exc:
+                    logger.debug("Error reading game window queue: %s", exc)
+
             try:
                 state = self._collect_game_window_state()
                 previously_running = getattr(self, '_game_was_running', False)
@@ -649,7 +703,11 @@ class Api:
                 logger.debug("Game monitor loop error: %s", exc, exc_info=True)
             finally:
                 elapsed = time.perf_counter() - loop_started
-                wait_time = max(0.25, GAME_MONITOR_POLL_SECONDS - elapsed)
+                # If watcher is active, we can poll faster because we just check queue
+                if self._game_window_watcher_process and self._game_window_watcher_process.is_alive():
+                    wait_time = max(0.1, 0.5 - elapsed)
+                else:
+                    wait_time = max(0.25, GAME_MONITOR_POLL_SECONDS - elapsed)
                 stop_event.wait(wait_time)
 
     def _log_game_state_if_needed(self, state: GameWindowState) -> None:
@@ -673,8 +731,18 @@ class Api:
         logger.log(level, message, *args, **kwargs)
 
     def _collect_game_window_state(self) -> GameWindowState:
-        info = self._locate_game_window()
-        game_running = self._is_game_process_running()
+        info = getattr(self, '_cached_watcher_state', None)
+        watcher_alive = self._game_window_watcher_process and self._game_window_watcher_process.is_alive()
+
+        if not info and not watcher_alive:
+            info = self._locate_game_window()
+        
+        if watcher_alive:
+            # If watcher is alive, we trust it. If info is None, game is not running/visible.
+            game_running = bool(info)
+        else:
+            game_running = self._is_game_process_running()
+
         if not info:
             return GameWindowState(
                 game_running=game_running,
@@ -686,7 +754,7 @@ class Api:
             )
 
         return GameWindowState(
-            game_running=game_running,
+            game_running=True,
             window_found=True,
             window_title=info.get('title'),
             window_visible=bool(info.get('visible', False)),
@@ -734,10 +802,17 @@ class Api:
         return None
 
     def _locate_window_via_pygetwindow(self) -> Optional[Dict[str, object]]:
+        now = time.monotonic()
+        last_scan = getattr(self, '_last_window_fallback_scan', 0.0)
+        if now - last_scan < WINDOW_FALLBACK_SCAN_SECONDS:
+            return None
+
         try:
             import pygetwindow as gw  # type: ignore
         except Exception:
             return None
+
+        self._last_window_fallback_scan = now
 
         candidates: List = []
         try:
@@ -788,6 +863,12 @@ class Api:
         return None
 
     def _is_game_process_running(self) -> bool:
+        now = time.monotonic()
+        cached_ts = getattr(self, '_game_process_cache_timestamp', 0.0)
+        if now - cached_ts < GAME_PROCESS_CACHE_SECONDS:
+            return bool(getattr(self, '_game_process_cache', False))
+
+        is_running = False
         try:
             for proc in psutil.process_iter(['name', 'exe']):
                 try:
@@ -799,10 +880,14 @@ class Api:
                 if not normalized:
                     continue
                 if normalized in GAME_PROCESS_NAMES:
-                    return True
+                    is_running = True
+                    break
         except Exception:
-            return False
-        return False
+            is_running = False
+
+        self._game_process_cache = is_running
+        self._game_process_cache_timestamp = now
+        return is_running
 
     def _restore_window_after_game_launch(self) -> None:
         window = getattr(self, 'window', None)
@@ -828,6 +913,14 @@ class Api:
                 thread.join(timeout=1.5)
             except Exception:
                 logger.debug("Game monitor thread join failed", exc_info=True)
+        
+        watcher_process = getattr(self, '_game_window_watcher_process', None)
+        if watcher_process:
+            try:
+                watcher_process.terminate()
+                watcher_process.join(timeout=1.0)
+            except Exception:
+                logger.debug("Failed to stop game window watcher process", exc_info=True)
 
     def _update_tray_capture_state(self, state: Optional[dict] = None):
         if not self.tray_manager:
@@ -1428,26 +1521,29 @@ class Api:
         if not sys.platform.startswith('win'):
             return False
 
-        try:
-            import ctypes
+        def _drag_worker():
+            try:
+                import ctypes
 
-            user32 = ctypes.windll.user32
-            hwnd = getattr(self.window, 'hwnd', None)
-            if not hwnd:
-                # Attempt to resolve window handle by title as a fallback
-                title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
-                hwnd = user32.FindWindowW(None, title)
+                user32 = ctypes.windll.user32
+                hwnd = getattr(self.window, 'hwnd', None)
                 if not hwnd:
-                    return False
+                    title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
+                    hwnd = user32.FindWindowW(None, title)
+                    if not hwnd:
+                        return False
 
-            WM_NCLBUTTONDOWN = 0x00A1
-            HTCAPTION = 0x0002
-            user32.ReleaseCapture()
-            user32.SendMessageW(int(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0)
-            return True
-        except Exception as exc:
-            logger.error(f"Failed to initiate native drag: {exc}")
-            return False
+                WM_NCLBUTTONDOWN = 0x00A1
+                HTCAPTION = 0x0002
+                user32.ReleaseCapture()
+                user32.SendMessageW(int(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0)
+                return True
+            except Exception as exc:
+                logger.error("Failed to initiate native drag: %s", exc)
+                return False
+
+        threading.Thread(target=_drag_worker, daemon=True).start()
+        return True
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
@@ -2891,7 +2987,7 @@ def main():
         height=800,
         min_size=(800, 600),
         frameless=True,
-        easy_drag=False
+        easy_drag=False  # Use custom drag region to limit draggable area
     )
     
     # Expose API methods in parallel

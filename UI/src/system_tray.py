@@ -34,7 +34,6 @@ class SystemTray:
         on_restore: Callable[[], None],
         on_quit: Callable[[], None],
         capture_controller: Any,
-        update_url: str = "https://github.com/Beelzebub2/DnDTools/releases/latest",
         discord_url: str = "https://discord.gg/X8FuqR2cq6"
     ):
         self.app_name = app_name
@@ -43,7 +42,6 @@ class SystemTray:
         self.on_restore = on_restore
         self.on_quit = on_quit
         self.capture_controller = capture_controller
-        self.update_url = update_url
         self.discord_url = discord_url
 
         self._icon: Optional[pystray.Icon] = None
@@ -51,6 +49,7 @@ class SystemTray:
         self._running = False
         self._lock = threading.RLock()
         self._notification_shown = False
+        self._notification_timer: Optional[threading.Timer] = None
 
         if not pystray or not Image:
             logger.warning("System tray dependencies (pystray, Pillow) not found. Tray disabled.")
@@ -126,8 +125,7 @@ class SystemTray:
         except Exception as e:
             logger.error(f"Tray: Failed to toggle capture: {e}")
 
-    def _on_click_update(self, icon, item):
-        webbrowser.open(self.update_url)
+
 
     def _on_click_discord(self, icon, item):
         webbrowser.open(self.discord_url)
@@ -150,7 +148,6 @@ class SystemTray:
             pystray.MenuItem("Open Dashboard", self._on_click_restore, default=True),
             pystray.MenuItem(self._get_capture_state_label, self._on_click_capture),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("Check for Updates", self._on_click_update),
             pystray.MenuItem("Join Discord", self._on_click_discord),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem("Exit", self._on_click_quit),
@@ -214,10 +211,29 @@ class SystemTray:
             except Exception as e:
                 logger.warning(f"Failed to show notification: {e}")
 
+    def _schedule_notification_clear(self, delay: float = 1.5) -> None:
+        if not self._icon or not hasattr(self._icon, 'remove_notification'):
+            return
+
+        if self._notification_timer and self._notification_timer.is_alive():
+            self._notification_timer.cancel()
+
+        def _clear():
+            try:
+                self._icon.remove_notification()
+            except Exception as exc:
+                logger.debug("Tray: remove_notification failed: %s", exc)
+
+        timer = threading.Timer(delay, _clear)
+        timer.daemon = True
+        timer.start()
+        self._notification_timer = timer
+
     def notify_minimized(self):
         """Notify user that app is minimized to tray (only once)."""
         if not self._notification_shown:
             self.notify("App is running in the background.", "Minimized to Tray")
+            self._schedule_notification_clear(delay=1.25)
             self._notification_shown = True
 
     def update_menu(self):
