@@ -47,7 +47,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "..\dist\DnDTools\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "..\dist\update.exe"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
+Source: "..\dist\update.exe"; DestDir: "{app}"; Flags: ignoreversion 
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
