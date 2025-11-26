@@ -1,5 +1,6 @@
 import ctypes
-from typing import Any, Callable, Dict, Iterable, Optional, Set
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir
 from src.models.settings import (
@@ -21,7 +22,7 @@ import logging
 import re
 from pathlib import Path
 from urllib.parse import urlparse
-from utils.logging_setup import setup_logging
+from utils.logging_setup import setup_logging, set_logging_level
 import secrets
 import time
 import shutil
@@ -80,6 +81,51 @@ SORT_CANCEL_NOTIFICATION_MESSAGE = (
     "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again."
 )
 
+GAME_PROCESS_NAMES = (
+    "DungeonCrawler.exe",
+    "DarkAndDarker.exe",
+)
+GAME_WINDOW_TITLES = (
+    "Dark and Darker  ",
+    "Dark and Darker",
+)
+GAME_MONITOR_POLL_SECONDS = 2.5
+EXCLUDED_WINDOW_TITLES = (
+    "Dark and Darker Stash Organizer",
+)
+
+
+@dataclass(frozen=True)
+class GameWindowState:
+    game_running: bool
+    window_found: bool
+    window_title: Optional[str]
+    window_visible: bool
+    window_focused: bool
+    window_rect: Optional[Tuple[int, int, int, int]]
+
+    def to_log_dict(self) -> Dict[str, object]:
+        rect_payload: Optional[Dict[str, int]] = None
+        if self.window_rect:
+            left, top, right, bottom = self.window_rect
+            rect_payload = {
+                "left": left,
+                "top": top,
+                "right": right,
+                "bottom": bottom,
+                "width": right - left,
+                "height": bottom - top,
+            }
+
+        return {
+            "game_running": self.game_running,
+            "window_found": self.window_found,
+            "window_title": self.window_title,
+            "window_visible": self.window_visible,
+            "window_focused": self.window_focused,
+            "window_rect": rect_payload,
+        }
+
 
 
 
@@ -132,7 +178,14 @@ def _clear_character_storage() -> dict[str, object]:
     }
 
 # Initialize logging first
-setup_logging()
+# Check developer mode from settings before initializing logging
+try:
+    dev_mode = settings_manager.get('developerMode', False)
+    initial_level = logging.INFO if dev_mode else logging.WARNING
+except Exception:
+    initial_level = logging.WARNING
+
+setup_logging(initial_level)
 register_overlay_logging()
 logger = logging.getLogger(__name__)
 settings_manager.set_logger(logger)
@@ -424,6 +477,8 @@ class Api:
         self.settings_manager = settings_manager
         self.overlay_manager = overlay_manager
         settings = self.settings_manager.reload()
+        self._developer_mode_enabled = bool(settings.get('developerMode', False))
+        self._apply_logging_preferences(self._developer_mode_enabled)
 
         # Apply persisted sort order preference if available
         try:
@@ -479,6 +534,7 @@ class Api:
         self._allow_window_close = False
         self._closing_subscription_attached = False
         self._initialize_tray_manager()
+        self._initialize_game_monitor()
 
     def _update_closing_overlay(self, message):
         if not self.window:
@@ -548,6 +604,230 @@ class Api:
         self.tray_manager.start()
         # Initial state update is handled by the tray itself on click, but we can force one if needed
         # self._update_tray_capture_state(self.capture_controller.state())
+
+    def _apply_logging_preferences(self, developer_mode_enabled: bool) -> None:
+        target_level = logging.INFO if developer_mode_enabled else logging.WARNING
+        try:
+            set_logging_level(target_level)
+        except Exception as exc:
+            logger.debug("Failed to adjust logging level: %s", exc, exc_info=True)
+
+    def _initialize_game_monitor(self):
+        self._game_monitor_stop = threading.Event()
+        self._game_monitor_thread: Optional[threading.Thread] = None
+        self._game_was_running = False
+        self._last_logged_game_state: Optional[GameWindowState] = None
+
+        try:
+            thread = threading.Thread(
+                target=self._monitor_game_presence,
+                name='GamePresenceMonitor',
+                daemon=True,
+            )
+            thread.start()
+        except Exception as exc:  # pragma: no cover - defensive safeguard for optional feature
+            logger.warning("Game window monitor unavailable: %s", exc, exc_info=True)
+        else:
+            self._game_monitor_thread = thread
+
+    def _monitor_game_presence(self):  # pragma: no cover - background thread
+        stop_event = getattr(self, '_game_monitor_stop', None)
+        if not stop_event:
+            return
+
+        while not stop_event.is_set():
+            loop_started = time.perf_counter()
+            try:
+                state = self._collect_game_window_state()
+                previously_running = getattr(self, '_game_was_running', False)
+                if state.game_running and not previously_running:
+                    self._log_game_monitor(logging.INFO, "Detected Dark and Darker launch. Restoring DnDTools window.")
+                    self._restore_window_after_game_launch()
+                self._game_was_running = state.game_running
+                self._log_game_state_if_needed(state)
+            except Exception as exc:
+                logger.debug("Game monitor loop error: %s", exc, exc_info=True)
+            finally:
+                elapsed = time.perf_counter() - loop_started
+                wait_time = max(0.25, GAME_MONITOR_POLL_SECONDS - elapsed)
+                stop_event.wait(wait_time)
+
+    def _log_game_state_if_needed(self, state: GameWindowState) -> None:
+        if not self._should_log_game_state():
+            self._last_logged_game_state = None
+            return
+
+        if state != getattr(self, '_last_logged_game_state', None):
+            logger.info("Game window state: %s", state.to_log_dict())
+            self._last_logged_game_state = state
+
+    def _should_log_game_state(self) -> bool:
+        try:
+            return bool(self.settings_manager.get('developerMode', False))
+        except Exception:
+            return False
+
+    def _log_game_monitor(self, level: int, message: str, *args, **kwargs) -> None:
+        if level < logging.WARNING and not self._should_log_game_state():
+            return
+        logger.log(level, message, *args, **kwargs)
+
+    def _collect_game_window_state(self) -> GameWindowState:
+        info = self._locate_game_window()
+        game_running = self._is_game_process_running()
+        if not info:
+            return GameWindowState(
+                game_running=game_running,
+                window_found=False,
+                window_title=None,
+                window_visible=False,
+                window_focused=False,
+                window_rect=None,
+            )
+
+        return GameWindowState(
+            game_running=game_running,
+            window_found=True,
+            window_title=info.get('title'),
+            window_visible=bool(info.get('visible', False)),
+            window_focused=bool(info.get('focused', False)),
+            window_rect=info.get('rect'),
+        )
+
+    def _locate_game_window(self) -> Optional[Dict[str, object]]:
+        info = self._locate_window_via_win32()
+        if info:
+            return info
+        return self._locate_window_via_pygetwindow()
+
+    def _locate_window_via_win32(self) -> Optional[Dict[str, object]]:
+        if not sys.platform.startswith('win'):
+            return None
+        try:
+            import win32gui  # type: ignore
+        except Exception:
+            return None
+
+        for title in GAME_WINDOW_TITLES:
+            try:
+                hwnd = win32gui.FindWindow(None, title)
+            except Exception:
+                continue
+            if not hwnd:
+                continue
+            try:
+                actual_title = win32gui.GetWindowText(hwnd) or title
+                if actual_title in EXCLUDED_WINDOW_TITLES:
+                    continue
+                rect = win32gui.GetWindowRect(hwnd)
+                visible = bool(win32gui.IsWindowVisible(hwnd))
+                focused = hwnd == win32gui.GetForegroundWindow()
+                return {
+                    'hwnd': hwnd,
+                    'title': actual_title,
+                    'rect': rect,
+                    'visible': visible,
+                    'focused': focused,
+                }
+            except Exception:
+                continue
+        return None
+
+    def _locate_window_via_pygetwindow(self) -> Optional[Dict[str, object]]:
+        try:
+            import pygetwindow as gw  # type: ignore
+        except Exception:
+            return None
+
+        candidates: List = []
+        try:
+            for title in GAME_WINDOW_TITLES:
+                windows = gw.getWindowsWithTitle(title)
+                if windows:
+                    for window in windows:
+                        if getattr(window, 'title', None) in EXCLUDED_WINDOW_TITLES:
+                            continue
+                        candidates.append(window)
+        except Exception:
+            candidates = []
+
+        if not candidates:
+            try:
+                titles = gw.getAllTitles()
+            except Exception:
+                titles = []
+            for title in titles:
+                if not title or title in EXCLUDED_WINDOW_TITLES:
+                    continue
+                if 'dark and darker' in title.lower():
+                    try:
+                        win_list = gw.getWindowsWithTitle(title)
+                    except Exception:
+                        continue
+                    if win_list:
+                        for window in win_list:
+                            if getattr(window, 'title', None) in EXCLUDED_WINDOW_TITLES:
+                                continue
+                            candidates.append(window)
+
+        for window in candidates:
+            try:
+                rect = (window.left, window.top, window.right, window.bottom)
+                title = getattr(window, 'title', None)
+                if title in EXCLUDED_WINDOW_TITLES:
+                    continue
+                return {
+                    'hwnd': getattr(window, '_hWnd', None),
+                    'title': title,
+                    'rect': rect,
+                    'visible': bool(getattr(window, 'isVisible', False)),
+                    'focused': bool(getattr(window, 'isActive', False)),
+                }
+            except Exception:
+                continue
+        return None
+
+    def _is_game_process_running(self) -> bool:
+        try:
+            for proc in psutil.process_iter(['name', 'exe']):
+                try:
+                    name = (proc.info.get('name') or '').strip()
+                    exe = os.path.basename(proc.info.get('exe') or '')
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+                normalized = name or exe
+                if not normalized:
+                    continue
+                if normalized in GAME_PROCESS_NAMES:
+                    return True
+        except Exception:
+            return False
+        return False
+
+    def _restore_window_after_game_launch(self) -> None:
+        window = getattr(self, 'window', None)
+        if not window:
+            return
+        try:
+            restored = bool(self.restore_from_tray())
+        except Exception:
+            restored = False
+        if not restored:
+            try:
+                self.bring_window_to_front()
+            except Exception:
+                logger.debug("Unable to bring window to front after game launch detection", exc_info=True)
+
+    def _stop_game_monitor(self) -> None:
+        stop_event = getattr(self, '_game_monitor_stop', None)
+        if stop_event:
+            stop_event.set()
+        thread = getattr(self, '_game_monitor_thread', None)
+        if thread and thread.is_alive():
+            try:
+                thread.join(timeout=1.5)
+            except Exception:
+                logger.debug("Game monitor thread join failed", exc_info=True)
 
     def _update_tray_capture_state(self, state: Optional[dict] = None):
         if not self.tray_manager:
@@ -867,6 +1147,15 @@ class Api:
                         )
                 if not resolved and new_wireshark_path:
                     result['warnings'].append('Wireshark path could not be verified. Using the provided value.')
+
+            previous_dev_mode = None
+            if isinstance(previous_settings, dict) and 'developerMode' in previous_settings:
+                previous_dev_mode = bool(previous_settings.get('developerMode'))
+
+            new_dev_mode = bool(updated_settings.get('developerMode', False))
+            if previous_dev_mode is None or new_dev_mode != previous_dev_mode:
+                self._developer_mode_enabled = new_dev_mode
+                self._apply_logging_preferences(new_dev_mode)
 
             previous_close_to_tray = None
             if isinstance(previous_settings, dict) and 'closeToTrayEnabled' in previous_settings:
@@ -1414,6 +1703,7 @@ class Api:
     def shutdown_application(self):
         """Fully stop capture threads and exit the application."""
         self._allow_window_close = True
+        self._stop_game_monitor()
         try:
             self._update_closing_overlay("Stopping capture...")
             packet_capture = None
@@ -1478,6 +1768,7 @@ class Api:
     def force_close_window(self):
         # Quick shutdown without delays
         self._allow_window_close = True
+        self._stop_game_monitor()
         try:
             if getattr(self, 'hotkey_manager', None):
                 self.hotkey_manager.shutdown()

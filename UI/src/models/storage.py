@@ -1,12 +1,18 @@
+import argparse
 import heapq
+import json
 import logging
+import sys
 from enum import Enum
+from pathlib import Path
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from src.models import macros
-from src.models.appdirs import resource_path
+from src.models.appdirs import get_characters_dir, resource_path
 from src.models.game_data import item_data_manager
 from src.models.item import Item
 from src.models.point import Point
+from src.models.stash_preview import parse_stashes
 
 logger = logging.getLogger(__name__)
 
@@ -256,3 +262,191 @@ class Storage:
             lines.append(" ".join(row))
 
         return "\n".join(lines)
+
+
+def _list_character_files() -> Tuple[Path, List[Path]]:
+    data_dir = Path(get_characters_dir())
+    if not data_dir.exists():
+        raise FileNotFoundError(
+            f"Character directory '{data_dir}' does not exist. Capture a character first."
+        )
+    files = sorted(
+        (file for file in data_dir.glob('*.json') if file.is_file()),
+        key=lambda file: file.stat().st_mtime,
+        reverse=True,
+    )
+    return data_dir, files
+
+
+def _select_character_file(selector: Optional[str]) -> Path:
+    data_dir, files = _list_character_files()
+    if not files:
+        raise FileNotFoundError(
+            f"No character capture files found in '{data_dir}'. Run the capture process first."
+        )
+
+    if not selector:
+        return files[0]
+
+    candidate = Path(selector)
+    if candidate.is_file():
+        return candidate
+
+    normalized = candidate.stem or selector
+    direct_match = data_dir / f"{normalized}.json"
+    if direct_match.is_file():
+        return direct_match
+
+    for file in files:
+        if file.stem == normalized or file.name == selector:
+            return file
+
+    raise FileNotFoundError(
+        f"Unable to locate character capture '{selector}'. Available files: {[file.name for file in files[:5]]}"
+    )
+
+
+def _load_packet(path: Path) -> Dict:
+    with path.open('r', encoding='utf-8') as handle:
+        return json.load(handle)
+
+
+def _to_int(value) -> Optional[int]:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_numeric_stash_map(raw_stashes: Dict) -> Dict[int, List[Dict]]:
+    numeric: Dict[int, List[Dict]] = {}
+    for key, items in (raw_stashes or {}).items():
+        if not isinstance(items, list):
+            continue
+        key_int = _to_int(key)
+        if key_int is None:
+            continue
+        numeric[key_int] = items
+    return numeric
+
+
+def _ensure_supported_stash(stash_id: int) -> None:
+    if stash_id == StashType.BAG.value:
+        return
+    if StashType.STORAGE.value <= stash_id <= StashType.SHARED_STASH_SEASONAL_0.value:
+        return
+    if StashType.PURCHASED_STORAGE_0.value <= stash_id <= StashType.PURCHASED_STORAGE_4.value:
+        return
+    raise ValueError(
+        f"Stash id {stash_id} is not supported by the Storage grid renderer."
+    )
+
+
+def _resolve_stash_id(requested: Optional[str], stash_map: Dict[int, List[Dict]]) -> int:
+    if not stash_map:
+        raise ValueError("No stashes found in the selected capture file.")
+
+    if requested is None:
+        preferred = (
+            StashType.STORAGE.value,
+            StashType.SHARED_STASH_0.value,
+            StashType.SHARED_STASH_SEASONAL_0.value,
+            StashType.BAG.value,
+        )
+        for candidate in preferred:
+            if candidate in stash_map:
+                return candidate
+        return sorted(stash_map.keys())[0]
+
+    candidate = _to_int(requested)
+    if candidate is None or candidate not in stash_map:
+        raise ValueError(f"Stash id '{requested}' not found in capture data.")
+    return candidate
+
+
+def _stash_label(stash_id: int) -> str:
+    try:
+        return StashType(stash_id).name
+    except ValueError:
+        return f"ID_{stash_id}"
+
+
+def _print_stash_listing(stash_map: Dict[int, List[Dict]]) -> None:
+    print("Available stashes:")
+    for stash_id in sorted(stash_map.keys()):
+        label = _stash_label(stash_id)
+        count = len(stash_map[stash_id])
+        print(f"  {stash_id:<3} {label:<24} {count} items")
+
+
+def _describe_character(packet_data: Dict) -> str:
+    char_data = packet_data.get('characterDataBase') or {}
+    nickname = (char_data.get('nickName') or {}).get('originalNickName') or 'Unknown'
+    raw_class = char_data.get('characterClass') or ''
+    class_name = raw_class.replace('DesignDataPlayerCharacter:Id_PlayerCharacter_', '') or 'Unknown'
+    level = char_data.get('level') or '?'
+    return f"{nickname} (Level {level} {class_name})"
+
+
+def main(argv: Optional[Iterable[str]] = None) -> int:
+    parser = argparse.ArgumentParser(
+        description="Inspect captured stash data and render the Storage grid."
+    )
+    parser.add_argument(
+        '-c', '--character',
+        help="Character capture to load (path or characterId). Defaults to the newest capture.",
+    )
+    parser.add_argument(
+        '-s', '--stash',
+        help="Numeric stash id to render (e.g., 4 for STORAGE, 2 for BAG).",
+    )
+    parser.add_argument(
+        '-l', '--list',
+        action='store_true',
+        help="List available stash ids in the capture and exit.",
+    )
+
+    args = parser.parse_args(argv)
+
+    try:
+        character_file = _select_character_file(args.character)
+    except FileNotFoundError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    try:
+        packet_data = _load_packet(character_file)
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"Error reading capture '{character_file}': {exc}", file=sys.stderr)
+        return 1
+
+    raw_stashes = parse_stashes(packet_data)
+    stash_map = _build_numeric_stash_map(raw_stashes)
+
+    if not stash_map:
+        print("No stash information found in the capture file.", file=sys.stderr)
+        return 1
+
+    if args.list:
+        print(f"Character file: {character_file}")
+        print(_describe_character(packet_data))
+        _print_stash_listing(stash_map)
+        return 0
+
+    try:
+        stash_id = _resolve_stash_id(args.stash, stash_map)
+        _ensure_supported_stash(stash_id)
+    except ValueError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    storage = Storage(stash_id, stash_map[stash_id])
+    print(f"Character file: {character_file}")
+    print(_describe_character(packet_data))
+    print(f"Rendering stash {stash_id} ({_stash_label(stash_id)}).\n")
+    print(storage)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
