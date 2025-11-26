@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -11,14 +12,16 @@ from typing import Callable, Iterable, Mapping, Optional, Sequence
 
 import requests
 
-DEFAULT_ASSET_RELEASE_URL = os.environ.get(
-    "DND_ASSET_RELEASE_URL",
-    "https://github.com/Beelzebub2/DnDTools/releases/download/assets-latest",
+DEFAULT_ASSET_MANIFEST_URL = (
+    os.environ.get("DND_ASSET_MANIFEST_URL")
+    or os.environ.get("DND_ASSET_RELEASE_URL")
+    or "https://dndtools.rrmtools.uk/api/assets/manifest.json"
 )
+MANIFEST_CACHE_FILENAME = ".asset_manifest.json"
 
 
 class AssetUpdater:
-    """Download and install runtime asset updates from the assets-latest release."""
+    """Download and install runtime asset updates via the Update & Release API."""
 
     def __init__(
         self,
@@ -28,13 +31,19 @@ class AssetUpdater:
         on_assets_applied: Optional[Iterable[Callable[[dict], None]]] = None,
         before_asset_replace: Optional[Mapping[str, Iterable[Callable[[], None]]]] = None,
         base_url: Optional[str] = None,
+        manifest_url: Optional[str] = None,
         session: Optional[requests.Session] = None,
     ) -> None:
         self.assets_dir = Path(assets_dir)
         self.assets_dir.mkdir(parents=True, exist_ok=True)
         self.logger = logger or logging.getLogger(__name__)
         self.window_getter = window_getter
-        self.base_url = (base_url or DEFAULT_ASSET_RELEASE_URL).rstrip("/")
+        resolved_manifest_url = manifest_url or base_url or DEFAULT_ASSET_MANIFEST_URL
+        self.manifest_url = str(resolved_manifest_url).strip()
+        if not self.manifest_url:
+            raise ValueError("Manifest URL must not be empty")
+        if base_url and not manifest_url:
+            self.logger.debug("AssetUpdater base_url parameter is deprecated; using it as manifest URL")
         self.session = session or requests.Session()
         self.session.headers.setdefault("User-Agent", "DnDTools-AssetUpdater/1.0")
         self._hooks: tuple[Callable[[dict], None], ...] = tuple(on_assets_applied or [])
@@ -72,8 +81,8 @@ class AssetUpdater:
                 "message": "Checking for new DarkerDB assets...",
             })
 
-            remote_meta = self._download_metadata()
-            if not remote_meta:
+            manifest = self._download_manifest()
+            if not manifest:
                 self._notify_ui({
                     "status": "error",
                     "message": "Unable to reach the assets feed.",
@@ -81,8 +90,12 @@ class AssetUpdater:
                 })
                 return
 
-            if not self._needs_update(remote_meta):
-                self.logger.info("Assets already up to date (build %s)", remote_meta.get("build"))
+            if not self._needs_update(manifest):
+                self.logger.info(
+                    "Assets already up to date (version=%s release=%s)",
+                    manifest.get("version"),
+                    manifest.get("release_tag"),
+                )
                 self._notify_ui({
                     "status": "idle",
                     "message": "Assets are already up to date.",
@@ -90,31 +103,38 @@ class AssetUpdater:
                 })
                 return
 
-            asset_names = (
-                "items.json",
-                "icons.pak",
-                "changelog.json",
-                "darkerdb_health.json",
-            )
-            total = len(asset_names)
+            files = self._extract_manifest_files(manifest)
+            if not files:
+                self.logger.warning("Manifest did not contain any downloadable files")
+                self._notify_ui({
+                    "status": "error",
+                    "message": "Manifest did not include any assets to download.",
+                    "allowDismiss": True,
+                })
+                return
 
-            for index, name in enumerate(asset_names, start=1):
-                url = f"{self.base_url}/{name}"
-                self.logger.info("Downloading asset %s from %s", name, url)
+            total = len(files)
+            for index, file_info in enumerate(files, start=1):
+                display_name = file_info.get("path") or file_info.get("name") or "asset"
+                self.logger.info("Downloading asset %s from %s", display_name, file_info.get("url"))
                 self._notify_ui({
                     "status": "downloading",
-                    "message": f"Downloading {name} ({index}/{total})...",
+                    "message": f"Downloading {display_name} ({index}/{total})...",
                     "progress": index / total,
                 })
-                tmp_path = self._download_asset(url, name)
-                downloads.append((name, tmp_path))
+                downloads.append(self._download_asset(file_info))
 
             self._apply_assets(downloads)
-            self.logger.info("Asset refresh complete: build %s patch %s", remote_meta.get("build"), remote_meta.get("patch"))
+            self._cache_manifest(manifest)
+            self.logger.info(
+                "Asset refresh complete: version=%s release=%s",
+                manifest.get("version"),
+                manifest.get("release_tag"),
+            )
 
             for hook in self._hooks:
                 try:
-                    hook(remote_meta)
+                    hook(manifest)
                 except Exception as exc:  # pragma: no cover - defensive
                     self.logger.warning("Post-asset hook failed: %s", exc, exc_info=True)
 
@@ -122,7 +142,7 @@ class AssetUpdater:
                 "status": "success",
                 "message": "Assets updated. Restart to apply everywhere?",
                 "promptRestart": True,
-                "metadata": remote_meta,
+                "metadata": manifest,
             })
         except Exception as exc:  # pragma: no cover - defensive
             self.logger.error("Asset update failed: %s", exc, exc_info=True)
@@ -141,25 +161,30 @@ class AssetUpdater:
     # ------------------------------------------------------------------
     # Helper methods
     # ------------------------------------------------------------------
-    def _download_metadata(self) -> Optional[dict]:
-        meta_url = f"{self.base_url}/darkerdb_health.json"
+    def _download_manifest(self) -> Optional[dict]:
         try:
-            with self.session.get(meta_url, timeout=15) as response:
+            with self.session.get(self.manifest_url, timeout=15) as response:
                 response.raise_for_status()
                 payload = response.json()
-            if isinstance(payload, dict):
-                return payload
-            self.logger.warning("Metadata at %s is not a JSON object", meta_url)
         except requests.RequestException as exc:
-            self.logger.warning("Failed to download metadata from %s: %s", meta_url, exc)
+            self.logger.warning("Failed to download manifest from %s: %s", self.manifest_url, exc)
+            return None
         except ValueError as exc:
-            self.logger.warning("Metadata at %s is not valid JSON: %s", meta_url, exc)
-        return None
+            self.logger.warning("Manifest at %s is not valid JSON: %s", self.manifest_url, exc)
+            return None
 
-    def _read_local_metadata(self) -> Optional[dict]:
-        local_path = self.assets_dir / "darkerdb_health.json"
+        if not isinstance(payload, dict):
+            self.logger.warning("Manifest at %s is not a JSON object", self.manifest_url)
+            return None
+        return payload
+
+    def _manifest_cache_path(self) -> Path:
+        return self.assets_dir / MANIFEST_CACHE_FILENAME
+
+    def _read_cached_manifest(self) -> Optional[dict]:
+        cache_path = self._manifest_cache_path()
         try:
-            with local_path.open("r", encoding="utf-8") as handle:
+            with cache_path.open("r", encoding="utf-8") as handle:
                 payload = json.load(handle)
             return payload if isinstance(payload, dict) else None
         except FileNotFoundError:
@@ -167,46 +192,88 @@ class AssetUpdater:
         except ValueError:
             return None
 
-    def _needs_update(self, remote_meta: dict) -> bool:
-        local_meta = self._read_local_metadata()
-        if not local_meta:
-            return True
+    def _cache_manifest(self, manifest: dict) -> None:
+        cache_path = self._manifest_cache_path()
+        try:
+            with cache_path.open("w", encoding="utf-8") as handle:
+                json.dump(manifest, handle, indent=2, sort_keys=True)
+        except OSError as exc:
+            self.logger.debug("Unable to write manifest cache: %s", exc)
 
-        def _coerce(value):
-            return (str(value) if value is not None else None)
+    def _manifest_identity(self, manifest: Optional[dict]) -> tuple[str, str, str]:
+        if not isinstance(manifest, dict):
+            return ("", "", "")
 
-        remote_version = (_coerce(remote_meta.get("build")), _coerce(remote_meta.get("patch")))
-        local_version = (_coerce(local_meta.get("build")), _coerce(local_meta.get("patch")))
-        return remote_version != local_version
+        def _coerce(value: Optional[object]) -> str:
+            return str(value or "").strip()
 
-    def _download_asset(self, url: str, name: str) -> Path:
-        fd, temp_path = tempfile.mkstemp(prefix="dnd-asset-", suffix=f"-{name}.tmp")
+        return (
+            _coerce(manifest.get("version")),
+            _coerce(manifest.get("release_tag")),
+            _coerce(manifest.get("generated_at")),
+        )
+
+    def _needs_update(self, remote_manifest: dict) -> bool:
+        local_manifest = self._read_cached_manifest()
+        return self._manifest_identity(local_manifest) != self._manifest_identity(remote_manifest)
+
+    def _extract_manifest_files(self, manifest: dict) -> list[dict]:
+        files = manifest.get("files")
+        if not isinstance(files, list):
+            return []
+        return [file_info for file_info in files if isinstance(file_info, dict) and file_info.get("url")]
+
+    def _download_asset(self, file_info: dict) -> tuple[str, Path]:
+        relative_path = str(file_info.get("path") or file_info.get("name") or "").strip()
+        url = str(file_info.get("url") or "").strip()
+        if not relative_path:
+            raise RuntimeError("Manifest entry missing path/name")
+        if not url:
+            raise RuntimeError(f"Manifest entry for {relative_path} missing download URL")
+
+        expected_sha = str(file_info.get("sha256") or "").strip().lower()
+        safe_name = relative_path.replace(os.sep, "-").replace("/", "-")
+        suffix = f"-{safe_name}.tmp" if safe_name else ".tmp"
+        fd, temp_path = tempfile.mkstemp(prefix="dnd-asset-", suffix=suffix)
         path = Path(temp_path)
+
         try:
             with self.session.get(url, stream=True, timeout=60) as response:
                 response.raise_for_status()
+                digest = hashlib.sha256()
                 with os.fdopen(fd, "wb") as handle:
                     for chunk in response.iter_content(chunk_size=1024 * 256):
-                        if chunk:
-                            handle.write(chunk)
+                        if not chunk:
+                            continue
+                        handle.write(chunk)
+                        if expected_sha:
+                            digest.update(chunk)
+            if expected_sha and digest.hexdigest() != expected_sha:
+                raise RuntimeError(
+                    f"Checksum mismatch for {relative_path}: expected {expected_sha}, got {digest.hexdigest()}"
+                )
         except requests.RequestException as exc:
             try:
                 path.unlink()
             except OSError:
                 pass
-            raise RuntimeError(f"Failed to download {name}: {exc}") from exc
+            raise RuntimeError(f"Failed to download {relative_path}: {exc}") from exc
         except Exception:
             try:
                 path.unlink()
             except OSError:
                 pass
             raise
-        return path
+        return (relative_path, path)
 
     def _apply_assets(self, downloads: Sequence[tuple[str, Path]]) -> None:
-        for name, tmp_path in downloads:
-            self._run_pre_replace_hooks(name)
-            target = self.assets_dir / name
+        for relative_path, tmp_path in downloads:
+            basename = Path(relative_path).name
+            self._run_pre_replace_hooks(relative_path)
+            if basename != relative_path:
+                self._run_pre_replace_hooks(basename)
+            target = self.assets_dir / relative_path
+            target.parent.mkdir(parents=True, exist_ok=True)
             backup: Optional[Path] = None
             try:
                 if target.exists():
@@ -224,7 +291,7 @@ class AssetUpdater:
                     except OSError:
                         pass
             except Exception as exc:
-                raise RuntimeError(f"Failed to replace {name}: {exc}") from exc
+                raise RuntimeError(f"Failed to replace {relative_path}: {exc}") from exc
 
     def _notify_ui(self, payload: dict) -> None:
         if not self.window_getter:
