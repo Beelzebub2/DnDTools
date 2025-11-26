@@ -174,7 +174,7 @@ jobs:
           path = line[3:].strip()
           if not path:
             continue
-            normalized = path.replace('\\', '/')
+          normalized = path.replace('\\', '/')
           if status.strip() in {'A', '??'}:
             icon_changes['added'].append(normalized)
           elif 'D' in status:
