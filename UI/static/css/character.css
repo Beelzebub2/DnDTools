@@ -1419,3 +1419,135 @@
 .hidden {
     display: none !important;
 }
+
+/* Sort feedback prompt */
+.sort-feedback {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    max-width: 360px;
+    width: calc(100% - 48px);
+    z-index: 250;
+    pointer-events: none;
+}
+
+.sort-feedback-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    pointer-events: auto;
+}
+
+.sort-feedback-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 0.75rem;
+    align-items: flex-start;
+}
+
+.sort-feedback-title-wrap {
+    display: flex;
+    flex-direction: column;
+}
+
+.sort-feedback-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.sort-feedback-risk {
+    margin: 0.15rem 0 0 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.sort-feedback-dismiss {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0.2rem;
+    border-radius: 50%;
+    transition: color 0.2s ease;
+}
+
+.sort-feedback-dismiss:hover {
+    color: var(--accent-gold);
+}
+
+.sort-feedback-description {
+    margin: 0;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.sort-feedback-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.sort-feedback-button {
+    flex: 1;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 0.65rem 0.85rem;
+    font-weight: 600;
+    text-transform: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-primary);
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.sort-feedback-button.success {
+    border-color: rgba(0, 150, 136, 0.4);
+}
+
+.sort-feedback-button.failure {
+    border-color: rgba(255, 82, 82, 0.4);
+}
+
+.sort-feedback-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.sort-feedback-button:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--accent-gold);
+}
+
+.sort-feedback-note {
+    width: 100%;
+    min-height: 70px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text-primary);
+    resize: vertical;
+    padding: 0.65rem;
+    font-family: inherit;
+}
+
+@media (max-width: 640px) {
+    .sort-feedback {
+        right: 16px;
+        left: 16px;
+        width: auto;
+    }
+
+    .sort-feedback-actions {
+        flex-direction: column;
+    }
+}

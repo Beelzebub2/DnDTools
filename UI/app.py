@@ -15,6 +15,8 @@ import os
 import threading
 import asyncio
 from src.models.stash_manager import StashManager
+from src.models.sort_feedback import get_sort_feedback_manager
+from src.models.sort_feedback_sync import SortFeedbackSyncService
 import psutil
 import json
 import sys
@@ -496,6 +498,7 @@ class Api:
         self.stash_manager = stash_manager
         self.settings_manager = settings_manager
         self.overlay_manager = overlay_manager
+        self.sort_feedback_manager = get_sort_feedback_manager()
         settings = self.settings_manager.reload()
         self._developer_mode_enabled = bool(settings.get('developerMode', False))
         self._apply_logging_preferences(self._developer_mode_enabled)
@@ -565,6 +568,16 @@ class Api:
         self._active_ping_service.set_developer_mode(self._developer_mode_enabled)
         self._initialize_game_monitor()
         self._active_ping_service.start()
+        self._sort_feedback_sync_service: Optional[SortFeedbackSyncService] = None
+        try:
+            self._sort_feedback_sync_service = SortFeedbackSyncService(
+                feedback_manager=self.sort_feedback_manager,
+                settings_manager=self.settings_manager,
+                app_version=APP_VERSION,
+                logger=logger,
+            )
+        except Exception as exc:
+            logger.debug("Sort feedback sync unavailable: %s", exc, exc_info=True)
 
     def _update_closing_overlay(self, message):
         if not self.window:
@@ -1279,6 +1292,12 @@ class Api:
                 except Exception as exc:
                     logger.debug("Unable to propagate close-to-tray toggle: %s", exc)
 
+            if self._sort_feedback_sync_service:
+                try:
+                    self._sort_feedback_sync_service.apply_settings(updated_settings)
+                except Exception as exc:
+                    logger.debug("Unable to propagate feedback sync settings: %s", exc, exc_info=True)
+
             result['settings'] = self.settings_manager.data
             result['success'] = success and not result['errors']
 
@@ -1768,12 +1787,28 @@ class Api:
                 overlay_session=overlay_session,
             )
 
+            error_msg = None
+            session_summary = None
             if isinstance(result, tuple):
-                success, error_msg = result
+                if len(result) == 3:
+                    success, error_msg, session_summary = result
+                else:
+                    success, error_msg = result
             else:
                 success = bool(result)
 
-            return {"success": success, "error": error_msg}
+            payload = {"success": success, "error": error_msg, "session": session_summary}
+
+            if self.window and session_summary:
+                try:
+                    summary_json = json.dumps(session_summary)
+                    self.window.evaluate_js(
+                        f"window.dispatchEvent(new CustomEvent('sortSessionCompleted', {{ detail: {summary_json} }}));"
+                    )
+                except Exception as exc:
+                    logger.debug("Failed to emit sort session event: %s", exc, exc_info=True)
+
+            return payload
         except Exception as exc:
             error_msg = str(exc)
             logger.error(f"Error in sort_stash: {error_msg}", exc_info=True)
@@ -1816,6 +1851,11 @@ class Api:
             self._active_ping_service.stop()
         except Exception as exc:
             logger.debug("Active ping service stop failed: %s", exc)
+        if self._sort_feedback_sync_service:
+            try:
+                self._sort_feedback_sync_service.stop()
+            except Exception as exc:
+                logger.debug("Sort feedback sync service stop failed: %s", exc)
         self._stop_game_monitor()
         try:
             self._update_closing_overlay("Stopping capture...")
@@ -1991,6 +2031,16 @@ class Api:
 
     def get_stack_mode(self):
         return bool(getattr(self, '_current_stack_mode', False))
+
+    def submit_sort_feedback(self, session_id: str, success: bool, note: Optional[str] = None) -> bool:
+        if not session_id:
+            return False
+        manager = get_sort_feedback_manager()
+        try:
+            return manager.record_user_feedback(session_id, success, note)
+        except Exception as exc:
+            logger.debug("Unable to persist sort feedback: %s", exc, exc_info=True)
+            return False
 
 @server.route('/api/download_update')
 def download_update():
@@ -2655,6 +2705,32 @@ def api_sort_stash(character_id, stash_id):
     except Exception as e:
         logger.error(f"Error sorting stash: {e}")
         return jsonify({'success': False, 'error': 'Failed to sort stash'}), 500
+
+
+@server.route('/api/sort-feedback', methods=['POST'])
+def api_sort_feedback():
+    try:
+        payload = request.get_json(force=True) or {}
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid JSON payload'}), 400
+
+    session_id = str(payload.get('sessionId') or '').strip()
+    if not session_id:
+        return jsonify({'success': False, 'error': 'sessionId is required'}), 400
+
+    raw_success = payload.get('success')
+    if isinstance(raw_success, str):
+        normalized = raw_success.strip().lower()
+        success = normalized in {'1', 'true', 'yes', 'success'}
+    else:
+        success = bool(raw_success)
+
+    note = payload.get('note')
+    accepted = api.submit_sort_feedback(session_id, success, note)
+    if not accepted:
+        return jsonify({'success': False, 'error': 'Unable to record feedback (session not found).'}), 404
+
+    return jsonify({'success': True})
 
 @server.route('/api/character/<character_id>/current-stash', methods=['GET'])
 def api_get_current_stash(character_id):

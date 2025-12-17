@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const includeDevCheckbox = document.getElementById('includeDevReleases');
     const closeToTrayCheckbox = document.getElementById('closeToTrayEnabled');
     const developerModeCheckbox = document.getElementById('developerMode');
+    const feedbackSyncCheckbox = document.getElementById('sortFeedbackSyncEnabled');
     const saveButton = document.getElementById('saveSettings');
     const resetButton = document.getElementById('resetSettings');
     const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
@@ -41,7 +42,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         wiresharkPath: 'Wireshark Path',
         includeDevReleases: 'Development Builds Opt-In',
         closeToTrayEnabled: 'Close to Tray',
-        developerMode: 'Developer Mode'
+        developerMode: 'Developer Mode',
+        sortFeedbackSyncEnabled: 'Global Sort Learning'
     };
 
     function updateSaveButtonState() {
@@ -169,7 +171,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             closeToTrayEnabled: normalizeBoolean(
                 settings.closeToTrayEnabled === undefined ? true : settings.closeToTrayEnabled
             ),
-            developerMode: normalizeBoolean(settings.developerMode)
+            developerMode: normalizeBoolean(settings.developerMode),
+            sortFeedbackSyncEnabled: normalizeBoolean(settings.sortFeedbackSyncEnabled)
         };
     }
 
@@ -183,7 +186,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             wiresharkPath: settings.wiresharkPath || '',
             includeDevReleases: Boolean(settings.includeDevReleases),
             closeToTrayEnabled: settings.closeToTrayEnabled !== false,
-            developerMode: Boolean(settings.developerMode)
+            developerMode: Boolean(settings.developerMode),
+            sortFeedbackSyncEnabled: Boolean(settings.sortFeedbackSyncEnabled)
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -201,7 +205,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
             closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
-            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false
+            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false,
+            sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false
         };
     }
 
@@ -496,6 +501,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (developerModeCheckbox) {
                 developerModeCheckbox.checked = Boolean(currentSettings.developerMode);
+            }
+
+            if (feedbackSyncCheckbox) {
+                feedbackSyncCheckbox.checked = Boolean(currentSettings.sortFeedbackSyncEnabled);
             }
         });
 
@@ -1087,7 +1096,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
             closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
-            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false
+            developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false,
+            sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false
         };
 
         if (!newSettings.interface) {
@@ -1386,7 +1396,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             includeDevReleases: false,
             closeToTrayEnabled: true,
             noDelay: false,
-            developerMode: false
+            developerMode: false,
+            sortFeedbackSyncEnabled: false
         };
     }
 
