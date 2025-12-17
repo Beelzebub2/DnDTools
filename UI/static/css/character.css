@@ -1240,6 +1240,35 @@
     will-change: transform;
 }
 
+.ordering-label {
+    font-weight: 500;
+    flex: 1;
+}
+
+.ordering-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.direction-toggle {
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    padding: 0.15rem 0.45rem;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.direction-toggle[aria-pressed="true"] {
+    background: var(--accent-gold);
+    border-color: var(--accent-gold);
+    color: #1b1b1b;
+}
+
 .ordering-option:hover {
     background: var(--hover-color);
     border-color: var(--accent-gold);

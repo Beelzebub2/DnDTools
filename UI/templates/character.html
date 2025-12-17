@@ -59,32 +59,52 @@
                             Ordering
                         </button>
                         <div class="ordering-menu hidden" id="orderingMenu">
-                            <div class="ordering-option" data-sort="rarity" draggable="true">
-                                <span>Rarity</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up" aria-label="Move up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
+                            <div class="ordering-option" data-sort="rarity" data-direction="desc"
+                                data-default-direction="desc" draggable="true">
+                                <span class="ordering-label">Rarity</span>
+                                <div class="ordering-controls">
+                                    <button type="button" class="direction-toggle"
+                                        aria-label="Toggle sort direction">Desc</button>
+                                    <div class="ordering-arrows">
+                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="ordering-option" data-sort="height" draggable="true">
-                                <span>Height</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
+                            <div class="ordering-option" data-sort="height" data-direction="desc"
+                                data-default-direction="desc" draggable="true">
+                                <span class="ordering-label">Height</span>
+                                <div class="ordering-controls">
+                                    <button type="button" class="direction-toggle"
+                                        aria-label="Toggle sort direction">Desc</button>
+                                    <div class="ordering-arrows">
+                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="ordering-option" data-sort="width" draggable="true">
-                                <span>Width</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
+                            <div class="ordering-option" data-sort="width" data-direction="desc"
+                                data-default-direction="desc" draggable="true">
+                                <span class="ordering-label">Width</span>
+                                <div class="ordering-controls">
+                                    <button type="button" class="direction-toggle"
+                                        aria-label="Toggle sort direction">Desc</button>
+                                    <div class="ordering-arrows">
+                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="ordering-option" data-sort="name" draggable="true">
-                                <span>Name</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
+                            <div class="ordering-option" data-sort="name" data-direction="desc"
+                                data-default-direction="desc" draggable="true">
+                                <span class="ordering-label">Name</span>
+                                <div class="ordering-controls">
+                                    <button type="button" class="direction-toggle"
+                                        aria-label="Toggle sort direction">Desc</button>
+                                    <div class="ordering-arrows">
+                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                    </div>
                                 </div>
                             </div>
 

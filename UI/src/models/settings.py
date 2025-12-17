@@ -96,7 +96,7 @@ class SettingsManager:
             "cancelHotkey": "ctrl+f12",
             "sortSpeed": 0.2,
             "resolution": "Auto",
-            "stashSortOrder": list(Item.SORTABLE_FIELDS),
+            "stashSortOrder": Item.copy_sort_order(),
             "wiresharkPath": detect_wireshark_installation(),
             "includeDevReleases": False,
             "closeToTrayEnabled": True,

@@ -502,9 +502,9 @@ class Api:
 
         # Apply persisted sort order preference if available
         try:
-            Item.sort_order = Item.normalize_sort_order(
-                settings.get('stashSortOrder', Item.sort_order)
-            )
+            stored_order = settings.get('stashSortOrder', Item.copy_sort_order())
+            normalized_order = Item.normalize_sort_order(stored_order)
+            Item.sort_order = Item.copy_sort_order(normalized_order)
         except Exception as exc:
             logger.error(f"Failed to restore stash sort order from settings: {exc}")
 
@@ -1948,15 +1948,15 @@ class Api:
     def set_sort_order(self, order):
         try:
             normalized = Item.normalize_sort_order(order)
-            Item.sort_order = normalized
-            self.settings_manager.update({'stashSortOrder': normalized})
+            Item.sort_order = Item.copy_sort_order(normalized)
+            self.settings_manager.update({'stashSortOrder': Item.copy_sort_order(normalized)})
             return True
         except Exception as exc:
             logger.error(f"Failed to update stash sort order: {exc}")
             return False
 
     def get_sort_order(self):
-        return list(Item.sort_order)
+        return Item.copy_sort_order()
 
     def set_pack_mode(self, pack):
         if pack is None:

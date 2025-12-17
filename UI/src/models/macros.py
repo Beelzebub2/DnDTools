@@ -199,6 +199,8 @@ class INPUT(ctypes.Structure):
 SendInput = ctypes.windll.user32.SendInput
 
 INSTANT_MODE_MIN_PAUSE = 0.028
+INSTANT_MODE_BACKGROUND_FLOOR = 0.006
+INSTANT_MODE_RELIABILITY_DELAY = 0.012
 DOUBLE_CLICK_PROTECT_WINDOW = 0.18
 
 _last_drop_signature = None
@@ -383,7 +385,9 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         total = max(0.0, base_delay + jitter_component)
 
         if no_delay_mode:
-            floor = INSTANT_MODE_MIN_PAUSE if (enforce_floor or total > 0.0) else 0.0
+            floor = INSTANT_MODE_MIN_PAUSE if enforce_floor else INSTANT_MODE_BACKGROUND_FLOOR
+            if total > 0.0:
+                floor = max(floor, INSTANT_MODE_MIN_PAUSE)
             total = max(floor, total)
 
         if total > 0:
@@ -457,13 +461,16 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
 
         drop_signature = (id(end_stash), int(getattr(end_pos, "x", 0)), int(getattr(end_pos, "y", 0)))
         now = time.perf_counter()
-        should_skip_reliability_click = no_delay_mode or (
+        should_skip_reliability_click = (
             _last_drop_signature == drop_signature and
             (now - _last_drop_time) < DOUBLE_CLICK_PROTECT_WINDOW
         )
 
         if not should_skip_reliability_click:
-            base_reliability_delay = max(DELAY / 2 if DELAY > 0 else 0.0, 0.0)
+            base_reliability_delay = max(
+                (DELAY / 2) if DELAY > 0 else 0.0,
+                INSTANT_MODE_RELIABILITY_DELAY if no_delay_mode else 0.0,
+            )
             move_mouse_smooth(
                 ex,
                 ey,

@@ -5,7 +5,9 @@ import heapq
 import keyboard
 import os
 from collections import defaultdict
-from typing import Optional, Union
+from dataclasses import dataclass
+from functools import cmp_to_key
+from typing import Callable, Dict, List, Optional, Set, Tuple, Union
 
 import pygetwindow as gw
 
@@ -25,13 +27,117 @@ def intersects(pos1, width1, height1, pos2, width2, height2):
         return False
     return True
 
+
+class LayoutPlanError(Exception):
+    """Raised when a deterministic plan cannot be created for the stash."""
+
+
+@dataclass
+class PlanEntry:
+    item: Item
+    target: Point
+
+
+@dataclass
+class LayoutPlan:
+    positions: Dict[int, Point]
+    order: List[PlanEntry]
+
+
+class LayoutPlanner:
+    """Determines the final resting position for every item before any moves happen."""
+
+    def __init__(self, width: int, height: int, prefer_dense: bool = False):
+        self.width = width
+        self.height = height
+        self.prefer_dense = prefer_dense
+        self._reset()
+
+    def _reset(self) -> None:
+        self.occupancy = [[False for _ in range(self.height)] for _ in range(self.width)]
+
+    def build(self, items: List[Item], comparator: Optional[Callable[[Item, Item], int]] = None) -> LayoutPlan:
+        self._reset()
+        if comparator:
+            ordered_items = sorted(items, key=cmp_to_key(comparator))
+        else:
+            ordered_items = sorted(items, key=self._priority_key)
+        positions: Dict[int, Point] = {}
+
+        for itm in ordered_items:
+            slot = self._find_slot_for(itm)
+            if slot is None:
+                raise LayoutPlanError(f"Unable to place item '{itm}' within stash bounds")
+            self._mark(slot, itm)
+            positions[id(itm)] = slot
+
+        execution_order = sorted(
+            [PlanEntry(item=itm, target=positions[id(itm)]) for itm in items],
+            key=lambda entry: (
+                entry.target.y,
+                entry.target.x,
+                -(entry.item.width * entry.item.height),
+            ),
+        )
+        return LayoutPlan(positions=positions, order=execution_order)
+
+    def _priority_key(self, item: Item) -> Tuple[int, int, int, int, str]:
+        area = item.width * item.height
+        rarity = getattr(item, "rarity", 0) or 0
+        return (-area, -max(item.width, item.height), -rarity, -item.height, item.name or "")
+
+    def _find_slot_for(self, item: Item) -> Optional[Point]:
+        max_x = self.width - item.width
+        max_y = self.height - item.height
+        best_score = None
+        best_point: Optional[Point] = None
+
+        for y in range(0, max_y + 1):
+            for x in range(0, max_x + 1):
+                if not self._fits(item, x, y):
+                    continue
+                adjacency = self._adjacency_score(item, x, y)
+                score = (y, x, -adjacency if self.prefer_dense else adjacency)
+                if best_score is None or score < best_score:
+                    best_score = score
+                    best_point = Point(x, y)
+        return best_point
+
+    def _fits(self, item: Item, origin_x: int, origin_y: int) -> bool:
+        for dx in range(item.width):
+            for dy in range(item.height):
+                x = origin_x + dx
+                y = origin_y + dy
+                if x >= self.width or y >= self.height or self.occupancy[x][y]:
+                    return False
+        return True
+
+    def _adjacency_score(self, item: Item, origin_x: int, origin_y: int) -> int:
+        score = 0
+        for dx in range(item.width):
+            for dy in range(item.height):
+                x = origin_x + dx
+                y = origin_y + dy
+                neighbors = [
+                    (x - 1, y),
+                    (x + 1, y),
+                    (x, y - 1),
+                    (x, y + 1),
+                ]
+                for nx, ny in neighbors:
+                    if 0 <= nx < self.width and 0 <= ny < self.height and self.occupancy[nx][ny]:
+                        score += 1
+        return score
+
+    def _mark(self, point: Point, item: Item) -> None:
+        for dx in range(item.width):
+            for dy in range(item.height):
+                self.occupancy[point.x + dx][point.y + dy] = True
+
 class StashSorter:
     def __init__(self, stash: Storage, inv: Storage, pack_mode: bool = False, stack_mode: bool = False):
         self.stash = stash
         self.inv = inv
-        self.cur_x = 0
-        self.cur_y = 0
-        self.cur_height = 0
         self.cancel_event = None
         self.pack_mode = bool(pack_mode)
         self.stack_mode = bool(stack_mode)
@@ -39,15 +145,14 @@ class StashSorter:
         self.overlay_session: Optional[Union[SortOverlaySession, NullOverlaySession]] = None
         if self.stack_mode:
             self._prepare_stack_plan()
-        self.pack_positions = {}
         self._buffered_inventory = {}
         self._reserved_slots = {}
         self._blocker_move_counts = defaultdict(int)
-        if self.pack_mode:
-            self.pack_positions = self._compute_pack_plan()
-            if not self.pack_positions:
-                logger.warning("Pack mode plan could not be generated; falling back to sequential layout.")
-                self.pack_mode = False
+        self._plan_positions: Dict[int, Point] = {}
+        self._plan_order: List[PlanEntry] = []
+        self._cell_plan_rank: Dict[Tuple[int, int], int] = {}
+        self._rank_lookup: Dict[int, int] = {}
+        self._current_plan_index = -1
 
     def sort(
         self,
@@ -56,9 +161,6 @@ class StashSorter:
     ):
         self.cancel_event = cancel_event
         self.overlay_session = overlay_session or NullOverlaySession()
-        total_items = len(self.stash.pq)
-        processed = 0
-
         if cancel_event:
             macros.push_cancel_event(cancel_event)
 
@@ -73,114 +175,39 @@ class StashSorter:
 
             self._overlay_update("Preparing workspace...", status="info")
             self._ensure_initial_workspace()
-            self._overlay_update("Sorting stash items...", status="info")
+            self._overlay_update("Analyzing stash contents...", status="info")
 
-            while self.stash.pq or self._buffered_inventory:
-                if not self.stash.pq and self._buffered_inventory:
-                    _, buffered_item = self._buffered_inventory.popitem()
-                    heapq.heappush(self.stash.pq, buffered_item)
-                    continue
+            unique_items: Dict[int, Item] = {}
+            for itm in self.stash.pq:
+                if itm.stash is self.stash or getattr(itm, "_buffered_by_sort", False):
+                    unique_items[id(itm)] = itm
+            for itm in self._buffered_inventory.values():
+                unique_items[id(itm)] = itm
+            active_items = list(unique_items.values())
+            total_items = len(active_items)
+            if not total_items and not self._buffered_inventory:
+                self._overlay_log("No items detected in stash; nothing to sort.")
+                return True
 
-                if self.cancel_event and self.cancel_event.is_set():
-                    logger.info("Sort operation cancelled")
-                    self._overlay_log("Sort cancelled by user.")
-                    return False
+            self._overlay_update("Calculating deterministic layout...", status="info")
+            plan = self._build_sort_plan(active_items)
+            if plan is None:
+                self._overlay_update("Unable to calculate layout plan.", status="error")
+                self._overlay_log("Unable to create deterministic layout; aborting sort.")
+                return False
 
-                item = heapq.heappop(self.stash.pq)
-                self._buffered_inventory.pop(id(item), None)
-                self._release_reserved_slots(item)
-                self._blocker_move_counts.pop(id(item), None)
-                logger.debug("Processing item: %s", item)
-
-                planned_point = self.pack_positions.get(id(item)) if self.pack_mode else None
-                target_point = planned_point
-
-                if target_point is not None and not self._is_within_bounds(item, target_point):
-                    logger.warning("Planned target position out of bounds; recalculating")
-                    if self.pack_mode:
-                        self.pack_positions.pop(id(item), None)
-                    target_point = None
-
-                if target_point is None:
-                    sequential_point = self._compute_next_sequential_position(item)
-                    if sequential_point is not None and self._is_within_bounds(item, sequential_point):
-                        target_point = sequential_point
-                    else:
-                        if sequential_point is None:
-                            logger.info("Sequential planner could not provide a position; searching alternatives")
-                            self._overlay_log("Sequential planner yielded no slot; scanning for alternatives.")
-                        else:
-                            logger.warning("Sequential planner returned out-of-bounds position; searching alternatives")
-                            self._overlay_log("Sequential slot was invalid; recalculating placement.")
-
-                        target_point = self._find_next_fittable_slot(item)
-                        if target_point is None:
-                            target_point = self._find_direct_empty_slot(item)
-
-                if target_point is None or not self._is_within_bounds(item, target_point):
-                    logger.error("No valid target position found after adjustments; aborting sort")
-                    self._overlay_log("No valid placement found for an item; aborting sort.")
-                    return False
-
-                if self.pack_mode:
-                    self.pack_positions[id(item)] = target_point
-
-                logger.debug("Target position: %s, Current position: %s", target_point, item.position)
-                if target_point == item.position:
-                    logger.debug("Item already in correct position")
-                    self._overlay_log("Item already positioned correctly; skipping move.")
-                    continue
-
-                if not self._ensure_area_available(item, target_point):
-                    logger.warning("Failed to clear target area; attempting fallback placement")
-                    self._overlay_log("Primary slot blocked; attempting fallback placement.")
-                    fallback_point = self._find_direct_empty_slot(item)
-                    if fallback_point and fallback_point != target_point:
-                        logger.info("Fallback slot located at %s", fallback_point)
-                        self._overlay_log(f"Using fallback slot at ({fallback_point.x}, {fallback_point.y}).")
-                        if self.pack_mode:
-                            self.pack_positions[id(item)] = fallback_point
-                        if not self._ensure_area_available(item, fallback_point):
-                            logger.error("Fallback slot blocked; aborting sort")
-                            self._overlay_log("Fallback slot also blocked; aborting sort.")
-                            return False
-                        target_point = fallback_point
-                    else:
-                        logger.error("No suitable fallback slot available; aborting sort")
-                        self._overlay_log("No fallback slot available; aborting sort.")
-                        return False
-                else:
-                    blockers = self._collect_blocking_items(item, target_point)
-                    if blockers:
-                        logger.warning("Target area still obstructed after clearing by %s", [repr(b) for b in blockers])
-                        self._overlay_log("Remaining blockers detected; attempting to relocate.")
-                        if not self._force_clear_blockers(item, blockers, target_point):
-                            logger.error("Unable to relocate remaining blockers; aborting sort")
-                            self._overlay_log("Unable to relocate blocking items; aborting sort.")
-                            return False
-
-                if self.cancel_event and self.cancel_event.is_set():
-                    logger.info("Sort operation cancelled before final placement")
-                    self._overlay_log("Sort cancelled before final placement.")
-                    return False
-
-                item.stash.move(item, target_point, self.stash)
-                self._unmark_buffered_inventory(item)
-                logger.debug("Current stash state:\n%s", self.stash)
-
-                if self.cancel_event and self.cancel_event.is_set():
-                    logger.info("Sort operation cancelled after item placement")
-                    self._overlay_log("Sort cancelled after item placement.")
-                    return False
-
-                processed += 1
-                if total_items and (processed == total_items or processed == 1 or processed % 5 == 0):
-                    self._overlay_update(
-                        f"Sorting stash items... ({processed}/{total_items})",
-                        status="info",
-                    )
-
-            return True
+            plan_size = len(plan.order)
+            mode_label = "dense pack" if self.pack_mode else "scanline"
+            stack_label = "stacking on" if self.stack_mode else "stacking off"
+            self._overlay_log(
+                f"Layout plan ready for {plan_size} items ({mode_label}, {stack_label})."
+            )
+            self._overlay_update(
+                f"Executing layout plan for {plan_size} items...",
+                status="info",
+            )
+            result = self._execute_plan(plan, total_items)
+            return result
         except macros.MacroCancelled:
             logger.info("Sort operation cancelled during macro execution")
             self._overlay_update(
@@ -211,6 +238,193 @@ class StashSorter:
             self.overlay_session.add_log(message)
         except Exception:
             pass
+
+    def _build_sort_plan(self, items: List[Item]) -> Optional[LayoutPlan]:
+        if not items:
+            self._plan_positions.clear()
+            self._plan_order.clear()
+            self._cell_plan_rank.clear()
+            self._rank_lookup.clear()
+            return LayoutPlan(positions={}, order=[])
+
+        comparators: List[Optional[Callable[[Item, Item], int]]] = []
+        if Item.sort_order:
+            comparators.append(Item.build_sort_comparator(Item.sort_order))
+        comparators.append(None)
+
+        plan: Optional[LayoutPlan] = None
+        fallback_used = False
+        for comparator in comparators:
+            planner = LayoutPlanner(self.stash.width, self.stash.height, prefer_dense=self.pack_mode)
+            try:
+                plan = planner.build(items, comparator=comparator)
+                if fallback_used and comparator is None:
+                    self._overlay_log(
+                        "Custom ordering could not be perfectly applied; using default layout heuristics instead."
+                    )
+                break
+            except LayoutPlanError as exc:
+                if comparator is None:
+                    logger.error("Layout planner failed: %s", exc)
+                    return None
+                fallback_used = True
+                logger.warning("Custom layout ordering failed; retrying with default priority: %s", exc)
+                continue
+
+        if plan is None:
+            return None
+
+        self._plan_positions = plan.positions
+        self._plan_order = plan.order
+        self._cell_plan_rank = {}
+        self._rank_lookup = {}
+        for index, entry in enumerate(plan.order):
+            self._rank_lookup[id(entry.item)] = index
+            for dx in range(entry.item.width):
+                for dy in range(entry.item.height):
+                    key = (entry.target.x + dx, entry.target.y + dy)
+                    self._cell_plan_rank[key] = index
+        return plan
+
+    def _execute_plan(self, plan: LayoutPlan, total_items: int) -> bool:
+        processed = 0
+        for index, entry in enumerate(plan.order):
+            self._current_plan_index = index
+            if self.cancel_event and self.cancel_event.is_set():
+                logger.info("Sort operation cancelled by user input")
+                self._overlay_log("Sort cancelled by user.")
+                return False
+
+            if entry.item.position == entry.target:
+                logger.debug("%s already at %s", entry.item, entry.target)
+                continue
+
+            if not self._move_item_to_target(entry.item, entry.target, set()):
+                logger.error("Failed to relocate %s to %s", entry.item, entry.target)
+                self._overlay_log("Unable to place an item in its planned slot; aborting sort.")
+                return False
+
+            processed += 1
+            if total_items and (processed == total_items or processed == 1 or processed % 5 == 0):
+                self._overlay_update(
+                    f"Sorting stash items... ({processed}/{total_items})",
+                    status="info",
+                )
+
+        self._overlay_update("Sorting complete.", status="success")
+        return True
+
+    def _move_item_to_target(self, item: Item, target_point: Point, lineage: Set[int]) -> bool:
+        token = id(item)
+        if token in lineage:
+            logger.debug("Detected cycle while moving %s; attempting to park it", item)
+            return self._park_blocker(item)
+
+        if item.position == target_point:
+            return True
+
+        lineage.add(token)
+        blockers = self._collect_blocking_items(item, target_point)
+        for blocker in list(blockers):
+            blocker_token = id(blocker)
+            if blocker_token in lineage:
+                if not self._park_blocker(blocker):
+                    lineage.discard(token)
+                    return False
+                continue
+
+            desired = self._plan_positions.get(blocker_token)
+            if desired is None:
+                if not self._park_blocker(blocker):
+                    lineage.discard(token)
+                    return False
+                continue
+
+            if blocker.position != desired:
+                if not self._move_item_to_target(blocker, desired, lineage):
+                    if not self._park_blocker(blocker):
+                        lineage.discard(token)
+                        return False
+            elif intersects(desired, blocker.width, blocker.height, target_point, item.width, item.height):
+                if not self._park_blocker(blocker):
+                    lineage.discard(token)
+                    return False
+
+        if not self._ensure_area_available(item, target_point):
+            lineage.discard(token)
+            return False
+
+        item.stash.move(item, target_point, self.stash)
+        self._unmark_buffered_inventory(item)
+        lineage.discard(token)
+        logger.debug("Placed %s at %s", item, target_point)
+        return True
+
+    def _park_blocker(self, blocker: Item) -> bool:
+        if blocker is None:
+            return True
+
+        if self.inv:
+            inv_slot = self.inv.find_empty_slot(blocker)
+            if inv_slot is None and self._rebalance_inventory(blocker):
+                inv_slot = self.inv.find_empty_slot(blocker)
+            if inv_slot:
+                logger.debug("Parking %s in inventory slot %s", blocker, inv_slot)
+                blocker.stash.move(blocker, inv_slot, self.inv)
+                self._mark_buffered_inventory(blocker)
+                return True
+
+        future_slot = self._find_future_safe_slot(blocker)
+        if future_slot:
+            logger.debug("Parking %s in future stash slot %s", blocker, future_slot)
+            blocker.stash.move(blocker, future_slot, self.stash)
+            self._unmark_buffered_inventory(blocker)
+            return True
+
+        if self._create_workspace_for(None, blocker):
+            logger.debug("Workspace creation succeeded for %s", blocker)
+            return True
+
+        logger.error("Unable to park blocker %s; out of workspace", blocker)
+        self._overlay_log("Unable to secure temporary space for a blocking item; aborting sort.")
+        return False
+
+    def _find_future_safe_slot(self, item: Item) -> Optional[Point]:
+        min_rank = max(
+            self._current_plan_index + 1,
+            self._rank_lookup.get(id(item), self._current_plan_index + 1),
+        )
+        return self._find_slot_with_min_rank(item, min_rank)
+
+    def _find_slot_with_min_rank(self, item: Item, min_rank: int) -> Optional[Point]:
+        if not self.stash:
+            return None
+
+        max_x = self.stash.width - item.width
+        max_y = self.stash.height - item.height
+        if max_x < 0 or max_y < 0:
+            return None
+
+        for y in range(max_y, -1, -1):
+            for x in range(max_x, -1, -1):
+                fits = True
+                for dx in range(item.width):
+                    for dy in range(item.height):
+                        grid_x = x + dx
+                        grid_y = y + dy
+                        cell_rank = self._cell_plan_rank.get((grid_x, grid_y))
+                        if cell_rank is not None and cell_rank < min_rank:
+                            fits = False
+                            break
+                        occupant = self.stash.grid[grid_x][grid_y]
+                        if occupant not in (0, item):
+                            fits = False
+                            break
+                    if not fits:
+                        break
+                if fits:
+                    return Point(x, y)
+        return None
 
     def _ensure_initial_workspace(self, min_free_cells: int = 6, max_buffer_moves: int = 8):
         if not self.inv:
@@ -433,111 +647,6 @@ class StashSorter:
 
         return True
 
-    def _compute_next_sequential_position(self, item: Item):
-        if self.cur_height == 0:
-            self.cur_height = item.height
-
-        if self.cur_x + item.width > self.stash.width:
-            self.cur_y += self.cur_height
-            self.cur_x = 0
-            self.cur_height = item.height
-
-        if self.cur_y + item.height > self.stash.height:
-            logger.warning("Sequential layout ran out of space")
-            return None
-
-        target_point = Point(self.cur_x, self.cur_y)
-        self.cur_x += item.width
-        self.cur_height = max(self.cur_height, item.height)
-        return target_point
-
-    def _find_direct_empty_slot(self, item: Item):
-        max_x = self.stash.width - item.width
-        max_y = self.stash.height - item.height
-        for y in range(max_y + 1):
-            for x in range(max_x + 1):
-                fits = True
-                for dx in range(item.width):
-                    for dy in range(item.height):
-                        if self.stash.grid[x + dx][y + dy] != 0:
-                            fits = False
-                            break
-                    if not fits:
-                        break
-                if fits:
-                    return Point(x, y)
-        return None
-
-    def _compute_pack_plan(self):
-        plan = {}
-        occupancy = [[False for _ in range(self.stash.width)] for _ in range(self.stash.height)]
-        temp_heap = list(self.stash.pq)
-        heapq.heapify(temp_heap)
-
-        while temp_heap:
-            item = heapq.heappop(temp_heap)
-            placed = False
-            for y in range(0, self.stash.height - item.height + 1):
-                for x in range(0, self.stash.width - item.width + 1):
-                    fits = True
-                    for dy in range(item.height):
-                        for dx in range(item.width):
-                            if occupancy[y + dy][x + dx]:
-                                fits = False
-                                break
-                        if not fits:
-                            break
-                    if fits:
-                        plan[id(item)] = Point(x, y)
-                        for dy in range(item.height):
-                            for dx in range(item.width):
-                                occupancy[y + dy][x + dx] = True
-                        placed = True
-                        break
-                if placed:
-                    break
-            if not placed:
-                logger.warning("Unable to find pack position for item %s; aborting pack plan", item)
-                return {}
-        return plan
-
-    def _is_within_bounds(self, item: Item, point: Point) -> bool:
-        if item is None or point is None:
-            return False
-        return (
-            0 <= point.x and
-            0 <= point.y and
-            point.x + item.width <= self.stash.width and
-            point.y + item.height <= self.stash.height
-        )
-
-    def _find_next_fittable_slot(self, item: Item):
-        if item is None:
-            return None
-
-        max_x = self.stash.width - item.width
-        max_y = self.stash.height - item.height
-
-        if max_x < 0 or max_y < 0:
-            return None
-
-        start_y = min(self.cur_y, max_y)
-        for y in range(start_y, max_y + 1):
-            start_x = self.cur_x if (y == self.cur_y and self.cur_y <= max_y) else 0
-            start_x = min(start_x, max_x)
-            for x in range(start_x, max_x + 1):
-                candidate = Point(x, y)
-                if self._is_within_bounds(item, candidate):
-                    return candidate
-
-        if start_y > 0:
-            for y in range(0, start_y):
-                for x in range(0, max_x + 1):
-                    candidate = Point(x, y)
-                    if self._is_within_bounds(item, candidate):
-                        return candidate
-
-        return None
 
     def _create_workspace_for(self, target_item: Item | None, blocking_item: Item) -> bool:
         if not self.inv:
@@ -632,8 +741,6 @@ class StashSorter:
                 if new_slot:
                     logger.debug("Relocating blocker %s to %s", blocker, new_slot)
                     self.stash.move(blocker, new_slot, self.stash)
-                    if self.pack_mode:
-                        self.pack_positions[id(blocker)] = new_slot
                     self._unmark_buffered_inventory(blocker)
                     continue
 
@@ -641,8 +748,6 @@ class StashSorter:
                 if inv_slot:
                     logger.debug("Relocating blocker %s to inventory slot %s", blocker, inv_slot)
                     self.stash.move(blocker, inv_slot, self.inv)
-                    if self.pack_mode:
-                        self.pack_positions.pop(id(blocker), None)
                     self._mark_buffered_inventory(blocker)
                     continue
 

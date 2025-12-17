@@ -61,8 +61,14 @@ const rarityColors = {
     'Artifact': '#FF0000'   // Red
 };
 
-const DEFAULT_SORT_ORDER = ['height', 'width', 'name', 'rarity'];
-let currentSortOrder = [...DEFAULT_SORT_ORDER];
+const DEFAULT_SORT_ORDER = Object.freeze([
+    { field: 'height', direction: 'desc' },
+    { field: 'width', direction: 'desc' },
+    { field: 'name', direction: 'desc' },
+    { field: 'rarity', direction: 'desc' }
+]);
+
+let currentSortOrder = cloneSortOrder(DEFAULT_SORT_ORDER);
 let suppressSortPersistence = false;
 let latestStashData = null;
 const STASH_PREFETCH_DEFAULTS = ['2', '3'];
@@ -99,6 +105,88 @@ function getRarityRankValue(rarity) {
     }
     const key = rarity.toString().toLowerCase();
     return rarityRankMap.hasOwnProperty(key) ? rarityRankMap[key] : 0;
+}
+
+function normalizeDirection(value, fallback = 'desc') {
+    if (typeof value === 'string') {
+        const clean = value.trim().toLowerCase();
+        if (clean === 'asc' || clean === 'desc') {
+            return clean;
+        }
+    }
+    return fallback;
+}
+
+function normalizeSortDirective(input, fallbackDirection = 'desc') {
+    if (!input && input !== 0) {
+        return null;
+    }
+
+    if (typeof input === 'object' && input !== null) {
+        const field = (input.field || input.key || input.sort || '').toString().trim().toLowerCase();
+        if (!field) {
+            return null;
+        }
+        const direction = normalizeDirection(input.direction || input.dir, fallbackDirection);
+        return { field, direction };
+    }
+
+    const raw = input.toString().trim();
+    if (!raw) {
+        return null;
+    }
+
+    if (raw.includes(':')) {
+        const parts = raw.split(':');
+        const field = parts[0];
+        const dir = parts[1];
+        const normalizedField = (field || '').trim().toLowerCase();
+        if (!normalizedField) {
+            return null;
+        }
+        return { field: normalizedField, direction: normalizeDirection(dir, fallbackDirection) };
+    }
+
+    if (raw.includes(' ')) {
+        const [field, dir] = raw.split(/\s+/, 2);
+        const normalizedField = (field || '').trim().toLowerCase();
+        if (!normalizedField) {
+            return null;
+        }
+        return { field: normalizedField, direction: normalizeDirection(dir, fallbackDirection) };
+    }
+
+    return { field: raw.toLowerCase(), direction: fallbackDirection };
+}
+
+function cloneSortOrder(order) {
+    if (!Array.isArray(order)) {
+        return cloneSortOrder(DEFAULT_SORT_ORDER);
+    }
+    return order
+        .map(directive => normalizeSortDirective(directive))
+        .filter(Boolean)
+        .map(directive => ({ field: directive.field, direction: directive.direction }));
+}
+
+function sortOrdersEqual(a, b) {
+    if (a === b) {
+        return true;
+    }
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+        return false;
+    }
+    for (let i = 0; i < a.length; i += 1) {
+        const left = normalizeSortDirective(a[i]);
+        const right = normalizeSortDirective(b[i]);
+        if (!left || !right) {
+            return false;
+        }
+        if (left.field !== right.field || left.direction !== right.direction) {
+            return false;
+        }
+    }
+    return true;
 }
 
 function normalizeSlotIdValue(value) {
@@ -952,16 +1040,21 @@ const processStashData = async (stashData, stashId) => {
 };
 
 function compareItemsForPreview(itemA, itemB, sortOrder) {
-    const order = Array.isArray(sortOrder) && sortOrder.length ? sortOrder : DEFAULT_SORT_ORDER;
+    const directives = Array.isArray(sortOrder) && sortOrder.length ? sortOrder : DEFAULT_SORT_ORDER;
 
-    for (const key of order) {
-        switch (key) {
+    for (const directive of directives) {
+        const normalized = normalizeSortDirective(directive);
+        if (!normalized) {
+            continue;
+        }
+        const { field, direction } = normalized;
+        switch (field) {
             case 'height':
             case 'width': {
-                const aVal = Number(itemA[key] ?? 0);
-                const bVal = Number(itemB[key] ?? 0);
+                const aVal = Number(itemA[field] ?? 0);
+                const bVal = Number(itemB[field] ?? 0);
                 if (aVal !== bVal) {
-                    return bVal - aVal;
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
                 }
                 break;
             }
@@ -969,7 +1062,7 @@ function compareItemsForPreview(itemA, itemB, sortOrder) {
                 const aName = (itemA._normalizedName ?? itemA.name ?? '').toString().toLowerCase();
                 const bName = (itemB._normalizedName ?? itemB.name ?? '').toString().toLowerCase();
                 if (aName !== bName) {
-                    return bName.localeCompare(aName);
+                    return direction === 'asc' ? aName.localeCompare(bName) : bName.localeCompare(aName);
                 }
                 break;
             }
@@ -977,15 +1070,15 @@ function compareItemsForPreview(itemA, itemB, sortOrder) {
                 const aRank = itemA._rarityRank ?? getRarityRankValue(itemA.rarity);
                 const bRank = itemB._rarityRank ?? getRarityRankValue(itemB.rarity);
                 if (aRank !== bRank) {
-                    return bRank - aRank;
+                    return direction === 'asc' ? aRank - bRank : bRank - aRank;
                 }
                 break;
             }
             default: {
-                const aVal = Number(itemA[key] ?? 0);
-                const bVal = Number(itemB[key] ?? 0);
+                const aVal = Number(itemA[field] ?? 0);
+                const bVal = Number(itemB[field] ?? 0);
                 if (aVal !== bVal) {
-                    return bVal - aVal;
+                    return direction === 'asc' ? aVal - bVal : bVal - aVal;
                 }
             }
         }
@@ -1092,81 +1185,30 @@ function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder
     });
 
     preparedItems.sort((a, b) => compareItemsForPreview(a, b, sortOrder));
+    preparedItems.forEach((item, index) => {
+        item._previewOrder = index;
+    });
 
-    const placedItems = [];
-
-    if (packMode) {
-        const occupancy = Array.from({ length: gridHeight }, () => Array(gridWidth).fill(false));
-
-        for (const item of preparedItems) {
-            let placed = false;
-            for (let y = 0; y <= gridHeight - item.height && !placed; y++) {
-                for (let x = 0; x <= gridWidth - item.width; x++) {
-                    let fits = true;
-                    for (let dx = 0; dx < item.width && fits; dx++) {
-                        for (let dy = 0; dy < item.height; dy++) {
-                            if (occupancy[y + dy][x + dx]) {
-                                fits = false;
-                                break;
-                            }
-                        }
-                    }
-                    if (fits) {
-                        const displaySlotId = (y * gridWidth) + x;
-                        placedItems.push({
-                            ...item,
-                            displaySlotId,
-                            displayX: x,
-                            displayY: y
-                        });
-                        for (let dx = 0; dx < item.width; dx++) {
-                            for (let dy = 0; dy < item.height; dy++) {
-                                occupancy[y + dy][x + dx] = true;
-                            }
-                        }
-                        placed = true;
-                        break;
-                    }
-                }
-            }
-            if (!placed) {
-                console.warn('Unable to pack all items without overflow; reverting to sequential preview.');
-                return [];
-            }
-        }
-    } else {
-        let curX = 0;
-        let curY = 0;
-        let rowHeight = 0;
-
-        for (const item of preparedItems) {
-            if (rowHeight === 0) {
-                rowHeight = item.height;
-            }
-
-            if (curX + item.width > gridWidth) {
-                curY += rowHeight;
-                rowHeight = item.height;
-                curX = 0;
-            }
-
-            if (curY + item.height > gridHeight) {
-                console.warn('Preview layout exceeded grid bounds, falling back to original positions.');
-                return [];
-            }
-
-            const displaySlotId = (curY * gridWidth) + curX;
-            placedItems.push({
-                ...item,
-                displaySlotId,
-                displayX: curX,
-                displayY: curY
-            });
-
-            curX += item.width;
-            rowHeight = Math.max(rowHeight, item.height);
-        }
+    const planPositions = buildDeterministicPreviewPlan(preparedItems, gridWidth, gridHeight, !!packMode);
+    if (!planPositions) {
+        console.warn('Unable to compute deterministic preview layout; falling back to live positions.');
+        return [];
     }
+
+    const placedItems = preparedItems
+        .map((item) => {
+            const slot = planPositions.get(item._originalIndex);
+            if (!slot) {
+                return null;
+            }
+            return {
+                ...item,
+                displaySlotId: (slot.y * gridWidth) + slot.x,
+                displayX: slot.x,
+                displayY: slot.y
+            };
+        })
+        .filter(Boolean);
 
     return placedItems.map(item => {
         const clone = { ...item };
@@ -1176,8 +1218,164 @@ function computeSortedPreviewLayout(stashId, items, sortOrder = currentSortOrder
         delete clone._originalSlotId;
         delete clone._stackGroupKey;
         delete clone._stackOrderIndex;
+        delete clone._previewOrder;
         return clone;
     });
+}
+
+function buildDeterministicPreviewPlan(items, gridWidth, gridHeight, preferDense) {
+    const comparators = [];
+    if (items.some((item) => typeof item._previewOrder === 'number')) {
+        comparators.push(comparePreviewLayoutPriorityUserOrder);
+    }
+    comparators.push(comparePreviewLayoutPrioritySizeFirst);
+
+    for (const comparator of comparators) {
+        const plan = attemptDeterministicPreviewPlan(items, gridWidth, gridHeight, preferDense, comparator);
+        if (plan) {
+            return plan;
+        }
+    }
+
+    return null;
+}
+
+function attemptDeterministicPreviewPlan(items, gridWidth, gridHeight, preferDense, comparator) {
+    const occupancy = Array.from({ length: gridHeight }, () => Array(gridWidth).fill(false));
+    const positions = new Map();
+    const prioritized = [...items].sort(comparator);
+
+    for (const item of prioritized) {
+        const slot = findPreviewPlanSlot(item, occupancy, gridWidth, gridHeight, preferDense);
+        if (!slot) {
+            return null;
+        }
+        occupyPreviewCells(occupancy, slot.x, slot.y, item.width, item.height);
+        positions.set(item._originalIndex, slot);
+    }
+
+    return positions;
+}
+
+function comparePreviewLayoutPriorityUserOrder(itemA, itemB) {
+    const orderA = typeof itemA._previewOrder === 'number' ? itemA._previewOrder : Number.MAX_SAFE_INTEGER;
+    const orderB = typeof itemB._previewOrder === 'number' ? itemB._previewOrder : Number.MAX_SAFE_INTEGER;
+    if (orderA !== orderB) {
+        return orderA - orderB;
+    }
+    return comparePreviewLayoutPrioritySizeFirst(itemA, itemB);
+}
+
+function comparePreviewLayoutPrioritySizeFirst(itemA, itemB) {
+    const areaDiff = (itemB.width * itemB.height) - (itemA.width * itemA.height);
+    if (areaDiff !== 0) {
+        return areaDiff;
+    }
+
+    const longestSideDiff = Math.max(itemB.width, itemB.height) - Math.max(itemA.width, itemA.height);
+    if (longestSideDiff !== 0) {
+        return longestSideDiff;
+    }
+
+    const rarityDiff = (itemB._rarityRank || 0) - (itemA._rarityRank || 0);
+    if (rarityDiff !== 0) {
+        return rarityDiff;
+    }
+
+    const heightDiff = itemB.height - itemA.height;
+    if (heightDiff !== 0) {
+        return heightDiff;
+    }
+
+    const nameA = itemA._normalizedName || '';
+    const nameB = itemB._normalizedName || '';
+    if (nameA < nameB) {
+        return -1;
+    }
+    if (nameA > nameB) {
+        return 1;
+    }
+
+    return itemA._originalIndex - itemB._originalIndex;
+}
+
+function findPreviewPlanSlot(item, occupancy, gridWidth, gridHeight, preferDense) {
+    const limitX = gridWidth - item.width;
+    const limitY = gridHeight - item.height;
+    let bestPlacement = null;
+    let bestScore = null;
+
+    for (let y = 0; y <= limitY; y++) {
+        for (let x = 0; x <= limitX; x++) {
+            if (!previewFitsAt(occupancy, x, y, item.width, item.height)) {
+                continue;
+            }
+            const adjacency = calculatePreviewAdjacency(occupancy, x, y, item.width, item.height, gridWidth, gridHeight);
+            const bias = preferDense ? -adjacency : adjacency;
+            const score = { x, y, bias };
+            if (!bestScore || comparePreviewPlacement(score, bestScore) < 0) {
+                bestScore = score;
+                bestPlacement = { x, y };
+            }
+        }
+    }
+
+    return bestPlacement;
+}
+
+function comparePreviewPlacement(a, b) {
+    if (a.y !== b.y) {
+        return a.y - b.y;
+    }
+    if (a.x !== b.x) {
+        return a.x - b.x;
+    }
+    if (a.bias !== b.bias) {
+        return a.bias - b.bias;
+    }
+    return 0;
+}
+
+function previewFitsAt(occupancy, originX, originY, width, height) {
+    for (let dy = 0; dy < height; dy++) {
+        for (let dx = 0; dx < width; dx++) {
+            if (occupancy[originY + dy][originX + dx]) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+function calculatePreviewAdjacency(occupancy, originX, originY, width, height, gridWidth, gridHeight) {
+    let score = 0;
+    for (let dy = 0; dy < height; dy++) {
+        for (let dx = 0; dx < width; dx++) {
+            const x = originX + dx;
+            const y = originY + dy;
+            if (x > 0 && occupancy[y][x - 1]) {
+                score += 1;
+            }
+            if (x < gridWidth - 1 && occupancy[y][x + 1]) {
+                score += 1;
+            }
+            if (y > 0 && occupancy[y - 1][x]) {
+                score += 1;
+            }
+            if (y < gridHeight - 1 && occupancy[y + 1][x]) {
+                score += 1;
+            }
+        }
+    }
+    return score;
+}
+
+function occupyPreviewCells(occupancy, originX, originY, width, height) {
+    for (let dy = 0; dy < height; dy++) {
+        for (let dx = 0; dx < width; dx++) {
+            occupancy[originY + dy][originX + dx] = true;
+        }
+    }
 }
 
 function buildPreviewButtonMarkup() {
@@ -2948,28 +3146,63 @@ function updatePreviewForCurrentStash() {
 
 
 function normalizeOrdering(order, menu) {
+    if (!menu) {
+        return cloneSortOrder(DEFAULT_SORT_ORDER);
+    }
     const options = Array.from(menu.querySelectorAll('.ordering-option'));
     const availableKeys = options.map(option => option.dataset.sort);
-    const allowedKeys = availableKeys.length ? availableKeys : DEFAULT_SORT_ORDER;
     const normalized = [];
+    const seen = new Set();
+
+    const appendDirective = (directive) => {
+        const normalizedDirective = normalizeSortDirective(directive);
+        if (!normalizedDirective) {
+            return;
+        }
+        const { field } = normalizedDirective;
+        if (!availableKeys.includes(field) || seen.has(field)) {
+            return;
+        }
+        normalized.push({ field, direction: normalizedDirective.direction });
+        seen.add(field);
+    };
 
     if (Array.isArray(order)) {
-        order.forEach(key => {
-            if (typeof key !== 'string') return;
-            const cleanKey = key.trim().toLowerCase();
-            if (allowedKeys.includes(cleanKey) && !normalized.includes(cleanKey)) {
-                normalized.push(cleanKey);
-            }
-        });
+        order.forEach(appendDirective);
+    } else if (order) {
+        appendDirective(order);
     }
 
-    allowedKeys.forEach(key => {
-        if (!normalized.includes(key)) {
-            normalized.push(key);
+    availableKeys.forEach((key) => {
+        if (seen.has(key)) {
+            return;
         }
+        const option = options.find(opt => opt.dataset.sort === key);
+        const fallbackDirection = normalizeDirection(
+            option?.dataset.direction || option?.dataset.defaultDirection || 'desc'
+        );
+        normalized.push({ field: key, direction: fallbackDirection });
+        seen.add(key);
     });
 
+    if (!normalized.length) {
+        return cloneSortOrder(DEFAULT_SORT_ORDER);
+    }
+
     return normalized;
+}
+
+function updateOrderingOptionDirectionVisual(option) {
+    if (!option) {
+        return;
+    }
+    const direction = normalizeDirection(option.dataset.direction);
+    option.dataset.direction = direction;
+    const toggle = option.querySelector('.direction-toggle');
+    if (toggle) {
+        toggle.textContent = direction === 'asc' ? 'Asc' : 'Desc';
+        toggle.setAttribute('aria-pressed', direction === 'asc' ? 'true' : 'false');
+    }
 }
 
 function applyOrderingToMenu(menu, order) {
@@ -2978,11 +3211,16 @@ function applyOrderingToMenu(menu, order) {
         optionMap.set(option.dataset.sort, option);
     });
 
-    order.forEach(key => {
-        const option = optionMap.get(key);
-        if (option) {
-            menu.appendChild(option);
+    const directives = normalizeOrdering(order, menu);
+
+    directives.forEach(directive => {
+        const option = optionMap.get(directive.field);
+        if (!option) {
+            return;
         }
+        option.dataset.direction = directive.direction;
+        updateOrderingOptionDirectionVisual(option);
+        menu.appendChild(option);
     });
 }
 
@@ -2998,7 +3236,7 @@ async function loadSavedOrdering(menu) {
         if (data && Array.isArray(data.order)) {
             const normalized = normalizeOrdering(data.order, menu);
             applyOrderingToMenu(menu, normalized);
-            currentSortOrder = [...normalized];
+            currentSortOrder = cloneSortOrder(normalized);
             updatePreviewForCurrentStash();
             return;
         }
@@ -3011,11 +3249,6 @@ async function loadSavedOrdering(menu) {
     // Fallback to the current order if nothing was returned
     applyOrderingToMenu(menu, currentSortOrder);
     updatePreviewForCurrentStash();
-}
-
-function arraysEqual(a, b) {
-    if (a.length !== b.length) return false;
-    return a.every((value, index) => value === b[index]);
 }
 
 // Stash sort ordering popup
@@ -3041,9 +3274,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         resetButton.addEventListener('click', () => {
             const normalized = normalizeOrdering(DEFAULT_SORT_ORDER, menu);
             applyOrderingToMenu(menu, normalized);
-            currentSortOrder = [...normalized];
+            currentSortOrder = cloneSortOrder(normalized);
             updatePreviewForCurrentStash();
-            persistSortOrder(normalized);
+            persistSortOrder(cloneSortOrder(normalized));
             menu.classList.add('hidden');
         });
     }
@@ -3087,8 +3320,20 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // Handle arrow buttons
+    // Handle direction toggles and arrow buttons
     menu.addEventListener('click', (e) => {
+        const directionBtn = e.target.closest('.direction-toggle');
+        if (directionBtn) {
+            const option = directionBtn.closest('.ordering-option');
+            if (option) {
+                const currentDirection = normalizeDirection(option.dataset.direction);
+                option.dataset.direction = currentDirection === 'asc' ? 'desc' : 'asc';
+                updateOrderingOptionDirectionVisual(option);
+                onOrderChange();
+            }
+            return;
+        }
+
         const btn = e.target;
         const option = btn.closest('.ordering-option');
         if (!option) return;
@@ -3221,31 +3466,33 @@ function moveOptionDown(button) {
 }
 
 function persistSortOrder(order) {
+    const payloadOrder = cloneSortOrder(order);
     fetch('/api/sort_order', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ order })
+        body: JSON.stringify({ order: payloadOrder })
     })
         .then(async (response) => {
             const payload = await response.json().catch(() => ({}));
             if (!response.ok || payload.success === false) {
                 throw new Error(payload && payload.error ? payload.error : 'Unknown error');
             }
-            const previousOrder = [...currentSortOrder];
+            const previousOrder = cloneSortOrder(currentSortOrder);
             if (payload && Array.isArray(payload.order)) {
                 const menu = document.getElementById('orderingMenu');
                 if (menu) {
                     const normalized = normalizeOrdering(payload.order, menu);
                     applyOrderingToMenu(menu, normalized);
-                    currentSortOrder = [...normalized];
-                    if (!arraysEqual(normalized, previousOrder)) {
+                    currentSortOrder = cloneSortOrder(normalized);
+                    if (!sortOrdersEqual(normalized, previousOrder)) {
                         updatePreviewForCurrentStash();
                     }
                 } else {
-                    currentSortOrder = [...payload.order];
-                    if (!arraysEqual(payload.order, previousOrder)) {
+                    const normalized = cloneSortOrder(payload.order);
+                    currentSortOrder = normalized;
+                    if (!sortOrdersEqual(normalized, previousOrder)) {
                         updatePreviewForCurrentStash();
                     }
                 }
@@ -3265,11 +3512,11 @@ function onOrderChange() {
         return;
     }
 
-    if (arraysEqual(order, currentSortOrder)) {
+    if (sortOrdersEqual(order, currentSortOrder)) {
         return;
     }
 
-    currentSortOrder = [...order];
+    currentSortOrder = cloneSortOrder(order);
     updatePreviewForCurrentStash();
 
     if (suppressSortPersistence) {
@@ -3281,9 +3528,14 @@ function onOrderChange() {
 
 function getOrderingOptions() {
     const menu = document.getElementById('orderingMenu');
+    if (!menu) {
+        return cloneSortOrder(currentSortOrder);
+    }
     const options = menu.querySelectorAll('.ordering-option');
-    const currentOrder = Array.from(options).map(option => option.dataset.sort);
-    return currentOrder;
+    return Array.from(options).map(option => ({
+        field: option.dataset.sort,
+        direction: normalizeDirection(option.dataset.direction)
+    }));
 }
 
 // Quest-needed items cache (item_id strings)
