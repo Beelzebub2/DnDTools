@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import math
 import sys
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from pathlib import Path
 
@@ -31,12 +32,21 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class OverlayChip:
+    label: str
+    value: str
+    detail: str = ""
+    status: str = "info"
+
+
+@dataclass
 class OverlayState:
     visible: bool = False
     heading: str = ""
     subtitle: str = ""
     logs: List[str] = field(default_factory=list)
     status: str = "info"
+    chips: List[OverlayChip] = field(default_factory=list)
 
 
 class NullOverlaySession:
@@ -57,6 +67,24 @@ class NullOverlaySession:
         return None
 
     def force_close(self) -> None:
+        return None
+
+    def set_chip(
+        self,
+        _key: str,
+        *,
+        label: str,
+        value: str,
+        detail: str = "",
+        status: str = "info",
+        refresh: bool = True,
+    ) -> None:
+        return None
+
+    def update_sort_overview(self, **_kwargs) -> None:  # type: ignore[no-untyped-def]
+        return None
+
+    def update_progress(self, _processed: int, _total: int) -> None:
         return None
 
 
@@ -161,6 +189,7 @@ class GameOverlayManager:
         subtitle: str,
         status: str = "info",
         logs: Optional[List[str]] = None,
+        chips: Optional[List[OverlayChip]] = None,
         visible: bool = True,
         reposition: bool = False,
     ) -> None:
@@ -176,6 +205,7 @@ class GameOverlayManager:
                 subtitle=subtitle,
                 logs=logs_copy,
                 status=status,
+                chips=list(chips or []),
             )
             self._reposition_needed = self._reposition_needed or reposition
         self._post_update()
@@ -549,53 +579,112 @@ class GameOverlayManager:
 
             if self._body_font:
                 prev_font = win32gui.SelectObject(hdc, self._body_font)
-                body_color = win32api.RGB(220, 210, 200)
-                log_color = win32api.RGB(205, 195, 185)
-                bullet_color = win32api.RGB(*accent)
-
-                if state.subtitle:
-                    win32gui.SetTextColor(hdc, body_color)
-                    subtitle_rect = [text_left, text_top, right, text_top + 80]
-                    win32gui.DrawText(
-                        hdc,
-                        state.subtitle,
-                        -1,
-                        tuple(subtitle_rect),
-                        win32con.DT_LEFT
-                        | win32con.DT_TOP
-                        | win32con.DT_WORDBREAK
-                        | win32con.DT_NOPREFIX,
-                    )
-                    text_top = subtitle_rect[3] + 14
-
-                logs_to_render = [log for log in state.logs if log][: self.max_logs]
-                for log_line in logs_to_render:
-                    bullet_rect = [text_left, text_top, text_left + 16, text_top + 28]
-                    win32gui.SetTextColor(hdc, bullet_color)
-                    win32gui.DrawText(
-                        hdc,
-                        "•",
-                        -1,
-                        tuple(bullet_rect),
-                        win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_NOPREFIX,
-                    )
-                    log_rect = [text_left + 18, text_top - 2, right, text_top + 48]
-                    win32gui.SetTextColor(hdc, log_color)
-                    win32gui.DrawText(
-                        hdc,
-                        log_line,
-                        -1,
-                        tuple(log_rect),
-                        win32con.DT_LEFT
-                        | win32con.DT_TOP
-                        | win32con.DT_WORDBREAK
-                        | win32con.DT_NOPREFIX,
-                    )
-                    text_top = log_rect[3] + 8
-
+                text_top = self._render_chips(
+                    hdc,
+                    state.chips,
+                    text_left,
+                    right,
+                    text_top,
+                    bg_color,
+                )
                 win32gui.SelectObject(hdc, prev_font)
         finally:
             win32gui.EndPaint(hwnd, paint_struct)
+
+    def _render_chips(
+        self,
+        hdc,
+        chips: List[OverlayChip],
+        left: int,
+        right: int,
+        top: int,
+        base_bg: tuple[int, int, int],
+    ) -> int:
+        if not chips or not self._body_font:
+            return top
+
+        available_width = max(1, right - left)
+        chip_gap = 12
+        per_row = max(1, min(3, available_width // 160))
+        per_row = min(per_row, len(chips)) or 1
+        chip_width = max(140, (available_width - chip_gap * (per_row - 1)) // per_row)
+        chip_height = 86
+        text_padding = 14
+
+        rows = math.ceil(len(chips) / per_row)
+
+        for index, chip in enumerate(chips):
+            row = index // per_row
+            col = index % per_row
+            chip_left = left + col * (chip_width + chip_gap)
+            chip_top = top + row * (chip_height + chip_gap)
+            chip_right = chip_left + chip_width
+            chip_bottom = chip_top + chip_height
+            accent = self.ACCENT_COLORS.get(chip.status, self.ACCENT_COLORS["info"])
+            fill = tuple(min(255, int(base_bg[i] * 0.55 + accent[i] * 0.45 + 12)) for i in range(3))
+            outline = tuple(min(255, accent[i] + 30) for i in range(3))
+
+            brush = win32gui.CreateSolidBrush(win32api.RGB(*fill))
+            pen = win32gui.CreatePen(win32con.PS_SOLID, 1, win32api.RGB(*outline))
+            old_pen = win32gui.SelectObject(hdc, pen)
+            old_brush = win32gui.SelectObject(hdc, brush)
+            win32gui.RoundRect(hdc, chip_left, chip_top, chip_right, chip_bottom, 18, 18)
+            win32gui.SelectObject(hdc, old_brush)
+            win32gui.SelectObject(hdc, old_pen)
+            win32gui.DeleteObject(brush)
+            win32gui.DeleteObject(pen)
+
+            label_color = win32api.RGB(210, 198, 180)
+            value_color = win32api.RGB(250, 236, 210)
+            detail_color = win32api.RGB(195, 186, 174)
+
+            label_rect = (chip_left + text_padding, chip_top + 8, chip_right - text_padding, chip_top + 28)
+            win32gui.SetTextColor(hdc, label_color)
+            win32gui.DrawText(
+                hdc,
+                chip.label.upper(),
+                -1,
+                label_rect,
+                win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_NOPREFIX | win32con.DT_SINGLELINE,
+            )
+
+            prev_font = None
+            if self._heading_font:
+                prev_font = win32gui.SelectObject(hdc, self._heading_font)
+            win32gui.SetTextColor(hdc, value_color)
+            value_rect = (chip_left + text_padding, label_rect[3], chip_right - text_padding, label_rect[3] + 26)
+            win32gui.DrawText(
+                hdc,
+                chip.value,
+                -1,
+                value_rect,
+                win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_NOPREFIX | win32con.DT_SINGLELINE,
+            )
+            if prev_font:
+                win32gui.SelectObject(hdc, self._body_font)
+
+            detail_text = (chip.detail or "").strip()
+            if detail_text:
+                win32gui.SetTextColor(hdc, detail_color)
+                detail_rect = (
+                    chip_left + text_padding,
+                    value_rect[3] + 6,
+                    chip_right - text_padding,
+                    chip_bottom - 10,
+                )
+                win32gui.DrawText(
+                    hdc,
+                    detail_text,
+                    -1,
+                    detail_rect,
+                    win32con.DT_LEFT
+                    | win32con.DT_TOP
+                    | win32con.DT_WORDBREAK
+                    | win32con.DT_NOPREFIX,
+                )
+
+        total_height = (chip_height * rows) + (chip_gap * (rows - 1 if rows > 1 else 0))
+        return top + total_height + (12 if chips else 0)
 
     def _position_overlay(self, hwnd) -> None:  # pragma: no cover - GUI thread
         area = macros.get_window_area_pos()
@@ -631,6 +720,7 @@ class GameOverlayManager:
                 subtitle=self._state.subtitle,
                 logs=list(self._state.logs),
                 status=self._state.status,
+                chips=[OverlayChip(chip.label, chip.value, chip.detail, chip.status) for chip in self._state.chips],
             )
 
     def _cancel_hide_timer(self) -> None:
@@ -646,6 +736,9 @@ class SortOverlaySession:
         self.countdown_seconds = max(0.0, float(countdown_seconds or 0.0))
         self.context = context or {}
         self.logs: List[str] = []
+        self.chips: List[OverlayChip] = []
+        self._chip_store: Dict[str, OverlayChip] = {}
+        self._chip_order: List[str] = []
         self.max_logs = manager.max_logs
         self.status = "warning" if self.countdown_seconds > 0 else "info"
         self.subtitle = ""
@@ -680,9 +773,159 @@ class SortOverlaySession:
                 subtitle=self.subtitle,
                 status=self.status,
                 logs=self.logs,
+                chips=self.chips,
                 visible=True,
                 reposition=reposition,
             )
+
+    def set_chip(
+        self,
+        key: str,
+        *,
+        label: str,
+        value: str,
+        detail: str = "",
+        status: str = "info",
+        refresh: bool = True,
+    ) -> None:
+        if self._finished:
+            return
+        label = (label or "").strip() or "Info"
+        value = (value or "").strip()
+        detail = (detail or "").strip()
+        if len(value) > 32:
+            value = value[:29] + "…"
+        if len(detail) > 140:
+            detail = detail[:137] + "…"
+        normalized = (key or label).strip().lower()
+        if not normalized:
+            normalized = label.lower()
+        self._chip_store[normalized] = OverlayChip(label=label, value=value, detail=detail, status=status)
+        if normalized not in self._chip_order:
+            self._chip_order.append(normalized)
+        self._sync_chips()
+        if refresh:
+            self._refresh_overlay()
+
+    def _sync_chips(self) -> None:
+        max_visible = 5
+        active = [self._chip_store[key] for key in self._chip_order if key in self._chip_store]
+        if len(active) > max_visible:
+            overflow = len(active) - (max_visible - 1)
+            summary = OverlayChip(
+                label="More",
+                value=f"{overflow} extra",
+                detail="Check logs for additional details.",
+                status="info",
+            )
+            self.chips = active[: max_visible - 1] + [summary]
+        else:
+            self.chips = active
+
+    def update_sort_overview(
+        self,
+        *,
+        total_items: int,
+        plan_moves: int,
+        move_budget: Optional[int] = None,
+        pack_mode: bool,
+        stack_mode: bool,
+        workspace_free: Optional[int] = None,
+        workspace_target: Optional[int] = None,
+        buffered_items: int = 0,
+        difficulty_label: str,
+        difficulty_score: float,
+        difficulty_reason: str,
+        difficulty_status: str = "info",
+    ) -> None:
+        if self._finished:
+            return
+
+        planned_moves = max(0, plan_moves)
+        has_budget = move_budget is not None
+        actual_moves = max(0, move_budget if has_budget else planned_moves)
+        if has_budget and actual_moves != planned_moves:
+            move_detail = f"{actual_moves} moves ({planned_moves} planned)"
+        else:
+            move_detail = f"{actual_moves} moves"
+        mode_label = "Dense pack" if pack_mode else "Scanline"
+        stack_detail = f"Stacking {'on' if stack_mode else 'off'}"
+        workspace_detail_parts: List[str] = []
+        workspace_status = "info"
+        if workspace_target is not None:
+            workspace_detail_parts.append(f"target {workspace_target}")
+        if buffered_items:
+            workspace_detail_parts.append(f"{buffered_items} buffered")
+        elif workspace_target is not None:
+            workspace_detail_parts.append("No buffer needed")
+        detail_str = " · ".join(workspace_detail_parts)
+        if workspace_free is not None and workspace_target is not None:
+            if workspace_free < workspace_target:
+                workspace_status = "warning"
+            else:
+                workspace_status = "success"
+            workspace_detail = f"{workspace_free} free"
+        elif workspace_free is not None:
+            workspace_detail = f"{workspace_free} free"
+        else:
+            workspace_detail = "Workspace n/a"
+        if detail_str:
+            workspace_detail = f"{workspace_detail} · {detail_str}"
+
+        difficulty_score = max(0.0, min(1.0, difficulty_score))
+        difficulty_value = f"{difficulty_label} ({difficulty_score * 100:.0f}%)"
+        difficulty_reason = difficulty_reason or "Balanced layout"
+
+        self.set_chip(
+            "items",
+            label="Items",
+            value=str(max(0, total_items)),
+            detail=move_detail,
+            status="info",
+            refresh=False,
+        )
+        self.set_chip(
+            "mode",
+            label="Mode",
+            value=mode_label,
+            detail=stack_detail,
+            status="info",
+            refresh=False,
+        )
+        self.set_chip(
+            "workspace",
+            label="Workspace",
+            value=workspace_detail,
+            detail="",
+            status=workspace_status,
+            refresh=False,
+        )
+        self.set_chip(
+            "difficulty",
+            label="Difficulty",
+            value=difficulty_value,
+            detail=difficulty_reason,
+            status=difficulty_status,
+            refresh=False,
+        )
+        self._refresh_overlay()
+
+    def update_progress(self, processed: int, total: int) -> None:
+        if self._finished:
+            return
+        total = max(1, int(total))
+        processed = max(0, min(int(processed), total))
+        percent = (processed / total) * 100.0
+        status = "success" if processed >= total else "info"
+        detail = f"{processed}/{total} moves"
+        value = f"{percent:.0f}%"
+        self.set_chip(
+            "progress",
+            label="Progress",
+            value=value,
+            detail=detail,
+            status=status,
+        )
 
     # ------------------------------------------------------------------ API
     @property

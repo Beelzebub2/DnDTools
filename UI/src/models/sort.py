@@ -163,6 +163,11 @@ class StashSorter:
         self._blocker_move_counts = defaultdict(int)
         self._plan_positions: Dict[int, Point] = {}
         self._plan_order: List[PlanEntry] = []
+        self._plan_required_moves: int = 0
+        self._move_progress_total: int = 0
+        self._move_progress_done: int = 0
+        self._pending_move_tokens: Set[int] = set()
+        self._completed_move_tokens: Set[int] = set()
         self._cell_plan_rank: Dict[Tuple[int, int], int] = {}
         self._rank_lookup: Dict[int, int] = {}
         self._current_plan_index = -1
@@ -260,6 +265,7 @@ class StashSorter:
         failure_reason: Optional[str] = None
         self.cancel_event = cancel_event
         self.overlay_session = overlay_session or NullOverlaySession()
+        self._reset_move_tracking()
         if cancel_event:
             macros.push_cancel_event(cancel_event)
 
@@ -298,6 +304,9 @@ class StashSorter:
                 return False
 
             plan_size = len(plan.order)
+            self._plan_required_moves = self._count_required_moves(plan)
+            self._move_progress_total = self._plan_required_moves
+            self._overlay_update_overview(total_items, plan_size, self._plan_required_moves)
             mode_label = "dense pack" if self.pack_mode else "scanline"
             stack_label = "stacking on" if self.stack_mode else "stacking off"
             self._overlay_log(
@@ -344,6 +353,148 @@ class StashSorter:
             self.overlay_session.add_log(message)
         except Exception:
             pass
+
+    def _reset_move_tracking(self) -> None:
+        self._plan_required_moves = 0
+        self._move_progress_total = 0
+        self._move_progress_done = 0
+        self._pending_move_tokens.clear()
+        self._completed_move_tokens.clear()
+
+    def _overlay_progress(self, processed: int, total: int) -> None:
+        session = self.overlay_session
+        if not session or not hasattr(session, "update_progress"):
+            return
+        baseline = total or self._move_progress_total or self._plan_required_moves
+        if baseline <= 0:
+            baseline = 1
+        try:
+            session.update_progress(processed, baseline)
+        except Exception:
+            pass
+
+    def _overlay_update_overview(self, total_items: int, plan_size: int, move_budget: Optional[int]) -> None:
+        session = self.overlay_session
+        if not session or not hasattr(session, "update_sort_overview"):
+            return
+        try:
+            workspace_free = self._count_empty_cells(self.stash) if self.stash else None
+        except Exception:
+            workspace_free = None
+        buffered_items = len(self._buffered_inventory)
+        difficulty = self._estimate_sort_difficulty(
+            total_items=total_items,
+            plan_size=plan_size,
+            workspace_free=workspace_free,
+        )
+        try:
+            session.update_sort_overview(
+                total_items=total_items,
+                plan_moves=plan_size,
+                move_budget=move_budget,
+                pack_mode=self.pack_mode,
+                stack_mode=self.stack_mode,
+                workspace_free=workspace_free,
+                workspace_target=self._workspace_min_free_cells,
+                buffered_items=buffered_items,
+                difficulty_label=difficulty["label"],
+                difficulty_score=difficulty["score"],
+                difficulty_reason=difficulty["reason"],
+                difficulty_status=difficulty["status"],
+            )
+            if move_budget is not None and move_budget <= 0:
+                session.update_progress(1, 1)
+            else:
+                baseline_total = max(1, (move_budget if move_budget is not None else plan_size) or total_items or 1)
+                session.update_progress(0, baseline_total)
+        except Exception:
+            pass
+
+    def _count_required_moves(self, plan: LayoutPlan) -> int:
+        required = 0
+        self._pending_move_tokens = set()
+        self._completed_move_tokens = set()
+        for entry in plan.order:
+            if entry.item.position != entry.target:
+                required += 1
+                self._pending_move_tokens.add(id(entry.item))
+        self._move_progress_done = 0
+        return required
+
+    def _record_item_finalized(self, item: Item) -> None:
+        if self._move_progress_total <= 0:
+            return
+        token = id(item)
+        if not self._pending_move_tokens or token not in self._pending_move_tokens:
+            return
+        if token in self._completed_move_tokens:
+            return
+        self._completed_move_tokens.add(token)
+        self._pending_move_tokens.discard(token)
+        self._move_progress_done += 1
+        self._overlay_progress(self._move_progress_done, self._move_progress_total)
+        if (
+            self._move_progress_done == 1
+            or self._move_progress_done == self._move_progress_total
+            or self._move_progress_done % 5 == 0
+        ):
+            self._overlay_update(
+                f"Sorting stash items... ({self._move_progress_done}/{self._move_progress_total} moves)",
+                status="info",
+            )
+
+    def _estimate_sort_difficulty(
+        self,
+        *,
+        total_items: int,
+        plan_size: int,
+        workspace_free: Optional[int],
+    ) -> Dict[str, Any]:
+        capacity = max(1, (self.stash.width * self.stash.height) if self.stash else 1)
+        fill_ratio = min(1.0, total_items / float(capacity)) if capacity else 0.0
+        move_reference = max(1, total_items) if total_items else max(1, plan_size, capacity)
+        move_density = min(1.0, plan_size / float(move_reference))
+        workspace_value = max(0, workspace_free) if workspace_free is not None else 0
+        workspace_pressure = 1.0 - min(1.0, workspace_value / float(capacity))
+        score = 0.2 + (fill_ratio * 0.4) + (move_density * 0.25) + (workspace_pressure * 0.15)
+        if self.pack_mode:
+            score += 0.1
+        if not self.stack_mode and fill_ratio > 0.6:
+            score += 0.05
+        score = max(0.0, min(score, 1.0))
+
+        if score < 0.35:
+            label = "Easy"
+            status = "success"
+        elif score < 0.7:
+            label = "Standard"
+            status = "info"
+        else:
+            label = "Challenging"
+            status = "warning"
+
+        reasons: List[str] = []
+        if fill_ratio > 0.85:
+            reasons.append("Stash nearly full")
+        elif fill_ratio > 0.7:
+            reasons.append("High fill level")
+        if move_density > 0.75:
+            reasons.append("Large move set")
+        if workspace_pressure > 0.5:
+            reasons.append("Tight workspace")
+        if self.pack_mode:
+            reasons.append("Dense pack enabled")
+        if not self.stack_mode and fill_ratio > 0.6:
+            reasons.append("Stacking disabled")
+        if not reasons:
+            reasons.append("Routine layout")
+
+        return {
+            "label": label,
+            "status": status,
+            "score": score,
+            "reason": " · ".join(reasons),
+        }
 
     def _build_sort_plan(self, items: List[Item]) -> Optional[LayoutPlan]:
         if not items:
@@ -399,8 +550,7 @@ class StashSorter:
             pass
         return plan
 
-    def _execute_plan(self, plan: LayoutPlan, total_items: int) -> bool:
-        processed = 0
+    def _execute_plan(self, plan: LayoutPlan, _total_items: int) -> bool:
         for index, entry in enumerate(plan.order):
             self._current_plan_index = index
             if self.cancel_event and self.cancel_event.is_set():
@@ -416,13 +566,6 @@ class StashSorter:
                 logger.error("Failed to relocate %s to %s", entry.item, entry.target)
                 self._overlay_log("Unable to place an item in its planned slot; aborting sort.")
                 return False
-
-            processed += 1
-            if total_items and (processed == total_items or processed == 1 or processed % 5 == 0):
-                self._overlay_update(
-                    f"Sorting stash items... ({processed}/{total_items})",
-                    status="info",
-                )
 
         self._overlay_update("Sorting complete.", status="success")
         return True
@@ -471,6 +614,9 @@ class StashSorter:
         self._unmark_buffered_inventory(item)
         lineage.discard(token)
         logger.debug("Placed %s at %s", item, target_point)
+        planned_target = self._plan_positions.get(token)
+        if planned_target and planned_target == target_point:
+            self._record_item_finalized(item)
         return True
 
     def _park_blocker(self, blocker: Item) -> bool:
