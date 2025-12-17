@@ -101,6 +101,7 @@ class SettingsManager:
             "includeDevReleases": False,
             "closeToTrayEnabled": True,
             "developerMode": False,
+            "sortFeedbackSyncEnabled": True,
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -247,6 +248,17 @@ class SettingsManager:
             }
         else:
             normalized["developerMode"] = bool(developer_mode_value)
+
+        sync_value = normalized.get("sortFeedbackSyncEnabled")
+        if isinstance(sync_value, str):
+            normalized["sortFeedbackSyncEnabled"] = sync_value.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        else:
+            normalized["sortFeedbackSyncEnabled"] = bool(sync_value)
 
         return normalized
 

@@ -169,6 +169,34 @@
                     </div>
                 </div>
             </div>
+            <div id="sortFeedbackPrompt" class="sort-feedback hidden" aria-live="assertive">
+                <div class="sort-feedback-card">
+                    <div class="sort-feedback-header">
+                        <div class="sort-feedback-title-wrap">
+                            <p class="sort-feedback-title">Did this sort finish correctly?</p>
+                            <p class="sort-feedback-risk" id="sortFeedbackRisk"></p>
+                        </div>
+                        <button type="button" class="sort-feedback-dismiss" id="sortFeedbackDismiss"
+                            aria-label="Dismiss feedback prompt">
+                            <span class="material-icons">close</span>
+                        </button>
+                    </div>
+                    <p class="sort-feedback-description">Share a quick thumbs up or down and we&#39;ll retrain the
+                        sorter for tighter workspaces.</p>
+                    <div class="sort-feedback-actions">
+                        <button type="button" class="sort-feedback-button success" id="sortFeedbackSuccess">
+                            <span class="material-icons">thumb_up</span>
+                            Worked great
+                        </button>
+                        <button type="button" class="sort-feedback-button failure" id="sortFeedbackFailure">
+                            <span class="material-icons">bug_report</span>
+                            It had issues
+                        </button>
+                    </div>
+                    <textarea id="sortFeedbackNote" class="sort-feedback-note"
+                        placeholder="Optional details (e.g., failed to place last shield)"></textarea>
+                </div>
+            </div>
         </div>
     </div>
 </div>

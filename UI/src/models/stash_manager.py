@@ -763,6 +763,7 @@ class StashManager:
         overlay_session: Union[SortOverlaySession, NullOverlaySession, None] = None,
     ):
         logger.info(f"Sorting stash {stash_id} for character {character_id}")
+        session_summary = None
         session: Union[SortOverlaySession, NullOverlaySession]
         session = overlay_session or NullOverlaySession()
 
@@ -772,13 +773,13 @@ class StashManager:
             session.update_status("Character not found in cache.", status="error")
             session.add_log("No packet data available for selected character.")
             logger.warning("Character %s not found in cache", character_id)
-            return False, "Character not found"
+            return False, "Character not found", session_summary
         stash_items = char.get('stashes', {}).get(str(stash_id))
         if not stash_items:
             session.update_status("Selected stash is empty or missing.", status="error")
             session.add_log(f"Stash {stash_id} could not be found for this character.")
             logger.warning("Stash %s not found for character %s", stash_id, character_id)
-            return False, "Stash not found"
+            return False, "Stash not found", session_summary
         session.update_status("Loading character inventory...", status="info")
         file_path = os.path.join(self.data_dir, f"{character_id}.json")
         try:
@@ -809,19 +810,28 @@ class StashManager:
             logger.error(f"Error focusing window: {e}")
             session.add_log("Unable to focus the game window automatically – please ensure it is active.")
 
-        sorter = StashSorter(stash, inventory, pack_mode=pack_mode, stack_mode=stack_mode)
+        sorter = StashSorter(
+            stash,
+            inventory,
+            pack_mode=pack_mode,
+            stack_mode=stack_mode,
+            character_id=str(character_id),
+            stash_id=int(stash_id) if stash_id is not None else None,
+        )
         session.add_log(
             f"Pack mode: {'On' if sorter.pack_mode else 'Off'} · Stack mode: {'On' if sorter.stack_mode else 'Off'}"
         )
         if cancel_event and cancel_event.is_set():
-            return False, "Sort cancelled"
+            return False, "Sort cancelled", session_summary
         success = sorter.sort(cancel_event, overlay_session=session)
         if cancel_event and cancel_event.is_set():
-            return False, "Sort cancelled"
+            session_summary = sorter.get_feedback_summary()
+            return False, "Sort cancelled", session_summary
         if success:
             session.update_status("Refreshing stash data...", status="success")
             self._generate_previews(character_id)
-        return success, None
+        session_summary = sorter.get_feedback_summary()
+        return success, None, session_summary
 
     def _reset_modifier_state(self, session: Union[SortOverlaySession, NullOverlaySession]) -> None:
         if not hasattr(macros, "tap_alt"):

@@ -46,6 +46,12 @@ const charId = window.location.pathname.split('/').pop();
 let abortController = null;
 let currentStashId = null;  // Track current stash ID
 let requestedStashIdFromUrl = null;
+let pendingSortSessionId = null;
+let sortFeedbackPromptEl = null;
+let sortFeedbackRiskEl = null;
+let sortFeedbackNoteEl = null;
+let sortFeedbackBusy = false;
+let queuedSortSummary = null;
 
 // Rarity colors - same as in search.js for consistency
 const rarityColors = {
@@ -1986,6 +1992,119 @@ const updateCurrentStash = async (stashId) => {
     }
 };
 
+function ensureSortFeedbackElements() {
+    if (!sortFeedbackPromptEl) {
+        sortFeedbackPromptEl = document.getElementById('sortFeedbackPrompt');
+        sortFeedbackRiskEl = document.getElementById('sortFeedbackRisk');
+        sortFeedbackNoteEl = document.getElementById('sortFeedbackNote');
+    }
+    return sortFeedbackPromptEl;
+}
+
+function hideSortFeedbackPrompt(clearSession = true) {
+    const prompt = ensureSortFeedbackElements();
+    if (prompt) {
+        prompt.classList.add('hidden');
+    }
+    sortFeedbackBusy = false;
+    if (clearSession) {
+        pendingSortSessionId = null;
+    }
+    if (sortFeedbackNoteEl) {
+        sortFeedbackNoteEl.value = '';
+    }
+}
+
+function formatSortRiskCopy(prediction) {
+    if (typeof prediction !== 'number' || Number.isNaN(prediction)) {
+        return null;
+    }
+    const pct = Math.round(prediction * 100);
+    return `${pct}% predicted failure risk`;
+}
+
+function showSortFeedbackPrompt(summary) {
+    const prompt = ensureSortFeedbackElements();
+    if (!prompt) {
+        queuedSortSummary = summary;
+        return;
+    }
+    if (sortFeedbackNoteEl) {
+        sortFeedbackNoteEl.value = '';
+    }
+    if (sortFeedbackRiskEl) {
+        const riskCopy = formatSortRiskCopy(summary?.predictedRisk);
+        sortFeedbackRiskEl.textContent = riskCopy || 'Tell us how the run went so we can improve reliability.';
+    }
+    prompt.classList.remove('hidden');
+}
+
+function handleSortSessionSummary(summary) {
+    if (!summary || !summary.sessionId) {
+        return;
+    }
+    if (summary.cancelled) {
+        hideSortFeedbackPrompt();
+        pendingSortSessionId = null;
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Sort was cancelled. Recorded as unsuccessful for training.', 'warning');
+        }
+        return;
+    }
+    pendingSortSessionId = summary.sessionId;
+    showSortFeedbackPrompt(summary);
+}
+
+function setFeedbackButtonsDisabled(disabled) {
+    ['sortFeedbackSuccess', 'sortFeedbackFailure'].forEach((id) => {
+        const button = document.getElementById(id);
+        if (button) {
+            button.disabled = disabled;
+        }
+    });
+}
+
+async function submitSortFeedback(isSuccess) {
+    if (!pendingSortSessionId || sortFeedbackBusy) {
+        return;
+    }
+    const prompt = ensureSortFeedbackElements();
+    if (!prompt) {
+        return;
+    }
+    sortFeedbackBusy = true;
+    setFeedbackButtonsDisabled(true);
+    const note = sortFeedbackNoteEl ? sortFeedbackNoteEl.value.trim() : '';
+    try {
+        const response = await fetch('/api/sort-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: pendingSortSessionId, success: Boolean(isSuccess), note })
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || payload.success === false) {
+            throw new Error(payload && payload.error ? payload.error : 'Failed to submit feedback');
+        }
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Thanks! Your feedback helps train the sorter.', 'success');
+        }
+        hideSortFeedbackPrompt();
+    } catch (error) {
+        console.error('Failed to submit sort feedback:', error);
+        if (typeof window.showNotification === 'function') {
+            window.showNotification('Unable to record feedback. Please try again.', 'error');
+        }
+    } finally {
+        sortFeedbackBusy = false;
+        setFeedbackButtonsDisabled(false);
+    }
+}
+
+window.addEventListener('sortSessionCompleted', (event) => {
+    const payload = event && event.detail ? event.detail : null;
+    handleSortSessionSummary(payload);
+});
+
 const triggerSort = async () => {
     // If we're using the combined character view, default to sorting the bag (2)
     const stashIdToSort = usingCombinedCharacterView ? "2" : currentStashId;
@@ -2020,6 +2139,9 @@ const triggerSort = async () => {
             } else {
                 window.showNotification(errorMessage, 'error');
             }
+        }
+        if (result.session) {
+            handleSortSessionSummary(result.session);
         }
     } catch (error) {
         if (error.name === 'AbortError') {
@@ -2071,6 +2193,9 @@ function animateSortingText(start = true) {
 }
 
 function setSortingState(isSorting) {
+    if (isSorting) {
+        hideSortFeedbackPrompt();
+    }
     const sortButton = document.querySelector('.sort-button');
     const sortingOverlay = document.getElementById('sortingOverlay');
     const interactiveStashGrid = document.getElementById('interactiveStashGrid');
@@ -3871,6 +3996,26 @@ async function refreshQuestNeededItems() {
 }
 
 // Refresh needed items on relevant events
+window.addEventListener('DOMContentLoaded', () => {
+    const successBtn = document.getElementById('sortFeedbackSuccess');
+    if (successBtn) {
+        successBtn.addEventListener('click', () => submitSortFeedback(true));
+    }
+    const failureBtn = document.getElementById('sortFeedbackFailure');
+    if (failureBtn) {
+        failureBtn.addEventListener('click', () => submitSortFeedback(false));
+    }
+    const dismissBtn = document.getElementById('sortFeedbackDismiss');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', hideSortFeedbackPrompt);
+    }
+    if (queuedSortSummary) {
+        const summary = queuedSortSummary;
+        queuedSortSummary = null;
+        handleSortSessionSummary(summary);
+    }
+});
+
 window.addEventListener('DOMContentLoaded', () => {
     // initial fetch
     refreshQuestNeededItems();

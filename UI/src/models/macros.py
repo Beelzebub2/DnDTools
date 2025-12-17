@@ -198,9 +198,10 @@ class INPUT(ctypes.Structure):
 
 SendInput = ctypes.windll.user32.SendInput
 
-INSTANT_MODE_MIN_PAUSE = 0.028
-INSTANT_MODE_BACKGROUND_FLOOR = 0.006
-INSTANT_MODE_RELIABILITY_DELAY = 0.012
+INSTANT_MODE_MIN_PAUSE = 0.012
+INSTANT_MODE_BACKGROUND_FLOOR = 0.003
+INSTANT_MODE_RELIABILITY_DELAY = 0.005
+INSTANT_MODE_JITTER_SCALE = 0.3  # keep some randomness without stalling instant mode
 DOUBLE_CLICK_PROTECT_WINDOW = 0.18
 
 _last_drop_signature = None
@@ -381,14 +382,17 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
 
     def maybe_sleep(base_delay: float, jitter: float = 0.0, enforce_floor: bool = False) -> None:
         _ensure_not_cancelled()
-        jitter_component = random.uniform(0, jitter) if jitter > 0 else 0.0
-        total = max(0.0, base_delay + jitter_component)
+        jitter_budget = jitter
+        if no_delay_mode and jitter_budget > 0:
+            jitter_budget = min(max(jitter_budget * INSTANT_MODE_JITTER_SCALE, INSTANT_MODE_BACKGROUND_FLOOR), INSTANT_MODE_MIN_PAUSE)
+        jitter_component = random.uniform(0, jitter_budget) if jitter_budget > 0 else 0.0
 
         if no_delay_mode:
+            base_delay = min(base_delay, INSTANT_MODE_MIN_PAUSE)
             floor = INSTANT_MODE_MIN_PAUSE if enforce_floor else INSTANT_MODE_BACKGROUND_FLOOR
-            if total > 0.0:
-                floor = max(floor, INSTANT_MODE_MIN_PAUSE)
-            total = max(floor, total)
+            total = max(floor, base_delay + jitter_component)
+        else:
+            total = max(0.0, base_delay + jitter_component)
 
         if total > 0:
             _sleep_with_cancel(total)
@@ -418,9 +422,9 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         # Move to start position smoothly from current mouse position
         pt = POINT()
         ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-        start_steps = 12 if no_delay_mode else 20
+        start_steps = 9 if no_delay_mode else 20
         if max_travel <= max(jump * 0.6, 12):
-            start_steps = 18 if no_delay_mode else 24
+            start_steps = 12 if no_delay_mode else 24
         move_mouse_smooth(
             float(pt.x),
             float(pt.y),
@@ -439,9 +443,9 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         maybe_sleep(DELAY, 0.07, enforce_floor=True)
 
         # Move to end position smoothly
-        travel_steps = 15 if no_delay_mode else 25
+        travel_steps = 11 if no_delay_mode else 25
         if max_travel <= max(jump * 0.6, 12):
-            travel_steps = 20 if no_delay_mode else 28
+            travel_steps = 15 if no_delay_mode else 28
         move_mouse_smooth(
             sx,
             sy,
@@ -476,23 +480,23 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
                 ey,
                 ex,
                 ey,
-                steps=3 if no_delay_mode else 5,
+                steps=2 if no_delay_mode else 5,
                 min_delay=0.0005,
                 max_delay=0.0015,
                 no_delay=no_delay_mode,
             )
-            maybe_sleep(base_reliability_delay, 0.04, enforce_floor=True)
+            maybe_sleep(base_reliability_delay, 0.02, enforce_floor=True)
             _ensure_not_cancelled()
             mouse_down()
             reliability_button_held = True
-            maybe_sleep(base_reliability_delay / 2, 0.03, enforce_floor=True)
+            maybe_sleep(base_reliability_delay / 2, 0.015, enforce_floor=True)
             _ensure_not_cancelled()
             mouse_up()
             reliability_button_held = False
-            maybe_sleep(base_reliability_delay, 0.04, enforce_floor=True)
+            maybe_sleep(base_reliability_delay, 0.02, enforce_floor=True)
         else:
             logger.debug("Skipping reliability click to avoid double-click on %s", drop_signature)
-            maybe_sleep(INSTANT_MODE_MIN_PAUSE, 0.01, enforce_floor=True)
+            maybe_sleep(INSTANT_MODE_MIN_PAUSE, 0.005, enforce_floor=True)
 
         _last_drop_signature = drop_signature
         _last_drop_time = now
