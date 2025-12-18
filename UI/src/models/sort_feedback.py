@@ -301,22 +301,69 @@ class SortFeedbackManager:
             "intercept": float(model.intercept_[0]),
             "feature_names": list(_FEATURE_NAMES),
             "training_score": score,
+            "version": f"local-{int(time.time())}",
+            "source": "local",
         }
-        with self._lock:
-            self._model = payload
-            with self.model_path.open("w", encoding="utf-8") as handle:
-                json.dump(payload, handle, indent=2)
-        logger.info("Updated sort reliability model with %s samples (score=%.3f)", len(y), score)
+        self._save_model_payload(payload)
+        logger.info(
+            "Updated sort reliability model with %s samples (score=%.3f)",
+            len(y),
+            score,
+        )
 
     def _load_model(self) -> None:
         if not self.model_path.is_file():
             return
         try:
             with self.model_path.open("r", encoding="utf-8") as handle:
-                self._model = json.load(handle)
+                payload = json.load(handle)
+            if self._validate_model_payload(payload):
+                with self._lock:
+                    self._model = payload
         except Exception as exc:
             logger.debug("Failed to load reliability model: %s", exc, exc_info=True)
             self._model = None
+
+    def get_model_version(self) -> Optional[str]:
+        with self._lock:
+            if not self._model:
+                return None
+            version = self._model.get("version")
+        return str(version) if version else None
+
+    def apply_remote_model(self, payload: Dict[str, Any]) -> bool:
+        if not self._validate_model_payload(payload):
+            return False
+        payload = dict(payload)
+        payload.setdefault("source", "remote")
+        payload.setdefault("received_at", time.time())
+        self._save_model_payload(payload)
+        logger.info("Applied remote sort reliability model %s", payload.get("version"))
+        return True
+
+    def _validate_model_payload(self, payload: Dict[str, Any]) -> bool:
+        if not isinstance(payload, dict):
+            return False
+        coefficients = payload.get("coefficients")
+        if not isinstance(coefficients, list) or len(coefficients) != len(_FEATURE_NAMES):
+            return False
+        feature_names = payload.get("feature_names") or list(_FEATURE_NAMES)
+        if feature_names != list(_FEATURE_NAMES):
+            logger.debug(
+                "Rejecting model with unexpected feature layout: %s", feature_names
+            )
+            return False
+        if "intercept" not in payload:
+            return False
+        return True
+
+    def _save_model_payload(self, payload: Dict[str, Any]) -> None:
+        payload = dict(payload)
+        payload.setdefault("feature_names", list(_FEATURE_NAMES))
+        with self._lock:
+            self._model = payload
+            with self.model_path.open("w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2)
 
 
 def get_sort_feedback_manager() -> SortFeedbackManager:

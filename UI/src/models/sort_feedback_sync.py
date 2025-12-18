@@ -18,6 +18,7 @@ class SortFeedbackSyncService:
     REQUEST_TIMEOUT = 12.0
     UPLOAD_BATCH_SIZE = 25
     MIN_PULL_INTERVAL = 60 * 30  # 30 minutes
+    MODEL_REFRESH_INTERVAL = 60 * 60  # 60 minutes
 
     def __init__(
         self,
@@ -44,6 +45,7 @@ class SortFeedbackSyncService:
         if resolved_url.endswith("/"):
             resolved_url = resolved_url[:-1]
         self._base_url = resolved_url
+        self._model_url = f"{self._base_url}/model"
         self._available = bool(self._base_url)
 
         self._sync_dir = self._manager.base_dir / "sync"
@@ -68,6 +70,8 @@ class SortFeedbackSyncService:
 
         if self._available:
             self._ensure_worker()
+            if self._enabled:
+                self.trigger_sync(immediate=True)
 
     @property
     def client_id(self) -> str:
@@ -127,6 +131,10 @@ class SortFeedbackSyncService:
             fetched = self._pull_remote_sessions()
             if fetched:
                 self._state["last_pull"] = now
+                self._save_state()
+        if self._should_fetch_model(now, force_download):
+            if self._fetch_remote_model():
+                self._state["last_model_pull"] = now
                 self._save_state()
         if uploads_sent:
             self._last_sync = now
@@ -244,6 +252,69 @@ class SortFeedbackSyncService:
                 pass
 
         return imported
+
+    def _should_fetch_model(self, now: float, force: bool) -> bool:
+        if not self._model_url:
+            return False
+        if force:
+            return True
+        last_pull = float(self._state.get("last_model_pull", 0))
+        return (now - last_pull) >= self.MODEL_REFRESH_INTERVAL
+
+    def _fetch_remote_model(self) -> bool:
+        params = {
+            "clientId": self.client_id,
+            "schemaVersion": self.SCHEMA_VERSION,
+            "appVersion": self._app_version,
+        }
+        try:
+            current_version = self._manager.get_model_version()  # type: ignore[attr-defined]
+        except Exception:
+            current_version = None
+        if current_version:
+            params["currentVersion"] = current_version
+        try:
+            response = self._session.get(self._model_url, params=params, timeout=self.REQUEST_TIMEOUT)
+        except Exception as exc:
+            self._logger.debug("Sort feedback model fetch failed: %s", exc, exc_info=True)
+            return False
+
+        if response.status_code in {204, 304}:
+            return False
+
+        if not response.ok:
+            self._logger.info("Sort feedback model fetch rejected (status %s)", response.status_code)
+            return False
+
+        try:
+            payload = response.json()
+        except Exception as exc:
+            self._logger.debug("Sort feedback model response invalid JSON: %s", exc)
+            return False
+
+        model_payload = payload.get("model") if isinstance(payload, dict) else None
+        if model_payload is None and isinstance(payload, dict):
+            model_payload = payload
+        if not isinstance(model_payload, dict):
+            return False
+
+        applied = False
+        try:
+            applied = bool(self._manager.apply_remote_model(model_payload))  # type: ignore[attr-defined]
+        except Exception as exc:
+            self._logger.debug("Remote model rejected: %s", exc, exc_info=True)
+            return False
+
+        if applied:
+            version = model_payload.get("version") or model_payload.get("modelVersion")
+            checksum = model_payload.get("checksum") or model_payload.get("sha256")
+            if version:
+                self._state["last_model_version"] = str(version)
+            if checksum:
+                self._state["last_model_checksum"] = str(checksum)
+            return True
+
+        return False
 
     def _store_remote_samples(self, samples: Iterable[Dict[str, Any]]) -> bool:
         imported_any = False
