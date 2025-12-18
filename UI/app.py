@@ -16,6 +16,7 @@ import threading
 import asyncio
 from src.models.stash_manager import StashManager
 from src.models.sort_feedback import get_sort_feedback_manager
+from src.models.sort_learning import get_sort_learning_manager
 from src.models.sort_feedback_sync import SortFeedbackSyncService
 import psutil
 import json
@@ -39,6 +40,7 @@ from utils.asset_updater import AssetUpdater
 from utils.tshark_cleanup import schedule_tshark_cleanup
 from utils.game_window_watcher import GameWindowWatcherProcess
 from utils.active_ping import ActivePingService
+from utils.sort_learning_trainer import SortLearningTrainer
 
 try:
     import pystray
@@ -578,6 +580,22 @@ class Api:
             )
         except Exception as exc:
             logger.debug("Sort feedback sync unavailable: %s", exc, exc_info=True)
+
+        self._sort_learning_trainer: Optional[SortLearningTrainer] = None
+        try:
+            trainer_base_url = None
+            if self._sort_feedback_sync_service:
+                trainer_base_url = self._sort_feedback_sync_service.base_url
+            self._sort_learning_trainer = SortLearningTrainer(
+                settings_manager=self.settings_manager,
+                app_version=APP_VERSION,
+                learning_manager=get_sort_learning_manager(),
+                base_url=trainer_base_url,
+                logger=logger,
+            )
+            self._sort_learning_trainer.start()
+        except Exception as exc:
+            logger.debug("Sort learning trainer unavailable: %s", exc, exc_info=True)
 
     def _update_closing_overlay(self, message):
         if not self.window:
@@ -1856,6 +1874,11 @@ class Api:
                 self._sort_feedback_sync_service.stop()
             except Exception as exc:
                 logger.debug("Sort feedback sync service stop failed: %s", exc)
+        if self._sort_learning_trainer:
+            try:
+                self._sort_learning_trainer.stop()
+            except Exception as exc:
+                logger.debug("Sort learning trainer stop failed: %s", exc)
         self._stop_game_monitor()
         try:
             self._update_closing_overlay("Stopping capture...")
@@ -1925,6 +1948,11 @@ class Api:
             self._active_ping_service.stop()
         except Exception as exc:
             logger.debug("Active ping service stop failed: %s", exc)
+        if self._sort_learning_trainer:
+            try:
+                self._sort_learning_trainer.stop()
+            except Exception as exc:
+                logger.debug("Sort learning trainer stop failed: %s", exc)
         self._stop_game_monitor()
         try:
             if getattr(self, 'hotkey_manager', None):

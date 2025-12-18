@@ -198,10 +198,7 @@ class INPUT(ctypes.Structure):
 
 SendInput = ctypes.windll.user32.SendInput
 
-INSTANT_MODE_MIN_PAUSE = 0.012
-INSTANT_MODE_BACKGROUND_FLOOR = 0.003
-INSTANT_MODE_RELIABILITY_DELAY = 0.005
-INSTANT_MODE_JITTER_SCALE = 0.3  # keep some randomness without stalling instant mode
+INSTANT_MODE_MIN_PAUSE = 0.004  # tiny floor so instant mode still yields reliable inputs
 DOUBLE_CLICK_PROTECT_WINDOW = 0.18
 
 _last_drop_signature = None
@@ -382,14 +379,11 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
 
     def maybe_sleep(base_delay: float, jitter: float = 0.0, enforce_floor: bool = False) -> None:
         _ensure_not_cancelled()
-        jitter_budget = jitter
-        if no_delay_mode and jitter_budget > 0:
-            jitter_budget = min(max(jitter_budget * INSTANT_MODE_JITTER_SCALE, INSTANT_MODE_BACKGROUND_FLOOR), INSTANT_MODE_MIN_PAUSE)
-        jitter_component = random.uniform(0, jitter_budget) if jitter_budget > 0 else 0.0
+
+        jitter_component = random.uniform(0, jitter) if jitter > 0 else 0.0
 
         if no_delay_mode:
-            base_delay = min(base_delay, INSTANT_MODE_MIN_PAUSE)
-            floor = INSTANT_MODE_MIN_PAUSE if enforce_floor else INSTANT_MODE_BACKGROUND_FLOOR
+            floor = INSTANT_MODE_MIN_PAUSE if enforce_floor else (INSTANT_MODE_MIN_PAUSE * 0.5)
             total = max(floor, base_delay + jitter_component)
         else:
             total = max(0.0, base_delay + jitter_component)
@@ -422,9 +416,9 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         # Move to start position smoothly from current mouse position
         pt = POINT()
         ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
-        start_steps = 9 if no_delay_mode else 20
+        start_steps = 20
         if max_travel <= max(jump * 0.6, 12):
-            start_steps = 12 if no_delay_mode else 24
+            start_steps = 24
         move_mouse_smooth(
             float(pt.x),
             float(pt.y),
@@ -443,9 +437,9 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         maybe_sleep(DELAY, 0.07, enforce_floor=True)
 
         # Move to end position smoothly
-        travel_steps = 11 if no_delay_mode else 25
+        travel_steps = 25
         if max_travel <= max(jump * 0.6, 12):
-            travel_steps = 15 if no_delay_mode else 28
+            travel_steps = 28
         move_mouse_smooth(
             sx,
             sy,
@@ -471,16 +465,13 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         )
 
         if not should_skip_reliability_click:
-            base_reliability_delay = max(
-                (DELAY / 2) if DELAY > 0 else 0.0,
-                INSTANT_MODE_RELIABILITY_DELAY if no_delay_mode else 0.0,
-            )
+            base_reliability_delay = max((DELAY / 2) if DELAY > 0 else 0.0, 0.0)
             move_mouse_smooth(
                 ex,
                 ey,
                 ex,
                 ey,
-                steps=2 if no_delay_mode else 5,
+                steps=5,
                 min_delay=0.0005,
                 max_delay=0.0015,
                 no_delay=no_delay_mode,
