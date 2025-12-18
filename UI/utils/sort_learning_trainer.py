@@ -288,8 +288,14 @@ class SortLearningTrainer:
         model_payload = payload.get("model") if isinstance(payload, dict) else None
         if model_payload is None and isinstance(payload, dict):
             model_payload = payload
+        if isinstance(payload, dict):
+            model_type = payload.get("modelType")
+            if model_type and str(model_type).lower() != self.MODEL_TYPE.lower():
+                return
         if not isinstance(model_payload, dict):
             return
+        model_payload = dict(model_payload)
+        model_payload.pop("modelType", None)
         if local_payload and model_payload.get("version") == local_payload.get("version"):
             return
         if not self._validate_remote_model(model_payload):

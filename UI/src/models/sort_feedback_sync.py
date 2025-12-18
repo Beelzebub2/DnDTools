@@ -19,6 +19,7 @@ class SortFeedbackSyncService:
     UPLOAD_BATCH_SIZE = 25
     MIN_PULL_INTERVAL = 60 * 30  # 30 minutes
     MODEL_REFRESH_INTERVAL = 60 * 60  # 60 minutes
+    MODEL_TYPE = "reliability"
 
     def __init__(
         self,
@@ -211,6 +212,7 @@ class SortFeedbackSyncService:
             "clientId": self.client_id,
             "schemaVersion": self.SCHEMA_VERSION,
             "appVersion": self._app_version,
+            "modelType": self.MODEL_TYPE,
             "samples": samples,
         }
 
@@ -218,6 +220,7 @@ class SortFeedbackSyncService:
         params = {
             "clientId": self.client_id,
             "schemaVersion": self.SCHEMA_VERSION,
+            "modelType": self.MODEL_TYPE,
         }
         cursor = self._state.get("last_pull_token")
         if cursor:
@@ -270,6 +273,7 @@ class SortFeedbackSyncService:
             "clientId": self.client_id,
             "schemaVersion": self.SCHEMA_VERSION,
             "appVersion": self._app_version,
+            "modelType": self.MODEL_TYPE,
         }
         try:
             current_version = self._manager.get_model_version()  # type: ignore[attr-defined]
@@ -299,8 +303,14 @@ class SortFeedbackSyncService:
         model_payload = payload.get("model") if isinstance(payload, dict) else None
         if model_payload is None and isinstance(payload, dict):
             model_payload = payload
+        if isinstance(payload, dict):
+            model_type = payload.get("modelType")
+            if model_type and str(model_type).lower() != self.MODEL_TYPE:
+                return False
         if not isinstance(model_payload, dict):
             return False
+        model_payload = dict(model_payload)
+        model_payload.pop("modelType", None)
 
         applied = False
         try:
