@@ -4,10 +4,11 @@ import time
 import heapq
 import keyboard
 import os
+import uuid
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import cmp_to_key
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TYPE_CHECKING, Union
 
 import pygetwindow as gw
 
@@ -18,6 +19,10 @@ from src.models.point import Point
 from src.models.stash_preview import parse_stashes
 from src.models.storage import Storage, StashType
 from src.models.sort_feedback import get_sort_feedback_manager
+from src.models.sort_learning import get_sort_learning_manager
+
+if TYPE_CHECKING:
+    from src.models.sort_learning import SortLearningManager
 
 logger = logging.getLogger(__name__)
 
@@ -43,15 +48,32 @@ class PlanEntry:
 class LayoutPlan:
     positions: Dict[int, Point]
     order: List[PlanEntry]
+    learning: Dict[int, Dict[str, Any]] = field(default_factory=dict)
 
 
 class LayoutPlanner:
     """Determines the final resting position for every item before any moves happen."""
 
-    def __init__(self, width: int, height: int, prefer_dense: bool = False):
+    def __init__(
+        self,
+        width: int,
+        height: int,
+        prefer_dense: bool = False,
+        *,
+        stash: Optional[Storage] = None,
+        stack_mode: bool = False,
+        learning_manager: Optional["SortLearningManager"] = None,
+        learning_session_id: Optional[str] = None,
+    ):
         self.width = width
         self.height = height
         self.prefer_dense = prefer_dense
+        self.stash_ref = stash
+        self.stack_mode = bool(stack_mode)
+        self.learning_manager = learning_manager
+        self.learning_session_id = learning_session_id
+        self._learning_cache: Dict[int, Dict[str, Any]] = {}
+        self._initial_free_ratio = self._compute_free_ratio(stash)
         self._reset()
 
     def _reset(self) -> None:
@@ -59,11 +81,15 @@ class LayoutPlanner:
 
     def build(self, items: List[Item], comparator: Optional[Callable[[Item, Item], int]] = None) -> LayoutPlan:
         self._reset()
+        self._learning_cache = {}
         if comparator:
             ordered_items = sorted(items, key=cmp_to_key(comparator))
+            for itm in ordered_items:
+                self._ensure_learning_cache(itm)
         else:
-            ordered_items = sorted(items, key=self._priority_key)
+            ordered_items = sorted(items, key=self._learning_sort_key)
         positions: Dict[int, Point] = {}
+        learning_payload: Dict[int, Dict[str, Any]] = {}
 
         for itm in ordered_items:
             slot = self._find_slot_for(itm)
@@ -71,6 +97,9 @@ class LayoutPlanner:
                 raise LayoutPlanError(f"Unable to place item '{itm}' within stash bounds")
             self._mark(slot, itm)
             positions[id(itm)] = slot
+            record = self._record_learning_assignment(itm, slot, comparator_used=bool(comparator))
+            if record:
+                learning_payload[id(itm)] = record
 
         execution_order = sorted(
             [PlanEntry(item=itm, target=positions[id(itm)]) for itm in items],
@@ -80,12 +109,115 @@ class LayoutPlanner:
                 -(entry.item.width * entry.item.height),
             ),
         )
-        return LayoutPlan(positions=positions, order=execution_order)
+        return LayoutPlan(positions=positions, order=execution_order, learning=learning_payload)
 
     def _priority_key(self, item: Item) -> Tuple[int, int, int, int, str]:
         area = item.width * item.height
         rarity = getattr(item, "rarity", 0) or 0
         return (-area, -max(item.width, item.height), -rarity, -item.height, item.name or "")
+
+    def _learning_sort_key(self, item: Item) -> Tuple[Any, ...]:
+        fallback = self._priority_key(item)
+        cache = self._ensure_learning_cache(item)
+        score = cache.get("score")
+        if score is None:
+            return (1, 0.0) + fallback
+        return (0, -float(score)) + fallback
+
+    def _ensure_learning_cache(self, item: Item) -> Dict[str, Any]:
+        token = id(item)
+        cached = self._learning_cache.get(token)
+        if cached is not None:
+            return cached
+        features = self._build_learning_features(item)
+        score = None
+        if self.learning_manager and features:
+            score = self.learning_manager.score_item(features)
+        record: Dict[str, Any] = {"features": features}
+        if score is not None:
+            record["score"] = score
+        self._learning_cache[token] = record
+        return record
+
+    def _build_learning_features(self, item: Item) -> Dict[str, float]:
+        pos = item.position or Point(0, 0)
+        width = float(getattr(item, "width", 0) or 0)
+        height = float(getattr(item, "height", 0) or 0)
+        longest = max(width, height)
+        rarity = float(getattr(item, "rarity", 0) or 0)
+        slot_x = float(getattr(pos, "x", 0) or 0)
+        slot_y = float(getattr(pos, "y", 0) or 0)
+        norm_x = slot_x / float(max(1, self.width - 1))
+        norm_y = slot_y / float(max(1, self.height - 1))
+        return {
+            "width": width,
+            "height": height,
+            "area": width * height,
+            "max_side": longest,
+            "rarity": rarity,
+            "slot_x": slot_x,
+            "slot_y": slot_y,
+            "slot_x_norm": norm_x,
+            "slot_y_norm": norm_y,
+            "pack_mode": 1.0 if self.prefer_dense else 0.0,
+            "stack_mode": 1.0 if self.stack_mode else 0.0,
+            "free_ratio": self._initial_free_ratio,
+        }
+
+    def _record_learning_assignment(
+        self,
+        item: Item,
+        slot: Point,
+        *,
+        comparator_used: bool,
+    ) -> Optional[Dict[str, Any]]:
+        if not self.learning_session_id and not self.learning_manager:
+            return None
+        cache = self._learning_cache.get(id(item))
+        if not cache:
+            return None
+        features = cache.get("features")
+        if not isinstance(features, dict):
+            return None
+        adjacency = self._adjacency_score(item, slot.x, slot.y)
+        record = {
+            "features": features,
+            "score": cache.get("score"),
+            "target": {"x": slot.x, "y": slot.y},
+            "adjacency": adjacency,
+            "comparatorUsed": bool(comparator_used),
+        }
+        if self.learning_manager:
+            try:
+                self.learning_manager.record_priority_sample(
+                    session_id=self.learning_session_id,
+                    item=item,
+                    features=features,
+                    metadata={
+                        "target": record["target"],
+                        "adjacency": adjacency,
+                        "comparatorUsed": bool(comparator_used),
+                        "stashWidth": self.width,
+                        "stashHeight": self.height,
+                    },
+                )
+            except Exception:
+                pass
+        return record
+
+    def _compute_free_ratio(self, stash: Optional[Storage]) -> float:
+        if not stash:
+            return 0.0
+        total = max(1, stash.width * stash.height)
+        empty = 0
+        try:
+            for x in range(stash.width):
+                for y in range(stash.height):
+                    if stash.grid[x][y] == 0:
+                        empty += 1
+        except Exception:
+            return 0.0
+        return empty / float(total)
 
     def _find_slot_for(self, item: Item) -> Optional[Point]:
         max_x = self.width - item.width
@@ -174,6 +306,9 @@ class StashSorter:
         self._failure_reason: Optional[str] = None
         self._session_summary: Optional[Dict[str, Any]] = None
         self._workspace_min_free_cells = 6
+        self.learning_manager = get_sort_learning_manager()
+        self._learning_session_id: Optional[str] = None
+        self._plan_learning_records: Dict[int, Dict[str, Any]] = {}
         self.feedback_handle = None
         manager = feedback_manager or get_sort_feedback_manager()
         try:
@@ -209,8 +344,13 @@ class StashSorter:
         if self.feedback_handle:
             try:
                 self._workspace_min_free_cells = self.feedback_handle.recommended_workspace_cells()
+                if not self._learning_session_id:
+                    self._learning_session_id = self.feedback_handle.record.get("session_id")
             except Exception:
                 self._workspace_min_free_cells = 6
+
+        if not self._learning_session_id:
+            self._learning_session_id = f"learning-{uuid.uuid4().hex}"
 
     def _metric_increment(self, key: str, amount: float = 1.0) -> None:
         if not self.feedback_handle:
@@ -422,6 +562,7 @@ class StashSorter:
         return required
 
     def _record_item_finalized(self, item: Item) -> None:
+        self._log_learning_outcome(item, True, None)
         if self._move_progress_total <= 0:
             return
         token = id(item)
@@ -442,6 +583,28 @@ class StashSorter:
                 f"Sorting stash items... ({self._move_progress_done}/{self._move_progress_total} moves)",
                 status="info",
             )
+
+    def _log_learning_outcome(self, item: Item, success: bool, reason: Optional[str]) -> None:
+        if not self.learning_manager:
+            return
+        token = id(item)
+        record = self._plan_learning_records.get(token)
+        if not isinstance(record, dict):
+            return
+        metadata = dict(record)
+        if reason:
+            metadata.setdefault("resultReason", reason)
+        try:
+            self.learning_manager.record_priority_outcome(
+                session_id=self._learning_session_id,
+                item=item,
+                success=success,
+                reason=reason,
+                metadata=metadata,
+            )
+        except Exception:
+            return
+        self._plan_learning_records.pop(token, None)
 
     def _estimate_sort_difficulty(
         self,
@@ -502,17 +665,27 @@ class StashSorter:
             self._plan_order.clear()
             self._cell_plan_rank.clear()
             self._rank_lookup.clear()
-            return LayoutPlan(positions={}, order=[])
+            self._plan_learning_records = {}
+            return LayoutPlan(positions={}, order=[], learning={})
 
         comparators: List[Optional[Callable[[Item, Item], int]]] = []
         if Item.sort_order:
             comparators.append(Item.build_sort_comparator(Item.sort_order))
         comparators.append(None)
 
+        self._plan_learning_records = {}
         plan: Optional[LayoutPlan] = None
         fallback_used = False
         for comparator in comparators:
-            planner = LayoutPlanner(self.stash.width, self.stash.height, prefer_dense=self.pack_mode)
+            planner = LayoutPlanner(
+                self.stash.width,
+                self.stash.height,
+                prefer_dense=self.pack_mode,
+                stash=self.stash,
+                stack_mode=self.stack_mode,
+                learning_manager=self.learning_manager,
+                learning_session_id=self._learning_session_id,
+            )
             try:
                 plan = planner.build(items, comparator=comparator)
                 if fallback_used and comparator is None:
@@ -533,6 +706,7 @@ class StashSorter:
 
         self._plan_positions = plan.positions
         self._plan_order = plan.order
+        self._plan_learning_records = plan.learning or {}
         self._cell_plan_rank = {}
         self._rank_lookup = {}
         for index, entry in enumerate(plan.order):
@@ -560,11 +734,13 @@ class StashSorter:
 
             if entry.item.position == entry.target:
                 logger.debug("%s already at %s", entry.item, entry.target)
+                self._log_learning_outcome(entry.item, True, "already_aligned")
                 continue
 
             if not self._move_item_to_target(entry.item, entry.target, set()):
                 logger.error("Failed to relocate %s to %s", entry.item, entry.target)
                 self._overlay_log("Unable to place an item in its planned slot; aborting sort.")
+                self._log_learning_outcome(entry.item, False, "move_failed")
                 return False
 
         self._overlay_update("Sorting complete.", status="success")

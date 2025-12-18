@@ -5,6 +5,30 @@ from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from src.models.appdirs import get_appdata_dir, is_frozen
 
+
+class _AnsiColorFormatter(logging.Formatter):
+    COLORS = {
+        logging.DEBUG: "\x1b[38;5;244m",
+        logging.INFO: "\x1b[38;5;250m",
+        logging.WARNING: "\x1b[38;5;214m",
+        logging.ERROR: "\x1b[38;5;203m",
+        logging.CRITICAL: "\x1b[1;38;5;196m",
+    }
+    RESET = "\x1b[0m"
+
+    def __init__(self, fmt: str, datefmt: str) -> None:
+        super().__init__(fmt=fmt, datefmt=datefmt)
+        self._supports_color = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+    def format(self, record: logging.LogRecord) -> str:
+        message = super().format(record)
+        if not self._supports_color:
+            return message
+        color = self.COLORS.get(record.levelno)
+        if not color:
+            return message
+        return f"{color}{message}{self.RESET}"
+
 def get_logs_dir():
     """Get or create logs directory in AppData"""
     logs_dir = os.path.join(get_appdata_dir(), 'logs')
@@ -80,11 +104,15 @@ def setup_logging(level=logging.WARNING):
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
+    color_formatter = _AnsiColorFormatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
     
     # Console handler for development
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
-    console_handler.setFormatter(formatter)
+    console_handler.setFormatter(color_formatter)
     root_logger.addHandler(console_handler)
     
     # Cleanup logs if directory exists (regardless of frozen state)

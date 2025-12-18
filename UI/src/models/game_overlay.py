@@ -133,6 +133,7 @@ class GameOverlayManager:
         self._logo_hbitmap: Optional[int] = None
         self._logo_width = 0
         self._logo_height = 0
+        self._pending_update = False
 
     # ------------------------------------------------------------------ public
     def begin_sort_session(
@@ -150,6 +151,10 @@ class GameOverlayManager:
         with self._state_lock:
             self._active_session = session
             self._state_owner = session
+        try:
+            session.begin()
+        except Exception:
+            logger.debug("Failed to prime overlay session", exc_info=True)
         return session
 
     def end_session(self, session: "SortOverlaySession") -> None:
@@ -332,6 +337,11 @@ class GameOverlayManager:
 
             win32gui.ShowWindow(hwnd, win32con.SW_HIDE)
             self._ready_event.set()
+            if self._pending_update:
+                try:
+                    win32gui.PostMessage(hwnd, self.WM_OVERLAY_UPDATE, 0, 0)
+                except Exception:
+                    logger.debug("Failed to flush pending overlay update", exc_info=True)
             win32gui.PumpMessages()
         except Exception:
             logger.exception("Failed to start overlay window")
@@ -703,14 +713,23 @@ class GameOverlayManager:
             win32con.SWP_NOACTIVATE
             | win32con.SWP_NOOWNERZORDER
             | win32con.SWP_NOREDRAW
-            | win32con.SWP_NOZORDER
+            | win32con.SWP_SHOWWINDOW
         )
         win32gui.SetWindowPos(hwnd, win32con.HWND_TOPMOST, x, y, overlay_width, overlay_height, flags)
 
     def _post_update(self) -> None:
-        if not self.enabled or not self._hwnd:
+        if not self.enabled:
             return
-        win32gui.PostMessage(self._hwnd, self.WM_OVERLAY_UPDATE, 0, 0)
+        hwnd = self._hwnd
+        if not hwnd:
+            self._pending_update = True
+            self._ensure_thread()
+            return
+        try:
+            win32gui.PostMessage(hwnd, self.WM_OVERLAY_UPDATE, 0, 0)
+            self._pending_update = False
+        except Exception:
+            logger.debug("Failed to post overlay update", exc_info=True)
 
     def _get_state_copy(self) -> OverlayState:
         with self._state_lock:
@@ -741,7 +760,7 @@ class SortOverlaySession:
         self._chip_order: List[str] = []
         self.max_logs = manager.max_logs
         self.status = "warning" if self.countdown_seconds > 0 else "info"
-        self.subtitle = ""
+        self.subtitle = "Preparing sort overlay..."
         self.heading = self._build_heading()
         self._finished = False
         self._cancel_event = threading.Event()
@@ -777,6 +796,11 @@ class SortOverlaySession:
                 visible=True,
                 reposition=reposition,
             )
+
+    def begin(self) -> None:
+        if self._finished:
+            return
+        self._refresh_overlay(reposition=True)
 
     def set_chip(
         self,

@@ -77,6 +77,10 @@ class SortFeedbackSyncService:
     def client_id(self) -> str:
         return str(self._state.get("client_id"))
 
+    @property
+    def base_url(self) -> str:
+        return self._base_url
+
     def stop(self) -> None:
         self._stop_event.set()
         self._sync_event.set()
