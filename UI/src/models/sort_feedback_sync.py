@@ -1,5 +1,6 @@
 import json
 import logging
+import math
 import os
 import threading
 import time
@@ -202,10 +203,9 @@ class SortFeedbackSyncService:
             try:
                 with path.open("r", encoding="utf-8") as handle:
                     record = json.load(handle)
-                record.pop("user_note", None)
-                record.pop("character_id", None)
-                record.pop("stash_id", None)
-                samples.append(record)
+                transformed = self._convert_record_for_upload(record)
+                if transformed:
+                    samples.append(transformed)
             except Exception as exc:
                 self._logger.debug("Unable to read pending record %s: %s", path.name, exc, exc_info=True)
         return {
@@ -215,6 +215,126 @@ class SortFeedbackSyncService:
             "modelType": self.MODEL_TYPE,
             "samples": samples,
         }
+
+    def _convert_record_for_upload(self, record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if not record or not isinstance(record, dict):
+            return None
+
+        session_id = str(record.get("session_id") or record.get("sessionId") or "").strip()
+        if not session_id:
+            return None
+
+        sanitized: Dict[str, Any] = {"session_id": session_id}
+
+        for key in (
+            "schema_version",
+            "app_version",
+            "started_at",
+            "completed_at",
+            "duration_ms",
+            "prediction",
+            "success",
+            "cancelled",
+            "failure_reason",
+            "auto_label",
+        ):
+            if key in record and record[key] is not None:
+                sanitized[key] = record[key]
+
+        summary = record.get("summary") if isinstance(record.get("summary"), dict) else None
+        if summary:
+            sanitized["summary"] = summary
+
+        sanitized["pack_mode"] = bool(record.get("pack_mode"))
+        sanitized["stack_mode"] = bool(record.get("stack_mode"))
+
+        base_features = record.get("features") if isinstance(record.get("features"), dict) else {}
+        normalized_features: Dict[str, float] = {}
+        for key, value in base_features.items():
+            coerced = self._coerce_float(value)
+            if coerced is not None:
+                normalized_features[key] = coerced
+
+        derived = self._build_training_features(record)
+        normalized_features.update(derived)
+        sanitized["features"] = normalized_features
+
+        metrics = record.get("metrics") if isinstance(record.get("metrics"), dict) else None
+        if metrics:
+            metric_snapshot: Dict[str, float] = {}
+            for key in (
+                "plan_size",
+                "largest_item_area",
+                "workspace_preparation_moves",
+                "buffered_items",
+                "park_attempts",
+                "workspace_creation_attempts",
+                "workspace_creation_successes",
+                "workspace_creation_failures",
+            ):
+                value = self._coerce_float(metrics.get(key))
+                if value is not None:
+                    metric_snapshot[key] = value
+            if metric_snapshot:
+                sanitized["metrics"] = metric_snapshot
+
+        return sanitized
+
+    def _build_training_features(self, record: Dict[str, Any]) -> Dict[str, float]:
+        features = record.get("features") if isinstance(record.get("features"), dict) else {}
+        metrics = record.get("metrics") if isinstance(record.get("metrics"), dict) else {}
+
+        stash_total = self._coerce_float(features.get("stash_total_cells"))
+        if stash_total is None or stash_total < 1.0:
+            stash_total = 1.0
+        stash_occupied = self._coerce_float(features.get("stash_occupied_cells")) or 0.0
+
+        inventory_total = self._coerce_float(features.get("inventory_total_cells"))
+        if inventory_total is None or inventory_total < 1.0:
+            inventory_total = 1.0
+        inventory_free = self._coerce_float(features.get("inventory_free_cells")) or 0.0
+
+        plan_size = self._coerce_float(metrics.get("plan_size")) or 0.0
+        largest_area = (
+            self._coerce_float(metrics.get("largest_item_area"))
+            or self._coerce_float(features.get("largest_item_area"))
+            or 0.0
+        )
+        workspace_prep_moves = self._coerce_float(metrics.get("workspace_preparation_moves")) or 0.0
+        buffered_items = self._coerce_float(metrics.get("buffered_items")) or 0.0
+        park_attempts = self._coerce_float(metrics.get("park_attempts")) or 0.0
+        workspace_attempts = self._coerce_float(metrics.get("workspace_creation_attempts")) or 0.0
+        workspace_failures = self._coerce_float(metrics.get("workspace_creation_failures"))
+        if workspace_failures is None:
+            successes = self._coerce_float(metrics.get("workspace_creation_successes")) or 0.0
+            workspace_failures = max(0.0, workspace_attempts - successes)
+
+        plan_norm = plan_size if plan_size and plan_size >= 1.0 else 1.0
+        workspace_attempts_norm = workspace_attempts if workspace_attempts and workspace_attempts >= 1.0 else 1.0
+
+        return {
+            "stash_fill_ratio": stash_occupied / stash_total,
+            "inventory_free_ratio": inventory_free / inventory_total,
+            "plan_density": plan_size / stash_total,
+            "largest_item_ratio": largest_area / stash_total,
+            "workspace_prep_ratio": workspace_prep_moves / plan_norm,
+            "buffer_ratio": buffered_items / plan_norm,
+            "park_ratio": park_attempts / plan_norm,
+            "workspace_failure_ratio": workspace_failures / workspace_attempts_norm,
+            "pack_mode": 1.0 if record.get("pack_mode") else 0.0,
+            "stack_mode": 1.0 if record.get("stack_mode") else 0.0,
+        }
+
+    def _coerce_float(self, value: Any) -> Optional[float]:
+        if value is None:
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(number):
+            return None
+        return number
 
     def _pull_remote_sessions(self) -> bool:
         params = {
