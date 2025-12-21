@@ -1,35 +1,17 @@
-{% extends "base.html" %}
+(function () {
+    // Expose a couple helpers onto window for inline handlers
+    window.showError = function (msg) { const el = document.getElementById('packet-error'); if (el) { el.style.display = 'block'; el.textContent = msg; } };
+    window.clearError = function () { const el = document.getElementById('packet-error'); if (el) { el.style.display = 'none'; el.textContent = ''; } };
+    window.escapeHtml = function (unsafe) { return String(unsafe).replace(/[&<"'>]/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]; }); };
 
-{% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/packet_viewer.css') }}">
-{% endblock %}
-
-{% block content %}
-<div class="packet-viewer">
-    <h1>Packet Viewer</h1>
-    <div class="packet-filters">
-        <button id="select-all" class="toggle-json">Select All</button>
-        <button id="deselect-all" class="toggle-json">Deselect All</button>
-        <span id="packet-count">Loading...</span>
-    </div>
-    <div id="packet-type-filters"></div>
-    <div class="packet-error" id="packet-error" style="display:none"></div>
-    <div class="packets-list" id="packets-list">
-        <div class="no-packets">No packets captured yet. Start capture to see packets.</div>
-    </div>
-</div>
-{% endblock %}
-
-{% block scripts %}
-<script>
+    // State
+    window.packetViewer = window.packetViewer || {};
     let allPacketTypes = [];
     let selectedTypes = new Set();
     let hiddenTypes = new Set();
     let expandedIds = new Set(JSON.parse(localStorage.getItem('packetViewerExpanded') || '[]'));
 
-    function showError(msg) { const el = document.getElementById('packet-error'); if (el) { el.style.display = 'block'; el.textContent = msg; } }
-    function clearError() { const el = document.getElementById('packet-error'); if (el) { el.style.display = 'none'; el.textContent = ''; } }
-
+    // Load captured types + hidden list
     async function loadPacketTypes() {
         try {
             const [typesRes, hiddenRes] = await Promise.all([fetch('/api/packet_viewer/types'), fetch('/api/packet_viewer/hidden')]);
@@ -45,19 +27,15 @@
 
             const newTypes = await typesRes.json();
 
-            // Preserve previous selections and add new discovered types (unless hidden)
             const prevSelected = new Set(selectedTypes);
             allPacketTypes = newTypes.filter(name => /^[A-Z0-9_]+$/.test(name));
 
             if (!prevSelected || prevSelected.size === 0) {
-                // initial load: select all visible types
                 selectedTypes = new Set(allPacketTypes.filter(t => !hiddenTypes.has(t)));
             } else {
-                // add any new visible types
                 for (const t of allPacketTypes) {
                     if (!hiddenTypes.has(t) && !prevSelected.has(t)) prevSelected.add(t);
                 }
-                // remove any selections that no longer exist
                 for (const s of Array.from(prevSelected)) {
                     if (!allPacketTypes.includes(s)) prevSelected.delete(s);
                 }
@@ -72,23 +50,24 @@
         }
     }
 
-    function toggleType(type) {
+    // Expose toggle function for inline handlers
+    window.toggleType = function (type) {
         if (selectedTypes.has(type)) selectedTypes.delete(type);
         else selectedTypes.add(type);
         loadPackets();
-    }
+    };
 
-    function hideType(type) {
+    window.hideType = function (type) {
         const newHidden = new Set(hiddenTypes);
         newHidden.add(type);
         updateHiddenTypes(Array.from(newHidden));
-    }
+    };
 
-    function unhideType(type) {
+    window.unhideType = function (type) {
         const newHidden = new Set(hiddenTypes);
         newHidden.delete(type);
         updateHiddenTypes(Array.from(newHidden));
-    }
+    };
 
     async function updateHiddenTypes(types) {
         try {
@@ -126,10 +105,8 @@
         </div>
     `).join('');
 
-        // Initialize selectedTypes with visible types
         selectedTypes = new Set(allPacketTypes.filter(t => !hiddenTypes.has(t)));
 
-        // Set up select/deselect buttons
         const sel = document.getElementById('select-all');
         const desel = document.getElementById('deselect-all');
         if (sel) sel.onclick = () => { selectedTypes = new Set(allPacketTypes.filter(t => !hiddenTypes.has(t))); document.querySelectorAll('#packet-type-filters input').forEach(cb => cb.checked = true); loadPackets(); };
@@ -167,24 +144,19 @@
             return;
         }
 
-        // Map incoming packet ids in order
         const incomingIds = packets.map(p => p.id);
         const existingNodes = Array.from(container.querySelectorAll('.packet-item'));
-        const existingIds = new Set(existingNodes.map(n => Number(n.dataset.packetId)));
 
-        // Remove nodes that are no longer present
         existingNodes.forEach(node => {
             const id = Number(node.dataset.packetId);
             if (!incomingIds.includes(id)) node.remove();
         });
 
-        // Insert/update nodes maintaining order
         for (let idx = 0; idx < packets.length; idx++) {
             const packet = packets[idx];
             const id = packet.id;
             let existing = container.querySelector(`.packet-item[data-packet-id="${id}"]`);
             if (existing) {
-                // update timestamp/json if changed
                 const tsEl = existing.querySelector('.packet-timestamp');
                 if (tsEl && tsEl.textContent !== packet.timestamp) tsEl.textContent = packet.timestamp;
                 const jsonEl = existing.querySelector('.packet-json');
@@ -193,7 +165,6 @@
                 if (jsonEl) {
                     if (expandedIds.has(id)) jsonEl.classList.add('expanded'); else jsonEl.classList.remove('expanded');
                 }
-                // move to correct position
                 const children = container.children;
                 if (children[idx] !== existing) {
                     if (children.length > idx) container.insertBefore(existing, children[idx]); else container.appendChild(existing);
@@ -237,18 +208,19 @@
         }
     }
 
-    function toggleJsonId(id) {
+    window.toggleJsonId = function (id) {
         const jsonEl = document.getElementById(`json-${id}`);
         if (!jsonEl) return;
         const isExpanded = jsonEl.classList.toggle('expanded');
         if (isExpanded) expandedIds.add(id);
         else expandedIds.delete(id);
         localStorage.setItem('packetViewerExpanded', JSON.stringify(Array.from(expandedIds)));
-    }
+    };
 
-    function escapeHtml(unsafe) { return String(unsafe).replace(/[&<"'>]/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]; }); }
+    // Auto-refresh
+    setInterval(loadPackets, 2000);
+    setInterval(loadPacketTypes, 2000);
 
-    // Auto-refresh every 2 seconds - handled in external script
-</script>
-<script src="{{ url_for('static', filename='js/packet_viewer.js') }}"></script>
-{% endblock %}
+    // Start when DOM is ready
+    document.addEventListener('DOMContentLoaded', () => loadPacketTypes());
+})();
