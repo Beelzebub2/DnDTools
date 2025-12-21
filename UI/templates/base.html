@@ -631,6 +631,13 @@
                             <div class="nav-indicator"></div>
                         </a>
                     </li>
+                    <li id="packet-viewer-link" style="{% if not developer_mode_enabled %}display: none;{% endif %}">
+                        <a href="{{ url_for('packet_viewer') }}" class="nav-link" data-page="packet_viewer">
+                            <span class="material-icons">bug_report</span>
+                            <span class="nav-text">Packet Viewer</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
                 </ul>
             </div>
 
@@ -1038,6 +1045,33 @@
 
             proceedWithClose();
         };
+
+        // Developer mode link visibility
+        async function updateDeveloperModeLink() {
+            try {
+                const response = await fetch('/api/developer_mode');
+                if (response.ok) {
+                    const data = await response.json();
+                    const link = document.getElementById('packet-viewer-link');
+                    if (link) {
+                        const currentDisplay = link.style.display;
+                        const newDisplay = data.enabled ? 'block' : 'none';
+                        if (currentDisplay !== newDisplay) {
+                            link.style.display = newDisplay;
+                            console.log('Packet Viewer link visibility updated:', newDisplay);
+                        }
+                    }
+                } else {
+                    console.error('Failed to fetch developer mode:', response.status);
+                }
+            } catch (error) {
+                console.error('Failed to check developer mode:', error);
+            }
+        }
+
+        // Check developer mode on load and every 2 seconds
+        document.addEventListener('DOMContentLoaded', updateDeveloperModeLink);
+        setInterval(updateDeveloperModeLink, 2000);
     </script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>

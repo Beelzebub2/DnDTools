@@ -374,6 +374,11 @@ class CaptureController:
         capture.capture_info = self._capture_info
         return capture
 
+    @property
+    def packet_capture(self):
+        """Expose the underlying PacketCapture instance for callers that expect a "packet_capture" attribute."""
+        return self._packet_capture
+
     def _state_dict(self):
         running = self._packet_capture.is_active()
         return {
@@ -2060,6 +2065,36 @@ class Api:
     def get_stack_mode(self):
         return bool(getattr(self, '_current_stack_mode', False))
 
+    def get_packets(self, packet_types=None):
+        # Exclude any user-hidden packet types
+        hidden = set(self.get_hidden_packet_types())
+        packets = [p for p in self.capture_controller.packet_capture.captured_packets if p.get('type') not in hidden]
+        if packet_types:
+            packets = [p for p in packets if p['type'] in packet_types]
+        return packets
+
+    def get_packet_types(self):
+        if not _PacketCommand_pb2:
+            return []
+        try:
+            # Use the internal enum descriptor to list valid enum names
+            names = [v.name for v in _PacketCommand_pb2._PACKETCOMMAND.values_by_number.values()]
+            return sorted(names)
+        except Exception:
+            # Fallback to uppercase attributes if descriptor isn't available
+            return [name for name in dir(_PacketCommand_pb2.PacketCommand) if name.isupper()]
+
+    def get_hidden_packet_types(self):
+        return list(self.settings_manager.get('packetViewerHiddenTypes', []))
+
+    def get_recent_packet_types(self):
+        # Return types that have actually been captured recently
+        try:
+            packets = list(self.capture_controller.packet_capture.captured_packets)
+            names = sorted({p.get('type') for p in packets if p.get('type')})
+            return names
+        except Exception:
+            return []
     def submit_sort_feedback(self, session_id: str, success: bool, note: Optional[str] = None) -> bool:
         if not session_id:
             return False
@@ -2957,6 +2992,54 @@ def api_restart():
     import threading
     threading.Thread(target=restart, daemon=True).start()
     return '', 204
+
+@server.route('/packet_viewer')
+def packet_viewer():
+    if not api._developer_mode_enabled:
+        return redirect(url_for('index'))
+    return render_template('packet_viewer.html')
+
+@server.route('/api/packets')
+def api_packets():
+    if not api._developer_mode_enabled:
+        return jsonify({'error': 'Developer mode required'}), 403
+    packet_types = request.args.getlist('types')
+    packets = api.get_packets(packet_types if packet_types else None)
+    return jsonify(packets)
+
+@server.route('/api/packet_types')
+def api_packet_types():
+    if not api._developer_mode_enabled:
+        return jsonify({'error': 'Developer mode required'}), 403
+    types = api.get_packet_types()
+    return jsonify(types)
+
+@server.route('/api/packet_viewer/hidden', methods=['GET', 'POST'])
+def api_packet_viewer_hidden():
+    if not api._developer_mode_enabled:
+        return jsonify({'error': 'Developer mode required'}), 403
+    if request.method == 'GET':
+        return jsonify(api.get_hidden_packet_types())
+    data = request.get_json(silent=True) or {}
+    types = data.get('types')
+    if types is None or not isinstance(types, list):
+        return jsonify({'error': 'Missing or invalid "types" list'}), 400
+    # Save to settings
+    result = api._save_settings({'packetViewerHiddenTypes': list(types)})
+    if not result.get('success'):
+        return jsonify({'error': 'Failed to save settings', 'details': result}), 500
+    return jsonify({'success': True, 'types': list(types)})
+
+@server.route('/api/packet_viewer/types')
+def api_packet_viewer_types():
+    if not api._developer_mode_enabled:
+        return jsonify({'error': 'Developer mode required'}), 403
+    types = api.get_recent_packet_types()
+    return jsonify(types)
+
+@server.route('/api/developer_mode')
+def api_developer_mode():
+    return jsonify({'enabled': api._developer_mode_enabled})
 
 def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
