@@ -188,6 +188,27 @@ class StashManager:
         else:
             logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
 
+        # Check for corrections based on newly loaded data
+        try:
+            from src.models.sort_learning import get_sort_learning_manager
+            learning_manager = get_sort_learning_manager()
+            if learning_manager:
+                all_items = []
+                for char_data in self.characters_cache.values():
+                    if not char_data:
+                        continue
+                    stashes = char_data.get("stashes", {})
+                    for stash in stashes.values():
+                        if hasattr(stash, "pq"):
+                             all_items.extend(stash.pq)
+                        elif hasattr(stash, "items"): 
+                             all_items.extend(stash.items)
+                
+                if all_items:
+                    learning_manager.check_corrections(all_items)
+        except Exception as e:
+            logger.warning("Failed to check for sort feedback corrections: %s", e)
+
         # Mark data as loaded
         self._is_loaded = True
 

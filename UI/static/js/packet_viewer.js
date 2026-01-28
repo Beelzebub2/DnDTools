@@ -217,6 +217,32 @@
         localStorage.setItem('packetViewerExpanded', JSON.stringify(Array.from(expandedIds)));
     };
 
+    // Copy helper with transient feedback
+    function copyText(text, buttonEl) {
+        if (!navigator.clipboard) {
+            try { window.prompt('Copy text:', text); } catch (e) { /* ignore */ }
+            return;
+        }
+        navigator.clipboard.writeText(text).then(() => {
+            if (window.showNotification) {
+                try { window.showNotification('Copied to clipboard', 'info'); } catch (e) { /* ignore */ }
+            }
+            if (buttonEl) {
+                const fb = buttonEl.querySelector('.packet-copy-feedback');
+                if (fb) {
+                    fb.textContent = 'Copied';
+                    fb.classList.add('visible');
+                    setTimeout(() => { fb.classList.remove('visible'); fb.textContent = ''; }, 1200);
+                }
+            }
+        }).catch(err => {
+            console.error('Clipboard error', err);
+            if (buttonEl) {
+                const fb = buttonEl.querySelector('.packet-copy-feedback');
+                if (fb) { fb.textContent = 'Failed'; fb.classList.add('visible'); setTimeout(() => { fb.classList.remove('visible'); fb.textContent = ''; }, 1200); }
+            }
+        });
+    }
     // Auto-refresh
     setInterval(loadPackets, 2000);
     setInterval(loadPacketTypes, 2000);

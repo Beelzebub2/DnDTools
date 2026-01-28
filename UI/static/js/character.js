@@ -2033,8 +2033,12 @@ function showSortFeedbackPrompt(summary) {
         sortFeedbackNoteEl.value = '';
     }
     if (sortFeedbackRiskEl) {
-        const riskCopy = formatSortRiskCopy(summary?.predictedRisk);
-        sortFeedbackRiskEl.textContent = riskCopy || 'Tell us how the run went so we can improve reliability.';
+        if (summary.cancelled) {
+            sortFeedbackRiskEl.textContent = 'Sort cancelled. Was the plan bad?';
+        } else {
+            const riskCopy = formatSortRiskCopy(summary?.predictedRisk);
+            sortFeedbackRiskEl.textContent = riskCopy || 'Tell us how the run went so we can improve reliability.';
+        }
     }
     prompt.classList.remove('hidden');
 }
@@ -2043,13 +2047,11 @@ function handleSortSessionSummary(summary) {
     if (!summary || !summary.sessionId) {
         return;
     }
+    // We now allow feedback even if cancelled, as users may cancel due to bad plans
     if (summary.cancelled) {
-        hideSortFeedbackPrompt();
-        pendingSortSessionId = null;
         if (typeof window.showNotification === 'function') {
-            window.showNotification('Sort was cancelled. Recorded as unsuccessful for training.', 'warning');
+            window.showNotification('Sort was cancelled.', 'warning');
         }
-        return;
     }
     pendingSortSessionId = summary.sessionId;
     showSortFeedbackPrompt(summary);

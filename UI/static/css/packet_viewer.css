@@ -27,18 +27,70 @@
 
 .packet-item {
     border-bottom: 1px solid #333;
-    padding: 10px;
-    background: #1a1a1a;
+    padding: 12px;
+    background: linear-gradient(180deg, #141414 0%, #161616 100%);
+    border-radius: 6px;
+    margin-bottom: 8px;
 }
 
 .packet-item:last-child {
     border-bottom: none;
+    margin-bottom: 0;
 }
 
 .packet-header {
     display: flex;
+    gap: 12px;
+    align-items: center;
     justify-content: space-between;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
+}
+
+.packet-header .left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.packet-type {
+    font-weight: 600;
+    color: #cfa346;
+    cursor: text;
+    /* indicate selectable text */
+}
+
+.packet-copy-btn {
+    background: transparent;
+    color: #cfcfcf;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 4px 6px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.packet-copy-btn .material-icons {
+    font-size: 16px;
+}
+
+.packet-copy-btn:hover {
+    background: rgba(255, 255, 255, 0.02);
+    color: #fff;
+}
+
+.packet-copy-feedback {
+    margin-left: 6px;
+    color: #a8a8a8;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.packet-copy-feedback.visible {
+    opacity: 1;
 }
 
 .packet-type {

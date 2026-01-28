@@ -219,6 +219,30 @@ class LayoutPlanner:
             return 0.0
         return empty / float(total)
 
+    def _build_features_at(self, item: Item, x: int, y: int) -> Dict[str, float]:
+        width = float(getattr(item, "width", 0) or 0)
+        height = float(getattr(item, "height", 0) or 0)
+        longest = max(width, height)
+        rarity = float(getattr(item, "rarity", 0) or 0)
+        slot_x = float(x)
+        slot_y = float(y)
+        norm_x = slot_x / float(max(1, self.width - 1))
+        norm_y = slot_y / float(max(1, self.height - 1))
+        return {
+            "width": width,
+            "height": height,
+            "area": width * height,
+            "max_side": longest,
+            "rarity": rarity,
+            "slot_x": slot_x,
+            "slot_y": slot_y,
+            "slot_x_norm": norm_x,
+            "slot_y_norm": norm_y,
+            "pack_mode": 1.0 if self.prefer_dense else 0.0,
+            "stack_mode": 1.0 if self.stack_mode else 0.0,
+            "free_ratio": self._initial_free_ratio,
+        }
+
     def _find_slot_for(self, item: Item) -> Optional[Point]:
         max_x = self.width - item.width
         max_y = self.height - item.height
@@ -230,7 +254,25 @@ class LayoutPlanner:
                 if not self._fits(item, x, y):
                     continue
                 adjacency = self._adjacency_score(item, x, y)
-                score = (y, x, -adjacency if self.prefer_dense else adjacency)
+                
+                ml_score = 0.0
+                if self.learning_manager:
+                    # Construct features for this specific slot candidate
+                    feats = self._build_features_at(item, x, y)
+                    val = self.learning_manager.score_item(feats)
+                    if val is not None:
+                        ml_score = val
+
+                # Priority:
+                # 1. High ML Score (negated so smaller is better in tuple sort)
+                # 2. Top (y)
+                # 3. Left (x)
+                # 4. Density/Adjacency
+                
+                # Weight ML score heavily (x100) so a 0.01 difference matters more than 1 row
+                # But ensure we don't break fallback.
+                score = (-ml_score * 100.0, y, x, -adjacency if self.prefer_dense else adjacency)
+                
                 if best_score is None or score < best_score:
                     best_score = score
                     best_point = Point(x, y)
@@ -437,6 +479,31 @@ class StashSorter:
 
             self._overlay_update("Calculating deterministic layout...", status="info")
             plan = self._build_sort_plan(active_items)
+
+            if plan and self.learning_manager and self._learning_session_id:
+                try:
+                    plan_map = {}
+                    feature_map = {}
+                    for entry in plan.order:
+                        itm = entry.item
+                        item_id = str(getattr(itm, "item_id", "") or "")
+                        if item_id:
+                            plan_map[item_id] = (entry.target.x, entry.target.y)
+                        
+                        # LayoutPlanner stores `learning_payload[id(itm)] = record`
+                        if plan.learning:
+                            record = plan.learning.get(id(itm))
+                            if record and "features" in record:
+                                feature_map[item_id] = record["features"]
+
+                    self.learning_manager.register_pending_plan(
+                        self._learning_session_id,
+                        plan_map,
+                        feature_map
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to register sort plan for learning: %s", exc)
+
             if plan is None:
                 failure_reason = failure_reason or "layout_plan_failed"
                 self._overlay_update("Unable to calculate layout plan.", status="error")

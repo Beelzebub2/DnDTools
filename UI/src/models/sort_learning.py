@@ -3,7 +3,7 @@ import logging
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from src.models.appdirs import get_output_dir
 
@@ -38,6 +38,8 @@ class SortLearningManager:
         self.model_path = self.base_dir / "item_priority_model.json"
         self._lock = threading.RLock()
         self._model: Optional[Dict[str, Any]] = None
+        self._pending_plans: Dict[str, Dict[str, Tuple[int, int]]] = {}
+        self._pending_features: Dict[str, Dict[str, Dict[str, float]]] = {}
         self._load_model()
 
     def score_item(self, features: Dict[str, float]) -> Optional[float]:
@@ -56,6 +58,128 @@ class SortLearningManager:
         except Exception as exc:
             logger.debug("Item scoring failed: %s", exc, exc_info=True)
             return None
+
+    def register_pending_plan(
+        self,
+        session_id: str,
+        plan_map: Dict[str, Tuple[int, int]],
+        feature_map: Dict[str, Dict[str, float]],
+    ) -> None:
+        if not session_id or not plan_map:
+            return
+        with self._lock:
+            now = time.time()
+            # Cleanup old plans (1 hour)
+            cutoff = now - 3600
+            expired = [
+                sid
+                for sid, data in self._pending_plans.items()
+                if data.get("timestamp", 0) < cutoff
+            ]
+            for sid in expired:
+                self._pending_plans.pop(sid, None)
+                self._pending_features.pop(sid, None)
+
+            self._pending_plans[session_id] = {
+                "timestamp": now,
+                "map": plan_map,
+            }
+            self._pending_features[session_id] = feature_map
+
+    def check_corrections(self, items: List[Any]) -> int:
+        corrections_found = 0
+        with self._lock:
+            if not self._pending_plans:
+                return 0
+            
+            # Find most recent session
+            latest_session_id = None
+            latest_ts = 0.0
+            for sid, data in self._pending_plans.items():
+                ts = data.get("timestamp", 0)
+                if ts > latest_ts:
+                    latest_ts = ts
+                    latest_session_id = sid
+
+            if not latest_session_id:
+                return 0
+
+            plan_data = self._pending_plans.get(latest_session_id)
+            if not plan_data:
+                return 0
+
+            plan_map = plan_data.get("map", {})
+            feature_map = self._pending_features.get(latest_session_id, {})
+
+            for item in items:
+                item_id = str(getattr(item, "item_id", "") or "")
+                if item_id not in plan_map:
+                    continue
+                
+                # Check position
+                pos = getattr(item, "position", None)
+                if not pos:
+                    continue
+                
+                try:
+                    current_x, current_y = int(pos.x), int(pos.y)
+                except (ValueError, TypeError):
+                    continue
+                
+                planned_x, planned_y = plan_map[item_id]
+
+                # If deviation detected
+                if current_x != planned_x or current_y != planned_y:
+                    corrections_found += 1
+                    
+                    # 1. Record Failure for Planned Spot
+                    original_features = feature_map.get(item_id)
+                    if original_features:
+                        bad_features = dict(original_features)
+                        bad_features["slot_x"] = float(planned_x)
+                        bad_features["slot_y"] = float(planned_y)
+                        
+                        self.record_priority_sample(
+                            session_id=latest_session_id,
+                            item=item,
+                            features=bad_features,
+                            metadata={"correction": "planned_failure"}
+                        )
+                        self.record_priority_outcome(
+                            session_id=latest_session_id,
+                            item=item,
+                            success=False,
+                            reason="correction_detected",
+                            metadata={"target": {"x": planned_x, "y": planned_y}}
+                        )
+
+                        # 2. Record Success for Manual Move
+                        good_features = dict(original_features)
+                        good_features["slot_x"] = float(current_x)
+                        good_features["slot_y"] = float(current_y)
+                        
+                        self.record_priority_sample(
+                            session_id=latest_session_id,
+                            item=item,
+                            features=good_features,
+                            metadata={"correction": "manual_success"}
+                        )
+                        self.record_priority_outcome(
+                            session_id=latest_session_id,
+                            item=item,
+                            success=True,
+                            reason="correction_manual_move",
+                            metadata={"target": {"x": current_x, "y": current_y}}
+                        )
+                        
+            # Clear to prevent double counting? 
+            # Or keep it in case user moves MORE items? 
+            # Ideally we only clear if significant time passed, but for now 
+            # let's keep it. We rely on the "plan" being overwritten by the next sort.
+            
+        if corrections_found > 0:
+            logger.info("Recorded %d corrections for session %s", corrections_found, latest_session_id)
+        return corrections_found
 
     def record_priority_sample(
         self,
