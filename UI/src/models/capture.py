@@ -15,6 +15,7 @@ import importlib
 from datetime import datetime
 from typing import Tuple, Optional, List, Dict, Any, Set
 from concurrent.futures import TimeoutError as FutureTimeout
+from collections import deque
 from google.protobuf.json_format import MessageToDict
 
 import pyshark
@@ -171,6 +172,11 @@ class PacketCapture:
                     self._quest_packet_types[value] = packet_name
                 except ValueError:
                     self.logger.debug(f"Quest packet {packet_name} not present in PacketCommand enum")
+        
+        # Packet viewer storage
+        self.captured_packets = deque(maxlen=1000)
+        # Monotonic packet id counter for stable UI keys
+        self._packet_id_counter = 0
         
         # Restore state
         self.saved_state = self._restore_state()
@@ -732,6 +738,32 @@ class PacketCapture:
             
         name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
         message = self.parse_proto(packet_data, proto_type)
+
+        # Store for packet viewer
+        json_data = None
+        if message:
+            try:
+                json_data = MessageToDict(
+                    message,
+                    preserving_proto_field_name=True,
+                    including_default_value_fields=True
+                )
+            except TypeError:
+                json_data = MessageToDict(
+                    message,
+                    preserving_proto_field_name=True
+                )
+        # Assign a monotonically increasing id so UI can track items across refreshes
+        self._packet_id_counter += 1
+        packet_info = {
+            'id': self._packet_id_counter,
+            'timestamp': datetime.utcnow().isoformat() + 'Z',
+            'type': name,
+            'proto_type': proto_type,
+            'json': json_data,
+            'raw_length': len(packet_data)
+        }
+        self.captured_packets.append(packet_info)
 
         if proto_type in self._quest_packet_types:
             self._persist_quest_packet(packet_data, proto_type, name, message)
