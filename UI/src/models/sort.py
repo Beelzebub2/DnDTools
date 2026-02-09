@@ -249,6 +249,14 @@ class LayoutPlanner:
         best_score = None
         best_point: Optional[Point] = None
 
+        # Pre-check: probe whether the ML model actually returns scores
+        # to avoid hundreds of wasted score_item calls when no model is loaded.
+        use_ml = bool(self.learning_manager)
+        if use_ml and max_x >= 0 and max_y >= 0:
+            probe = self._build_features_at(item, 0, 0)
+            if self.learning_manager.score_item(probe) is None:
+                use_ml = False
+
         for y in range(0, max_y + 1):
             for x in range(0, max_x + 1):
                 if not self._fits(item, x, y):
@@ -256,7 +264,7 @@ class LayoutPlanner:
                 adjacency = self._adjacency_score(item, x, y)
                 
                 ml_score = 0.0
-                if self.learning_manager:
+                if use_ml:
                     # Construct features for this specific slot candidate
                     feats = self._build_features_at(item, x, y)
                     val = self.learning_manager.score_item(feats)

@@ -101,7 +101,11 @@ class SystemTray:
     def _on_click_restore(self, icon, item):
         logger.info("Tray: Restore requested")
         if self.on_restore:
-            self.on_restore()
+            try:
+                result = self.on_restore()
+                logger.info("Tray: Restore callback returned: %s", result)
+            except Exception as exc:
+                logger.error("Tray: Restore callback failed: %s", exc, exc_info=True)
 
     def _on_click_quit(self, icon, item):
         logger.info("Tray: Quit requested")

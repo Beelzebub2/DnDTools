@@ -13,8 +13,8 @@ from src.models import macros
 import pygetwindow as gw
 from .appdirs import get_output_dir, resource_path, get_characters_dir
 from src.models.icon_pak import canonical_icon_path
-import asyncio
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
+import threading
 import logging
 from src.models.game_overlay import NullOverlaySession, SortOverlaySession
 from src.models.loot import format_loot_state_label
@@ -32,6 +32,7 @@ class StashManager:
         
         self.characters_cache = {}
         self._is_loaded = False
+        self._cache_lock = threading.Lock()
         self.resource_dir = resource_dir
         
         # Performance tracking
@@ -51,8 +52,9 @@ class StashManager:
             
     def force_reload(self):
         """Force reload of character data, ignoring the loaded flag"""
-        self._is_loaded = False
-        self.characters_cache.clear()
+        with self._cache_lock:
+            self._is_loaded = False
+            self.characters_cache.clear()
         self._load_data()
         
     def _load_data(self, force=False):
@@ -70,30 +72,23 @@ class StashManager:
         self.characters_cache.clear()
         logger.info(f"Loading characters from: {self.data_dir}")
         
-        # Get all JSON files first and sort by modification time (newest first)
+        # Get all JSON files with cached stat results (single syscall per file)
         json_files = []
         for file_path in Path(self.data_dir).glob("*.json"):
             try:
-                # Quick size check before adding to list
-                file_size = file_path.stat().st_size
-                if file_size > 10 * 1024 * 1024:  # > 10MB
-                    logger.warning(f"Skipping oversized file: {file_path} ({file_size/1024/1024:.2f} MB)")
+                stat_result = file_path.stat()
+                if stat_result.st_size > 10 * 1024 * 1024:  # > 10MB
+                    logger.warning(f"Skipping oversized file: {file_path} ({stat_result.st_size/1024/1024:.2f} MB)")
                     continue
-                json_files.append(file_path)
+                json_files.append((file_path, stat_result))
             except OSError:
                 continue
         
         # Sort by modification time (newest first) for better user experience
-        json_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+        json_files.sort(key=lambda entry: entry[1].st_mtime, reverse=True)
         
         def load_file(file_path):
             try:
-                # Skip excessively large files (likely corrupted)
-                file_size = os.path.getsize(file_path)
-                if file_size > 10 * 1024 * 1024:  # > 10MB
-                    logger.warning(f"Skipping oversized file: {file_path} ({file_size/1024/1024:.2f} MB)")
-                    return None
-                    
                 with open(file_path, 'r', encoding='utf-8') as f:
                     packet_data = json.load(f)
                 char_data = packet_data.get("characterDataBase", {})
@@ -144,31 +139,20 @@ class StashManager:
         cpu_count = os.cpu_count() or 4
         max_workers = max(1, min(cpu_count, len(json_files), 8))  # Cap at 8 workers
         
-        # Use asyncio to make data loading truly asynchronous
-        async def load_data_async():
-            loop = asyncio.get_event_loop()
-            loaded_count = 0
-            
-            with ThreadPool(max_workers=max_workers) as pool:
-                # Submit all tasks using the pre-sorted file list
-                futures = [loop.run_in_executor(pool, load_file, str(file_path)) for file_path in json_files]
-                
-                # Process results as they complete (asynchronous processing)
-                for future in asyncio.as_completed(futures):
-                    result = await future
-                    if result:
-                        char_id = result['id']
-                        self.characters_cache[char_id] = result['character_data']
-                        loaded_count += 1
-                        
-                        # Log progress for large loads
-                        if loaded_count % 10 == 0:
-                            logger.info(f"Loaded {loaded_count}/{len(json_files)} characters...")
-            
-            return loaded_count
-
-        # Run the async loading
-        loaded_count = asyncio.run(load_data_async())
+        # Use ThreadPoolExecutor directly — no asyncio overhead for sync file I/O
+        loaded_count = 0
+        file_paths = [str(fp) for fp, _ in json_files]
+        
+        with ThreadPool(max_workers=max_workers) as pool:
+            for result in pool.map(load_file, file_paths):
+                if result:
+                    char_id = result['id']
+                    self.characters_cache[char_id] = result['character_data']
+                    loaded_count += 1
+                    
+                    # Log progress for large loads
+                    if loaded_count % 10 == 0:
+                        logger.info(f"Loaded {loaded_count}/{len(json_files)} characters...")
         
         load_time = time.time() - start_time
         self.load_stats.update({
@@ -182,11 +166,12 @@ class StashManager:
         logger.info(f"Average load time per file: {self.load_stats['average_load_time_per_file']:.4f} seconds")
         
         # Only show character details for small number of characters
-        if loaded_count <= 3:
-            for char_id, char_data in self.characters_cache.items():
-                logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
-        else:
-            logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
+        with self._cache_lock:
+            if loaded_count <= 3:
+                for char_id, char_data in self.characters_cache.items():
+                    logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
+            else:
+                logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
 
         # Check for corrections based on newly loaded data
         try:
@@ -194,15 +179,16 @@ class StashManager:
             learning_manager = get_sort_learning_manager()
             if learning_manager:
                 all_items = []
-                for char_data in self.characters_cache.values():
-                    if not char_data:
-                        continue
-                    stashes = char_data.get("stashes", {})
-                    for stash in stashes.values():
-                        if hasattr(stash, "pq"):
-                             all_items.extend(stash.pq)
-                        elif hasattr(stash, "items"): 
-                             all_items.extend(stash.items)
+                with self._cache_lock:
+                    for char_data in self.characters_cache.values():
+                        if not char_data:
+                            continue
+                        stashes = char_data.get("stashes", {})
+                        for stash in stashes.values():
+                            if hasattr(stash, "pq"):
+                                 all_items.extend(stash.pq)
+                            elif hasattr(stash, "items"): 
+                                 all_items.extend(stash.items)
                 
                 if all_items:
                     learning_manager.check_corrections(all_items)
@@ -294,6 +280,19 @@ class StashManager:
                 'timestamp': time.time(),
             }
 
+    def _get_cache_info(self) -> Dict:
+        """Return cache statistics, safe to call from any thread."""
+        with self._cache_lock:
+            chars = list(self.characters_cache.values())
+        return {
+            'characters_cached': len(chars),
+            'total_stashes': sum(len(c.get('stashes', {})) for c in chars),
+            'estimated_items': sum(
+                sum(len(s) for s in c.get('stashes', {}).values() if isinstance(s, list))
+                for c in chars
+            ),
+        }
+
     def get_performance_stats(self) -> Dict:
         """Get performance statistics for data loading and memory usage"""
         import psutil
@@ -308,14 +307,7 @@ class StashManager:
                 'rss': memory_info.rss / 1024 / 1024,  # MB
                 'vms': memory_info.vms / 1024 / 1024,  # MB
             },
-            'cache_info': {
-                'characters_cached': len(self.characters_cache),
-                'total_stashes': sum(len(char.get('stashes', {})) for char in self.characters_cache.values()),
-                'estimated_items': sum(
-                    sum(len(stash) for stash in char.get('stashes', {}).values() if isinstance(stash, list))
-                    for char in self.characters_cache.values()
-                )
-            },
+            'cache_info': self._get_cache_info(),
             'system_info': {
                 'cpu_count': os.cpu_count(),
                 'python_version': sys.version
@@ -323,12 +315,103 @@ class StashManager:
         }
 
     def get_characters(self) -> List[Dict]:
-        """Get list of all characters"""
+        """Get list of all characters (full data including stash items)."""
         # Ensure data is loaded before returning characters
         if not self._is_loaded:
             self._load_data()
-            
-        return list(self.characters_cache.values())
+
+        with self._cache_lock:
+            return list(self.characters_cache.values())
+
+    def get_characters_summary(self) -> List[Dict]:
+        """Return a lightweight list of characters for the index page.
+
+        Only includes the fields the character list UI actually needs:
+        id, nickname, class, level, lastUpdate, stash counts, rank.
+        Excludes all item data so serialisation is near-instant.
+        """
+        if not self._is_loaded:
+            self._load_data()
+
+        with self._cache_lock:
+            chars = list(self.characters_cache.values())
+
+        summaries = []
+        for char in chars:
+            stashes = char.get('stashes', {})
+            # Build stash count map (stashId -> item count)
+            stash_counts = {}
+            for sid, items in stashes.items():
+                stash_counts[sid] = len(items) if isinstance(items, list) else 0
+
+            summaries.append({
+                'id': char.get('id'),
+                'nickname': char.get('nickname'),
+                'class': char.get('class'),
+                'level': char.get('level'),
+                'lastUpdate': char.get('lastUpdate'),
+                'stashes': stash_counts,
+                'rank': char.get('rank'),
+                'streamingModeName': char.get('streamingModeName', ''),
+            })
+        return summaries
+
+    def update_single_character(self, char_id: str, file_path: str = None) -> bool:
+        """Incrementally reload a single character from disk into the cache.
+
+        Much faster than force_reload() which re-reads every file.
+        Returns True if the character was successfully loaded/updated.
+        """
+        if file_path is None:
+            file_path = os.path.join(self.data_dir, f"{char_id}.json")
+
+        if not os.path.isfile(file_path):
+            logger.warning("update_single_character: file not found: %s", file_path)
+            return False
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                packet_data = json.load(f)
+
+            base = packet_data.get('characterDataBase', {})
+            if not base:
+                return False
+
+            loaded_id = str(base.get('characterId', ''))
+            if not loaded_id:
+                return False
+
+            raw_stashes = parse_stashes(packet_data)
+            stashes = {str(k): v for k, v in raw_stashes.items()}
+
+            raw_class = base.get('characterClass', '')
+            class_name = raw_class.replace('DesignDataPlayerCharacter:Id_PlayerCharacter_', '')
+            nickname_data = base.get('nickName', {})
+
+            char_data = {
+                'id': loaded_id,
+                'nickname': nickname_data.get('originalNickName', 'Unknown'),
+                'class': class_name,
+                'level': base.get('level', 1),
+                'lastUpdate': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
+                'stashes': stashes,
+                'streamingModeName': nickname_data.get('streamingModeNickName', ''),
+                'rank': {
+                    'name': nickname_data.get('rankId', 'Unknown').replace('LeaderboardRankData:Id_LeaderboardRank_', '').replace('_', ' '),
+                    'fame': nickname_data.get('fame', 0),
+                    'iconType': nickname_data.get('rankIconType', 1),
+                },
+            }
+
+            self._precompute_priority_stashes(char_data)
+            with self._cache_lock:
+                self.characters_cache[loaded_id] = char_data
+            logger.info("Incrementally updated character %s (%s) in cache", loaded_id, char_data['nickname'])
+            return True
+
+        except Exception as exc:
+            logger.error("update_single_character failed for %s: %s", char_id, exc, exc_info=True)
+            return False
 
     def get_character_stashes(self, character_id: str) -> Dict:
         """Get all stashes for a specific character, ensuring each stash is a list."""
@@ -376,8 +459,19 @@ class StashManager:
     def get_item_holdings(
         self,
         item_ids: Iterable[str],
+        loot_states: Optional[Set[int]] = None,
     ) -> Dict[str, List[Dict]]:
-        """Aggregate how many of the specified items exist across all characters."""
+        """Aggregate how many of the specified items exist across all characters.
+
+        Parameters
+        ----------
+        item_ids : Iterable[str]
+            Item identifiers to look up.
+        loot_states : set[int] | None
+            Optional set of acceptable loot-state values.  When provided only
+            stash entries whose loot state is in this set are counted, reducing
+            the payload size for callers that would discard them anyway.
+        """
         if not item_ids:
             return {}
 
@@ -423,6 +517,10 @@ class StashManager:
                         loot_state_value = int(loot_state_raw)
                     except (TypeError, ValueError):
                         loot_state_value = None
+
+                    # Skip items that don't match the desired loot state filter
+                    if loot_states is not None and loot_state_value not in loot_states:
+                        continue
 
                     count_raw = item.get("itemCount", 1)
                     try:
@@ -507,20 +605,15 @@ class StashManager:
                         except Exception:
                             item_id = design_str or item.get("data", {}).get("itemUniqueId") or "unknown"
 
+                        # Single lookup instead of 3 separate calls
                         try:
-                            name = item_data_manager.get_item_name_from_id(item_id)
+                            item_meta = item_data_manager.get_item_data(item_id)
                         except Exception:
-                            name = design_str or "Unknown Item"
+                            item_meta = {}
 
-                        try:
-                            rarity = item_data_manager.get_item_rarity_from_id(item_id)
-                        except Exception:
-                            rarity = "Unknown"
-
-                        try:
-                            raw_icon_path = item_data_manager.get_item_image_path_from_id(item_id)
-                        except Exception:
-                            raw_icon_path = None
+                        name = item_meta.get("name") or design_str or "Unknown Item"
+                        rarity = item_meta.get("rarity") or "Unknown"
+                        raw_icon_path = item_meta.get("iconPath")
                         icon_path = canonical_icon_path(raw_icon_path) if raw_icon_path else None
 
                         data = item.get("data") or {}
@@ -599,10 +692,13 @@ class StashManager:
                 try:
                     design_str = item.get("itemId", "")
                     item_id = item_data_manager.get_item_id_from_design_str(design_str)
-                    name = item_data_manager.get_item_name_from_id(item_id)
-                    rarity = item_data_manager.get_item_rarity_from_id(item_id)
-                    width, height = item_data_manager.get_item_dimensions_from_id(item_id)
-                    img_path = item_data_manager.get_item_image_path_from_id(item_id)
+                    # Single lookup instead of 5 separate calls
+                    item_meta = item_data_manager.get_item_data(item_id)
+                    name = item_meta.get("name", "")
+                    rarity = item_meta.get("rarity", 0)
+                    width = item_meta.get("inventory_width", 1)
+                    height = item_meta.get("inventory_height", 1)
+                    raw_icon_path = item_meta.get("iconPath")
                     data = item.get("data", {})
                     effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
                     pp = []
@@ -616,11 +712,11 @@ class StashManager:
                             prop_name = p["propertyTypeId"].replace(effect_str, "")
                             sp.append([prop_name, p["propertyValue"]])
                     image_url = None
-                    if img_path:
-                        image_url_path = canonical_icon_path(img_path)
-                        if image_url_path:
-                            image_url = f"/assets/{image_url_path}"
-                    max_stack = item_data_manager.get_item_max_stack_size(item_id)
+                    if raw_icon_path:
+                        icon_canonical = canonical_icon_path(raw_icon_path)
+                        if icon_canonical:
+                            image_url = f"/assets/{icon_canonical}"
+                    max_stack = item_meta.get("max_stack_size", 1)
                     loot_state_raw = item.get("data", {}).get("lootState")
                     loot_state_value = None
                     loot_state_label = None
@@ -646,7 +742,7 @@ class StashManager:
                         'pp': pp,
                         'sp': sp,
                         'imagePath': image_url,
-                        'vendor_price': item_data_manager.get_item_vendor_price(item_id),
+                        'vendor_price': item_meta.get("vendor_price", 0),
                         'maxStackSize': max_stack,
                         'max_stack_size': max_stack
                     }

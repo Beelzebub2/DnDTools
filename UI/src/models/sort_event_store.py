@@ -112,7 +112,15 @@ class SortEventStore:
             for idx_sql in _CREATE_INDEXES:
                 conn.execute(idx_sql)
             conn.commit()
-
+    def close(self) -> None:
+        """Close the thread-local SQLite connection if open."""
+        conn = getattr(self._local, "conn", None)
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            self._local.conn = None
     # ── Public: record events ────────────────────────────────────────
 
     def record_sort_started(
