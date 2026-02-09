@@ -374,10 +374,10 @@
 
 /* Quest Grid */
 .quest-list {
-    column-count: auto;
-    column-width: 340px;
-    column-gap: 24px;
-    display: block;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 24px;
+    align-items: start;
 }
 
 .quest-card {
@@ -393,8 +393,6 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     /* Animation entrance — items start visible for safety, animation enhances */
     animation: fadeInUp 0.4s ease-out both;
-    break-inside: avoid;
-    margin-bottom: 24px;
 }
 
 .quest-card:hover {
@@ -1152,6 +1150,11 @@
     .quest-items-list {
         grid-template-columns: 1fr;
     }
+
+    .quest-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
 }
 
 /* Loading Spinner Polish */
@@ -1172,6 +1175,56 @@
     width: 40px;
     height: 40px;
     animation: quest-refresh-spin 1s linear infinite;
+}
+
+/* Progress Bar */
+@keyframes quest-progress-indeterminate {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(200%);
+    }
+}
+
+.quest-progress-bar {
+    position: relative;
+    width: 100%;
+    height: 3px;
+    background: rgba(228, 200, 105, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.quest-progress-bar.active {
+    opacity: 1;
+}
+
+.quest-progress-bar .quest-progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 50%;
+    background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
+    border-radius: 2px;
+    animation: quest-progress-indeterminate 1.4s ease-in-out infinite;
+}
+
+/* Seamless refresh fade */
+.quest-list.is-refreshing,
+.quest-items-list.is-refreshing {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.quest-list:not(.is-refreshing),
+.quest-items-list:not(.is-refreshing) {
+    transition: opacity 0.25s ease;
 }
 
 /* Scrollbar Polish */
