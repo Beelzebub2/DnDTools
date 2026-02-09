@@ -17,7 +17,8 @@ import asyncio
 from src.models.stash_manager import StashManager
 from src.models.sort_feedback import get_sort_feedback_manager
 from src.models.sort_learning import get_sort_learning_manager
-from src.models.sort_feedback_sync import SortFeedbackSyncService
+from src.models.sort_sync_service import SortSyncService
+from src.models.sort_feedback_sync import SortFeedbackSyncService  # backward compat alias
 import psutil
 import json
 import sys
@@ -575,30 +576,19 @@ class Api:
         self._active_ping_service.set_developer_mode(self._developer_mode_enabled)
         self._initialize_game_monitor()
         self._active_ping_service.start()
-        self._sort_feedback_sync_service: Optional[SortFeedbackSyncService] = None
-        try:
-            self._sort_feedback_sync_service = SortFeedbackSyncService(
-                feedback_manager=self.sort_feedback_manager,
-                settings_manager=self.settings_manager,
-                app_version=APP_VERSION,
-                logger=logger,
-            )
-        except Exception as exc:
-            logger.debug("Sort feedback sync unavailable: %s", exc, exc_info=True)
-
+        # Unified ML sync service (replaces old SortFeedbackSyncService + SortLearningTrainer)
+        self._sort_sync_service: Optional[SortSyncService] = None
+        self._sort_feedback_sync_service = None  # backward compat reference
         self._sort_learning_trainer: Optional[SortLearningTrainer] = None
         try:
-            trainer_base_url = None
-            if self._sort_feedback_sync_service:
-                trainer_base_url = self._sort_feedback_sync_service.base_url
-            self._sort_learning_trainer = SortLearningTrainer(
+            self._sort_sync_service = SortSyncService(
                 settings_manager=self.settings_manager,
                 app_version=APP_VERSION,
-                learning_manager=get_sort_learning_manager(),
-                base_url=trainer_base_url,
-                logger=logger,
             )
-            self._sort_learning_trainer.start()
+            self._sort_sync_service.start()
+            # Expose as old names so downstream code (settings, shutdown) still works
+            self._sort_feedback_sync_service = self._sort_sync_service
+            self._sort_learning_trainer = self._sort_sync_service
         except Exception as exc:
             logger.debug("Sort learning trainer unavailable: %s", exc, exc_info=True)
 

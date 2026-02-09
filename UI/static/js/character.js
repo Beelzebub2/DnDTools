@@ -52,6 +52,7 @@ let sortFeedbackRiskEl = null;
 let sortFeedbackNoteEl = null;
 let sortFeedbackBusy = false;
 let queuedSortSummary = null;
+const answeredSortSessions = new Set();
 
 // Rarity colors - same as in search.js for consistency
 const rarityColors = {
@@ -2008,10 +2009,21 @@ function hideSortFeedbackPrompt(clearSession = true) {
     }
     sortFeedbackBusy = false;
     if (clearSession) {
+        // Mark this session as answered so duplicate events won't re-show the popup
+        if (pendingSortSessionId) {
+            answeredSortSessions.add(pendingSortSessionId);
+        }
         pendingSortSessionId = null;
     }
     if (sortFeedbackNoteEl) {
         sortFeedbackNoteEl.value = '';
+    }
+    // Keep the set from growing unbounded
+    if (answeredSortSessions.size > 50) {
+        const iter = answeredSortSessions.values();
+        for (let i = 0; i < answeredSortSessions.size - 50; i++) {
+            answeredSortSessions.delete(iter.next().value);
+        }
     }
 }
 
@@ -2045,6 +2057,14 @@ function showSortFeedbackPrompt(summary) {
 
 function handleSortSessionSummary(summary) {
     if (!summary || !summary.sessionId) {
+        return;
+    }
+    // Skip if the user already submitted feedback for this session
+    if (answeredSortSessions.has(summary.sessionId)) {
+        return;
+    }
+    // Skip if this session is already being shown
+    if (pendingSortSessionId === summary.sessionId) {
         return;
     }
     // We now allow feedback even if cancelled, as users may cancel due to bad plans
@@ -2090,6 +2110,7 @@ async function submitSortFeedback(isSuccess) {
         if (typeof window.showNotification === 'function') {
             window.showNotification('Thanks! Your feedback helps train the sorter.', 'success');
         }
+        answeredSortSessions.add(pendingSortSessionId);
         hideSortFeedbackPrompt();
     } catch (error) {
         console.error('Failed to submit sort feedback:', error);

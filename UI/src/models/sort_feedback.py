@@ -1,35 +1,47 @@
-import json
+"""
+SortObserver — replaces the old SortFeedbackManager.
+
+Hooks into StashSorter.sort() to:
+  1. Predict risk at sort start (delegates to SortAdaptiveModel)
+  2. Record SORT_STARTED / SORT_COMPLETED events to SortEventStore
+  3. Trigger incremental training after each completed session
+
+Backward-compatible public surface:
+    get_sort_feedback_manager()   — returns a SortObserver (same call-site in sort.py)
+    SortFeedbackHandle            — same interface used by StashSorter
+"""
+
 import logging
 import math
 import threading
 import time
 import uuid
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from src.models.appdirs import get_output_dir
+from src.models.sort_model import (
+    SortAdaptiveModel,
+    RISK_FEATURE_NAMES,
+    get_sort_adaptive_model,
+)
+from src.models.sort_event_store import (
+    SortEventStore,
+    get_event_store,
+)
 
 logger = logging.getLogger(__name__)
-_SORT_FEEDBACK_MANAGER_LOCK = threading.Lock()
 
-_FEATURE_NAMES: List[str] = [
-    "stash_fill_ratio",
-    "inventory_free_ratio",
-    "plan_density",
-    "largest_item_ratio",
-    "workspace_prep_ratio",
-    "buffer_ratio",
-    "park_ratio",
-    "workspace_failure_ratio",
-    "pack_mode",
-    "stack_mode",
-]
+# Keep the old name list for backward compat / payload building
+_FEATURE_NAMES: List[str] = list(RISK_FEATURE_NAMES)
 
 
 @dataclass
 class SortFeedbackHandle:
-    manager: "SortFeedbackManager"
+    """
+    Per-session handle handed to StashSorter.  Same public interface as before
+    so existing call-sites (increment, set_metric, finalize, etc.) keep working.
+    """
+    observer: "SortObserver"
     record: Dict[str, Any]
     prediction: Optional[float] = None
     _finalized: bool = False
@@ -48,8 +60,9 @@ class SortFeedbackHandle:
 
     def recommended_workspace_cells(self, base_min: int = 6, max_extra: int = 12) -> int:
         risk = max(0.0, min(1.0, self.prediction or 0.0))
-        extra = math.ceil(max_extra * risk)
-        workspace = base_min + extra
+        workspace = self.observer.model.recommended_workspace_cells(
+            risk=risk, base_min=base_min, max_extra=max_extra,
+        )
         self.record.setdefault("features", {})["workspace_target"] = workspace
         return workspace
 
@@ -62,7 +75,6 @@ class SortFeedbackHandle:
         self.record["success"] = bool(success)
         self.record["cancelled"] = bool(cancelled)
         self.record["failure_reason"] = failure_reason
-        self.record["auto_label"] = False if cancelled else bool(success)
 
         summary = {
             "sessionId": self.record["session_id"],
@@ -73,26 +85,37 @@ class SortFeedbackHandle:
             "cancelled": bool(cancelled),
         }
         self.record["summary"] = summary
-        self.manager._persist_record(self.record)
-        self.manager._schedule_training()
+
+        # Record the completion event
+        self.observer._record_completion(self.record)
+
+        # Trigger incremental risk training
+        self.observer._schedule_risk_training()
+
         self._finalized = True
         return summary
 
 
-class SortFeedbackManager:
-    def __init__(self, base_dir: Optional[Path] = None, min_samples: int = 25) -> None:
-        output_dir = Path(base_dir or get_output_dir())
-        self.base_dir = output_dir / "sort_feedback"
-        self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.sessions_dir = self.base_dir / "sessions"
-        self.sessions_dir.mkdir(parents=True, exist_ok=True)
-        self.model_path = self.base_dir / "model.json"
-        self.min_samples = int(min_samples)
+class SortObserver:
+    """
+    Thin observer that delegates prediction to SortAdaptiveModel
+    and persistence to SortEventStore.
+
+    This replaces SortFeedbackManager.  The public API is nearly identical
+    so wiring changes in sort.py are minimal.
+    """
+
+    def __init__(
+        self,
+        model: Optional[SortAdaptiveModel] = None,
+        event_store: Optional[SortEventStore] = None,
+    ) -> None:
+        self.model = model or get_sort_adaptive_model()
+        self.event_store = event_store or get_event_store()
         self._lock = threading.RLock()
-        self._model: Optional[Dict[str, Any]] = None
         self._training_thread: Optional[threading.Thread] = None
-        self._record_listeners: List[Callable[[Dict[str, Any]], None]] = []
-        self._load_model()
+
+    # ── Session lifecycle (called by StashSorter) ────────────────────
 
     def begin_session(
         self,
@@ -114,274 +137,153 @@ class SortFeedbackManager:
             "features": dict(features or {}),
             "metrics": {},
         }
-        prediction = self._predict_probability(record)
+
+        # Build risk features from the base features
+        risk_features = self._build_risk_features(record)
+        prediction = self.model.predict_risk(risk_features)
         record["prediction"] = prediction
-        return SortFeedbackHandle(manager=self, record=record, prediction=prediction)
 
-    def record_user_feedback(self, session_id: str, success: bool, note: Optional[str] = None) -> bool:
+        # Record the start event
         try:
-            with self._lock:
-                record = self._load_record(session_id)
-                if not record:
-                    return False
-                record["user_feedback"] = bool(success)
-                if note:
-                    record["user_note"] = str(note)[:500]
-                self._write_record(record)
-            self._schedule_training()
-            return True
+            self.event_store.record_sort_started(
+                session_id=session_id,
+                features=risk_features,
+                metadata={
+                    "character_id": character_id,
+                    "stash_id": stash_id,
+                    "pack_mode": bool(pack_mode),
+                    "stack_mode": bool(stack_mode),
+                    "prediction": prediction,
+                },
+            )
         except Exception as exc:
-            logger.warning("Failed to record user feedback for %s: %s", session_id, exc, exc_info=True)
-            return False
+            logger.debug("Failed to record SORT_STARTED: %s", exc, exc_info=True)
 
-    def _predict_probability(self, record: Dict[str, Any]) -> Optional[float]:
-        if not self._model:
-            return None
-        vector = self._build_feature_vector(record)
-        if not vector:
-            return None
+        return SortFeedbackHandle(observer=self, record=record, prediction=prediction)
+
+    # ── Delegated by the handle ──────────────────────────────────────
+
+    def _record_completion(self, record: Dict[str, Any]) -> None:
+        """Called by SortFeedbackHandle.finalize()."""
+        risk_features = self._build_risk_features(record)
         try:
-            logits = sum(c * v for c, v in zip(self._model["coefficients"], vector)) + self._model["intercept"]
-            return 1.0 / (1.0 + math.exp(-logits))
+            self.event_store.record_sort_completed(
+                session_id=record["session_id"],
+                features=risk_features,
+                success=bool(record.get("success")),
+                failure_reason=record.get("failure_reason"),
+                metrics=record.get("metrics"),
+                duration_ms=record.get("duration_ms"),
+            )
         except Exception as exc:
-            logger.debug("Prediction failed: %s", exc, exc_info=True)
-            return None
+            logger.debug("Failed to record SORT_COMPLETED: %s", exc, exc_info=True)
 
-    def _persist_record(self, record: Dict[str, Any]) -> None:
-        listeners: List[Callable[[Dict[str, Any]], None]] = []
-        with self._lock:
-            self._write_record(record)
-            if self._record_listeners:
-                listeners = list(self._record_listeners)
-
-        if listeners:
-            for listener in listeners:
-                try:
-                    listener(dict(record))
-                except Exception as exc:
-                    logger.debug("Sort feedback listener failed: %s", exc, exc_info=True)
-
-    def _session_file(self, session_id: str) -> Path:
-        return self.sessions_dir / f"{session_id}.json"
-
-    def _write_record(self, record: Dict[str, Any]) -> None:
-        path = self._session_file(record["session_id"])
-        with path.open("w", encoding="utf-8") as handle:
-            json.dump(record, handle, indent=2)
-
-    def _load_record(self, session_id: str) -> Optional[Dict[str, Any]]:
-        path = self._session_file(session_id)
-        if not path.is_file():
-            return None
-        with path.open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-
-    def load_session_record(self, session_id: str) -> Optional[Dict[str, Any]]:
-        with self._lock:
-            record = self._load_record(session_id)
-        return record
-
-    def get_session_path(self, session_id: str) -> Path:
-        return self._session_file(session_id)
-
-    def register_record_listener(self, listener: Callable[[Dict[str, Any]], None]) -> None:
-        if not callable(listener):
-            raise ValueError("Listener must be callable")
-        with self._lock:
-            if listener in self._record_listeners:
-                return
-            self._record_listeners.append(listener)
-
-    def _schedule_training(self) -> None:
+    def _schedule_risk_training(self) -> None:
+        """Train the risk model after each session completes."""
         with self._lock:
             if self._training_thread and self._training_thread.is_alive():
                 return
-            thread = threading.Thread(target=self._train_worker, name="SortFeedbackTrainer", daemon=True)
+            thread = threading.Thread(target=self._train_risk_worker, name="SortRiskTrain", daemon=True)
             self._training_thread = thread
             thread.start()
 
-    def _train_worker(self) -> None:
+    def _train_risk_worker(self) -> None:
         try:
-            rows: List[Dict[str, Any]] = []
-            for file_path in self.sessions_dir.glob("*.json"):
-                try:
-                    with file_path.open("r", encoding="utf-8") as handle:
-                        rows.append(json.load(handle))
-                except Exception:
-                    continue
-            dataset = self._build_training_dataset(rows)
-            if not dataset:
+            events = self.event_store.get_risk_training_data(limit=5000)
+            if not events:
                 return
-            self._train_model(dataset)
+            self.model.train_risk(events, async_=False)
         except Exception as exc:
-            logger.debug("Training worker failed: %s", exc, exc_info=True)
+            logger.debug("Risk training worker failed: %s", exc, exc_info=True)
 
-    def _build_training_dataset(self, rows: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
-        vectors: List[List[float]] = []
-        labels: List[int] = []
-        for record in rows:
-            label = self._resolve_label(record)
-            if label is None:
-                continue
-            vector = self._build_feature_vector(record)
-            if not vector:
-                continue
-            vectors.append(vector)
-            labels.append(int(label))
-
-        if len(vectors) < self.min_samples:
-            return None
-        return {"X": vectors, "y": labels}
-
-    def _resolve_label(self, record: Dict[str, Any]) -> Optional[bool]:
-        if "user_feedback" in record:
-            return bool(record["user_feedback"])
-        if record.get("cancelled"):
-            return False
-        if "success" in record:
-            return bool(record.get("success"))
-        return None
-
-    def _build_feature_vector(self, record: Dict[str, Any]) -> Optional[List[float]]:
-        features = record.get("features", {})
-        metrics = record.get("metrics", {})
-        try:
-            stash_total = max(1.0, float(features.get("stash_total_cells") or 1.0))
-            stash_occupied = float(features.get("stash_occupied_cells") or 0.0)
-            inventory_total = max(1.0, float(features.get("inventory_total_cells") or 1.0))
-            inventory_free = float(features.get("inventory_free_cells") or 0.0)
-            plan_size = float(metrics.get("plan_size") or 0.0)
-            largest_area = float(metrics.get("largest_item_area") or features.get("largest_item_area") or 0.0)
-            workspace_prep_moves = float(metrics.get("workspace_preparation_moves") or 0.0)
-            buffered_items = float(metrics.get("buffered_items") or 0.0)
-            park_attempts = float(metrics.get("park_attempts") or 0.0)
-            workspace_attempts = float(metrics.get("workspace_creation_attempts") or 0.0)
-            workspace_failures = float(metrics.get("workspace_creation_failures") or 0.0)
-
-            plan_norm = max(1.0, plan_size) if plan_size else 1.0
-            workspace_attempts_norm = max(1.0, workspace_attempts)
-
-            vector = [
-                stash_occupied / stash_total,
-                inventory_free / inventory_total,
-                plan_size / stash_total,
-                largest_area / stash_total,
-                workspace_prep_moves / plan_norm,
-                buffered_items / plan_norm,
-                park_attempts / plan_norm,
-                workspace_failures / workspace_attempts_norm,
-                1.0 if record.get("pack_mode") else 0.0,
-                1.0 if record.get("stack_mode") else 0.0,
-            ]
-            return vector
-        except Exception as exc:
-            logger.debug("Failed to build feature vector: %s", exc, exc_info=True)
-            return None
-
-    def _train_model(self, dataset: Dict[str, Any]) -> None:
-        try:
-            from sklearn.linear_model import LogisticRegression  # type: ignore
-            import numpy as np  # type: ignore
-        except Exception as exc:
-            logger.debug("scikit-learn unavailable; skipping training: %s", exc)
-            return
-
-        X = np.array(dataset["X"], dtype=float)
-        y = np.array(dataset["y"], dtype=int)
-        if len(set(y.tolist())) < 2:
-            return
-
-        model = LogisticRegression(max_iter=200)
-        model.fit(X, y)
-        score = float(model.score(X, y))
-        payload = {
-            "trained_at": time.time(),
-            "samples": int(len(y)),
-            "coefficients": model.coef_[0].tolist(),
-            "intercept": float(model.intercept_[0]),
-            "feature_names": list(_FEATURE_NAMES),
-            "training_score": score,
-            "version": f"local-{int(time.time())}",
-            "source": "local",
-        }
-        self._save_model_payload(payload)
-        logger.info(
-            "Updated sort reliability model with %s samples (score=%.3f)",
-            len(y),
-            score,
-        )
-
-    def _load_model(self) -> None:
-        if not self.model_path.is_file():
-            return
-        try:
-            with self.model_path.open("r", encoding="utf-8") as handle:
-                payload = json.load(handle)
-            if self._validate_model_payload(payload):
-                with self._lock:
-                    self._model = payload
-        except Exception as exc:
-            logger.debug("Failed to load reliability model: %s", exc, exc_info=True)
-            self._model = None
+    # ── Backward-compat stubs ────────────────────────────────────────
 
     def get_model_version(self) -> Optional[str]:
-        with self._lock:
-            if not self._model:
-                return None
-            version = self._model.get("version")
-        return str(version) if version else None
+        return self.model.get_risk_version()
 
     def apply_remote_model(self, payload: Dict[str, Any]) -> bool:
-        if not self._validate_model_payload(payload):
+        return self.model.apply_remote_risk_model(payload)
+
+    @property
+    def base_dir(self):
+        return self.model.base_dir
+
+    @property
+    def sessions_dir(self):
+        return self.model.base_dir
+
+    def record_user_feedback(self, session_id: str, success: bool, note: Optional[str] = None) -> bool:
+        """Record explicit user feedback for a completed session."""
+        if not session_id:
             return False
-        payload = dict(payload)
-        payload.setdefault("source", "remote")
-        payload.setdefault("received_at", time.time())
-        self._save_model_payload(payload)
-        logger.info("Applied remote sort reliability model %s", payload.get("version"))
-        return True
-
-    def _validate_model_payload(self, payload: Dict[str, Any]) -> bool:
-        if not isinstance(payload, dict):
-            return False
-        coefficients = payload.get("coefficients")
-        if not isinstance(coefficients, list) or len(coefficients) != len(_FEATURE_NAMES):
-            return False
-        feature_names = payload.get("feature_names") or list(_FEATURE_NAMES)
-        if feature_names != list(_FEATURE_NAMES):
-            logger.debug(
-                "Rejecting model with unexpected feature layout: %s", feature_names
-            )
-            return False
-        if "intercept" not in payload:
-            return False
-        return True
-
-    def _save_model_payload(self, payload: Dict[str, Any]) -> None:
-        payload = dict(payload)
-        payload.setdefault("feature_names", list(_FEATURE_NAMES))
-        with self._lock:
-            self._model = payload
-            with self.model_path.open("w", encoding="utf-8") as handle:
-                json.dump(payload, handle, indent=2)
-
-
-def get_sort_feedback_manager() -> SortFeedbackManager:
-    global _DEFAULT_SORT_FEEDBACK_MANAGER
-    try:
-        manager = _DEFAULT_SORT_FEEDBACK_MANAGER
-    except NameError:
-        manager = None
-
-    if manager is not None:
-        return manager
-
-    with _SORT_FEEDBACK_MANAGER_LOCK:
         try:
-            manager = _DEFAULT_SORT_FEEDBACK_MANAGER
-        except NameError:
-            manager = None
-        if manager is None:
-            manager = SortFeedbackManager()
-            globals()["_DEFAULT_SORT_FEEDBACK_MANAGER"] = manager
-        return manager
+            self.event_store.record_sort_completed(
+                session_id=session_id,
+                features={},
+                success=success,
+                failure_reason=note if (not success and note) else None,
+                metrics={"user_feedback": 1.0, "user_success": 1.0 if success else 0.0},
+                duration_ms=None,
+            )
+            logger.info("Recorded user feedback for session %s: success=%s", session_id, success)
+            return True
+        except Exception as exc:
+            logger.debug("Failed to record user feedback: %s", exc, exc_info=True)
+            return False
+
+    def register_record_listener(self, listener) -> None:
+        """No-op for backward compatibility — sync now uses the event store."""
+        pass
+
+    # ── Feature engineering ──────────────────────────────────────────
+
+    def _build_risk_features(self, record: Dict[str, Any]) -> Dict[str, float]:
+        features = record.get("features") or {}
+        metrics = record.get("metrics") or {}
+
+        stash_total = max(1.0, float(features.get("stash_total_cells") or 1.0))
+        stash_occupied = float(features.get("stash_occupied_cells") or 0.0)
+        inventory_total = max(1.0, float(features.get("inventory_total_cells") or 1.0))
+        inventory_free = float(features.get("inventory_free_cells") or 0.0)
+        plan_size = float(metrics.get("plan_size") or 0.0)
+        largest_area = float(
+            metrics.get("largest_item_area") or features.get("largest_item_area") or 0.0
+        )
+        workspace_prep_moves = float(metrics.get("workspace_preparation_moves") or 0.0)
+        buffered_items = float(metrics.get("buffered_items") or 0.0)
+        park_attempts = float(metrics.get("park_attempts") or 0.0)
+        workspace_attempts = float(metrics.get("workspace_creation_attempts") or 0.0)
+        workspace_failures = float(metrics.get("workspace_creation_failures") or 0.0)
+
+        plan_norm = max(1.0, plan_size)
+        workspace_attempts_norm = max(1.0, workspace_attempts)
+
+        return {
+            "stash_fill_ratio": stash_occupied / stash_total,
+            "inventory_free_ratio": inventory_free / inventory_total,
+            "plan_density": plan_size / stash_total,
+            "largest_item_ratio": largest_area / stash_total,
+            "workspace_prep_ratio": workspace_prep_moves / plan_norm,
+            "buffer_ratio": buffered_items / plan_norm,
+            "park_ratio": park_attempts / plan_norm,
+            "workspace_failure_ratio": workspace_failures / workspace_attempts_norm,
+            "pack_mode": 1.0 if record.get("pack_mode") else 0.0,
+            "stack_mode": 1.0 if record.get("stack_mode") else 0.0,
+        }
+
+
+# ── Module-level singleton (backward compat with get_sort_feedback_manager) ──
+
+_LOCK = threading.Lock()
+_OBSERVER: Optional[SortObserver] = None
+
+
+def get_sort_feedback_manager() -> SortObserver:
+    """Drop-in replacement: returns a SortObserver with the same public API."""
+    global _OBSERVER
+    if _OBSERVER is not None:
+        return _OBSERVER
+    with _LOCK:
+        if _OBSERVER is None:
+            _OBSERVER = SortObserver()
+        return _OBSERVER
