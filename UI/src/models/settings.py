@@ -112,6 +112,13 @@ class SettingsManager:
     def path(self) -> str:
         return self._settings_file
 
+    @staticmethod
+    def _safe_copy(value):
+        """Return value directly for immutable types, deep-copy only mutable containers."""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        return copy.deepcopy(value)
+
     @property
     def data(self) -> Dict[str, Any]:
         with self._lock:
@@ -119,7 +126,7 @@ class SettingsManager:
 
     def get(self, key: str, default: Any = None) -> Any:
         with self._lock:
-            return copy.deepcopy(self._data.get(key, default))
+            return self._safe_copy(self._data.get(key, default))
 
     def get_sort_speed(self) -> float:
         value = self.get("sortSpeed", self._defaults["sortSpeed"])

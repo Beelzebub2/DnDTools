@@ -13,7 +13,6 @@ from src.models import macros
 import pygetwindow as gw
 from .appdirs import get_output_dir, resource_path, get_characters_dir
 from src.models.icon_pak import canonical_icon_path
-import asyncio
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
 import logging
 from src.models.game_overlay import NullOverlaySession, SortOverlaySession
@@ -70,30 +69,23 @@ class StashManager:
         self.characters_cache.clear()
         logger.info(f"Loading characters from: {self.data_dir}")
         
-        # Get all JSON files first and sort by modification time (newest first)
+        # Get all JSON files with cached stat results (single syscall per file)
         json_files = []
         for file_path in Path(self.data_dir).glob("*.json"):
             try:
-                # Quick size check before adding to list
-                file_size = file_path.stat().st_size
-                if file_size > 10 * 1024 * 1024:  # > 10MB
-                    logger.warning(f"Skipping oversized file: {file_path} ({file_size/1024/1024:.2f} MB)")
+                stat_result = file_path.stat()
+                if stat_result.st_size > 10 * 1024 * 1024:  # > 10MB
+                    logger.warning(f"Skipping oversized file: {file_path} ({stat_result.st_size/1024/1024:.2f} MB)")
                     continue
-                json_files.append(file_path)
+                json_files.append((file_path, stat_result))
             except OSError:
                 continue
         
         # Sort by modification time (newest first) for better user experience
-        json_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+        json_files.sort(key=lambda entry: entry[1].st_mtime, reverse=True)
         
         def load_file(file_path):
             try:
-                # Skip excessively large files (likely corrupted)
-                file_size = os.path.getsize(file_path)
-                if file_size > 10 * 1024 * 1024:  # > 10MB
-                    logger.warning(f"Skipping oversized file: {file_path} ({file_size/1024/1024:.2f} MB)")
-                    return None
-                    
                 with open(file_path, 'r', encoding='utf-8') as f:
                     packet_data = json.load(f)
                 char_data = packet_data.get("characterDataBase", {})
@@ -144,31 +136,20 @@ class StashManager:
         cpu_count = os.cpu_count() or 4
         max_workers = max(1, min(cpu_count, len(json_files), 8))  # Cap at 8 workers
         
-        # Use asyncio to make data loading truly asynchronous
-        async def load_data_async():
-            loop = asyncio.get_event_loop()
-            loaded_count = 0
-            
-            with ThreadPool(max_workers=max_workers) as pool:
-                # Submit all tasks using the pre-sorted file list
-                futures = [loop.run_in_executor(pool, load_file, str(file_path)) for file_path in json_files]
-                
-                # Process results as they complete (asynchronous processing)
-                for future in asyncio.as_completed(futures):
-                    result = await future
-                    if result:
-                        char_id = result['id']
-                        self.characters_cache[char_id] = result['character_data']
-                        loaded_count += 1
-                        
-                        # Log progress for large loads
-                        if loaded_count % 10 == 0:
-                            logger.info(f"Loaded {loaded_count}/{len(json_files)} characters...")
-            
-            return loaded_count
-
-        # Run the async loading
-        loaded_count = asyncio.run(load_data_async())
+        # Use ThreadPoolExecutor directly — no asyncio overhead for sync file I/O
+        loaded_count = 0
+        file_paths = [str(fp) for fp, _ in json_files]
+        
+        with ThreadPool(max_workers=max_workers) as pool:
+            for result in pool.map(load_file, file_paths):
+                if result:
+                    char_id = result['id']
+                    self.characters_cache[char_id] = result['character_data']
+                    loaded_count += 1
+                    
+                    # Log progress for large loads
+                    if loaded_count % 10 == 0:
+                        logger.info(f"Loaded {loaded_count}/{len(json_files)} characters...")
         
         load_time = time.time() - start_time
         self.load_stats.update({
@@ -507,20 +488,15 @@ class StashManager:
                         except Exception:
                             item_id = design_str or item.get("data", {}).get("itemUniqueId") or "unknown"
 
+                        # Single lookup instead of 3 separate calls
                         try:
-                            name = item_data_manager.get_item_name_from_id(item_id)
+                            item_meta = item_data_manager.get_item_data(item_id)
                         except Exception:
-                            name = design_str or "Unknown Item"
+                            item_meta = {}
 
-                        try:
-                            rarity = item_data_manager.get_item_rarity_from_id(item_id)
-                        except Exception:
-                            rarity = "Unknown"
-
-                        try:
-                            raw_icon_path = item_data_manager.get_item_image_path_from_id(item_id)
-                        except Exception:
-                            raw_icon_path = None
+                        name = item_meta.get("name") or design_str or "Unknown Item"
+                        rarity = item_meta.get("rarity") or "Unknown"
+                        raw_icon_path = item_meta.get("iconPath")
                         icon_path = canonical_icon_path(raw_icon_path) if raw_icon_path else None
 
                         data = item.get("data") or {}
@@ -599,10 +575,13 @@ class StashManager:
                 try:
                     design_str = item.get("itemId", "")
                     item_id = item_data_manager.get_item_id_from_design_str(design_str)
-                    name = item_data_manager.get_item_name_from_id(item_id)
-                    rarity = item_data_manager.get_item_rarity_from_id(item_id)
-                    width, height = item_data_manager.get_item_dimensions_from_id(item_id)
-                    img_path = item_data_manager.get_item_image_path_from_id(item_id)
+                    # Single lookup instead of 5 separate calls
+                    item_meta = item_data_manager.get_item_data(item_id)
+                    name = item_meta.get("name", "")
+                    rarity = item_meta.get("rarity", 0)
+                    width = item_meta.get("inventory_width", 1)
+                    height = item_meta.get("inventory_height", 1)
+                    raw_icon_path = item_meta.get("iconPath")
                     data = item.get("data", {})
                     effect_str = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
                     pp = []
@@ -616,11 +595,11 @@ class StashManager:
                             prop_name = p["propertyTypeId"].replace(effect_str, "")
                             sp.append([prop_name, p["propertyValue"]])
                     image_url = None
-                    if img_path:
-                        image_url_path = canonical_icon_path(img_path)
-                        if image_url_path:
-                            image_url = f"/assets/{image_url_path}"
-                    max_stack = item_data_manager.get_item_max_stack_size(item_id)
+                    if raw_icon_path:
+                        icon_canonical = canonical_icon_path(raw_icon_path)
+                        if icon_canonical:
+                            image_url = f"/assets/{icon_canonical}"
+                    max_stack = item_meta.get("max_stack_size", 1)
                     loot_state_raw = item.get("data", {}).get("lootState")
                     loot_state_value = None
                     loot_state_label = None
@@ -646,7 +625,7 @@ class StashManager:
                         'pp': pp,
                         'sp': sp,
                         'imagePath': image_url,
-                        'vendor_price': item_data_manager.get_item_vendor_price(item_id),
+                        'vendor_price': item_meta.get("vendor_price", 0),
                         'maxStackSize': max_stack,
                         'max_stack_size': max_stack
                     }

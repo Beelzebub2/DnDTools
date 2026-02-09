@@ -49,10 +49,12 @@ class MemoryGuard:
                             self.on_threshold_exceeded()
                         except Exception as e:
                             logger.error(f"Error in MemoryGuard callback: {e}")
-                    # Wait a bit longer after triggering to avoid spamming, or just exit loop?
-                    # For now, we sleep longer.
-                    time.sleep(10) 
+                    # Longer cooldown after triggering; check stop event for responsive shutdown
+                    if self._stop_event.wait(10):
+                        break
+                    continue
             except Exception as e:
                 logger.error(f"Error in MemoryGuard loop: {e}")
             
-            time.sleep(self.check_interval)
+            if self._stop_event.wait(self.check_interval):
+                break

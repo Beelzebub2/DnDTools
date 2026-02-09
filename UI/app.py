@@ -256,8 +256,15 @@ server = Flask(__name__,
     template_folder=template_folder_path
 )
 server.config['JSON_AS_ASCII'] = False
-# Set a secure secret key for session
-server.secret_key = secrets.token_hex(32)  # Generate a secure random key
+# Persist Flask secret key so sessions survive app restarts
+_stored_secret = settings_manager.get('_flask_secret_key')
+if not _stored_secret:
+    _stored_secret = secrets.token_hex(32)
+    try:
+        settings_manager.update({'_flask_secret_key': _stored_secret}, persist=True)
+    except Exception:
+        pass
+server.secret_key = _stored_secret
 
 
 @server.context_processor
@@ -273,6 +280,9 @@ stash_manager = StashManager(app_dir, defer_loading=True)
 # Cache for frequently accessed data
 _cache = {}
 
+import re
+_CHARACTER_ID_RE = re.compile(r'^[a-zA-Z0-9_-]+$')
+
 def validate_character_id(character_id):
     """Validate character ID format and sanitize input"""
     if not character_id:
@@ -284,8 +294,7 @@ def validate_character_id(character_id):
         return None
     
     # Check for potentially dangerous characters
-    import re
-    if not re.match(r'^[a-zA-Z0-9_-]+$', character_id):
+    if not _CHARACTER_ID_RE.match(character_id):
         return None
         
     return character_id
@@ -905,16 +914,13 @@ class Api:
 
         is_running = False
         try:
-            for proc in psutil.process_iter(['name', 'exe']):
+            # Only request 'name' — avoids an extra syscall per process for 'exe'
+            for proc in psutil.process_iter(['name']):
                 try:
                     name = (proc.info.get('name') or '').strip()
-                    exe = os.path.basename(proc.info.get('exe') or '')
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     continue
-                normalized = name or exe
-                if not normalized:
-                    continue
-                if normalized in GAME_PROCESS_NAMES:
+                if name and name in GAME_PROCESS_NAMES:
                     is_running = True
                     break
         except Exception:
@@ -1504,7 +1510,7 @@ class Api:
                     # SW_RESTORE = 9
                     ctypes.windll.user32.ShowWindow(hwnd, 9)
                     ctypes.windll.user32.SetForegroundWindow(hwnd)
-                    success = True
+                    return True
             except Exception as e:
                 logger.debug(f"Failed to force window to front via ctypes: {e}")
 
@@ -2097,29 +2103,16 @@ class Api:
 
 @server.route('/api/download_update')
 def download_update():
-    """Instead of downloading the update, redirect to the latest release page."""
+    """Redirect to the latest release page, reusing cached version info."""
+    fallback_url = 'https://github.com/Beelzebub2/DnDTools/releases/latest'
     try:
-        # Try with GitHub API to get the release URL
-        logger.info("Redirecting to GitHub releases page")
-        response = requests.get(
-            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
-            headers={'User-Agent': 'DnDTools-Updater'},
-            timeout=10
-        )
-        
-        if response.ok:
-            release_data = response.json()
-            release_url = release_data.get('html_url', 'https://github.com/Beelzebub2/DnDTools/releases/latest')
-            logger.info(f"Redirecting to: {release_url}")
-            return redirect(release_url)
-        else:
-            # If GitHub API fails, redirect to the main releases page
-            return redirect('https://github.com/Beelzebub2/DnDTools/releases/latest')
-            
+        info = get_version_info()
+        release_url = (info or {}).get('release_url') or fallback_url
+        logger.info(f"Redirecting to: {release_url}")
+        return redirect(release_url)
     except Exception as e:
-        error_msg = f"Error redirecting to update page: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return jsonify({'error': error_msg}), 500
+        logger.error(f"Error redirecting to update page: {e}", exc_info=True)
+        return redirect(fallback_url)
 
 def get_version_info():
     """Get the latest version from dndtools.rrmtools.uk API with fallback to GitHub API."""
