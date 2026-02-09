@@ -54,7 +54,13 @@ jobs:
         else:
             previous = {}
 
-        changed = previous.get('build') != build or previous.get('patch') != patch
+        # Normalize types: the API may return patch as int while the saved
+        # file stores it as int or string.  Compare as strings to avoid
+        # false-positive "changed" detections from type mismatches.
+        changed = (
+            str(previous.get('build', '')).strip() != str(build).strip()
+            or str(previous.get('patch', '')).strip() != str(patch).strip()
+        )
 
         if os.environ.get('SKIP_CHECK') == 'true':
             print("Manual override: forcing update regardless of version change.")
@@ -291,6 +297,35 @@ jobs:
         print(f"Wrote {path} -> {data}")
         PY
 
+    - name: Compute asset checksums
+      run: |
+        python - <<'PY'
+        import hashlib
+        import json
+        from pathlib import Path
+
+        assets = {
+            "icons.pak": "UI/assets/icons.pak",
+            "items.json": "UI/assets/items.json",
+            "changelog.json": "UI/assets/changelog.json",
+            "darkerdb_health.json": "UI/assets/darkerdb_health.json",
+        }
+
+        checksums = {}
+        for name, filepath in assets.items():
+            p = Path(filepath)
+            if p.exists():
+                sha256 = hashlib.sha256(p.read_bytes()).hexdigest()
+                checksums[name] = sha256
+                print(f"{name}: {sha256}")
+            else:
+                print(f"Warning: {filepath} not found, skipping")
+
+        out = Path("UI/assets/checksums.json")
+        out.write_text(json.dumps(checksums, indent=2))
+        print(f"Wrote {out}")
+        PY
+
     - name: Install jq
       if: runner.os == 'Linux'
       run: |
@@ -362,6 +397,7 @@ jobs:
         upload_asset "UI/assets/items.json"
         upload_asset "UI/assets/changelog.json"
         upload_asset "UI/assets/darkerdb_health.json"
+        upload_asset "UI/assets/checksums.json"
 
     - name: Check for changes
       id: verify-changed-files
