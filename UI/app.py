@@ -2342,6 +2342,47 @@ def _init_api():
 def api_characters():
     return jsonify(api.get_characters())
 
+@server.route('/api/character/<character_id>/init')
+def api_character_init(character_id):
+    """Combined endpoint that returns all data needed for character page load in one request.
+    Replaces separate calls to /details, /current-stash, /stashes, /pack_mode, /stack_mode, /sort_order.
+    """
+    character_id = validate_character_id(character_id)
+    if not character_id:
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
+
+    # Character details
+    details = api.get_character_details(character_id) or {}
+
+    # Current stash selection
+    current_stash_id = None
+    if hasattr(api, '_current_char_id') and api._current_char_id == character_id \
+       and hasattr(api, '_current_stash_id') and api._current_stash_id:
+        current_stash_id = api._current_stash_id
+    else:
+        current_stash_id = session.get(f'{character_id}_current_stash_id', None)
+
+    # Stash previews (honour stashIds filter from query)
+    stash_ids_param = request.args.get('stashIds')
+    stash_ids = None
+    if stash_ids_param:
+        stash_ids = [s.strip() for s in stash_ids_param.split(',') if s.strip()]
+    stash_previews = api.get_character_stash_previews(character_id, stash_ids=stash_ids)
+
+    # User preferences
+    pack_mode = api.get_pack_mode()
+    stack_mode = api.get_stack_mode()
+    sort_order = api.get_sort_order()
+
+    return jsonify({
+        'details': details,
+        'currentStashId': current_stash_id,
+        'stashes': stash_previews,
+        'packMode': pack_mode,
+        'stackMode': stack_mode,
+        'sortOrder': sort_order,
+    })
+
 @server.route('/api/character/<character_id>/stashes')
 def api_character_stashes(character_id):
     stash_ids_param = request.args.get('stashIds')

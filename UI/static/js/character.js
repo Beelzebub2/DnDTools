@@ -925,6 +925,211 @@ const updateCharacterInfo = async (characterId) => {
     }
 };
 
+/**
+ * Render character info from an already-fetched details payload (no network call).
+ * Used by the combined /init endpoint to skip a separate fetch.
+ */
+const updateCharacterInfoFromPayload = async (details) => {
+    const charInfo = document.getElementById('characterInfo');
+    if (!charInfo) return;
+    if (!details || !details.nickname) {
+        charInfo.innerHTML = '<div class="error-state"><span class="material-icons">error_outline</span><h3>Character Not Found</h3></div>';
+        return;
+    }
+    const classImageSrc = getClassImage(details.class);
+    charInfo.innerHTML = `
+        <div class="character-hero-section">
+            <div class="character-hero-left">
+                <img src="${classImageSrc}"
+                     alt="${details.class}"
+                     class="character-class-image"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <span class="material-icons character-class-fallback" style="display: none;">person</span>
+            </div>
+            <div class="character-hero-content">
+                <h1 class="character-hero-name">${details.nickname}</h1>
+                <div class="character-hero-subtitle">Level ${details.level} ${details.class}</div>
+                <div class="character-stats-grid">
+                    <div class="stat-item">
+                        <span class="material-icons">schedule</span>
+                        <div class="stat-content">
+                            <div class="stat-label">Last Updated</div>
+                            <div class="stat-value">${formatDate(details.lastUpdate)}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="material-icons">inventory_2</span>
+                        <div class="stat-content">
+                            <div class="stat-label">Total Items</div>
+                            <div class="stat-value">${details.totalItems}</div>
+                        </div>
+                    </div>
+                    <div class="stat-item">
+                        <span class="material-icons">storage</span>
+                        <div class="stat-content">
+                            <div class="stat-label">Stash Count</div>
+                            <div class="stat-value">${details.stashCount}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+/**
+ * Render stashes from an already-fetched payload (no network call).
+ * Mirrors loadStashes() logic but skips the duplicate current-stash fetch and stash data fetch.
+ */
+const loadStashesFromPayload = async (stashesPayload) => {
+    const spinner = document.getElementById('stashSpinner');
+    const selector = document.getElementById('stashSelector');
+    const previewContainer = document.getElementById('stashPreview');
+    const previewImage = document.getElementById('currentStashPreview');
+    const gridContainer = document.getElementById('interactiveStashGrid');
+
+    if (!spinner || !selector || !previewContainer || !previewImage) {
+        console.error('Required DOM elements not found for stash display');
+        return;
+    }
+
+    spinner.classList.remove('hidden');
+    const stashSectionHeader = document.getElementById('stashSectionHeader');
+    if (stashSectionHeader) stashSectionHeader.classList.add('hidden');
+    selector.classList.add('hidden');
+    previewContainer.classList.add('hidden');
+    previewImage.src = '';
+    if (gridContainer) gridContainer.innerHTML = '';
+
+    try {
+        const initialPayload = normalizeStashPayload(stashesPayload || {});
+        mergeStashPayload(initialPayload);
+        const stashes = latestStashData;
+
+        // Prefetch remaining stash data in background
+        const initialPrefetch = new Set(STASH_PREFETCH_DEFAULTS);
+        if (currentStashId && currentStashId !== 'character') initialPrefetch.add(String(currentStashId));
+        scheduleRemainingStashPrefetch(stashes, Array.from(initialPrefetch));
+
+        const isNewFormat = stashes.previewImages && stashes.stashData;
+        const stashKeys = isNewFormat
+            ? Object.keys(stashes.previewImages || {})
+            : Object.keys(stashes || {});
+
+        if (stashKeys.length > 0) {
+            createStashTabsWithoutDefault(stashes);
+
+            const hasCharacterTab = stashKeys.includes('2') && stashKeys.includes('3');
+            const hasExplicitStashRequest = !!requestedStashIdFromUrl;
+            const hasPendingHighlight = !!(pendingHighlightRequest && Array.isArray(pendingHighlightRequest.slotIds) && pendingHighlightRequest.slotIds.length);
+
+            if (hasCharacterTab && (currentStashId === '2' || currentStashId === '3') && !hasExplicitStashRequest && !hasPendingHighlight) {
+                currentStashId = 'character';
+            }
+            // Default to character tab if nothing selected
+            if (!currentStashId && hasCharacterTab) {
+                currentStashId = 'character';
+            }
+
+            const currentStashTab = document.querySelector(`[data-stash-id="${currentStashId}"]`);
+            if (currentStashTab) {
+                document.querySelectorAll('.stash-tab').forEach(t => t.classList.remove('active'));
+                currentStashTab.classList.add('active');
+
+                if (currentStashId === 'character') {
+                    previewImage.classList.add('hidden');
+                    usingCombinedCharacterView = true;
+                    previewContainer.classList.remove('hidden');
+                    await renderCombinedCharacterView(stashes);
+                    updateCurrentStash('3');
+                } else {
+                    usingCombinedCharacterView = false;
+                    if (isNewFormat) {
+                        previewImage.classList.add('hidden');
+                        previewImage.removeAttribute('src');
+                        previewContainer.classList.remove('hidden');
+                        previewContainer.className = 'stash-content-area';
+                    }
+                    await ensureStashData(currentStashId);
+                    const items = await processStashData(stashes, currentStashId);
+                    renderInteractiveGrid(currentStashId, items);
+                }
+            } else {
+                // Fallback to character tab or first tab
+                const characterTab = document.querySelector('[data-stash-id="character"]');
+                if (characterTab && hasCharacterTab) {
+                    characterTab.classList.add('active');
+                    currentStashId = 'character';
+                    previewImage.classList.add('hidden');
+                    usingCombinedCharacterView = true;
+                    previewContainer.classList.remove('hidden');
+                    await renderCombinedCharacterView(stashes);
+                    updateCurrentStash('3');
+                } else {
+                    const firstTab = document.querySelector('.stash-tab');
+                    if (firstTab) {
+                        firstTab.classList.add('active');
+                        currentStashId = firstTab.dataset.stashId;
+                        usingCombinedCharacterView = currentStashId === 'character';
+
+                        if (usingCombinedCharacterView) {
+                            previewImage.classList.add('hidden');
+                            previewContainer.classList.remove('hidden');
+                            await renderCombinedCharacterView(stashes);
+                            updateCurrentStash('3');
+                        } else {
+                            if (isNewFormat) {
+                                previewImage.classList.add('hidden');
+                                previewImage.removeAttribute('src');
+                                previewContainer.classList.remove('hidden');
+                                previewContainer.className = 'stash-content-area';
+                            }
+                            await ensureStashData(currentStashId);
+                            const items = await processStashData(stashes, currentStashId);
+                            renderInteractiveGrid(currentStashId, items);
+                            updateCurrentStash(currentStashId);
+                        }
+                    }
+                }
+            }
+
+            if (stashSectionHeader) stashSectionHeader.classList.remove('hidden');
+            selector.classList.remove('hidden');
+        } else {
+            previewContainer.innerHTML = '<div class="empty-state">No stashes found for this character</div>';
+            previewContainer.classList.remove('hidden');
+        }
+        spinner.classList.add('hidden');
+    } catch (error) {
+        console.error('Error rendering stashes:', error);
+        handleApiError(error, document.getElementById('stashContainer'));
+        spinner.classList.add('hidden');
+    }
+};
+
+/**
+ * Apply sort order from the combined init payload without triggering a re-render.
+ * The ordering menu DOMContentLoaded handler will pick this up.
+ */
+function _applySortOrderFromInit(order) {
+    if (!Array.isArray(order) || !order.length) return;
+    _sortOrderLoadedFromInit = true;
+    const menu = document.getElementById('orderingMenu');
+    if (menu) {
+        suppressSortPersistence = true;
+        try {
+            const normalized = normalizeOrdering(order, menu);
+            applyOrderingToMenu(menu, normalized);
+            currentSortOrder = cloneSortOrder(normalized);
+        } finally {
+            suppressSortPersistence = false;
+        }
+    } else {
+        // Menu not yet in DOM; just update the in-memory sort order
+        currentSortOrder = cloneSortOrder(order);
+    }
+}
+
 const getStashName = (stashId) => {
     // Map stash IDs to their proper names based on StashType enum
     const stashTypes = {
@@ -1561,9 +1766,15 @@ async function fetchEquipmentSlotConfig() {
 }
 
 // Render the interactive grid for a stash
+// Module-level map for tooltip event delegation data
+const _gridItemDataMap = new WeakMap();
+
 const renderInteractiveGrid = (stashId, items) => {
     const gridContainer = document.getElementById('interactiveStashGrid');
     if (!gridContainer) return;
+
+    // Set up event delegation once (idempotent)
+    _ensureGridTooltipDelegation(gridContainer);
 
     // Clear existing content
     gridContainer.innerHTML = '';
@@ -1596,8 +1807,6 @@ const renderInteractiveGrid = (stashId, items) => {
 
     // Special handling for equipment stashes
     if (stashId === '3') {
-        // The renderEquipmentGrid function doesn't seem to exist
-        // Instead, use the renderCombinedCharacterView with cached data when available
         console.warn("Equipment view requested separately - redirecting to character view");
         if (latestStashData) {
             renderCombinedCharacterView(latestStashData);
@@ -1605,36 +1814,32 @@ const renderInteractiveGrid = (stashId, items) => {
             renderCombinedCharacterView({
                 stashData: {
                     "3": items,
-                    "2": [] // Empty bag fallback
+                    "2": []
                 }
             });
         }
         return;
     }
 
-    // Create one single grid - no conditional logic that could create multiple grids
+    // Create grid with CSS background instead of 240 empty div cells
     const grid = document.createElement('div');
-    grid.className = 'interactive-stash-grid';
+    grid.className = 'interactive-stash-grid css-grid-bg';
     if (isPreviewMode) {
         grid.classList.add('preview-layout-active');
     }
 
-    // Use explicit sizing for the grid to prevent expansion
     const cellSize = 45;
     const cellGap = 3;
     const horizontalGaps = Math.max(gridWidth - 1, 0) * cellGap;
     const verticalGaps = Math.max(gridHeight - 1, 0) * cellGap;
-    const borderAllowance = 4; // 2px border on each side
-    const paddingAllowance = 4; // 2px padding on each side
+    const borderAllowance = 4;
+    const paddingAllowance = 4;
 
     grid.style.gridTemplateColumns = `repeat(${gridWidth}, ${cellSize}px)`;
     grid.style.gridTemplateRows = `repeat(${gridHeight}, ${cellSize}px)`;
-
-    // Force zero-sized implicit rows/columns
     grid.style.gridAutoRows = '0px';
     grid.style.gridAutoColumns = '0px';
 
-    // Add max-width/max-height constraints based on grid dimensions
     const totalWidth = (gridWidth * cellSize) + horizontalGaps + borderAllowance + paddingAllowance;
     const totalHeight = (gridHeight * cellSize) + verticalGaps + borderAllowance + paddingAllowance;
 
@@ -1642,26 +1847,15 @@ const renderInteractiveGrid = (stashId, items) => {
     grid.style.height = `${totalHeight}px`;
     grid.style.maxWidth = `${totalWidth}px`;
     grid.style.maxHeight = `${totalHeight}px`;
-
-    // Prevent overflow from causing expansion
     grid.style.overflow = 'hidden';
 
-    // Ensure the grid container has enough space
     gridContainer.style.paddingBottom = '20px';
 
-    // Add empty cells for grid structure - exactly the right number
-    const totalCells = gridWidth * gridHeight;
-    for (let i = 0; i < totalCells; i++) {
-        const cell = document.createElement('div');
-        cell.className = 'stash-grid-cell';
-        grid.appendChild(cell);
-    }
-
-    // Filter items that are out of bounds before processing them
-    const validItems = [];
+    // Filter items that are out of bounds and create elements in one pass
     if (Array.isArray(itemsToRender) && itemsToRender.length > 0) {
-        itemsToRender.forEach(item => {
-            if (!item) return;
+        for (let idx = 0; idx < itemsToRender.length; idx++) {
+            const item = itemsToRender[idx];
+            if (!item) continue;
             const rawSlotId = normalizeSlotIdValue(item.slotId);
             const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
             const slotIndex = displaySlotId ?? rawSlotId ?? 0;
@@ -1670,47 +1864,23 @@ const renderInteractiveGrid = (stashId, items) => {
             const x = slotIndex % gridWidth;
             const y = Math.floor(slotIndex / gridWidth);
 
-            if (
-                x >= 0 && x < gridWidth &&
-                y >= 0 && y < gridHeight &&
-                (x + w) <= gridWidth &&
-                (y + h) <= gridHeight
-            ) {
-                validItems.push(item);
-            } else {
-                console.warn(`Item with slotId ${item.slotId} (size ${w}x${h}) is out of bounds for grid ${gridWidth}x${gridHeight}`);
+            if (x < 0 || x >= gridWidth || y < 0 || y >= gridHeight || (x + w) > gridWidth || (y + h) > gridHeight) {
+                continue;
             }
-        });
 
-        // Now process only the valid items
-        validItems.forEach(item => {
-            const rawSlotId = normalizeSlotIdValue(item.slotId);
-            const displaySlotId = normalizeSlotIdValue(item.displaySlotId);
-            const slotIndex = displaySlotId ?? rawSlotId ?? 0;
-            const w = Math.max(1, Math.min(Number(item.width) || 1, gridWidth));
-            const h = Math.max(1, Math.min(Number(item.height) || 1, gridHeight));
-            const x = slotIndex % gridWidth;
-            const y = Math.floor(slotIndex / gridWidth);
-
-            // Create item element
             const itemEl = document.createElement('div');
             itemEl.className = 'stash-item';
-
-            // Use grid positioning instead of absolute for better alignment
             itemEl.style.gridColumn = `${x + 1} / span ${w}`;
             itemEl.style.gridRow = `${y + 1} / span ${h}`;
 
-            if (rawSlotId !== null) {
-                itemEl.dataset.slotId = String(rawSlotId);
-            }
-            if (displaySlotId !== null) {
-                itemEl.dataset.displaySlotId = String(displaySlotId);
-            }
+            if (rawSlotId !== null) itemEl.dataset.slotId = String(rawSlotId);
+            if (displaySlotId !== null) itemEl.dataset.displaySlotId = String(displaySlotId);
 
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
             itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
             itemEl.style.backgroundColor = `${rarityColor}15`;
+
             if (item.imagePath) {
                 const img = document.createElement('img');
                 img.src = item.imagePath;
@@ -1729,7 +1899,7 @@ const renderInteractiveGrid = (stashId, items) => {
                 countBadge.textContent = item.itemCount;
                 itemEl.appendChild(countBadge);
             }
-            // Quest-needed badge honors loot-state gating
+            // Quest-needed badge
             try {
                 const itemId = item.item_id || item.itemId || item.id || item.name || '';
                 const normalizedId = String(itemId);
@@ -1739,88 +1909,106 @@ const renderInteractiveGrid = (stashId, items) => {
                     if (doesItemMeetQuestLootState(normalizedId, lootState)) {
                         const questBadge = document.createElement('div');
                         questBadge.className = 'item-quest-badge';
-                        const badgeLines = ['Needed for active quests'];
-                        questBadge.setAttribute('title', badgeLines.join('\n'));
+                        questBadge.setAttribute('title', 'Needed for active quests');
                         questBadge.textContent = '!';
                         itemEl.appendChild(questBadge);
                     }
                 }
-            } catch (e) {
-                // ignore any errors accessing quest data
-            }
-            itemEl.removeAttribute('title');
-            itemEl.addEventListener('mouseenter', (e) => {
-                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-                const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
-                let html = `
-                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
-                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
-                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
-                        <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                            Market Prices: Soon
-                            <div>Vendor Price: ${item.vendor_price || 0} coins</div>
-                        </div>
-                    </div>
-                `;
-                const lootStateLabel = getItemLootStateLabel(item);
-                if (lootStateLabel) {
-                    html += `
-                    <div class="tooltip-body">
-                        <div class="tooltip-section">
-                            <strong>Loot state:</strong>
-                            <div class="tooltip-quest-name">${escapeHtml(lootStateLabel)}</div>
-                        </div>
-                    </div>`;
-                }
-                // Append needed-for quests if available
-                try {
-                    const id = item.item_id || item.itemId || item.id || item.name || '';
-                    const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
-                    if (by && Array.isArray(by) && by.length) {
-                        const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
-                        html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
-                    }
-                } catch (e) {
-                    // ignore
-                }
+            } catch (e) { /* ignore */ }
 
-                if (isDeveloperModeActive()) {
-                    const devSection = buildDeveloperTooltipSection(item, {
-                        stashId,
-                        slotIndex,
-                        rawSlotId,
-                        displaySlotId,
-                        gridX: x,
-                        gridY: y,
-                    });
-                    if (devSection) {
-                        html += devSection;
-                    }
-                }
-                showGlobalTooltip(html, e.clientX, e.clientY);
-            });
-            itemEl.addEventListener('mousemove', (e) => {
-                if (globalTooltip && globalTooltip.style.display === 'block') {
-                    showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
-                }
-            });
-            itemEl.addEventListener('mouseleave', () => {
-                hideGlobalTooltip();
-            });
+            // Store data for event-delegated tooltips (no per-item listeners)
+            _gridItemDataMap.set(itemEl, { item, stashId, slotIndex, rawSlotId, displaySlotId, x, y });
+
             grid.appendChild(itemEl);
-        });
+        }
     }
 
     applyPendingHighlight(stashId, grid);
     gridContainer.appendChild(grid);
     focusStashIfRequested(gridContainer);
 };
+
+// --- Event delegation for grid tooltips (set up once per container) ---
+let _gridTooltipDelegationInstalled = false;
+let _currentHoveredItem = null;
+
+function _ensureGridTooltipDelegation(container) {
+    if (_gridTooltipDelegationInstalled || !container) return;
+    _gridTooltipDelegationInstalled = true;
+
+    container.addEventListener('mouseover', (e) => {
+        const itemEl = e.target.closest('.stash-item');
+        if (!itemEl || itemEl === _currentHoveredItem) return;
+        _currentHoveredItem = itemEl;
+
+        if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+        const data = _gridItemDataMap.get(itemEl);
+        if (!data) return;
+        _showItemTooltip(data, e.clientX, e.clientY);
+    }, false);
+
+    container.addEventListener('mouseout', (e) => {
+        const itemEl = e.target.closest('.stash-item');
+        if (!itemEl) return;
+        const related = e.relatedTarget;
+        if (related && itemEl.contains(related)) return;
+        if (_currentHoveredItem === itemEl) {
+            _currentHoveredItem = null;
+            hideGlobalTooltip();
+        }
+    }, false);
+
+    container.addEventListener('mousemove', (e) => {
+        if (_currentHoveredItem && globalTooltip && globalTooltip.style.display === 'block') {
+            showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
+        }
+    }, false);
+}
+
+function _showItemTooltip(data, clientX, clientY) {
+    const { item, stashId, slotIndex, rawSlotId, displaySlotId, x, y } = data;
+    const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+    let html = `
+        <div class="tooltip-header" style="background-color: ${rarityColor}44;">
+            <div class="tooltip-name">${item.name || 'Unknown'}</div>
+            <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
+        </div>
+        <div class="tooltip-body">
+            <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
+            <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
+        </div>
+        <div class="tooltip-body">
+            <div class="tooltip-section primary-props" id="extra-info-placeholder">
+                Market Prices: Soon
+                <div>Vendor Price: ${item.vendor_price || 0} coins</div>
+            </div>
+        </div>
+    `;
+    const lootStateLabel = getItemLootStateLabel(item);
+    if (lootStateLabel) {
+        html += `
+        <div class="tooltip-body">
+            <div class="tooltip-section">
+                <strong>Loot state:</strong>
+                <div class="tooltip-quest-name">${escapeHtml(lootStateLabel)}</div>
+            </div>
+        </div>`;
+    }
+    try {
+        const id = item.item_id || item.itemId || item.id || item.name || '';
+        const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
+        if (by && Array.isArray(by) && by.length) {
+            const list = by.map(t => `<div class="tooltip-quest-name">${escapeHtml(t)}</div>`).join('');
+            html += `\n<div class="tooltip-body tooltip-needed">\n<div class="tooltip-section">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
+        }
+    } catch (e) { /* ignore */ }
+
+    if (isDeveloperModeActive()) {
+        const devSection = buildDeveloperTooltipSection(item, { stashId, slotIndex, rawSlotId, displaySlotId, gridX: x, gridY: y });
+        if (devSection) html += devSection;
+    }
+    showGlobalTooltip(html, clientX, clientY);
+}
 
 const createStashTabs = (stashes) => {
     const selector = document.getElementById('stashSelector');
@@ -2303,22 +2491,7 @@ const loadStashes = async () => {
     if (gridContainer) gridContainer.innerHTML = "";
 
     try {
-        // First, check if there's a currently selected stash ID on the server
-        let currentStashData = null;
-        let serverProvidedStashId = null;
-        try {
-            const currentStashResponse = await fetch(`/api/character/${charId}/current-stash`);
-            currentStashData = await currentStashResponse.json();
-
-            if (currentStashData && currentStashData.stashId) {
-                currentStashId = currentStashData.stashId;
-                serverProvidedStashId = currentStashId;
-                console.log(`Using server-provided stash ID: ${currentStashId}`);
-            }
-        } catch (err) {
-            console.error('Error fetching current stash ID:', err);
-        }
-
+        // Use already-set currentStashId (set by init endpoint or tab click) — no duplicate fetch
         const initialPrefetch = new Set(STASH_PREFETCH_DEFAULTS);
         const maybeAddId = (value) => {
             if (!value || value === 'character') {
@@ -2327,7 +2500,6 @@ const loadStashes = async () => {
             initialPrefetch.add(String(value));
         };
 
-        maybeAddId(serverProvidedStashId);
         maybeAddId(requestedStashIdFromUrl);
         maybeAddId(currentStashId);
         if (pendingHighlightRequest && pendingHighlightRequest.stashId) {
@@ -2667,11 +2839,6 @@ window.addEventListener('DOMContentLoaded', async () => {
     packModeToggle = document.getElementById('packItemsToggle');
     stackModeToggle = document.getElementById('stackItemsToggle');
 
-    await Promise.all([
-        loadPackModeFromServer(),
-        loadStackModeFromServer()
-    ]);
-
     if (packModeToggle) {
         packModeToggle.addEventListener('change', async (event) => {
             isPackMode = !!event.target.checked;
@@ -2709,33 +2876,44 @@ window.addEventListener('DOMContentLoaded', async () => {
             requestContainerFocus();
         } else {
             requestedStashIdFromUrl = null;
-            // If not in URL, try to get it from server
-            try {
-                const currentStashResponse = await fetch(`/api/character/${charId}/current-stash`);
-                const currentStashData = await currentStashResponse.json();
-
-                if (currentStashData && currentStashData.stashId) {
-                    // Update our local current stash ID if the server has one
-                    currentStashId = currentStashData.stashId;
-                    console.log(`Using server-provided stash ID: ${currentStashId}`);
-                }
-            } catch (err) {
-                console.error('Error fetching current stash ID:', err);
-            }
         }
 
-        await updateCharacterInfo(charId);
-        await loadStashes();
+        // --- Single combined init request replaces 6 separate fetches ---
+        const initialPrefetch = new Set(STASH_PREFETCH_DEFAULTS);
+        if (currentStashId && currentStashId !== 'character') initialPrefetch.add(String(currentStashId));
+        if (requestedStashIdFromUrl && requestedStashIdFromUrl !== 'character') initialPrefetch.add(String(requestedStashIdFromUrl));
+        if (pendingHighlightRequest && pendingHighlightRequest.stashId) initialPrefetch.add(String(pendingHighlightRequest.stashId));
+        const stashParam = Array.from(initialPrefetch).join(',');
+        const initQs = stashParam ? `?stashIds=${stashParam}` : '';
 
-        const shouldForceCharacterTab = !requestedStashIdFromUrl && !(highlightRequest && Array.isArray(highlightRequest.slotIds) && highlightRequest.slotIds.length);
-        if (shouldForceCharacterTab) {
-            // Force render the Character tab if it exists
-            setTimeout(() => {
-                const characterTab = document.querySelector('[data-stash-id="character"]');
-                if (characterTab) {
-                    characterTab.click();
-                }
-            }, 100);
+        const initResponse = await fetch(`/api/character/${charId}/init${initQs}`);
+        const initData = await initResponse.json();
+
+        // Apply settings from combined payload (no extra network calls)
+        if (typeof initData.packMode !== 'undefined') {
+            isPackMode = !!initData.packMode;
+            updatePackToggleUI();
+        }
+        if (typeof initData.stackMode !== 'undefined') {
+            isStackMode = !!initData.stackMode;
+            updateStackToggleUI();
+        }
+
+        // Apply current stash from server if not overridden by URL
+        if (!requestedStashIdFromUrl && initData.currentStashId) {
+            currentStashId = initData.currentStashId;
+            console.log(`Using server-provided stash ID: ${currentStashId}`);
+        }
+
+        // Render character info and stashes in parallel
+        await Promise.all([
+            updateCharacterInfoFromPayload(initData.details),
+            loadStashesFromPayload(initData.stashes)
+        ]);
+
+        // Sort order is applied after stashes render to avoid double-render
+        if (initData.sortOrder) {
+            _applySortOrderFromInit(initData.sortOrder);
         }
 
         // Clear the one-time request flag after initial handling
@@ -3027,48 +3205,16 @@ const renderCombinedCharacterView = async (stashes = null) => {
             itemEl.appendChild(countBadge);
         }
 
-        // Add tooltip
+        // Use event delegation instead of per-item listeners
         if (!faded) {
-            itemEl.removeAttribute('title');
-            itemEl.addEventListener('mouseenter', (e) => {
-                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-                const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
-                let html = `
-                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
-                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
-                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
-                        <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                            Market Prices: Soon
-                            <div>Vendor Price: ${item.vendor_price || 0} coins</div>
-                        </div>
-                    </div>
-                `;
-                // Append needed-for quests if available
-                try {
-                    const id = item.item_id || item.itemId || item.id || item.name || '';
-                    const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
-                    if (by && Array.isArray(by) && by.length) {
-                        const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
-                        html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
-                    }
-                } catch (e) {
-                    // ignore
-                }
-                showGlobalTooltip(html, e.clientX, e.clientY);
-            });
-            itemEl.addEventListener('mousemove', (e) => {
-                if (globalTooltip && globalTooltip.style.display === 'block') {
-                    showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
-                }
-            });
-            itemEl.addEventListener('mouseleave', () => {
-                hideGlobalTooltip();
+            _gridItemDataMap.set(itemEl, {
+                item,
+                stashId: '3',
+                slotIndex: rawSlotId ?? 0,
+                rawSlotId,
+                displaySlotId,
+                x: 0,
+                y: 0,
             });
         }
         return itemEl;
@@ -3101,6 +3247,9 @@ const renderCombinedCharacterView = async (stashes = null) => {
     // Apply any pending highlights targeting equipment before appending
     applyPendingHighlight('3', equipmentGrid);
 
+    // Install event delegation for equipment tooltip hover
+    _ensureGridTooltipDelegation(equipmentGrid);
+
     // Append equipment grid to section
     equipmentSection.appendChild(equipmentGrid);
 
@@ -3114,32 +3263,20 @@ const renderCombinedCharacterView = async (stashes = null) => {
     const bagTitle = document.createElement('div');
     bagTitle.className = 'section-title';
     bagTitle.textContent = 'Bag';
-    bagSection.appendChild(bagTitle);    // Create bag grid
+    bagSection.appendChild(bagTitle);    // Create bag grid — use CSS background instead of empty cell divs
     const bagGrid = document.createElement('div');
-    bagGrid.className = 'interactive-stash-grid bag-grid';
+    bagGrid.className = 'interactive-stash-grid bag-grid css-grid-bg';
     if (isPreviewMode) {
         bagGrid.classList.add('preview-layout-active');
     }
     bagGrid.style.gridTemplateColumns = `repeat(${bagWidth}, 45px)`;
     bagGrid.style.gridTemplateRows = `repeat(${bagHeight}, 45px)`;
 
-    // Ensure bag grid is not constrained by the restrictions we put on standard stashes
     bagGrid.style.maxWidth = 'none';
     bagGrid.style.maxHeight = 'none';
     bagGrid.style.overflow = 'visible';
 
-    // Create bag grid cells
-    for (let y = 0; y < bagHeight; y++) {
-        for (let x = 0; x < bagWidth; x++) {
-            const cell = document.createElement('div');
-            cell.className = 'stash-grid-cell';
-            cell.style.gridColumn = `${x + 1}`;
-            cell.style.gridRow = `${y + 1}`;
-            bagGrid.appendChild(cell);
-        }
-    }
-
-    // Add bag items to the grid
+    // Add bag items to the grid (event delegation via _gridItemDataMap)
     if (bagItemsToRender && bagItemsToRender.length) {
         bagItemsToRender.forEach(item => {
             if (!item) return;
@@ -3151,67 +3288,41 @@ const renderCombinedCharacterView = async (stashes = null) => {
             const x = slotIndex % bagWidth;
             const y = Math.floor(slotIndex / bagWidth);
 
-            // Create item element
             const itemEl = document.createElement('div');
             itemEl.className = 'stash-item';
             itemEl.style.gridColumn = `${x + 1} / span ${w}`;
             itemEl.style.gridRow = `${y + 1} / span ${h}`;
 
-            // Apply rarity-based border color
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
-
-            // Create inset border with box-shadow
             itemEl.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${rarityColor}30, inset 0 0 5px ${rarityColor}40`;
+            itemEl.style.backgroundColor = `${rarityColor}15`;
 
-            // Apply background color based on rarity with subtle transparency
-            itemEl.style.backgroundColor = `${rarityColor}15`;  // 15 is hex for ~8% opacity
-
-            // If we have an image path, use lazy loading, otherwise show text
             if (item.imagePath) {
                 const img = document.createElement('img');
                 img.src = item.imagePath;
                 img.alt = item.name || 'Item';
                 img.className = 'item-image';
-                img.loading = 'lazy'; // Enable native lazy loading
-                // Add error handling for missing images
+                img.loading = 'lazy';
                 img.onerror = function () {
                     this.style.display = 'none';
-                    // Create a fallback text element
                     const fallback = document.createElement('div');
                     fallback.className = 'item-fallback';
                     fallback.textContent = (item.name || 'Unknown').charAt(0).toUpperCase();
-                    fallback.style.cssText = `
-                        width: 100%;
-                        height: 100%;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        background: ${rarityColor}20;
-                        color: ${rarityColor};
-                        font-weight: bold;
-                        font-size: 12px;
-                        border-radius: 2px;
-                    `;
+                    fallback.style.cssText = `width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${rarityColor}20;color:${rarityColor};font-weight:bold;font-size:12px;border-radius:2px;`;
                     itemEl.appendChild(fallback);
                 };
                 itemEl.appendChild(img);
             } else {
-                // No image, just display the name
                 const textSpan = document.createElement('span');
                 textSpan.className = 'item-text-content';
                 textSpan.textContent = item.name || 'Unknown';
                 itemEl.appendChild(textSpan);
             }
 
-            if (rawSlotId !== null) {
-                itemEl.dataset.slotId = String(rawSlotId);
-            }
-            if (displaySlotId !== null) {
-                itemEl.dataset.displaySlotId = String(displaySlotId);
-            }
+            if (rawSlotId !== null) itemEl.dataset.slotId = String(rawSlotId);
+            if (displaySlotId !== null) itemEl.dataset.displaySlotId = String(displaySlotId);
 
-            // Add count badge if more than 1
             if (item.itemCount > 1) {
                 const countBadge = document.createElement('div');
                 countBadge.className = 'item-count-badge';
@@ -3219,56 +3330,8 @@ const renderCombinedCharacterView = async (stashes = null) => {
                 itemEl.appendChild(countBadge);
             }
 
-            // Add tooltip functionality
-            itemEl.removeAttribute('title');
-            itemEl.addEventListener('mouseenter', (e) => {
-                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
-                // Build tooltip HTML
-                const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
-                let html = `
-                    <div class="tooltip-header" style="background-color: ${rarityColor}44;">
-                        <div class="tooltip-name">${item.name || 'Unknown'}</div>
-                        <div class="tooltip-rarity">${item.rarity || 'Common'}</div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props">${formatPrimaryProps(item.pp)}</div>
-                        <div class="tooltip-section secondary-props">${formatSecondaryProps(item.sp)}</div>
-                    </div>
-                    <div class="tooltip-body">
-                        <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                        Market Prices: Soon
-                        <div>Vendor Price: ${item.vendor_price || 0} coins</div>
-                        </div>
-                    </div>
-                `;
-                const lootStateLabel = getItemLootStateLabel(item);
-                if (lootStateLabel) {
-                    html += `
-                    <div class="tooltip-body">
-                        <div class="tooltip-section">
-                            <strong>Loot state:</strong>
-                            <div class="tooltip-quest-name">${escapeHtml(lootStateLabel)}</div>
-                        </div>
-                    </div>`;
-                }
-                try {
-                    const id = item.item_id || item.itemId || item.id || item.name || '';
-                    const by = (window && window.questNeededBy) ? window.questNeededBy[String(id)] : null;
-                    if (by && Array.isArray(by) && by.length) {
-                        const list = by.map(t => `<div class=\"tooltip-quest-name\">${escapeHtml(t)}</div>`).join('');
-                        html += `\n<div class=\"tooltip-body tooltip-needed\">\n<div class=\"tooltip-section\">\n<strong>Needed for:</strong>\n${list}\n</div>\n</div>`;
-                    }
-                } catch (e) { }
-                showGlobalTooltip(html, e.clientX, e.clientY);
-            });
-            itemEl.addEventListener('mousemove', (e) => {
-                if (globalTooltip && globalTooltip.style.display === 'block') {
-                    showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
-                }
-            });
-            itemEl.addEventListener('mouseleave', () => {
-                hideGlobalTooltip();
-            });
+            // Store data for event-delegated tooltips (no per-item listeners)
+            _gridItemDataMap.set(itemEl, { item, stashId: '2', slotIndex, rawSlotId, displaySlotId, x, y });
 
             bagGrid.appendChild(itemEl);
         });
@@ -3285,6 +3348,9 @@ const renderCombinedCharacterView = async (stashes = null) => {
 
     // Add the combined grid to the container
     gridContainer.appendChild(combinedGrid);
+
+    // Set up event delegation on the container (shared with renderInteractiveGrid)
+    _ensureGridTooltipDelegation(gridContainer);
     focusStashIfRequested(gridContainer);
 };
 
@@ -3376,7 +3442,15 @@ function applyOrderingToMenu(menu, order) {
     });
 }
 
+let _sortOrderLoadedFromInit = false;
+
 async function loadSavedOrdering(menu) {
+    // Skip server fetch if sort order was already applied from the combined init endpoint
+    if (_sortOrderLoadedFromInit) {
+        applyOrderingToMenu(menu, currentSortOrder);
+        // Don't call updatePreviewForCurrentStash — initial render already used this order
+        return;
+    }
     suppressSortPersistence = true;
     try {
         const response = await fetch('/api/sort_order');
@@ -4044,8 +4118,9 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 window.addEventListener('DOMContentLoaded', () => {
-    // initial fetch
-    refreshQuestNeededItems();
+    // Delay initial quest fetch so it doesn't compete with the main page render.
+    // Quest badges are supplementary — a 1.5s delay keeps initial load snappy.
+    setTimeout(() => refreshQuestNeededItems(), 1500);
     // also refresh when quest cache/progress cleared elsewhere in the app
     window.addEventListener('questDataCleared', () => refreshQuestNeededItems());
     // periodic refresh every 60s to keep badges reasonably up to date
