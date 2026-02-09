@@ -14,6 +14,7 @@ import pygetwindow as gw
 from .appdirs import get_output_dir, resource_path, get_characters_dir
 from src.models.icon_pak import canonical_icon_path
 from concurrent.futures import ThreadPoolExecutor as ThreadPool
+import threading
 import logging
 from src.models.game_overlay import NullOverlaySession, SortOverlaySession
 from src.models.loot import format_loot_state_label
@@ -31,6 +32,7 @@ class StashManager:
         
         self.characters_cache = {}
         self._is_loaded = False
+        self._cache_lock = threading.Lock()
         self.resource_dir = resource_dir
         
         # Performance tracking
@@ -50,8 +52,9 @@ class StashManager:
             
     def force_reload(self):
         """Force reload of character data, ignoring the loaded flag"""
-        self._is_loaded = False
-        self.characters_cache.clear()
+        with self._cache_lock:
+            self._is_loaded = False
+            self.characters_cache.clear()
         self._load_data()
         
     def _load_data(self, force=False):
@@ -304,12 +307,102 @@ class StashManager:
         }
 
     def get_characters(self) -> List[Dict]:
-        """Get list of all characters"""
+        """Get list of all characters (full data including stash items)."""
         # Ensure data is loaded before returning characters
         if not self._is_loaded:
             self._load_data()
             
         return list(self.characters_cache.values())
+
+    def get_characters_summary(self) -> List[Dict]:
+        """Return a lightweight list of characters for the index page.
+
+        Only includes the fields the character list UI actually needs:
+        id, nickname, class, level, lastUpdate, stash counts, rank.
+        Excludes all item data so serialisation is near-instant.
+        """
+        if not self._is_loaded:
+            self._load_data()
+
+        with self._cache_lock:
+            chars = list(self.characters_cache.values())
+
+        summaries = []
+        for char in chars:
+            stashes = char.get('stashes', {})
+            # Build stash count map (stashId -> item count)
+            stash_counts = {}
+            for sid, items in stashes.items():
+                stash_counts[sid] = len(items) if isinstance(items, list) else 0
+
+            summaries.append({
+                'id': char.get('id'),
+                'nickname': char.get('nickname'),
+                'class': char.get('class'),
+                'level': char.get('level'),
+                'lastUpdate': char.get('lastUpdate'),
+                'stashes': stash_counts,
+                'rank': char.get('rank'),
+                'streamingModeName': char.get('streamingModeName', ''),
+            })
+        return summaries
+
+    def update_single_character(self, char_id: str, file_path: str = None) -> bool:
+        """Incrementally reload a single character from disk into the cache.
+
+        Much faster than force_reload() which re-reads every file.
+        Returns True if the character was successfully loaded/updated.
+        """
+        if file_path is None:
+            file_path = os.path.join(self.data_dir, f"{char_id}.json")
+
+        if not os.path.isfile(file_path):
+            logger.warning("update_single_character: file not found: %s", file_path)
+            return False
+
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                packet_data = json.load(f)
+
+            base = packet_data.get('characterDataBase', {})
+            if not base:
+                return False
+
+            loaded_id = str(base.get('characterId', ''))
+            if not loaded_id:
+                return False
+
+            raw_stashes = parse_stashes(packet_data)
+            stashes = {str(k): v for k, v in raw_stashes.items()}
+
+            raw_class = base.get('characterClass', '')
+            class_name = raw_class.replace('DesignDataPlayerCharacter:Id_PlayerCharacter_', '')
+            nickname_data = base.get('nickName', {})
+
+            char_data = {
+                'id': loaded_id,
+                'nickname': nickname_data.get('originalNickName', 'Unknown'),
+                'class': class_name,
+                'level': base.get('level', 1),
+                'lastUpdate': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
+                'stashes': stashes,
+                'streamingModeName': nickname_data.get('streamingModeNickName', ''),
+                'rank': {
+                    'name': nickname_data.get('rankId', 'Unknown').replace('LeaderboardRankData:Id_LeaderboardRank_', '').replace('_', ' '),
+                    'fame': nickname_data.get('fame', 0),
+                    'iconType': nickname_data.get('rankIconType', 1),
+                },
+            }
+
+            self._precompute_priority_stashes(char_data)
+            with self._cache_lock:
+                self.characters_cache[loaded_id] = char_data
+            logger.info("Incrementally updated character %s (%s) in cache", loaded_id, char_data['nickname'])
+            return True
+
+        except Exception as exc:
+            logger.error("update_single_character failed for %s: %s", char_id, exc, exc_info=True)
+            return False
 
     def get_character_stashes(self, character_id: str) -> Dict:
         """Get all stashes for a specific character, ensuring each stash is a list."""

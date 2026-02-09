@@ -43,7 +43,10 @@ async function loadCharacters() {
     try {
         let characters;
         if (window.pywebview && window.pywebview.api) {
-            characters = await window.pywebview.api.get_characters();
+            // Use lightweight summary endpoint (no stash item data)
+            characters = await (window.pywebview.api.get_characters_summary
+                ? window.pywebview.api.get_characters_summary()
+                : window.pywebview.api.get_characters());
         } else {
             const response = await fetch('/api/characters');
             if (!response.ok) {
@@ -96,11 +99,12 @@ async function loadCharacters() {
             const timeSinceUpdate = getTimeSinceUpdate(char.lastUpdate);
             const stashCount = char.stashes ? Object.keys(char.stashes).length : 0;
 
-            // Calculate total items if available, otherwise use stash count as proxy
+            // Calculate total items — summary returns {stashId: count}
             let totalItems = 0;
             if (char.stashes) {
                 Object.values(char.stashes).forEach(stash => {
-                    if (Array.isArray(stash)) totalItems += stash.length;
+                    if (typeof stash === 'number') totalItems += stash;
+                    else if (Array.isArray(stash)) totalItems += stash.length;
                 });
             }
 

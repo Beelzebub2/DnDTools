@@ -336,8 +336,16 @@ def handle_character(message):
     saved = save_packet_data(message)
     
     if saved:
-        # Force reload stash manager data to ensure it's refreshed
-        stash_manager.force_reload()
+        # Incrementally update only the affected character in the cache
+        # instead of force_reload() which re-reads every file from disk.
+        try:
+            char_data = message.characterDataBase
+            char_id = str(char_data.characterId)
+            file_path = os.path.join(get_characters_dir(), f"{char_id}.json")
+            stash_manager.update_single_character(char_id, file_path)
+        except Exception as e:
+            logger.error(f"Incremental cache update failed, falling back to force_reload: {e}")
+            stash_manager.force_reload()
         
         # Extract character information for visual effect
         try:
@@ -1858,6 +1866,9 @@ class Api:
     def get_characters(self):
         return self.stash_manager.get_characters()
 
+    def get_characters_summary(self):
+        return self.stash_manager.get_characters_summary()
+
     def get_character_details(self, character_id):
         return self.stash_manager.get_character_details(character_id)
 
@@ -2452,7 +2463,7 @@ def _init_api():
 # JSON API endpoint
 @server.route('/api/characters')
 def api_characters():
-    return jsonify(api.get_characters())
+    return jsonify(api.get_characters_summary())
 
 @server.route('/api/character/<character_id>/init')
 def api_character_init(character_id):
@@ -3444,7 +3455,7 @@ def main():
     for method_name in [
         'minimize', 'toggle_maximize', 'close_window', 'shutdown_application', 'sort_stash', '_save_settings',
         'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
-        'search_items', 'get_characters', 'get_character_details',
+        'search_items', 'get_characters', 'get_characters_summary', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
         'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path'
     ]:
