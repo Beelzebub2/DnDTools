@@ -19,7 +19,6 @@ from src.models.sort_feedback import get_sort_feedback_manager
 from src.models.sort_learning import get_sort_learning_manager
 from src.models.sort_sync_service import SortSyncService
 from src.models.sort_feedback_sync import SortFeedbackSyncService  # backward compat alias
-import psutil
 import json
 import sys
 import multiprocessing
@@ -35,25 +34,7 @@ import shutil
 import subprocess
 import tempfile
 from datetime import datetime
-import requests
-from networking.protos import _PacketCommand_pb2
-from update import UpdateManager, UpdateError
-from utils.asset_updater import AssetUpdater
-from utils.tshark_cleanup import schedule_tshark_cleanup
-from utils.game_window_watcher import GameWindowWatcherProcess
-from utils.active_ping import ActivePingService
 from utils.sort_learning_trainer import SortLearningTrainer
-
-try:
-    import pystray
-except ImportError:  # pragma: no cover - optional dependency safeguard
-    pystray = None
-
-try:
-    from PIL import Image, ImageDraw
-except ImportError:  # pragma: no cover - optional dependency safeguard
-    Image = None
-    ImageDraw = None
 
 from src.models.game_data import item_data_manager
 from src.models.icon_pak import icon_store, canonical_icon_path
@@ -67,11 +48,8 @@ from src.models.loot import (
     format_loot_state_label,
 )
 
-from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
-from src.models.capture import PacketCapture  # Add capture import
 from src.quest_service import QuestService, RARITY_ORDER
-from src.system_tray import SystemTray
 
 # Global cache for version check
 version_cache = None
@@ -216,13 +194,9 @@ register_overlay_logging()
 logger = logging.getLogger(__name__)
 settings_manager.set_logger(logger)
 
-update_manager = UpdateManager(
-    current_version=APP_VERSION,
-    manifest_url=UPDATE_MANIFEST_URL,
-    cache_duration=UPDATE_CACHE_DURATION,
-    auto_update_silent=AUTO_UPDATE_SILENT,
-    logger=logger,
-)
+# Deferred: update_manager is created in _init_api() to avoid
+# importing the heavy ``update`` module (requests + psutil) at load time.
+update_manager = None
 
 # Migrate data files to new structure
 try:
@@ -233,8 +207,12 @@ except Exception as e:
 quest_service = QuestService(logger)
 CHARACTER_STORAGE_PROTECTED_FILES = set(quest_service.protected_filenames)
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (deferred import of dotenv)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Determine base directory for resources
 app_dir = resource_path('')
@@ -377,6 +355,7 @@ class CaptureController:
             self._packet_capture.start_capture_switch()
 
     def _create_capture(self):
+        from src.models.capture import PacketCapture
         capture = PacketCapture(
             interface=self._settings["interface"],
             port_range=self._settings["port_range"],
@@ -533,23 +512,17 @@ class Api:
         self._current_stack_mode = bool(settings.get('stashStackMode', False))
         self._wireshark_path = settings.get('wiresharkPath') or ''
 
-        # Capture setup
+        # Capture settings (raw) — CaptureController created lazily on first access
+        # to defer the expensive pyshark / protobuf / proto-loading imports.
         interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
-        self.capture_settings = {
+        self._capture_settings = {
             'interface': interface,
             'port_range': (
                 int(os.getenv('CAPTURE_PORT_LOW', 20200)),
                 int(os.getenv('CAPTURE_PORT_HIGH', 20300))
             )
         }
-        capture_info = {
-            _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
-            _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
-        }
-        self.capture_controller = CaptureController(self.capture_settings, capture_info, wireshark_path=self._wireshark_path)
-        # Normalize settings from controller (ensures tuple types)
-        self.capture_settings = self.capture_controller.settings()
-        self._apply_wireshark_path(self._wireshark_path)
+        self._capture_controller: Optional[CaptureController] = None
         self._initial_restart_done = False
         self.window = None
         try:
@@ -569,35 +542,88 @@ class Api:
         self._current_char_id = None
         self._current_stash_id = None
         self._capture_shutdown_completed = False
-        self.asset_updater: Optional[AssetUpdater] = None
+        self.asset_updater = None
         self._close_to_tray_enabled = bool(settings.get('closeToTrayEnabled', True))
-        self.tray_manager: Optional[SystemTray] = None
+        self.tray_manager = None
         self._allow_window_close = False
         self._shutting_down = False
         self._closing_subscription_attached = False
-        self._initialize_tray_manager()
         self._game_process_cache = False
         self._game_process_cache_timestamp = 0.0
         self._last_window_fallback_scan = 0.0
+        self._active_ping_service = None
+        self._game_monitor_stop = threading.Event()
+        self._game_monitor_thread: Optional[threading.Thread] = None
+        self._game_was_running = False
+        self._last_logged_game_state = None
+        self._game_window_watcher_process = None
+        self._game_window_queue = None
+        self._cached_watcher_state = None
+        # Unified ML sync service (replaces old SortFeedbackSyncService + SortLearningTrainer)
+        self._sort_sync_service: Optional[SortSyncService] = None
+        self._sort_feedback_sync_service = None  # backward compat reference
+        self._sort_learning_trainer: Optional[SortLearningTrainer] = None
+
+    # ── Lazy capture controller ─────────────────────────────────────────
+    @property
+    def capture_controller(self) -> 'CaptureController':
+        """Lazily create the CaptureController on first access."""
+        if self._capture_controller is None:
+            self._init_capture_controller()
+        return self._capture_controller
+
+    @property
+    def capture_settings(self):
+        return self._capture_settings
+
+    @capture_settings.setter
+    def capture_settings(self, value):
+        self._capture_settings = value
+
+    def _init_capture_controller(self):
+        """Create the CaptureController (triggers pyshark / proto imports)."""
+        from networking.protos import _PacketCommand_pb2
+        capture_info = {
+            _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
+            _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
+        }
+        self._capture_controller = CaptureController(
+            self._capture_settings, capture_info, wireshark_path=self._wireshark_path
+        )
+        # Normalize settings from controller (ensures tuple types)
+        self._capture_settings = self._capture_controller.settings()
+        self._apply_wireshark_path(self._wireshark_path)
+
+    def _start_deferred_subsystems(self):
+        """Initialise subsystems that are not needed before the window appears.
+
+        Called from background_init() so the window renders as fast as
+        possible.
+        """
+        from utils.active_ping import ActivePingService
+
+        # System tray (imports pystray + PIL lazily)
+        self._initialize_tray_manager()
+
+        # Game window watcher
+        self._initialize_game_monitor()
+
+        # Active ping
         self._active_ping_service = ActivePingService(
             settings_manager=self.settings_manager,
             app_version=APP_VERSION,
             logger=logger,
         )
         self._active_ping_service.set_developer_mode(self._developer_mode_enabled)
-        self._initialize_game_monitor()
         self._active_ping_service.start()
-        # Unified ML sync service (replaces old SortFeedbackSyncService + SortLearningTrainer)
-        self._sort_sync_service: Optional[SortSyncService] = None
-        self._sort_feedback_sync_service = None  # backward compat reference
-        self._sort_learning_trainer: Optional[SortLearningTrainer] = None
+
+        # Sort sync / ML service
         try:
             self._sort_sync_service = SortSyncService(
                 settings_manager=self.settings_manager,
                 app_version=APP_VERSION,
             )
             self._sort_sync_service.start()
-            # Expose as old names so downstream code (settings, shutdown) still works
             self._sort_feedback_sync_service = self._sort_sync_service
             self._sort_learning_trainer = self._sort_sync_service
         except Exception as exc:
@@ -637,6 +663,7 @@ class Api:
         self._close_to_tray_enabled = bool(enabled)
 
     def _initialize_tray_manager(self):
+        from src.system_tray import SystemTray
         icon_candidates = [
             Path(resource_path('logo.ico')),
             Path(resource_path('logo.png')),
@@ -683,13 +710,7 @@ class Api:
             logger.debug("Failed to adjust logging level: %s", exc, exc_info=True)
 
     def _initialize_game_monitor(self):
-        self._game_monitor_stop = threading.Event()
-        self._game_monitor_thread: Optional[threading.Thread] = None
-        self._game_was_running = False
-        self._last_logged_game_state: Optional[GameWindowState] = None
-        self._game_window_watcher_process: Optional[GameWindowWatcherProcess] = None
-        self._game_window_queue: Optional[multiprocessing.Queue] = None
-        self._cached_watcher_state: Optional[Dict[str, object]] = None
+        from utils.game_window_watcher import GameWindowWatcherProcess
 
         if sys.platform.startswith('win'):
             try:
@@ -916,6 +937,7 @@ class Api:
 
         is_running = False
         try:
+            import psutil
             # Only request 'name' — avoids an extra syscall per process for 'exe'
             for proc in psutil.process_iter(['name']):
                 try:
@@ -1401,7 +1423,7 @@ class Api:
             os.environ.pop('PYSHARK_TSHARK_PATH', None)
 
         state = None
-        if update_capture and hasattr(self, 'capture_controller') and self.capture_controller:
+        if update_capture and self._capture_controller:
             state = self.capture_controller.set_wireshark_path(wireshark_path)
             if state:
                 try:
@@ -1920,8 +1942,8 @@ class Api:
             packet_capture = None
             should_resume = False
 
-            if hasattr(self, 'capture_controller') and self.capture_controller:
-                controller = self.capture_controller
+            if self._capture_controller:
+                controller = self._capture_controller
                 try:
                     state = controller.state()
                     should_resume = bool(
@@ -2000,9 +2022,9 @@ class Api:
         try:
             already_shutdown = getattr(self, '_capture_shutdown_completed', False)
             if not already_shutdown:
-                if hasattr(self, 'capture_controller') and self.capture_controller:
+                if self._capture_controller:
                     try:
-                        self.capture_controller.stop_capture_switch()
+                        self._capture_controller.stop_capture_switch()
                     except Exception:
                         pass
                 elif hasattr(self, 'packet_capture') and self.packet_capture:
@@ -2106,7 +2128,9 @@ class Api:
         return [p for p in all_packets if p.get('type') not in hidden]
 
     def get_packet_types(self):
-        if not _PacketCommand_pb2:
+        try:
+            from networking.protos import _PacketCommand_pb2
+        except ImportError:
             return []
         try:
             # Use the internal enum descriptor to list valid enum names
@@ -2152,6 +2176,7 @@ def download_update():
 
 def get_version_info():
     """Get the latest version from dndtools.rrmtools.uk API with fallback to GitHub API."""
+    import requests
     global version_cache, version_cache_timestamp
     
     current_time = time.time()
@@ -2265,6 +2290,7 @@ def api_update_status():
 
 @server.route('/api/update/apply', methods=['POST'])
 def api_update_apply():
+    from update import UpdateError
     include_dev = bool(api.settings_manager.get('includeDevReleases')) if api else False
     channel = 'dev' if include_dev else 'stable'
     try:
@@ -2280,9 +2306,24 @@ api = None
 asset_updater = None
 
 def _init_api():
-    global api, asset_updater
+    global api, asset_updater, update_manager
     if api is not None:
         return
+
+    # ── Deferred heavy imports ──────────────────────────────────────────
+    # These modules pull in requests / psutil which are not needed until
+    # after the UI window is visible.  Importing them here instead of at
+    # module level shaves ~0.5s off cold-start.
+    from update import UpdateManager
+    from utils.asset_updater import AssetUpdater
+
+    update_manager = UpdateManager(
+        current_version=APP_VERSION,
+        manifest_url=UPDATE_MANIFEST_URL,
+        cache_duration=UPDATE_CACHE_DURATION,
+        auto_update_silent=AUTO_UPDATE_SILENT,
+        logger=logger,
+    )
 
     api = Api()
     asset_updater = AssetUpdater(
@@ -2331,9 +2372,10 @@ def api_quests_list():
     merchant_filter = (request.args.get('merchant') or '').strip()
     force_refresh = refresh in {'1', 'true', 'yes', 'force'}
 
+    import requests as _requests
     try:
         quests = quest_service.fetch_quests(force=force_refresh)
-    except requests.exceptions.RequestException as exc:
+    except _requests.exceptions.RequestException as exc:
         logger.error("Failed to contact DarkerDB quests API: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
     except Exception as exc:
@@ -2434,12 +2476,13 @@ def api_quests_list():
 
 @server.route('/api/quests/items', methods=['GET'])
 def api_quests_item_requirements():
+    import requests as _requests
     refresh = (request.args.get('refresh') or '').strip().lower()
     force_refresh = refresh in {'1', 'true', 'yes', 'force'}
 
     try:
         quests = quest_service.fetch_quests(force=force_refresh)
-    except requests.exceptions.RequestException as exc:
+    except _requests.exceptions.RequestException as exc:
         logger.error("Failed to contact DarkerDB quests API for item requirements: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
     except Exception as exc:
@@ -2754,6 +2797,7 @@ def api_capture_state():
 
 @server.route('/api/network_interfaces', methods=['GET'])
 def api_network_interfaces():
+    import psutil
     interfaces = list(psutil.net_if_addrs().keys())
     return jsonify({"interfaces": interfaces})
 
@@ -3064,6 +3108,30 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
+        # ── Deferred subsystems (tray, watcher, ping, ML service) ──────
+        # These were NOT started in Api.__init__() to keep the window
+        # appearing as fast as possible.
+        try:
+            api._start_deferred_subsystems()
+        except Exception as sub_exc:
+            logger.error("Deferred subsystem start failed: %s", sub_exc, exc_info=True)
+
+        # ── Capture migration / restore (moved from main()) ───────────
+        try:
+            refreshed_settings = settings_manager.reload()
+            interface_after_migration = refreshed_settings.get('interface')
+            if interface_after_migration and interface_after_migration != api.capture_settings.get('interface'):
+                try:
+                    state = api.capture_controller.update_settings(interface_after_migration, None, None)
+                    api.capture_settings = {
+                        'interface': state['interface'],
+                        'port_range': (state['portRange']['low'], state['portRange']['high'])
+                    }
+                except Exception as capture_err:
+                    logger.error(f"Failed to apply migrated capture interface: {capture_err}")
+        except Exception as mig_exc:
+            logger.debug("Capture migration check failed: %s", mig_exc)
+
         # Check for updates on startup
         try:
             get_version_info()
@@ -3099,6 +3167,7 @@ def background_init():
                         protected_pids = capture.get_active_helper_pids()
                 except Exception as cleanup_err:
                     logger.debug("Unable to determine active capture PIDs: %s", cleanup_err)
+                from utils.tshark_cleanup import schedule_tshark_cleanup
                 schedule_tshark_cleanup(
                     logger,
                     api.window,
@@ -3178,18 +3247,6 @@ def main():
     
     # Preload only essential settings for faster startup
     SettingsManager.migrate_from_legacy(logger=logger, defer_heavy_operations=True)
-    refreshed_settings = settings_manager.reload()
-
-    interface_after_migration = refreshed_settings.get('interface')
-    if interface_after_migration and interface_after_migration != api.capture_settings.get('interface'):
-        try:
-            state = api.capture_controller.update_settings(interface_after_migration, None, None)
-            api.capture_settings = {
-                'interface': state['interface'],
-                'port_range': (state['portRange']['low'], state['portRange']['high'])
-            }
-        except Exception as capture_err:
-            logger.error(f"Failed to apply migrated capture interface: {capture_err}")
 
     if api.hotkey_manager:
         try:
@@ -3197,16 +3254,9 @@ def main():
         except HotkeyError as hotkey_err:
             logger.error("Failed to refresh global hotkeys after settings reload: %s", hotkey_err)
     
-    # Only handle immediate restart if capture is in a known running state
-    if (
-        api.capture_controller.state()["running"]
-        and not api._initial_restart_done
-        and not api.capture_controller.should_auto_start()
-    ):
-        # Schedule restart after UI load instead of doing it now
-        threading.Timer(0.5, lambda: api.restart_capture_switch()).start()
-    
     # Create window with minimal startup time
+    # Capture migration & restore are handled in background_init() so
+    # the window appears as fast as possible.
     window = webview.create_window(
         'Dark and Darker Stash Organizer',
         server,

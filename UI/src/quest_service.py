@@ -8,8 +8,6 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
-import requests
-
 from src.models.appdirs import get_quests_dir, resource_path
 
 
@@ -164,6 +162,7 @@ class QuestService:
 
         while next_url and pages < max_pages:
             pages += 1
+            import requests
             try:
                 response = requests.get(next_url, headers=headers, timeout=15)
                 response.raise_for_status()
