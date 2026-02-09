@@ -28,6 +28,7 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 from utils.logging_setup import setup_logging, set_logging_level
+import atexit
 import secrets
 import time
 import shutil
@@ -572,6 +573,7 @@ class Api:
         self._close_to_tray_enabled = bool(settings.get('closeToTrayEnabled', True))
         self.tray_manager: Optional[SystemTray] = None
         self._allow_window_close = False
+        self._shutting_down = False
         self._closing_subscription_attached = False
         self._initialize_tray_manager()
         self._game_process_cache = False
@@ -970,10 +972,35 @@ class Api:
         self.tray_manager.update_menu()
 
     def _handle_native_close_event(self, *_, **__):  # pragma: no cover - GUI event hook
-        if self._allow_window_close or not self.is_close_to_tray_enabled():
+        if self._allow_window_close or self._shutting_down:
             return True
-        self.hide_to_tray()
-        return False
+        if not self.is_close_to_tray_enabled():
+            return True
+
+        # Verify the native window handle is still valid before attempting
+        # hide-to-tray.  When the user closes from the taskbar thumbnail
+        # preview, Windows may have already started tearing down the HWND by
+        # the time this callback fires.  If the handle is gone we must let
+        # the close proceed and trigger a full shutdown instead of leaving a
+        # ghost process.
+        if sys.platform == 'win32' and self.window:
+            try:
+                native = self.window.native
+                hwnd = native.Handle if hasattr(native, 'Handle') else native
+                if isinstance(hwnd, int) and not ctypes.windll.user32.IsWindow(hwnd):
+                    logger.info("Window handle already invalid during close event — proceeding with shutdown")
+                    threading.Thread(target=self.shutdown_application, daemon=True, name="EmergencyShutdown").start()
+                    return True
+            except Exception:
+                pass
+
+        if self.hide_to_tray():
+            return False
+
+        # hide_to_tray failed — window is likely already destroyed
+        logger.info("hide_to_tray failed — allowing close and triggering shutdown")
+        threading.Thread(target=self.shutdown_application, daemon=True, name="EmergencyShutdown").start()
+        return True
 
     def hide_to_tray(self):
         if not self.is_close_to_tray_enabled():
@@ -988,6 +1015,10 @@ class Api:
                 native = window.native
                 hwnd = native.Handle if hasattr(native, 'Handle') else native
                 if isinstance(hwnd, int):
+                    # If the window handle is already destroyed we cannot hide
+                    if not ctypes.windll.user32.IsWindow(hwnd):
+                        logger.debug("Window handle invalid — cannot hide to tray")
+                        return False
                     ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
                     if self.tray_manager:
                         self.tray_manager.notify_minimized()
@@ -1865,6 +1896,9 @@ class Api:
 
     def shutdown_application(self):
         """Fully stop capture threads and exit the application."""
+        if self._shutting_down:
+            return
+        self._shutting_down = True
         self._allow_window_close = True
         try:
             self._active_ping_service.stop()
@@ -3205,8 +3239,41 @@ def main():
         # Start background initialization after UI is ready
         threading.Thread(target=background_init, daemon=True).start()
         
-    # Start the webview
+    # Register atexit handler so the process never lingers as a ghost
+    def _atexit_cleanup():
+        try:
+            if getattr(api, '_shutting_down', False):
+                return  # Normal shutdown path already ran
+            logger.info("atexit cleanup — forcing remaining resources to stop")
+            api.shutdown_application()
+        except Exception:
+            pass
+        finally:
+            # Belt-and-suspenders: schedule a hard kill in case anything blocks
+            try:
+                threading.Timer(3.0, lambda: os._exit(0)).start()
+            except Exception:
+                pass
+
+    atexit.register(_atexit_cleanup)
+
+    # Start the webview (blocks until all windows are destroyed)
     webview.start(on_loaded, debug=False)
+
+    # webview.start() has returned — the UI window is gone.
+    # Ensure the application actually exits instead of lingering as a ghost
+    # process.  This covers the edge case where the window was destroyed by
+    # the OS (e.g. taskbar thumbnail close) without triggering our shutdown
+    # path.
+    if not getattr(api, '_shutting_down', False):
+        logger.info("webview.start() returned without shutdown — cleaning up")
+        try:
+            api.shutdown_application()
+        except Exception as exc:
+            logger.debug("Post-webview shutdown error: %s", exc)
+        finally:
+            # Hard exit after a short grace period
+            os._exit(0)
 
 if __name__ == '__main__':
     main()
