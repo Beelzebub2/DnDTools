@@ -103,6 +103,32 @@ class GameWindowState:
     window_found: bool
     window_title: Optional[str]
     window_visible: bool
+
+
+def _hwnd_to_int(raw) -> Optional[int]:
+    """Convert a .NET IntPtr / WinForms Handle / plain int to a Python int.
+
+    pywebview on Windows with the EdgeChromium / WinForms renderer exposes
+    ``window.native.Handle`` as a .NET ``System.IntPtr``.  Plain ``int()``
+    cannot convert it; we must use ``.ToInt32()`` / ``.ToInt64()`` first.
+
+    Returns *None* if conversion fails.
+    """
+    if isinstance(raw, int):
+        return raw
+    # .NET IntPtr
+    for attr in ('ToInt64', 'ToInt32'):
+        fn = getattr(raw, attr, None)
+        if callable(fn):
+            try:
+                return int(fn())
+            except Exception:
+                continue
+    # Last resort
+    try:
+        return int(raw)
+    except Exception:
+        return None
     window_focused: bool
     window_rect: Optional[Tuple[int, int, int, int]]
 
@@ -559,6 +585,7 @@ class Api:
         self._game_window_watcher_process = None
         self._game_window_queue = None
         self._cached_watcher_state = None
+        self._cached_hwnd: Optional[int] = None  # HWND cached when hiding to tray
         # Unified ML sync service (replaces old SortFeedbackSyncService + SortLearningTrainer)
         self._sort_sync_service: Optional[SortSyncService] = None
         self._sort_feedback_sync_service = None  # backward compat reference
@@ -1008,8 +1035,9 @@ class Api:
         if sys.platform == 'win32' and self.window:
             try:
                 native = self.window.native
-                hwnd = native.Handle if hasattr(native, 'Handle') else native
-                if isinstance(hwnd, int) and not ctypes.windll.user32.IsWindow(hwnd):
+                raw = native.Handle if hasattr(native, 'Handle') else native
+                hwnd = _hwnd_to_int(raw)
+                if hwnd and not ctypes.windll.user32.IsWindow(hwnd):
                     logger.info("Window handle already invalid during close event — proceeding with shutdown")
                     threading.Thread(target=self.shutdown_application, daemon=True, name="EmergencyShutdown").start()
                     return True
@@ -1035,18 +1063,21 @@ class Api:
         if sys.platform == 'win32':
             try:
                 native = window.native
-                hwnd = native.Handle if hasattr(native, 'Handle') else native
-                if isinstance(hwnd, int):
-                    # If the window handle is already destroyed we cannot hide
+                raw_handle = native.Handle if hasattr(native, 'Handle') else native
+                hwnd = _hwnd_to_int(raw_handle)
+                if hwnd:
                     if not ctypes.windll.user32.IsWindow(hwnd):
-                        logger.debug("Window handle invalid — cannot hide to tray")
+                        logger.info("Window handle invalid — cannot hide to tray")
                         return False
+                    # Cache the HWND so restore_from_tray can use it from any thread
+                    self._cached_hwnd = hwnd
+                    logger.info("Hiding window to tray (hwnd=%s)", hwnd)
                     ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
                     if self.tray_manager:
                         self.tray_manager.notify_minimized()
                     return True
             except Exception as e:
-                logger.debug(f"Failed to hide window via ctypes: {e}")
+                logger.warning("Failed to hide window via ctypes: %s", e, exc_info=True)
 
         try:
             if hasattr(window, 'hide'):
@@ -1070,24 +1101,80 @@ class Api:
         return True
 
     def restore_from_tray(self):
+        logger.info("restore_from_tray called (thread=%s)", threading.current_thread().name)
         window = self.window
         if not window:
+            logger.info("restore_from_tray: no window reference — abort")
             return False
 
+        # On Windows, use direct Win32 calls with the cached HWND.
+        # This is critical because this method is called from background
+        # threads (pystray menu, single-instance listener) where pywebview's
+        # WinForms .show()/.restore() silently fail or deadlock.
+        if sys.platform == 'win32':
+            hwnd = self._cached_hwnd
+            if not hwnd:
+                # Try to grab it now
+                try:
+                    native = window.native
+                    raw = native.Handle if hasattr(native, 'Handle') else native
+                    hwnd = _hwnd_to_int(raw)
+                    if hwnd:
+                        self._cached_hwnd = hwnd
+                        logger.info("Cached HWND on-the-fly: %s", hwnd)
+                except Exception as exc:
+                    logger.info("Could not obtain HWND from window.native: %s", exc)
+
+            if hwnd and ctypes.windll.user32.IsWindow(hwnd):
+                user32 = ctypes.windll.user32
+                kernel32 = ctypes.windll.kernel32
+
+                # Make the window visible (reverses SW_HIDE)
+                user32.ShowWindow(hwnd, 5)   # SW_SHOW
+                user32.ShowWindow(hwnd, 9)   # SW_RESTORE
+                logger.info("ShowWindow SW_SHOW+SW_RESTORE done (hwnd=%s)", hwnd)
+
+                # Bring to foreground — SetForegroundWindow is restricted
+                # when called from a background thread.  Attach our calling
+                # thread to the current foreground thread's input queue so
+                # Windows allows the switch.
+                try:
+                    calling_tid = kernel32.GetCurrentThreadId()
+                    fg_hwnd = user32.GetForegroundWindow()
+                    fg_tid = user32.GetWindowThreadProcessId(fg_hwnd, None)
+                    if calling_tid != fg_tid:
+                        user32.AttachThreadInput(calling_tid, fg_tid, True)
+                    user32.SetForegroundWindow(hwnd)
+                    user32.BringWindowToTop(hwnd)
+                    if calling_tid != fg_tid:
+                        user32.AttachThreadInput(calling_tid, fg_tid, False)
+                except Exception as e:
+                    logger.info("AttachThreadInput foreground trick failed: %s", e)
+                    try:
+                        user32.SetForegroundWindow(hwnd)
+                    except Exception:
+                        pass
+
+                logger.info("Window restored from tray via Win32 API (hwnd=%s)", hwnd)
+                return True
+            else:
+                logger.info("restore_from_tray: HWND invalid or missing (cached=%s)", hwnd)
+
+        # Fallback for non-Windows or if Win32 path failed
+        logger.info("restore_from_tray: falling back to pywebview .show()/.restore()")
         try:
             if hasattr(window, 'show'):
                 window.show()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.info("window.show() failed: %s", exc)
 
         try:
             window.restore()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.info("window.restore() failed: %s", exc)
 
         brought = self.bring_window_to_front()
-        # if self.tray_manager:
-        #     self.tray_manager.mark_window_visible()
+        logger.info("restore_from_tray fallback result: %s", brought)
         return brought
 
     def handle_assets_updated(self, metadata: Optional[dict] = None) -> None:
@@ -1535,6 +1622,20 @@ class Api:
         if self.window:
             self.original_size = (self.window.width, self.window.height)
             self.original_position = (self.window.x, self.window.y)
+
+            # Eagerly cache the HWND while we're on the GUI thread so
+            # background threads (tray, single-instance) can use it later.
+            if sys.platform == 'win32' and not self._cached_hwnd:
+                try:
+                    native = self.window.native
+                    raw = native.Handle if hasattr(native, 'Handle') else native
+                    hwnd = _hwnd_to_int(raw)
+                    if hwnd:
+                        self._cached_hwnd = hwnd
+                        logger.info("HWND cached during initial window setup: %s", hwnd)
+                except Exception as exc:
+                    logger.debug("Failed to cache HWND during init: %s", exc)
+
             self.bring_window_to_front()
 
     def bring_window_to_front(self):
@@ -1555,11 +1656,12 @@ class Api:
         # Windows-specific force show via ctypes (bypasses threading issues)
         if sys.platform == 'win32':
             try:
-                # Handle both int HWND and .NET object with Handle property
+                # Handle both int HWND and .NET IntPtr
                 native = self.window.native
-                hwnd = native.Handle if hasattr(native, 'Handle') else native
+                raw = native.Handle if hasattr(native, 'Handle') else native
+                hwnd = _hwnd_to_int(raw)
                 
-                if isinstance(hwnd, int):
+                if hwnd:
                     # SW_RESTORE = 9
                     ctypes.windll.user32.ShowWindow(hwnd, 9)
                     ctypes.windll.user32.SetForegroundWindow(hwnd)
@@ -1922,6 +2024,15 @@ class Api:
             return
         self._shutting_down = True
         self._allow_window_close = True
+
+        # Release single-instance guard so a fresh launch can acquire it
+        guard = getattr(self, '_instance_guard', None)
+        if guard:
+            try:
+                guard.release()
+            except Exception as exc:
+                logger.debug("Single-instance guard release failed: %s", exc)
+
         try:
             self._active_ping_service.stop()
         except Exception as exc:
@@ -2055,8 +2166,9 @@ class Api:
                     try:
                         if sys.platform == 'win32':
                             native = self.window.native
-                            hwnd = native.Handle if hasattr(native, 'Handle') else native
-                            if isinstance(hwnd, int):
+                            raw = native.Handle if hasattr(native, 'Handle') else native
+                            hwnd = _hwnd_to_int(raw)
+                            if hwnd:
                                 # WM_CLOSE = 0x0010
                                 ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
                             else:
@@ -3157,6 +3269,14 @@ def background_init():
         except Exception as sub_exc:
             logger.error("Deferred subsystem start failed: %s", sub_exc, exc_info=True)
 
+        # ── Single-instance restore listener ───────────────────────────
+        # When a second copy of the app is launched it signals the named
+        # event instead of starting up.  We listen for that here and
+        # restore the window from the system tray.
+        guard = getattr(api, '_instance_guard', None)
+        if guard:
+            guard.start_listener(api.restore_from_tray)
+
         # ── Capture migration / restore (moved from main()) ───────────
         try:
             refreshed_settings = settings_manager.reload()
@@ -3278,7 +3398,19 @@ def main():
         subprocess.Popen([sys.executable] + sys.argv[2:])
         sys.exit(0)
     # --- End updater logic ---
-    
+
+    # ── Single-instance guard ───────────────────────────────────────────
+    # Prevent a second copy from starting when the app is minimised to the
+    # system tray.  If another instance already holds the mutex we signal
+    # it to restore its window and exit immediately.
+    from utils.single_instance import SingleInstanceGuard
+    _instance_guard = SingleInstanceGuard("DnDTools")
+    if not _instance_guard.acquire():
+        logger.info("Another instance is already running — signalling restore and exiting.")
+        _instance_guard.signal_restore()
+        _instance_guard.release()
+        sys.exit(0)
+
     # Using the global time module
     start_time = time.time()
     logger.info("Starting DnDTools application")
@@ -3321,6 +3453,9 @@ def main():
     
     # Set window reference
     api.set_window(window)
+
+    # Attach single-instance guard so other code can access it
+    api._instance_guard = _instance_guard
     
     logger.info(f"UI initialization completed in {time.time() - start_time:.2f} seconds")
     
