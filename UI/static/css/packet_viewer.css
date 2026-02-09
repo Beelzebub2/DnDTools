@@ -494,6 +494,33 @@
     letter-spacing: 0.2px;
 }
 
+.packet-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.packet-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--pv-text-dim);
+    font-size: 0.7rem;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+}
+
+.packet-badge--warn {
+    background: rgba(200, 100, 50, 0.12);
+    border-color: rgba(200, 100, 50, 0.25);
+    color: #ffaaa0;
+}
+
 .packet-header-actions {
     display: flex;
     align-items: center;
@@ -611,6 +638,30 @@
 
 .packet-json::-webkit-scrollbar-thumb:hover {
     background: rgba(228, 200, 105, 0.25);
+}
+
+/* JSON empty state messages */
+.packet-json-empty {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--pv-muted);
+    font-size: 0.82rem;
+    padding: 4px 0;
+}
+
+.packet-json-empty .material-icons {
+    font-size: 16px;
+    color: rgba(228, 200, 105, 0.4);
+    flex-shrink: 0;
+}
+
+.packet-json-empty--warn {
+    color: #ffaaa0;
+}
+
+.packet-json-empty--warn .material-icons {
+    color: rgba(200, 100, 50, 0.6);
 }
 
 /* ─── Empty & Loading States ─── */

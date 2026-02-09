@@ -2062,12 +2062,14 @@ class Api:
         return bool(getattr(self, '_current_stack_mode', False))
 
     def get_packets(self, packet_types=None):
-        # Exclude any user-hidden packet types
-        hidden = set(self.get_hidden_packet_types())
-        packets = [p for p in self.capture_controller.packet_capture.captured_packets if p.get('type') not in hidden]
+        all_packets = list(self.capture_controller.packet_capture.captured_packets)
         if packet_types:
-            packets = [p for p in packets if p['type'] in packet_types]
-        return packets
+            # Frontend controls which types to show — filter to only those
+            allowed = set(packet_types)
+            return [p for p in all_packets if p.get('type') in allowed]
+        # No explicit filter — exclude user-hidden types
+        hidden = set(self.get_hidden_packet_types())
+        return [p for p in all_packets if p.get('type') not in hidden]
 
     def get_packet_types(self):
         if not _PacketCommand_pb2:

@@ -315,9 +315,7 @@
 
                 // Update JSON content
                 var jsonEl = existing.querySelector('.packet-json');
-                var newContent = packet.json
-                    ? '<pre>' + escapeHtml(JSON.stringify(packet.json, null, 2)) + '</pre>'
-                    : '<em>No parsed JSON</em>';
+                var newContent = formatJsonContent(packet);
                 if (jsonEl && jsonEl.innerHTML !== newContent) jsonEl.innerHTML = newContent;
 
                 // Update expanded state
@@ -374,10 +372,39 @@
         typeSpan.textContent = packet.type || 'Unknown';
         info.appendChild(typeSpan);
 
+        var metaLine = document.createElement('div');
+        metaLine.className = 'packet-meta';
+
         var tsSpan = document.createElement('span');
         tsSpan.className = 'packet-timestamp';
         tsSpan.textContent = packet.timestamp || '—';
-        info.appendChild(tsSpan);
+        metaLine.appendChild(tsSpan);
+
+        if (packet.raw_length) {
+            var sizeSpan = document.createElement('span');
+            sizeSpan.className = 'packet-badge';
+            sizeSpan.textContent = formatBytes(packet.raw_length);
+            sizeSpan.title = packet.raw_length + ' bytes';
+            metaLine.appendChild(sizeSpan);
+        }
+
+        if (packet.proto_type !== undefined) {
+            var protoSpan = document.createElement('span');
+            protoSpan.className = 'packet-badge';
+            protoSpan.textContent = '#' + packet.proto_type;
+            protoSpan.title = 'Proto type ID';
+            metaLine.appendChild(protoSpan);
+        }
+
+        if (packet.parsed === false) {
+            var unparsedSpan = document.createElement('span');
+            unparsedSpan.className = 'packet-badge packet-badge--warn';
+            unparsedSpan.textContent = 'unparsed';
+            unparsedSpan.title = 'Could not deserialize proto message';
+            metaLine.appendChild(unparsedSpan);
+        }
+
+        info.appendChild(metaLine);
 
         left.appendChild(info);
         header.appendChild(left);
@@ -386,8 +413,9 @@
         var actions = document.createElement('div');
         actions.className = 'packet-header-actions';
 
-        // Copy button
-        if (packet.json) {
+        // Copy button — show for any packet that has JSON data (even empty {})
+        var hasJsonData = packet.json !== null && packet.json !== undefined;
+        if (hasJsonData) {
             var copyBtn = document.createElement('button');
             copyBtn.type = 'button';
             copyBtn.className = 'packet-copy-btn';
@@ -431,12 +459,32 @@
         var jsonDiv = document.createElement('div');
         jsonDiv.className = 'packet-json' + (isExpanded ? ' expanded' : '');
         jsonDiv.id = 'json-' + id;
-        jsonDiv.innerHTML = packet.json
-            ? '<pre>' + escapeHtml(JSON.stringify(packet.json, null, 2)) + '</pre>'
-            : '<em>No parsed JSON</em>';
+        jsonDiv.innerHTML = formatJsonContent(packet);
         node.appendChild(jsonDiv);
 
         return node;
+    }
+
+    /* ── Format JSON panel content based on packet state ── */
+    function formatJsonContent(packet) {
+        if (packet.json !== null && packet.json !== undefined) {
+            var jsonStr = JSON.stringify(packet.json, null, 2);
+            if (jsonStr === '{}') {
+                return '<div class="packet-json-empty"><span class="material-icons">check_circle</span> Empty response (no payload data)</div>';
+            }
+            return '<pre>' + escapeHtml(jsonStr) + '</pre>';
+        }
+        if (packet.parsed === false) {
+            return '<div class="packet-json-empty packet-json-empty--warn"><span class="material-icons">warning</span> Could not parse proto message (raw_length: ' + (packet.raw_length || '?') + ' bytes)</div>';
+        }
+        return '<div class="packet-json-empty"><span class="material-icons">info</span> No parsed JSON available</div>';
+    }
+
+    /* ── Format bytes to human readable ── */
+    function formatBytes(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
     }
 
     /* ── Get an appropriate material icon for packet type ── */
@@ -446,14 +494,26 @@
         if (t.indexOf('LOGIN') >= 0 || t.indexOf('AUTH') >= 0) return 'login';
         if (t.indexOf('CHAT') >= 0 || t.indexOf('MESSAGE') >= 0) return 'chat';
         if (t.indexOf('MOVE') >= 0 || t.indexOf('POSITION') >= 0) return 'open_with';
-        if (t.indexOf('INVENTORY') >= 0 || t.indexOf('ITEM') >= 0 || t.indexOf('STASH') >= 0) return 'inventory_2';
+        if (t.indexOf('INVENTORY') >= 0 || t.indexOf('STASH') >= 0) return 'inventory_2';
+        if (t.indexOf('MERCHANT') >= 0 || t.indexOf('SHOP') >= 0) return 'store';
+        if (t.indexOf('QUEST') >= 0) return 'assignment';
+        if (t.indexOf('CRAFT') >= 0) return 'build';
+        if (t.indexOf('RECOVERY') >= 0) return 'restore';
+        if (t.indexOf('EXPRESS') >= 0 || t.indexOf('DELIVERY') >= 0 || t.indexOf('PARCEL') >= 0) return 'local_shipping';
+        if (t.indexOf('STOCK') >= 0 || t.indexOf('BUY') >= 0 || t.indexOf('SELL') >= 0) return 'shopping_cart';
+        if (t.indexOf('GEAR') >= 0 || t.indexOf('ITEM') >= 0 || t.indexOf('EQUIP') >= 0) return 'shield';
         if (t.indexOf('PARTY') >= 0 || t.indexOf('GROUP') >= 0) return 'group';
         if (t.indexOf('TRADE') >= 0 || t.indexOf('MARKET') >= 0) return 'storefront';
         if (t.indexOf('DAMAGE') >= 0 || t.indexOf('KILL') >= 0 || t.indexOf('COMBAT') >= 0) return 'gavel';
         if (t.indexOf('SPAWN') >= 0) return 'person_add';
         if (t.indexOf('LOBBY') >= 0 || t.indexOf('MATCH') >= 0) return 'sports_esports';
         if (t.indexOf('ERROR') >= 0 || t.indexOf('FAIL') >= 0) return 'error_outline';
-        if (t.indexOf('PING') >= 0 || t.indexOf('HEARTBEAT') >= 0 || t.indexOf('KEEP_ALIVE') >= 0) return 'favorite';
+        if (t.indexOf('ALIVE') >= 0 || t.indexOf('PING') >= 0 || t.indexOf('HEARTBEAT') >= 0 || t.indexOf('KEEP_ALIVE') >= 0) return 'favorite';
+        if (t.indexOf('POLICY') >= 0 || t.indexOf('SERVICE') >= 0) return 'policy';
+        if (t.indexOf('CHARACTER') >= 0 || t.indexOf('CLASS') >= 0) return 'person';
+        if (t.indexOf('FRIEND') >= 0) return 'people';
+        if (t.indexOf('RANKING') >= 0 || t.indexOf('RANK') >= 0) return 'leaderboard';
+        if (t.indexOf('RELIGION') >= 0) return 'auto_awesome';
         return 'description';
     }
 

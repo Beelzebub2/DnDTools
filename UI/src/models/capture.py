@@ -41,9 +41,12 @@ if protos_path not in sys.path:
     sys.path.insert(0, protos_path)
 
 # Dynamically load protos
-# This is kept at module level to ensure protos are available globally as expected by other parts of the app
-# that might import from here or rely on the side effects.
-# Ideally, this should be moved to a separate module responsible for proto loading.
+# ─── Proto loading & automatic mapping ───────────────────────────────────────
+# Loads all *_pb2.py modules, injects their public symbols into globals(),
+# then builds PROTO_MAP — a Dict[int, type] that maps every PacketCommand
+# enum value to its protobuf message class.  This eliminates per-packet
+# name guessing and gives O(1) lookups at capture time.
+
 def _load_protos():
     loaded_protos = {}
     if not os.path.exists(protos_path):
@@ -64,8 +67,8 @@ def _load_protos():
                 module = importlib.util.module_from_spec(spec)
                 sys.modules[full_name] = module
                 spec.loader.exec_module(module)
-                
-                # Bring public names into globals() - mimicking original behavior
+
+                # Bring public names into globals() — other code may rely on this
                 for attr in dir(module):
                     if not attr.startswith("_"):
                         globals()[attr] = getattr(module, attr)
@@ -74,14 +77,67 @@ def _load_protos():
             logger.error(f"Failed to load proto {filename}: {e}")
     return loaded_protos
 
-_load_protos()
+_loaded_proto_symbols = _load_protos()
 
 # Import PacketCommand after dynamic loading
 try:
     from networking.protos import _PacketCommand_pb2
 except ImportError:
     logger.error("Could not import _PacketCommand_pb2. Ensure protos are generated and path is correct.")
-    _PacketCommand_pb2 = None # Handle gracefully
+    _PacketCommand_pb2 = None
+
+
+def _build_proto_map() -> Dict[int, Any]:
+    """Build a mapping of PacketCommand int → protobuf message class.
+
+    Iterates every value in the PacketCommand enum and attempts to match it
+    to a loaded proto class using the standard naming conventions:
+      1. "S" + command_name  (e.g. S2C_ALIVE_RES → SS2C_ALIVE_RES)
+      2. command_name as-is  (fallback)
+
+    Only classes that have a ``ParseFromString`` method (i.e. real protobuf
+    messages) are included.
+    """
+    proto_map: Dict[int, Any] = {}
+    if not _PacketCommand_pb2:
+        return proto_map
+
+    g = globals()
+    skipped_prefixes = ('MIN_', 'MAX_', 'PACKET_NONE')
+    mapped = 0
+    unmapped_names: List[str] = []
+
+    for value in _PacketCommand_pb2.PacketCommand.values():
+        try:
+            name = _PacketCommand_pb2.PacketCommand.Name(value)
+        except (ValueError, KeyError):
+            continue
+        if name.startswith(skipped_prefixes):
+            continue
+
+        # Try naming candidates
+        for candidate in ("S" + name, name):
+            cls = g.get(candidate)
+            if cls is not None and callable(getattr(cls, 'ParseFromString', None)):
+                proto_map[value] = cls
+                mapped += 1
+                break
+        else:
+            unmapped_names.append(name)
+
+    total = mapped + len(unmapped_names)
+    logger.info(
+        f"Proto map built: {mapped}/{total} packet types have proto classes "
+        f"({len(unmapped_names)} unmapped)"
+    )
+    if unmapped_names:
+        logger.debug(f"Unmapped packet types: {', '.join(sorted(unmapped_names))}")
+
+    return proto_map
+
+
+# Module-level map — built once at import time
+PROTO_MAP: Dict[int, Any] = _build_proto_map()
 
 # Configure subprocess to hide console windows when in executable mode
 if is_frozen():
@@ -274,23 +330,23 @@ class PacketCapture:
         return self.was_running_before
 
     def parse_proto(self, packet_data, proto_type):
-        if not _PacketCommand_pb2:
+        """Deserialize a packet's payload using the pre-built PROTO_MAP."""
+        message_class = PROTO_MAP.get(proto_type)
+        if message_class is None:
             return None
-            
+
         data = packet_data[8:]
         try:
-            command_name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
-            # For server packets
-            message_class = globals().get("S" + command_name)
-            if message_class:
-                message = message_class()
-                message.ParseFromString(data)
-                if message:
-                    return message
+            message = message_class()
+            message.ParseFromString(data)
+            return message
         except Exception as e:
-            self.logger.warning(f"Error parsing proto: {e}")
-
-        return None
+            try:
+                name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
+            except (ValueError, KeyError):
+                name = str(proto_type)
+            self.logger.debug(f"Failed to parse {name} via {message_class.__name__}: {e}")
+            return None
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
@@ -741,7 +797,9 @@ class PacketCapture:
 
         # Store for packet viewer
         json_data = None
+        parsed = False
         if message:
+            parsed = True
             try:
                 json_data = MessageToDict(
                     message,
@@ -753,15 +811,19 @@ class PacketCapture:
                     message,
                     preserving_proto_field_name=True
                 )
+
         # Assign a monotonically increasing id so UI can track items across refreshes
         self._packet_id_counter += 1
+        has_handler = bool(self.capture_info and proto_type in self.capture_info)
         packet_info = {
             'id': self._packet_id_counter,
             'timestamp': datetime.utcnow().isoformat() + 'Z',
             'type': name,
             'proto_type': proto_type,
             'json': json_data,
-            'raw_length': len(packet_data)
+            'raw_length': len(packet_data),
+            'parsed': parsed,
+            'handled': has_handler,
         }
         self.captured_packets.append(packet_info)
 
@@ -774,13 +836,12 @@ class PacketCapture:
                 if message:
                     self.capture_info[proto_type](message)
                 else:
-                    self.logger.warning("Invalid Packet")
+                    self.logger.warning(f"No proto message for handled type: {name} {proto_type}")
             else:
-                self.logger.info(f"No handle for: {name} {proto_type}")
-                if message:
-                    self.logger.info("Valid Packet")
-                else:
-                    self.logger.warning("Invalid Packet")
+                # Not an error — most packet types don't have app-level callbacks
+                self.logger.debug(f"Captured (no handler): {name} {proto_type} — {'parsed' if parsed else 'unparsed'}")
+        elif not parsed:
+            self.logger.debug(f"Captured but could not parse: {name} {proto_type}")
 
     def _persist_quest_packet(self, packet_data: bytes, proto_type: int, packet_name: str, message) -> None:
         if not getattr(self, '_save_quest_packets', False):
