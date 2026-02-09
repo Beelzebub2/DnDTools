@@ -411,6 +411,15 @@
     min-height: 45px;
 }
 
+/* CSS-only grid background: replaces 240 empty .stash-grid-cell divs with a tiled SVG.
+   Each tile is 48×48 (45px cell + 3px gap) matching the grid's gap:3px layout. */
+.interactive-stash-grid.css-grid-bg {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Crect x='0.5' y='0.5' width='44' height='44' rx='0' fill='rgba(30,30,30,0.8)' stroke='rgba(80,80,80,0.6)' stroke-width='1'/%3E%3C/svg%3E");
+    background-size: 48px 48px;
+    background-position: 2px 2px;
+    background-repeat: repeat;
+}
+
 .stash-item {
     background-color: rgba(40, 40, 40, 0.9);
     border: 2px solid #666;

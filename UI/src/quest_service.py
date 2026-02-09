@@ -8,8 +8,6 @@ import time
 from pathlib import Path
 from typing import Callable, Optional
 
-import requests
-
 from src.models.appdirs import get_quests_dir, resource_path
 
 
@@ -145,15 +143,15 @@ class QuestService:
             if not force and self._quests_cache is not None:
                 return list(self._quests_cache)
 
-        disk_snapshot: Optional[tuple[float, list[dict]]] = None
-        if not force:
-            disk_snapshot = self._load_cached_quests_from_disk()
-            if disk_snapshot:
-                disk_timestamp, disk_quests = disk_snapshot
-                with self._quests_lock:
-                    self._quests_cache = list(disk_quests)
-                    self._quests_cache_timestamp = disk_timestamp
-                return list(disk_quests)
+        # Always try to load disk snapshot for fallback, even on force refresh
+        disk_snapshot = self._load_cached_quests_from_disk()
+
+        if not force and disk_snapshot:
+            disk_timestamp, disk_quests = disk_snapshot
+            with self._quests_lock:
+                self._quests_cache = list(disk_quests)
+                self._quests_cache_timestamp = disk_timestamp
+            return list(disk_quests)
 
         quests: list[dict] = []
         next_url = f"{self.QUESTS_API_URL}?limit={self.QUESTS_PAGE_SIZE}"
@@ -164,6 +162,7 @@ class QuestService:
 
         while next_url and pages < max_pages:
             pages += 1
+            import requests
             try:
                 response = requests.get(next_url, headers=headers, timeout=15)
                 response.raise_for_status()

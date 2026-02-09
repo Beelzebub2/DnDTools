@@ -10,7 +10,7 @@ from src.models.settings import (
     resolve_tshark_executable,
 )
 import webview
-from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file
+from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file, session
 import os
 import threading
 import asyncio
@@ -19,7 +19,6 @@ from src.models.sort_feedback import get_sort_feedback_manager
 from src.models.sort_learning import get_sort_learning_manager
 from src.models.sort_sync_service import SortSyncService
 from src.models.sort_feedback_sync import SortFeedbackSyncService  # backward compat alias
-import psutil
 import json
 import sys
 import multiprocessing
@@ -28,31 +27,14 @@ import re
 from pathlib import Path
 from urllib.parse import urlparse
 from utils.logging_setup import setup_logging, set_logging_level
+import atexit
 import secrets
 import time
 import shutil
 import subprocess
 import tempfile
 from datetime import datetime
-import requests
-from networking.protos import _PacketCommand_pb2
-from update import UpdateManager, UpdateError
-from utils.asset_updater import AssetUpdater
-from utils.tshark_cleanup import schedule_tshark_cleanup
-from utils.game_window_watcher import GameWindowWatcherProcess
-from utils.active_ping import ActivePingService
 from utils.sort_learning_trainer import SortLearningTrainer
-
-try:
-    import pystray
-except ImportError:  # pragma: no cover - optional dependency safeguard
-    pystray = None
-
-try:
-    from PIL import Image, ImageDraw
-except ImportError:  # pragma: no cover - optional dependency safeguard
-    Image = None
-    ImageDraw = None
 
 from src.models.game_data import item_data_manager
 from src.models.icon_pak import icon_store, canonical_icon_path
@@ -66,11 +48,8 @@ from src.models.loot import (
     format_loot_state_label,
 )
 
-from dotenv import load_dotenv
 sys.path.append(os.path.dirname(__file__))
-from src.models.capture import PacketCapture  # Add capture import
 from src.quest_service import QuestService, RARITY_ORDER
-from src.system_tray import SystemTray
 
 # Global cache for version check
 version_cache = None
@@ -124,6 +103,32 @@ class GameWindowState:
     window_found: bool
     window_title: Optional[str]
     window_visible: bool
+
+
+def _hwnd_to_int(raw) -> Optional[int]:
+    """Convert a .NET IntPtr / WinForms Handle / plain int to a Python int.
+
+    pywebview on Windows with the EdgeChromium / WinForms renderer exposes
+    ``window.native.Handle`` as a .NET ``System.IntPtr``.  Plain ``int()``
+    cannot convert it; we must use ``.ToInt32()`` / ``.ToInt64()`` first.
+
+    Returns *None* if conversion fails.
+    """
+    if isinstance(raw, int):
+        return raw
+    # .NET IntPtr
+    for attr in ('ToInt64', 'ToInt32'):
+        fn = getattr(raw, attr, None)
+        if callable(fn):
+            try:
+                return int(fn())
+            except Exception:
+                continue
+    # Last resort
+    try:
+        return int(raw)
+    except Exception:
+        return None
     window_focused: bool
     window_rect: Optional[Tuple[int, int, int, int]]
 
@@ -215,13 +220,9 @@ register_overlay_logging()
 logger = logging.getLogger(__name__)
 settings_manager.set_logger(logger)
 
-update_manager = UpdateManager(
-    current_version=APP_VERSION,
-    manifest_url=UPDATE_MANIFEST_URL,
-    cache_duration=UPDATE_CACHE_DURATION,
-    auto_update_silent=AUTO_UPDATE_SILENT,
-    logger=logger,
-)
+# Deferred: update_manager is created in _init_api() to avoid
+# importing the heavy ``update`` module (requests + psutil) at load time.
+update_manager = None
 
 # Migrate data files to new structure
 try:
@@ -232,8 +233,12 @@ except Exception as e:
 quest_service = QuestService(logger)
 CHARACTER_STORAGE_PROTECTED_FILES = set(quest_service.protected_filenames)
 
-# Load environment variables
-load_dotenv()
+# Load environment variables (deferred import of dotenv)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 # Determine base directory for resources
 app_dir = resource_path('')
@@ -256,8 +261,15 @@ server = Flask(__name__,
     template_folder=template_folder_path
 )
 server.config['JSON_AS_ASCII'] = False
-# Set a secure secret key for session
-server.secret_key = secrets.token_hex(32)  # Generate a secure random key
+# Persist Flask secret key so sessions survive app restarts
+_stored_secret = settings_manager.get('_flask_secret_key')
+if not _stored_secret:
+    _stored_secret = secrets.token_hex(32)
+    try:
+        settings_manager.update({'_flask_secret_key': _stored_secret}, persist=True)
+    except Exception:
+        pass
+server.secret_key = _stored_secret
 
 
 @server.context_processor
@@ -273,6 +285,9 @@ stash_manager = StashManager(app_dir, defer_loading=True)
 # Cache for frequently accessed data
 _cache = {}
 
+import re
+_CHARACTER_ID_RE = re.compile(r'^[a-zA-Z0-9_-]+$')
+
 def validate_character_id(character_id):
     """Validate character ID format and sanitize input"""
     if not character_id:
@@ -284,8 +299,7 @@ def validate_character_id(character_id):
         return None
     
     # Check for potentially dangerous characters
-    import re
-    if not re.match(r'^[a-zA-Z0-9_-]+$', character_id):
+    if not _CHARACTER_ID_RE.match(character_id):
         return None
         
     return character_id
@@ -322,8 +336,16 @@ def handle_character(message):
     saved = save_packet_data(message)
     
     if saved:
-        # Force reload stash manager data to ensure it's refreshed
-        stash_manager.force_reload()
+        # Incrementally update only the affected character in the cache
+        # instead of force_reload() which re-reads every file from disk.
+        try:
+            char_data = message.characterDataBase
+            char_id = str(char_data.characterId)
+            file_path = os.path.join(get_characters_dir(), f"{char_id}.json")
+            stash_manager.update_single_character(char_id, file_path)
+        except Exception as e:
+            logger.error(f"Incremental cache update failed, falling back to force_reload: {e}")
+            stash_manager.force_reload()
         
         # Extract character information for visual effect
         try:
@@ -367,6 +389,7 @@ class CaptureController:
             self._packet_capture.start_capture_switch()
 
     def _create_capture(self):
+        from src.models.capture import PacketCapture
         capture = PacketCapture(
             interface=self._settings["interface"],
             port_range=self._settings["port_range"],
@@ -523,23 +546,17 @@ class Api:
         self._current_stack_mode = bool(settings.get('stashStackMode', False))
         self._wireshark_path = settings.get('wiresharkPath') or ''
 
-        # Capture setup
+        # Capture settings (raw) — CaptureController created lazily on first access
+        # to defer the expensive pyshark / protobuf / proto-loading imports.
         interface = self.settings_manager.get('interface') or os.getenv('CAPTURE_INTERFACE', 'Ethernet')
-        self.capture_settings = {
+        self._capture_settings = {
             'interface': interface,
             'port_range': (
                 int(os.getenv('CAPTURE_PORT_LOW', 20200)),
                 int(os.getenv('CAPTURE_PORT_HIGH', 20300))
             )
         }
-        capture_info = {
-            _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
-            _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
-        }
-        self.capture_controller = CaptureController(self.capture_settings, capture_info, wireshark_path=self._wireshark_path)
-        # Normalize settings from controller (ensures tuple types)
-        self.capture_settings = self.capture_controller.settings()
-        self._apply_wireshark_path(self._wireshark_path)
+        self._capture_controller: Optional[CaptureController] = None
         self._initial_restart_done = False
         self.window = None
         try:
@@ -558,35 +575,91 @@ class Api:
         self.current_sort_event = None
         self._current_char_id = None
         self._current_stash_id = None
+        self._is_combined_view = False
         self._capture_shutdown_completed = False
-        self.asset_updater: Optional[AssetUpdater] = None
+        self.asset_updater = None
         self._close_to_tray_enabled = bool(settings.get('closeToTrayEnabled', True))
-        self.tray_manager: Optional[SystemTray] = None
+        self.tray_manager = None
         self._allow_window_close = False
+        self._shutting_down = False
         self._closing_subscription_attached = False
-        self._initialize_tray_manager()
         self._game_process_cache = False
         self._game_process_cache_timestamp = 0.0
         self._last_window_fallback_scan = 0.0
+        self._active_ping_service = None
+        self._game_monitor_stop = threading.Event()
+        self._game_monitor_thread: Optional[threading.Thread] = None
+        self._game_was_running = False
+        self._last_logged_game_state = None
+        self._game_window_watcher_process = None
+        self._game_window_queue = None
+        self._cached_watcher_state = None
+        self._cached_hwnd: Optional[int] = None  # HWND cached when hiding to tray
+        # Unified ML sync service (replaces old SortFeedbackSyncService + SortLearningTrainer)
+        self._sort_sync_service: Optional[SortSyncService] = None
+        self._sort_feedback_sync_service = None  # backward compat reference
+        self._sort_learning_trainer: Optional[SortLearningTrainer] = None
+
+    # ── Lazy capture controller ─────────────────────────────────────────
+    @property
+    def capture_controller(self) -> 'CaptureController':
+        """Lazily create the CaptureController on first access."""
+        if self._capture_controller is None:
+            self._init_capture_controller()
+        return self._capture_controller
+
+    @property
+    def capture_settings(self):
+        return self._capture_settings
+
+    @capture_settings.setter
+    def capture_settings(self, value):
+        self._capture_settings = value
+
+    def _init_capture_controller(self):
+        """Create the CaptureController (triggers pyshark / proto imports)."""
+        from networking.protos import _PacketCommand_pb2
+        capture_info = {
+            _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
+            _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
+        }
+        self._capture_controller = CaptureController(
+            self._capture_settings, capture_info, wireshark_path=self._wireshark_path
+        )
+        # Normalize settings from controller (ensures tuple types)
+        self._capture_settings = self._capture_controller.settings()
+        self._apply_wireshark_path(self._wireshark_path)
+
+    def _start_deferred_subsystems(self):
+        """Initialise subsystems that are not needed before the window appears.
+
+        Called from background_init() so the window renders as fast as
+        possible.
+        """
+        from utils.active_ping import ActivePingService
+
+        # System tray (imports pystray + PIL lazily)
+        self._initialize_tray_manager()
+
+        # Game window watcher
+        self._initialize_game_monitor()
+
+        # Active ping
         self._active_ping_service = ActivePingService(
             settings_manager=self.settings_manager,
             app_version=APP_VERSION,
             logger=logger,
         )
         self._active_ping_service.set_developer_mode(self._developer_mode_enabled)
-        self._initialize_game_monitor()
         self._active_ping_service.start()
-        # Unified ML sync service (replaces old SortFeedbackSyncService + SortLearningTrainer)
-        self._sort_sync_service: Optional[SortSyncService] = None
-        self._sort_feedback_sync_service = None  # backward compat reference
-        self._sort_learning_trainer: Optional[SortLearningTrainer] = None
+
+        # Sort sync / ML service
         try:
             self._sort_sync_service = SortSyncService(
                 settings_manager=self.settings_manager,
                 app_version=APP_VERSION,
             )
             self._sort_sync_service.start()
-            # Expose as old names so downstream code (settings, shutdown) still works
             self._sort_feedback_sync_service = self._sort_sync_service
             self._sort_learning_trainer = self._sort_sync_service
         except Exception as exc:
@@ -626,6 +699,7 @@ class Api:
         self._close_to_tray_enabled = bool(enabled)
 
     def _initialize_tray_manager(self):
+        from src.system_tray import SystemTray
         icon_candidates = [
             Path(resource_path('logo.ico')),
             Path(resource_path('logo.png')),
@@ -672,13 +746,7 @@ class Api:
             logger.debug("Failed to adjust logging level: %s", exc, exc_info=True)
 
     def _initialize_game_monitor(self):
-        self._game_monitor_stop = threading.Event()
-        self._game_monitor_thread: Optional[threading.Thread] = None
-        self._game_was_running = False
-        self._last_logged_game_state: Optional[GameWindowState] = None
-        self._game_window_watcher_process: Optional[GameWindowWatcherProcess] = None
-        self._game_window_queue: Optional[multiprocessing.Queue] = None
-        self._cached_watcher_state: Optional[Dict[str, object]] = None
+        from utils.game_window_watcher import GameWindowWatcherProcess
 
         if sys.platform.startswith('win'):
             try:
@@ -905,16 +973,14 @@ class Api:
 
         is_running = False
         try:
-            for proc in psutil.process_iter(['name', 'exe']):
+            import psutil
+            # Only request 'name' — avoids an extra syscall per process for 'exe'
+            for proc in psutil.process_iter(['name']):
                 try:
                     name = (proc.info.get('name') or '').strip()
-                    exe = os.path.basename(proc.info.get('exe') or '')
                 except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
                     continue
-                normalized = name or exe
-                if not normalized:
-                    continue
-                if normalized in GAME_PROCESS_NAMES:
+                if name and name in GAME_PROCESS_NAMES:
                     is_running = True
                     break
         except Exception:
@@ -964,10 +1030,36 @@ class Api:
         self.tray_manager.update_menu()
 
     def _handle_native_close_event(self, *_, **__):  # pragma: no cover - GUI event hook
-        if self._allow_window_close or not self.is_close_to_tray_enabled():
+        if self._allow_window_close or self._shutting_down:
             return True
-        self.hide_to_tray()
-        return False
+        if not self.is_close_to_tray_enabled():
+            return True
+
+        # Verify the native window handle is still valid before attempting
+        # hide-to-tray.  When the user closes from the taskbar thumbnail
+        # preview, Windows may have already started tearing down the HWND by
+        # the time this callback fires.  If the handle is gone we must let
+        # the close proceed and trigger a full shutdown instead of leaving a
+        # ghost process.
+        if sys.platform == 'win32' and self.window:
+            try:
+                native = self.window.native
+                raw = native.Handle if hasattr(native, 'Handle') else native
+                hwnd = _hwnd_to_int(raw)
+                if hwnd and not ctypes.windll.user32.IsWindow(hwnd):
+                    logger.info("Window handle already invalid during close event — proceeding with shutdown")
+                    threading.Thread(target=self.shutdown_application, daemon=True, name="EmergencyShutdown").start()
+                    return True
+            except Exception:
+                pass
+
+        if self.hide_to_tray():
+            return False
+
+        # hide_to_tray failed — window is likely already destroyed
+        logger.info("hide_to_tray failed — allowing close and triggering shutdown")
+        threading.Thread(target=self.shutdown_application, daemon=True, name="EmergencyShutdown").start()
+        return True
 
     def hide_to_tray(self):
         if not self.is_close_to_tray_enabled():
@@ -980,14 +1072,21 @@ class Api:
         if sys.platform == 'win32':
             try:
                 native = window.native
-                hwnd = native.Handle if hasattr(native, 'Handle') else native
-                if isinstance(hwnd, int):
+                raw_handle = native.Handle if hasattr(native, 'Handle') else native
+                hwnd = _hwnd_to_int(raw_handle)
+                if hwnd:
+                    if not ctypes.windll.user32.IsWindow(hwnd):
+                        logger.info("Window handle invalid — cannot hide to tray")
+                        return False
+                    # Cache the HWND so restore_from_tray can use it from any thread
+                    self._cached_hwnd = hwnd
+                    logger.info("Hiding window to tray (hwnd=%s)", hwnd)
                     ctypes.windll.user32.ShowWindow(hwnd, 0)  # SW_HIDE
                     if self.tray_manager:
                         self.tray_manager.notify_minimized()
                     return True
             except Exception as e:
-                logger.debug(f"Failed to hide window via ctypes: {e}")
+                logger.warning("Failed to hide window via ctypes: %s", e, exc_info=True)
 
         try:
             if hasattr(window, 'hide'):
@@ -1011,24 +1110,80 @@ class Api:
         return True
 
     def restore_from_tray(self):
+        logger.info("restore_from_tray called (thread=%s)", threading.current_thread().name)
         window = self.window
         if not window:
+            logger.info("restore_from_tray: no window reference — abort")
             return False
 
+        # On Windows, use direct Win32 calls with the cached HWND.
+        # This is critical because this method is called from background
+        # threads (pystray menu, single-instance listener) where pywebview's
+        # WinForms .show()/.restore() silently fail or deadlock.
+        if sys.platform == 'win32':
+            hwnd = self._cached_hwnd
+            if not hwnd:
+                # Try to grab it now
+                try:
+                    native = window.native
+                    raw = native.Handle if hasattr(native, 'Handle') else native
+                    hwnd = _hwnd_to_int(raw)
+                    if hwnd:
+                        self._cached_hwnd = hwnd
+                        logger.info("Cached HWND on-the-fly: %s", hwnd)
+                except Exception as exc:
+                    logger.info("Could not obtain HWND from window.native: %s", exc)
+
+            if hwnd and ctypes.windll.user32.IsWindow(hwnd):
+                user32 = ctypes.windll.user32
+                kernel32 = ctypes.windll.kernel32
+
+                # Make the window visible (reverses SW_HIDE)
+                user32.ShowWindow(hwnd, 5)   # SW_SHOW
+                user32.ShowWindow(hwnd, 9)   # SW_RESTORE
+                logger.info("ShowWindow SW_SHOW+SW_RESTORE done (hwnd=%s)", hwnd)
+
+                # Bring to foreground — SetForegroundWindow is restricted
+                # when called from a background thread.  Attach our calling
+                # thread to the current foreground thread's input queue so
+                # Windows allows the switch.
+                try:
+                    calling_tid = kernel32.GetCurrentThreadId()
+                    fg_hwnd = user32.GetForegroundWindow()
+                    fg_tid = user32.GetWindowThreadProcessId(fg_hwnd, None)
+                    if calling_tid != fg_tid:
+                        user32.AttachThreadInput(calling_tid, fg_tid, True)
+                    user32.SetForegroundWindow(hwnd)
+                    user32.BringWindowToTop(hwnd)
+                    if calling_tid != fg_tid:
+                        user32.AttachThreadInput(calling_tid, fg_tid, False)
+                except Exception as e:
+                    logger.info("AttachThreadInput foreground trick failed: %s", e)
+                    try:
+                        user32.SetForegroundWindow(hwnd)
+                    except Exception:
+                        pass
+
+                logger.info("Window restored from tray via Win32 API (hwnd=%s)", hwnd)
+                return True
+            else:
+                logger.info("restore_from_tray: HWND invalid or missing (cached=%s)", hwnd)
+
+        # Fallback for non-Windows or if Win32 path failed
+        logger.info("restore_from_tray: falling back to pywebview .show()/.restore()")
         try:
             if hasattr(window, 'show'):
                 window.show()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.info("window.show() failed: %s", exc)
 
         try:
             window.restore()
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.info("window.restore() failed: %s", exc)
 
         brought = self.bring_window_to_front()
-        # if self.tray_manager:
-        #     self.tray_manager.mark_window_visible()
+        logger.info("restore_from_tray fallback result: %s", brought)
         return brought
 
     def handle_assets_updated(self, metadata: Optional[dict] = None) -> None:
@@ -1364,7 +1519,7 @@ class Api:
             os.environ.pop('PYSHARK_TSHARK_PATH', None)
 
         state = None
-        if update_capture and hasattr(self, 'capture_controller') and self.capture_controller:
+        if update_capture and self._capture_controller:
             state = self.capture_controller.set_wireshark_path(wireshark_path)
             if state:
                 try:
@@ -1476,6 +1631,20 @@ class Api:
         if self.window:
             self.original_size = (self.window.width, self.window.height)
             self.original_position = (self.window.x, self.window.y)
+
+            # Eagerly cache the HWND while we're on the GUI thread so
+            # background threads (tray, single-instance) can use it later.
+            if sys.platform == 'win32' and not self._cached_hwnd:
+                try:
+                    native = self.window.native
+                    raw = native.Handle if hasattr(native, 'Handle') else native
+                    hwnd = _hwnd_to_int(raw)
+                    if hwnd:
+                        self._cached_hwnd = hwnd
+                        logger.info("HWND cached during initial window setup: %s", hwnd)
+                except Exception as exc:
+                    logger.debug("Failed to cache HWND during init: %s", exc)
+
             self.bring_window_to_front()
 
     def bring_window_to_front(self):
@@ -1496,15 +1665,16 @@ class Api:
         # Windows-specific force show via ctypes (bypasses threading issues)
         if sys.platform == 'win32':
             try:
-                # Handle both int HWND and .NET object with Handle property
+                # Handle both int HWND and .NET IntPtr
                 native = self.window.native
-                hwnd = native.Handle if hasattr(native, 'Handle') else native
+                raw = native.Handle if hasattr(native, 'Handle') else native
+                hwnd = _hwnd_to_int(raw)
                 
-                if isinstance(hwnd, int):
+                if hwnd:
                     # SW_RESTORE = 9
                     ctypes.windll.user32.ShowWindow(hwnd, 9)
                     ctypes.windll.user32.SetForegroundWindow(hwnd)
-                    success = True
+                    return True
             except Exception as e:
                 logger.debug(f"Failed to force window to front via ctypes: {e}")
 
@@ -1596,6 +1766,12 @@ class Api:
         current_char_id = self._current_char_id
         current_stash_id = self._current_stash_id
 
+        # When on the combined Character tab, always sort the bag (stash 2)
+        # instead of equipment (stash 3) which has fixed slots.
+        if self._is_combined_view:
+            current_stash_id = '2'
+            logger.info("Combined character view active — overriding sort target to bag (stash 2)")
+
         if self.current_sort_event and not self.current_sort_event.is_set():
             logger.info("Sort hotkey pressed while a sort is already running; ignoring duplicate trigger")
             if self.window:
@@ -1621,19 +1797,23 @@ class Api:
         logger.info(f"Scheduling sort for character {current_char_id}, stash {current_stash_id}")
         cancel_event = threading.Event()
         self.current_sort_event = cancel_event
-        threading.Thread(target=self._sort_worker, args=(cancel_event,), daemon=True).start()
+        threading.Thread(target=self._sort_worker, args=(cancel_event, current_char_id, current_stash_id), daemon=True).start()
 
-    def _sort_worker(self, cancel_event: threading.Event):
+    def _sort_worker(self, cancel_event: threading.Event, char_id: str = None, stash_id: str = None):
         """Background worker for sorting current stash"""
         if cancel_event.is_set():
             logger.info("Sort worker aborted before start because cancel was requested")
             return
 
+        # Use provided IDs (from hotkey with combined-view override) or fall back to current state
+        sort_char_id = char_id or self._current_char_id
+        sort_stash_id = stash_id or self._current_stash_id
+
         if self.window:
             self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
         result = self.sort_stash(
-            self._current_char_id,
-            self._current_stash_id,
+            sort_char_id,
+            sort_stash_id,
             cancel_event=cancel_event,
             pack_mode=self.get_pack_mode(),
             stack_mode=self.get_stack_mode(),
@@ -1696,6 +1876,9 @@ class Api:
 
     def get_characters(self):
         return self.stash_manager.get_characters()
+
+    def get_characters_summary(self):
+        return self.stash_manager.get_characters_summary()
 
     def get_character_details(self, character_id):
         return self.stash_manager.get_character_details(character_id)
@@ -1859,7 +2042,19 @@ class Api:
 
     def shutdown_application(self):
         """Fully stop capture threads and exit the application."""
+        if self._shutting_down:
+            return
+        self._shutting_down = True
         self._allow_window_close = True
+
+        # Release single-instance guard so a fresh launch can acquire it
+        guard = getattr(self, '_instance_guard', None)
+        if guard:
+            try:
+                guard.release()
+            except Exception as exc:
+                logger.debug("Single-instance guard release failed: %s", exc)
+
         try:
             self._active_ping_service.stop()
         except Exception as exc:
@@ -1880,8 +2075,8 @@ class Api:
             packet_capture = None
             should_resume = False
 
-            if hasattr(self, 'capture_controller') and self.capture_controller:
-                controller = self.capture_controller
+            if self._capture_controller:
+                controller = self._capture_controller
                 try:
                     state = controller.state()
                     should_resume = bool(
@@ -1960,9 +2155,9 @@ class Api:
         try:
             already_shutdown = getattr(self, '_capture_shutdown_completed', False)
             if not already_shutdown:
-                if hasattr(self, 'capture_controller') and self.capture_controller:
+                if self._capture_controller:
                     try:
-                        self.capture_controller.stop_capture_switch()
+                        self._capture_controller.stop_capture_switch()
                     except Exception:
                         pass
                 elif hasattr(self, 'packet_capture') and self.packet_capture:
@@ -1993,8 +2188,9 @@ class Api:
                     try:
                         if sys.platform == 'win32':
                             native = self.window.native
-                            hwnd = native.Handle if hasattr(native, 'Handle') else native
-                            if isinstance(hwnd, int):
+                            raw = native.Handle if hasattr(native, 'Handle') else native
+                            hwnd = _hwnd_to_int(raw)
+                            if hwnd:
                                 # WM_CLOSE = 0x0010
                                 ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
                             else:
@@ -2056,15 +2252,19 @@ class Api:
         return bool(getattr(self, '_current_stack_mode', False))
 
     def get_packets(self, packet_types=None):
-        # Exclude any user-hidden packet types
-        hidden = set(self.get_hidden_packet_types())
-        packets = [p for p in self.capture_controller.packet_capture.captured_packets if p.get('type') not in hidden]
+        all_packets = list(self.capture_controller.packet_capture.captured_packets)
         if packet_types:
-            packets = [p for p in packets if p['type'] in packet_types]
-        return packets
+            # Frontend controls which types to show — filter to only those
+            allowed = set(packet_types)
+            return [p for p in all_packets if p.get('type') in allowed]
+        # No explicit filter — exclude user-hidden types
+        hidden = set(self.get_hidden_packet_types())
+        return [p for p in all_packets if p.get('type') not in hidden]
 
     def get_packet_types(self):
-        if not _PacketCommand_pb2:
+        try:
+            from networking.protos import _PacketCommand_pb2
+        except ImportError:
             return []
         try:
             # Use the internal enum descriptor to list valid enum names
@@ -2097,32 +2297,20 @@ class Api:
 
 @server.route('/api/download_update')
 def download_update():
-    """Instead of downloading the update, redirect to the latest release page."""
+    """Redirect to the latest release page, reusing cached version info."""
+    fallback_url = 'https://github.com/Beelzebub2/DnDTools/releases/latest'
     try:
-        # Try with GitHub API to get the release URL
-        logger.info("Redirecting to GitHub releases page")
-        response = requests.get(
-            'https://api.github.com/repos/Beelzebub2/DnDTools/releases/latest',
-            headers={'User-Agent': 'DnDTools-Updater'},
-            timeout=10
-        )
-        
-        if response.ok:
-            release_data = response.json()
-            release_url = release_data.get('html_url', 'https://github.com/Beelzebub2/DnDTools/releases/latest')
-            logger.info(f"Redirecting to: {release_url}")
-            return redirect(release_url)
-        else:
-            # If GitHub API fails, redirect to the main releases page
-            return redirect('https://github.com/Beelzebub2/DnDTools/releases/latest')
-            
+        info = get_version_info()
+        release_url = (info or {}).get('release_url') or fallback_url
+        logger.info(f"Redirecting to: {release_url}")
+        return redirect(release_url)
     except Exception as e:
-        error_msg = f"Error redirecting to update page: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        return jsonify({'error': error_msg}), 500
+        logger.error(f"Error redirecting to update page: {e}", exc_info=True)
+        return redirect(fallback_url)
 
 def get_version_info():
     """Get the latest version from dndtools.rrmtools.uk API with fallback to GitHub API."""
+    import requests
     global version_cache, version_cache_timestamp
     
     current_time = time.time()
@@ -2236,6 +2424,7 @@ def api_update_status():
 
 @server.route('/api/update/apply', methods=['POST'])
 def api_update_apply():
+    from update import UpdateError
     include_dev = bool(api.settings_manager.get('includeDevReleases')) if api else False
     channel = 'dev' if include_dev else 'stable'
     try:
@@ -2251,9 +2440,24 @@ api = None
 asset_updater = None
 
 def _init_api():
-    global api, asset_updater
+    global api, asset_updater, update_manager
     if api is not None:
         return
+
+    # ── Deferred heavy imports ──────────────────────────────────────────
+    # These modules pull in requests / psutil which are not needed until
+    # after the UI window is visible.  Importing them here instead of at
+    # module level shaves ~0.5s off cold-start.
+    from update import UpdateManager
+    from utils.asset_updater import AssetUpdater
+
+    update_manager = UpdateManager(
+        current_version=APP_VERSION,
+        manifest_url=UPDATE_MANIFEST_URL,
+        cache_duration=UPDATE_CACHE_DURATION,
+        auto_update_silent=AUTO_UPDATE_SILENT,
+        logger=logger,
+    )
 
     api = Api()
     asset_updater = AssetUpdater(
@@ -2270,7 +2474,48 @@ def _init_api():
 # JSON API endpoint
 @server.route('/api/characters')
 def api_characters():
-    return jsonify(api.get_characters())
+    return jsonify(api.get_characters_summary())
+
+@server.route('/api/character/<character_id>/init')
+def api_character_init(character_id):
+    """Combined endpoint that returns all data needed for character page load in one request.
+    Replaces separate calls to /details, /current-stash, /stashes, /pack_mode, /stack_mode, /sort_order.
+    """
+    character_id = validate_character_id(character_id)
+    if not character_id:
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
+
+    # Character details
+    details = api.get_character_details(character_id) or {}
+
+    # Current stash selection
+    current_stash_id = None
+    if hasattr(api, '_current_char_id') and api._current_char_id == character_id \
+       and hasattr(api, '_current_stash_id') and api._current_stash_id:
+        current_stash_id = api._current_stash_id
+    else:
+        current_stash_id = session.get(f'{character_id}_current_stash_id', None)
+
+    # Stash previews (honour stashIds filter from query)
+    stash_ids_param = request.args.get('stashIds')
+    stash_ids = None
+    if stash_ids_param:
+        stash_ids = [s.strip() for s in stash_ids_param.split(',') if s.strip()]
+    stash_previews = api.get_character_stash_previews(character_id, stash_ids=stash_ids)
+
+    # User preferences
+    pack_mode = api.get_pack_mode()
+    stack_mode = api.get_stack_mode()
+    sort_order = api.get_sort_order()
+
+    return jsonify({
+        'details': details,
+        'currentStashId': current_stash_id,
+        'stashes': stash_previews,
+        'packMode': pack_mode,
+        'stackMode': stack_mode,
+        'sortOrder': sort_order,
+    })
 
 @server.route('/api/character/<character_id>/stashes')
 def api_character_stashes(character_id):
@@ -2302,9 +2547,10 @@ def api_quests_list():
     merchant_filter = (request.args.get('merchant') or '').strip()
     force_refresh = refresh in {'1', 'true', 'yes', 'force'}
 
+    import requests as _requests
     try:
         quests = quest_service.fetch_quests(force=force_refresh)
-    except requests.exceptions.RequestException as exc:
+    except _requests.exceptions.RequestException as exc:
         logger.error("Failed to contact DarkerDB quests API: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
     except Exception as exc:
@@ -2327,12 +2573,14 @@ def api_quests_list():
         key=lambda name: name.lower()
     )
 
+    # Filter quests by merchant BEFORE enrichment to skip expensive item lookups
+    if merchant_filter_lower:
+        quests = [q for q in quests if normalize_merchant(q.get('merchant') or '').lower() == merchant_filter_lower]
+
     enriched_quests: list[dict] = []
     for quest in quests:
         merchant_name_original = quest.get('merchant') or ''
         merchant_name = normalize_merchant(merchant_name_original)
-        if merchant_filter_lower and merchant_name.lower() != merchant_filter_lower:
-            continue
 
         objectives_payload: list[dict] = []
         for objective in quest.get('objectives') or []:
@@ -2403,12 +2651,13 @@ def api_quests_list():
 
 @server.route('/api/quests/items', methods=['GET'])
 def api_quests_item_requirements():
+    import requests as _requests
     refresh = (request.args.get('refresh') or '').strip().lower()
     force_refresh = refresh in {'1', 'true', 'yes', 'force'}
 
     try:
         quests = quest_service.fetch_quests(force=force_refresh)
-    except requests.exceptions.RequestException as exc:
+    except _requests.exceptions.RequestException as exc:
         logger.error("Failed to contact DarkerDB quests API for item requirements: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
     except Exception as exc:
@@ -2723,6 +2972,7 @@ def api_capture_state():
 
 @server.route('/api/network_interfaces', methods=['GET'])
 def api_network_interfaces():
+    import psutil
     interfaces = list(psutil.net_if_addrs().keys())
     return jsonify({"interfaces": interfaces})
 
@@ -2787,16 +3037,15 @@ def api_sort_feedback():
 
 @server.route('/api/character/<character_id>/current-stash', methods=['GET'])
 def api_get_current_stash(character_id):
-    # Validate input
+    """Get the last selected stash ID for a character."""
     character_id = validate_character_id(character_id)
     if not character_id:
         return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
-        
+
     try:
-        """Get the last selected stash ID for a character"""
-        if hasattr(api, '_current_char_id') and api._current_char_id == character_id and hasattr(api, '_current_stash_id') and api._current_stash_id:
+        if hasattr(api, '_current_char_id') and api._current_char_id == character_id \
+           and hasattr(api, '_current_stash_id') and api._current_stash_id:
             return jsonify({'stashId': api._current_stash_id})
-        from flask import session
         stash_id = session.get(f'{character_id}_current_stash_id', None)
         return jsonify({'stashId': stash_id})
     except Exception as e:
@@ -2805,25 +3054,27 @@ def api_get_current_stash(character_id):
 
 @server.route('/api/character/<character_id>/current-stash/<stash_id>', methods=['POST'])
 def api_set_current_stash(character_id, stash_id):
-    # Validate inputs
+    """Set the current stash ID for a character."""
     character_id = validate_character_id(character_id)
     if not character_id:
         return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
-        
+
     stash_id = validate_stash_id(stash_id)
     if stash_id is None:
         return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
-    """Set the current stash ID for a character"""
-    # Update the global variables in the API class
-    api._current_char_id = character_id
-    api._current_stash_id = stash_id
-    
-    # Also store in session for persistence across page reloads
-    from flask import session
-    session[f'{character_id}_current_stash_id'] = stash_id
-    
-    logger.info(f"Current stash updated to character {character_id}, stash {stash_id}")
-    return jsonify({'success': True})
+
+    try:
+        api._current_char_id = character_id
+        api._current_stash_id = stash_id
+        # Track combined character view state for hotkey sort override
+        data = request.get_json(silent=True) or {}
+        api._is_combined_view = bool(data.get('combinedView', False))
+        session[f'{character_id}_current_stash_id'] = stash_id
+        logger.info(f"Current stash updated to character {character_id}, stash {stash_id}, combined={api._is_combined_view}")
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error setting current stash: {e}")
+        return jsonify({'success': False, 'error': 'Failed to set current stash'}), 500
 
 @server.route('/')
 def index():
@@ -3035,6 +3286,38 @@ def background_init():
     """Perform heavy or slow initialization in the background after UI loads."""
     logger.info("Starting background initialization...")
     try:
+        # ── Deferred subsystems (tray, watcher, ping, ML service) ──────
+        # These were NOT started in Api.__init__() to keep the window
+        # appearing as fast as possible.
+        try:
+            api._start_deferred_subsystems()
+        except Exception as sub_exc:
+            logger.error("Deferred subsystem start failed: %s", sub_exc, exc_info=True)
+
+        # ── Single-instance restore listener ───────────────────────────
+        # When a second copy of the app is launched it signals the named
+        # event instead of starting up.  We listen for that here and
+        # restore the window from the system tray.
+        guard = getattr(api, '_instance_guard', None)
+        if guard:
+            guard.start_listener(api.restore_from_tray)
+
+        # ── Capture migration / restore (moved from main()) ───────────
+        try:
+            refreshed_settings = settings_manager.reload()
+            interface_after_migration = refreshed_settings.get('interface')
+            if interface_after_migration and interface_after_migration != api.capture_settings.get('interface'):
+                try:
+                    state = api.capture_controller.update_settings(interface_after_migration, None, None)
+                    api.capture_settings = {
+                        'interface': state['interface'],
+                        'port_range': (state['portRange']['low'], state['portRange']['high'])
+                    }
+                except Exception as capture_err:
+                    logger.error(f"Failed to apply migrated capture interface: {capture_err}")
+        except Exception as mig_exc:
+            logger.debug("Capture migration check failed: %s", mig_exc)
+
         # Check for updates on startup
         try:
             get_version_info()
@@ -3070,6 +3353,7 @@ def background_init():
                         protected_pids = capture.get_active_helper_pids()
                 except Exception as cleanup_err:
                     logger.debug("Unable to determine active capture PIDs: %s", cleanup_err)
+                from utils.tshark_cleanup import schedule_tshark_cleanup
                 schedule_tshark_cleanup(
                     logger,
                     api.window,
@@ -3139,7 +3423,19 @@ def main():
         subprocess.Popen([sys.executable] + sys.argv[2:])
         sys.exit(0)
     # --- End updater logic ---
-    
+
+    # ── Single-instance guard ───────────────────────────────────────────
+    # Prevent a second copy from starting when the app is minimised to the
+    # system tray.  If another instance already holds the mutex we signal
+    # it to restore its window and exit immediately.
+    from utils.single_instance import SingleInstanceGuard
+    _instance_guard = SingleInstanceGuard("DnDTools")
+    if not _instance_guard.acquire():
+        logger.info("Another instance is already running — signalling restore and exiting.")
+        _instance_guard.signal_restore()
+        _instance_guard.release()
+        sys.exit(0)
+
     # Using the global time module
     start_time = time.time()
     logger.info("Starting DnDTools application")
@@ -3149,18 +3445,6 @@ def main():
     
     # Preload only essential settings for faster startup
     SettingsManager.migrate_from_legacy(logger=logger, defer_heavy_operations=True)
-    refreshed_settings = settings_manager.reload()
-
-    interface_after_migration = refreshed_settings.get('interface')
-    if interface_after_migration and interface_after_migration != api.capture_settings.get('interface'):
-        try:
-            state = api.capture_controller.update_settings(interface_after_migration, None, None)
-            api.capture_settings = {
-                'interface': state['interface'],
-                'port_range': (state['portRange']['low'], state['portRange']['high'])
-            }
-        except Exception as capture_err:
-            logger.error(f"Failed to apply migrated capture interface: {capture_err}")
 
     if api.hotkey_manager:
         try:
@@ -3168,16 +3452,9 @@ def main():
         except HotkeyError as hotkey_err:
             logger.error("Failed to refresh global hotkeys after settings reload: %s", hotkey_err)
     
-    # Only handle immediate restart if capture is in a known running state
-    if (
-        api.capture_controller.state()["running"]
-        and not api._initial_restart_done
-        and not api.capture_controller.should_auto_start()
-    ):
-        # Schedule restart after UI load instead of doing it now
-        threading.Timer(0.5, lambda: api.restart_capture_switch()).start()
-    
     # Create window with minimal startup time
+    # Capture migration & restore are handled in background_init() so
+    # the window appears as fast as possible.
     window = webview.create_window(
         'Dark and Darker Stash Organizer',
         server,
@@ -3192,7 +3469,7 @@ def main():
     for method_name in [
         'minimize', 'toggle_maximize', 'close_window', 'shutdown_application', 'sort_stash', '_save_settings',
         'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
-        'search_items', 'get_characters', 'get_character_details',
+        'search_items', 'get_characters', 'get_characters_summary', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
         'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path'
     ]:
@@ -3201,6 +3478,9 @@ def main():
     
     # Set window reference
     api.set_window(window)
+
+    # Attach single-instance guard so other code can access it
+    api._instance_guard = _instance_guard
     
     logger.info(f"UI initialization completed in {time.time() - start_time:.2f} seconds")
     
@@ -3210,8 +3490,41 @@ def main():
         # Start background initialization after UI is ready
         threading.Thread(target=background_init, daemon=True).start()
         
-    # Start the webview
+    # Register atexit handler so the process never lingers as a ghost
+    def _atexit_cleanup():
+        try:
+            if getattr(api, '_shutting_down', False):
+                return  # Normal shutdown path already ran
+            logger.info("atexit cleanup — forcing remaining resources to stop")
+            api.shutdown_application()
+        except Exception:
+            pass
+        finally:
+            # Belt-and-suspenders: schedule a hard kill in case anything blocks
+            try:
+                threading.Timer(3.0, lambda: os._exit(0)).start()
+            except Exception:
+                pass
+
+    atexit.register(_atexit_cleanup)
+
+    # Start the webview (blocks until all windows are destroyed)
     webview.start(on_loaded, debug=False)
+
+    # webview.start() has returned — the UI window is gone.
+    # Ensure the application actually exits instead of lingering as a ghost
+    # process.  This covers the edge case where the window was destroyed by
+    # the OS (e.g. taskbar thumbnail close) without triggering our shutdown
+    # path.
+    if not getattr(api, '_shutting_down', False):
+        logger.info("webview.start() returned without shutdown — cleaning up")
+        try:
+            api.shutdown_application()
+        except Exception as exc:
+            logger.debug("Post-webview shutdown error: %s", exc)
+        finally:
+            # Hard exit after a short grace period
+            os._exit(0)
 
 if __name__ == '__main__':
     main()

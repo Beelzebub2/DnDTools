@@ -257,7 +257,7 @@
             if (state.itemsLoaded) {
                 renderItemsList();
             }
-        }, 500);
+        }, 120);
     };
 
     // Load archived completed quests from localStorage (if any)
@@ -314,10 +314,37 @@
         itemHoldingsSummary: document.getElementById('itemHoldingsSummary'),
         itemHoldingsBody: document.getElementById('itemHoldingsBody'),
         itemHoldingsClose: document.getElementById('itemHoldingsClose'),
-        prerequisiteToggle: document.getElementById('prerequisiteFilter')
+        prerequisiteToggle: document.getElementById('prerequisiteFilter'),
+        progressBar: document.getElementById('questProgressBar')
     };
 
     const questAliasIndex = new Map();
+
+    /* ─── Progress Bar ─── */
+    let progressBarRefCount = 0;
+    const showProgressBar = () => {
+        progressBarRefCount += 1;
+        if (elements.progressBar) {
+            elements.progressBar.classList.add('active');
+        }
+    };
+    const hideProgressBar = () => {
+        progressBarRefCount = Math.max(0, progressBarRefCount - 1);
+        if (progressBarRefCount === 0 && elements.progressBar) {
+            elements.progressBar.classList.remove('active');
+        }
+    };
+
+    /* Mark a list container as refreshing (dims it but keeps content visible) */
+    const setRefreshing = (container, isRefreshing) => {
+        if (!container) return;
+        if (isRefreshing) {
+            container.classList.add('is-refreshing');
+        } else {
+            container.classList.remove('is-refreshing');
+        }
+    };
+
     let questAliasEntries = [];
     const questTitleIndex = new Map();
     const questLockIndex = new Map();
@@ -2148,10 +2175,11 @@
             queryParams.set('slotIds', uniqueSlotIds.join(','));
         }
 
+        const baseUrl = `/character/${encodedCharacter}`;
+        const queryString = queryParams.toString();
+        const targetUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+
         const go = () => {
-            const baseUrl = `/character/${encodedCharacter}`;
-            const queryString = queryParams.toString();
-            const targetUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
             if (typeof window.navigateWithTransition === 'function') {
                 window.navigateWithTransition(targetUrl);
             } else {
@@ -2165,7 +2193,9 @@
                 headers: {
                     'Content-Type': 'application/json'
                 }
-            }).finally(go);
+            })
+                .catch(err => console.warn('Failed to pre-set stash for navigation:', err))
+                .finally(go);
         } else {
             go();
         }
@@ -2826,7 +2856,13 @@
     }
 
     async function fetchQuests({ force = false, silent = false } = {}) {
-        toggleLoading(elements.questLoading, true);
+        const isFirstLoad = !state.questsLoaded;
+        if (isFirstLoad) {
+            toggleLoading(elements.questLoading, true);
+        } else {
+            setRefreshing(elements.questList, true);
+        }
+        showProgressBar();
         try {
             const response = await fetch(force ? '/api/quests?refresh=1' : '/api/quests');
             const data = await response.json();
@@ -2900,10 +2936,16 @@
             renderMerchantView();
         } catch (error) {
             console.error(error);
-            state.questsLoaded = false;
-            renderError(elements.questList, error.message);
+            if (!state.questsLoaded) {
+                state.questsLoaded = false;
+                renderError(elements.questList, error.message);
+            } else if (typeof showNotification === 'function') {
+                showNotification('Failed to refresh quests: ' + (error.message || 'Unknown error'), 'error');
+            }
         } finally {
             toggleLoading(elements.questLoading, false);
+            setRefreshing(elements.questList, false);
+            hideProgressBar();
         }
     }
 
@@ -2944,8 +2986,14 @@
     }
 
     async function fetchItems({ force = false } = {}) {
-        ensureItemsLoaderAttached();
-        toggleLoading(elements.itemsLoading, true);
+        const isFirstLoad = !state.itemsLoaded;
+        if (isFirstLoad) {
+            ensureItemsLoaderAttached();
+            toggleLoading(elements.itemsLoading, true);
+        } else {
+            setRefreshing(elements.itemsList, true);
+        }
+        showProgressBar();
         try {
             const response = await fetch(force ? '/api/quests/items?refresh=1' : '/api/quests/items');
             const data = await response.json();
@@ -2958,23 +3006,30 @@
             renderItemsList();
         } catch (error) {
             console.error(error);
-            state.itemsLoaded = false;
-            renderError(elements.itemsList, error.message);
-            ensureItemsLoaderAttached();
-            if (elements.itemsLoading) {
-                elements.itemsLoading.style.display = 'none';
+            if (!state.itemsLoaded) {
+                state.itemsLoaded = false;
+                renderError(elements.itemsList, error.message);
+                ensureItemsLoaderAttached();
+                if (elements.itemsLoading) {
+                    elements.itemsLoading.style.display = 'none';
+                }
+            } else if (typeof showNotification === 'function') {
+                showNotification('Failed to refresh items: ' + (error.message || 'Unknown error'), 'error');
             }
         } finally {
             toggleLoading(elements.itemsLoading, false);
+            setRefreshing(elements.itemsList, false);
+            hideProgressBar();
         }
     }
 
     async function refreshAll({ force = false } = {}) {
-        await Promise.all([
+        const results = await Promise.allSettled([
             fetchQuests({ force, silent: force }),
             fetchItems({ force })
         ]);
-        if (force && typeof showNotification === 'function') {
+        const anyFailed = results.some(r => r.status === 'rejected');
+        if (force && typeof showNotification === 'function' && !anyFailed) {
             showNotification('Quest data refreshed', 'success');
         }
     }

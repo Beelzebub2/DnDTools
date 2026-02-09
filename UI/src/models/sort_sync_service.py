@@ -28,8 +28,6 @@ import uuid
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-import requests
-
 from src.models.sort_model import (
     SortAdaptiveModel,
     get_sort_adaptive_model,
@@ -72,6 +70,7 @@ class SortSyncService:
         self._app_version = app_version
         self.model = model or get_sort_adaptive_model()
         self.event_store = event_store or get_event_store()
+        import requests
         self._session = requests.Session()
 
         # Resolve API URL
