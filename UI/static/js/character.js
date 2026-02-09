@@ -2177,9 +2177,11 @@ const createStashTabsWithoutDefault = (stashes) => {
 const updateCurrentStash = async (stashId) => {
     try {
         await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ combinedView: usingCombinedCharacterView })
         });
-        console.log(`Current stash updated to: ${stashId}`);
+        console.log(`Current stash updated to: ${stashId}, combined=${usingCombinedCharacterView}`);
     } catch (error) {
         console.error('Error updating current stash:', error);
     }

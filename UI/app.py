@@ -575,6 +575,7 @@ class Api:
         self.current_sort_event = None
         self._current_char_id = None
         self._current_stash_id = None
+        self._is_combined_view = False
         self._capture_shutdown_completed = False
         self.asset_updater = None
         self._close_to_tray_enabled = bool(settings.get('closeToTrayEnabled', True))
@@ -1765,6 +1766,12 @@ class Api:
         current_char_id = self._current_char_id
         current_stash_id = self._current_stash_id
 
+        # When on the combined Character tab, always sort the bag (stash 2)
+        # instead of equipment (stash 3) which has fixed slots.
+        if self._is_combined_view:
+            current_stash_id = '2'
+            logger.info("Combined character view active — overriding sort target to bag (stash 2)")
+
         if self.current_sort_event and not self.current_sort_event.is_set():
             logger.info("Sort hotkey pressed while a sort is already running; ignoring duplicate trigger")
             if self.window:
@@ -1790,19 +1797,23 @@ class Api:
         logger.info(f"Scheduling sort for character {current_char_id}, stash {current_stash_id}")
         cancel_event = threading.Event()
         self.current_sort_event = cancel_event
-        threading.Thread(target=self._sort_worker, args=(cancel_event,), daemon=True).start()
+        threading.Thread(target=self._sort_worker, args=(cancel_event, current_char_id, current_stash_id), daemon=True).start()
 
-    def _sort_worker(self, cancel_event: threading.Event):
+    def _sort_worker(self, cancel_event: threading.Event, char_id: str = None, stash_id: str = None):
         """Background worker for sorting current stash"""
         if cancel_event.is_set():
             logger.info("Sort worker aborted before start because cancel was requested")
             return
 
+        # Use provided IDs (from hotkey with combined-view override) or fall back to current state
+        sort_char_id = char_id or self._current_char_id
+        sort_stash_id = stash_id or self._current_stash_id
+
         if self.window:
             self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
         result = self.sort_stash(
-            self._current_char_id,
-            self._current_stash_id,
+            sort_char_id,
+            sort_stash_id,
             cancel_event=cancel_event,
             pack_mode=self.get_pack_mode(),
             stack_mode=self.get_stack_mode(),
@@ -3055,8 +3066,11 @@ def api_set_current_stash(character_id, stash_id):
     try:
         api._current_char_id = character_id
         api._current_stash_id = stash_id
+        # Track combined character view state for hotkey sort override
+        data = request.get_json(silent=True) or {}
+        api._is_combined_view = bool(data.get('combinedView', False))
         session[f'{character_id}_current_stash_id'] = stash_id
-        logger.info(f"Current stash updated to character {character_id}, stash {stash_id}")
+        logger.info(f"Current stash updated to character {character_id}, stash {stash_id}, combined={api._is_combined_view}")
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Error setting current stash: {e}")

@@ -166,11 +166,12 @@ class StashManager:
         logger.info(f"Average load time per file: {self.load_stats['average_load_time_per_file']:.4f} seconds")
         
         # Only show character details for small number of characters
-        if loaded_count <= 3:
-            for char_id, char_data in self.characters_cache.items():
-                logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
-        else:
-            logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
+        with self._cache_lock:
+            if loaded_count <= 3:
+                for char_id, char_data in self.characters_cache.items():
+                    logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
+            else:
+                logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
 
         # Check for corrections based on newly loaded data
         try:
@@ -178,15 +179,16 @@ class StashManager:
             learning_manager = get_sort_learning_manager()
             if learning_manager:
                 all_items = []
-                for char_data in self.characters_cache.values():
-                    if not char_data:
-                        continue
-                    stashes = char_data.get("stashes", {})
-                    for stash in stashes.values():
-                        if hasattr(stash, "pq"):
-                             all_items.extend(stash.pq)
-                        elif hasattr(stash, "items"): 
-                             all_items.extend(stash.items)
+                with self._cache_lock:
+                    for char_data in self.characters_cache.values():
+                        if not char_data:
+                            continue
+                        stashes = char_data.get("stashes", {})
+                        for stash in stashes.values():
+                            if hasattr(stash, "pq"):
+                                 all_items.extend(stash.pq)
+                            elif hasattr(stash, "items"): 
+                                 all_items.extend(stash.items)
                 
                 if all_items:
                     learning_manager.check_corrections(all_items)
@@ -278,6 +280,19 @@ class StashManager:
                 'timestamp': time.time(),
             }
 
+    def _get_cache_info(self) -> Dict:
+        """Return cache statistics, safe to call from any thread."""
+        with self._cache_lock:
+            chars = list(self.characters_cache.values())
+        return {
+            'characters_cached': len(chars),
+            'total_stashes': sum(len(c.get('stashes', {})) for c in chars),
+            'estimated_items': sum(
+                sum(len(s) for s in c.get('stashes', {}).values() if isinstance(s, list))
+                for c in chars
+            ),
+        }
+
     def get_performance_stats(self) -> Dict:
         """Get performance statistics for data loading and memory usage"""
         import psutil
@@ -292,14 +307,7 @@ class StashManager:
                 'rss': memory_info.rss / 1024 / 1024,  # MB
                 'vms': memory_info.vms / 1024 / 1024,  # MB
             },
-            'cache_info': {
-                'characters_cached': len(self.characters_cache),
-                'total_stashes': sum(len(char.get('stashes', {})) for char in self.characters_cache.values()),
-                'estimated_items': sum(
-                    sum(len(stash) for stash in char.get('stashes', {}).values() if isinstance(stash, list))
-                    for char in self.characters_cache.values()
-                )
-            },
+            'cache_info': self._get_cache_info(),
             'system_info': {
                 'cpu_count': os.cpu_count(),
                 'python_version': sys.version
@@ -311,8 +319,9 @@ class StashManager:
         # Ensure data is loaded before returning characters
         if not self._is_loaded:
             self._load_data()
-            
-        return list(self.characters_cache.values())
+
+        with self._cache_lock:
+            return list(self.characters_cache.values())
 
     def get_characters_summary(self) -> List[Dict]:
         """Return a lightweight list of characters for the index page.
