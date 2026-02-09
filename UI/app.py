@@ -10,7 +10,7 @@ from src.models.settings import (
     resolve_tshark_executable,
 )
 import webview
-from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file
+from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file, session
 import os
 import threading
 import asyncio
@@ -2320,12 +2320,14 @@ def api_quests_list():
         key=lambda name: name.lower()
     )
 
+    # Filter quests by merchant BEFORE enrichment to skip expensive item lookups
+    if merchant_filter_lower:
+        quests = [q for q in quests if normalize_merchant(q.get('merchant') or '').lower() == merchant_filter_lower]
+
     enriched_quests: list[dict] = []
     for quest in quests:
         merchant_name_original = quest.get('merchant') or ''
         merchant_name = normalize_merchant(merchant_name_original)
-        if merchant_filter_lower and merchant_name.lower() != merchant_filter_lower:
-            continue
 
         objectives_payload: list[dict] = []
         for objective in quest.get('objectives') or []:
@@ -2780,16 +2782,15 @@ def api_sort_feedback():
 
 @server.route('/api/character/<character_id>/current-stash', methods=['GET'])
 def api_get_current_stash(character_id):
-    # Validate input
+    """Get the last selected stash ID for a character."""
     character_id = validate_character_id(character_id)
     if not character_id:
         return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
-        
+
     try:
-        """Get the last selected stash ID for a character"""
-        if hasattr(api, '_current_char_id') and api._current_char_id == character_id and hasattr(api, '_current_stash_id') and api._current_stash_id:
+        if hasattr(api, '_current_char_id') and api._current_char_id == character_id \
+           and hasattr(api, '_current_stash_id') and api._current_stash_id:
             return jsonify({'stashId': api._current_stash_id})
-        from flask import session
         stash_id = session.get(f'{character_id}_current_stash_id', None)
         return jsonify({'stashId': stash_id})
     except Exception as e:
@@ -2798,25 +2799,24 @@ def api_get_current_stash(character_id):
 
 @server.route('/api/character/<character_id>/current-stash/<stash_id>', methods=['POST'])
 def api_set_current_stash(character_id, stash_id):
-    # Validate inputs
+    """Set the current stash ID for a character."""
     character_id = validate_character_id(character_id)
     if not character_id:
         return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
-        
+
     stash_id = validate_stash_id(stash_id)
     if stash_id is None:
         return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
-    """Set the current stash ID for a character"""
-    # Update the global variables in the API class
-    api._current_char_id = character_id
-    api._current_stash_id = stash_id
-    
-    # Also store in session for persistence across page reloads
-    from flask import session
-    session[f'{character_id}_current_stash_id'] = stash_id
-    
-    logger.info(f"Current stash updated to character {character_id}, stash {stash_id}")
-    return jsonify({'success': True})
+
+    try:
+        api._current_char_id = character_id
+        api._current_stash_id = stash_id
+        session[f'{character_id}_current_stash_id'] = stash_id
+        logger.info(f"Current stash updated to character {character_id}, stash {stash_id}")
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error setting current stash: {e}")
+        return jsonify({'success': False, 'error': 'Failed to set current stash'}), 500
 
 @server.route('/')
 def index():

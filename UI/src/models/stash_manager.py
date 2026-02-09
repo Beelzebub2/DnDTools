@@ -357,8 +357,19 @@ class StashManager:
     def get_item_holdings(
         self,
         item_ids: Iterable[str],
+        loot_states: Optional[Set[int]] = None,
     ) -> Dict[str, List[Dict]]:
-        """Aggregate how many of the specified items exist across all characters."""
+        """Aggregate how many of the specified items exist across all characters.
+
+        Parameters
+        ----------
+        item_ids : Iterable[str]
+            Item identifiers to look up.
+        loot_states : set[int] | None
+            Optional set of acceptable loot-state values.  When provided only
+            stash entries whose loot state is in this set are counted, reducing
+            the payload size for callers that would discard them anyway.
+        """
         if not item_ids:
             return {}
 
@@ -404,6 +415,10 @@ class StashManager:
                         loot_state_value = int(loot_state_raw)
                     except (TypeError, ValueError):
                         loot_state_value = None
+
+                    # Skip items that don't match the desired loot state filter
+                    if loot_states is not None and loot_state_value not in loot_states:
+                        continue
 
                     count_raw = item.get("itemCount", 1)
                     try:

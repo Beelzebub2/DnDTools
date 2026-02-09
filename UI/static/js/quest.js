@@ -257,7 +257,7 @@
             if (state.itemsLoaded) {
                 renderItemsList();
             }
-        }, 500);
+        }, 120);
     };
 
     // Load archived completed quests from localStorage (if any)
@@ -2148,10 +2148,11 @@
             queryParams.set('slotIds', uniqueSlotIds.join(','));
         }
 
+        const baseUrl = `/character/${encodedCharacter}`;
+        const queryString = queryParams.toString();
+        const targetUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+
         const go = () => {
-            const baseUrl = `/character/${encodedCharacter}`;
-            const queryString = queryParams.toString();
-            const targetUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
             if (typeof window.navigateWithTransition === 'function') {
                 window.navigateWithTransition(targetUrl);
             } else {
@@ -2165,7 +2166,9 @@
                 headers: {
                     'Content-Type': 'application/json'
                 }
-            }).finally(go);
+            })
+                .catch(err => console.warn('Failed to pre-set stash for navigation:', err))
+                .finally(go);
         } else {
             go();
         }

@@ -42,7 +42,11 @@ function handleApiError(error, element) {
         </div>`;
 }
 
-const charId = window.location.pathname.split('/').pop();
+// Extract charId safely — handle trailing slashes and empty segments
+const charId = (() => {
+    const segments = window.location.pathname.split('/').filter(Boolean);
+    return segments.length ? decodeURIComponent(segments[segments.length - 1]) : '';
+})();
 let abortController = null;
 let currentStashId = null;  // Track current stash ID
 let requestedStashIdFromUrl = null;
@@ -250,7 +254,7 @@ function normalizeSlotIdList(slotSource) {
 const HIGHLIGHT_QUERY_PARAM = 'slotIds';
 const HIGHLIGHT_FALLBACK_QUERY_PARAMS = ['slots', 'highlight'];
 const HIGHLIGHT_CLASS = 'stash-item-highlight';
-const HIGHLIGHT_DURATION_MS = 3600;
+const HIGHLIGHT_DURATION_MS = 6000;
 const HIGHLIGHT_POLL_INTERVAL = 120;
 const HIGHLIGHT_MAX_ATTEMPTS = 20;
 
