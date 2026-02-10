@@ -1480,13 +1480,13 @@
                 const targetName = obj.item && obj.item.name ? obj.item.name : (obj.item_id || 'Unknown Item');
                 titleText = `Collect ${obj.count || 0}× ${targetName}`;
             } else if (obj.type === 'Kill') {
-                titleText = `Eliminate ${obj.count || 0}× ${obj.monster || 'enemies'}`;
+                titleText = `Eliminate ${obj.count || 0}× ${obj.monster || obj.monster_type || 'enemies'}`;
             } else if (obj.type === 'Props') {
                 titleText = `Interact with ${obj.count || 0}× ${obj.interact || 'objects'}`;
             } else if (obj.type === 'Explore') {
                 titleText = `Explore ${obj.module || 'the objective area'}`;
             } else if (obj.type === 'Survive') {
-                titleText = `Survive ${obj.count || 0} waves`;
+                titleText = obj.count === 1 ? 'Survive and extract' : `Survive ${obj.count || 0}× runs`;
             } else {
                 titleText = `${obj.type || 'Objective'} – ${obj.count || 0}`;
             }
