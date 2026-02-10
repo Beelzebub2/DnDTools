@@ -60,6 +60,9 @@ AUTO_UPDATE_SILENT = os.environ.get("DND_UPDATE_SILENT", "1").lower() not in {"0
 SORT_CANCEL_NOTIFICATION_MESSAGE = (
     "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again."
 )
+SORT_SUCCESS_NOTIFICATION_MESSAGE = (
+    "Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again."
+)
 
 GAME_PROCESS_NAMES = (
     "DungeonCrawler.exe",
@@ -1917,10 +1920,17 @@ class Api:
                     self.window.evaluate_js(
                         f'window.dispatchEvent(new CustomEvent("sortCancelled", {{ detail: {cancel_detail} }}))'
                     )
+                elif isinstance(result, dict) and result.get('success'):
+                    success_detail = json.dumps({
+                        "source": "worker",
+                        "message": SORT_SUCCESS_NOTIFICATION_MESSAGE,
+                    })
+                    self.window.evaluate_js(
+                        f'window.dispatchEvent(new CustomEvent("sortCompleted", {{ detail: {success_detail} }}))'
+                    )
             except Exception as exc:
-                logger.debug("Failed to dispatch worker sortCancelled event: %s", exc, exc_info=True)
-        # Optionally, communicate result back to UI
-        
+                logger.debug("Failed to dispatch worker sort result event: %s", exc, exc_info=True)
+
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""
         logger.info(f"Cancel hotkey activated: {self.settings_manager.get('cancelHotkey')}")

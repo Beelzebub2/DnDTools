@@ -93,6 +93,8 @@ let isStackMode = false;
 let stackModeToggle = null;
 const SORT_CANCEL_NOTIFICATION_ID = 'character-sort-cancelled';
 const SORT_CANCEL_MESSAGE = "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+const SORT_SUCCESS_NOTIFICATION_ID = 'character-sort-success';
+const SORT_SUCCESS_MESSAGE = "Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
 
 const rarityRankMap = {
     'none': 0,
@@ -823,6 +825,21 @@ function showSortCancelNotification() {
 function dismissSortCancelNotification() {
     if (typeof window.dismissNotification === 'function') {
         window.dismissNotification(SORT_CANCEL_NOTIFICATION_ID);
+    }
+}
+
+function showSortSuccessNotification() {
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(SORT_SUCCESS_MESSAGE, 'info', {
+            id: SORT_SUCCESS_NOTIFICATION_ID,
+            persistent: true
+        });
+    }
+}
+
+function dismissSortSuccessNotification() {
+    if (typeof window.dismissNotification === 'function') {
+        window.dismissNotification(SORT_SUCCESS_NOTIFICATION_ID);
     }
 }
 
@@ -2323,7 +2340,13 @@ const triggerSort = async () => {
 
         if (result.success) {
             await loadStashes();
-            window.showNotification('Stash sorted successfully', 'success');
+            showSortSuccessNotification();
+            // Turn off sort preview after successful sort
+            if (isPreviewMode) {
+                isPreviewMode = false;
+                updatePreviewToggleUI();
+                refreshCurrentStashView();
+            }
         } else {
             const errorMessage = result.error || 'Failed to sort stash. The stash might be full.';
             if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('cancel')) {
@@ -2675,6 +2698,12 @@ window.addEventListener('sortingStarted', () => {
 
 window.addEventListener('sortingEnded', () => {
     setSortingState(false);
+    // Turn off sort preview after sort ends to avoid confusing the user
+    if (isPreviewMode) {
+        isPreviewMode = false;
+        updatePreviewToggleUI();
+        refreshCurrentStashView();
+    }
 });
 
 // Add update handler for character data
@@ -2682,6 +2711,7 @@ window.updateCharacterData = async () => {
     await updateCharacterInfo(charId);
     await loadStashes();
     dismissSortCancelNotification();
+    dismissSortSuccessNotification();
 };
 
 // Character capture animation function (placeholder for character page)

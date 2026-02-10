@@ -23,6 +23,8 @@ function handleApiError(error, element) {
 
 const GLOBAL_SORT_CANCEL_NOTIFICATION_ID = 'character-sort-cancelled';
 const GLOBAL_SORT_CANCEL_MESSAGE = 'Sort canceled. Refresh your character data. If switching tabs doesn\'t update, move any item in the stash and switch tabs again.';
+const GLOBAL_SORT_SUCCESS_NOTIFICATION_ID = 'character-sort-success';
+const GLOBAL_SORT_SUCCESS_MESSAGE = 'Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn\'t update, move any item in the stash and switch tabs again.';
 
 // ===== Unified Notification System =====
 // Single global notification manager. Supports stacking, ids, persistent, close button, timer bar.
@@ -334,6 +336,22 @@ window.addEventListener('sortCancelled', (event) => {
         });
     } catch (err) {
         console.error('Failed to display sort cancellation notification', err);
+    }
+});
+
+window.addEventListener('sortCompleted', (event) => {
+    try {
+        const detail = event && typeof event.detail === 'object' ? event.detail : null;
+        const message = detail && typeof detail.message === 'string' && detail.message.trim()
+            ? detail.message
+            : GLOBAL_SORT_SUCCESS_MESSAGE;
+
+        showNotification(message, 'info', {
+            id: GLOBAL_SORT_SUCCESS_NOTIFICATION_ID,
+            persistent: true
+        });
+    } catch (err) {
+        console.error('Failed to display sort completion notification', err);
     }
 });
 
