@@ -149,7 +149,7 @@
     font-size: 1.15rem;
 }
 
-.search-input:focus ~ .search-icon {
+.search-input:focus~.search-icon {
     color: var(--accent-gold);
 }
 
@@ -661,7 +661,8 @@
     }
 
     .search-input {
-        font-size: 16px; /* Prevent zoom on iOS */
+        font-size: 16px;
+        /* Prevent zoom on iOS */
     }
 }
 
