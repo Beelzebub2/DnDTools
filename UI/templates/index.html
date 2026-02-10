@@ -6,23 +6,30 @@
 
 {% block content %}
 <div class="characters-container">
-    <div class="characters-header">
-        <div class="header-content">
-            <div class="header-icon">
+    <!-- Compact hero banner -->
+    <div class="hero-banner">
+        <div class="hero-banner-inner">
+            <div class="hero-icon">
                 <span class="material-icons">groups</span>
             </div>
-            <div class="header-text">
+            <div class="hero-text">
                 <h1>Your Characters</h1>
-                <p>
-                    To start sorting select the character and the stash, in-game and in the app, then press Sort Stash
-                    or
-                    {{ sort_hotkey_display or 'Ctrl + F11' }} to begin. Press {{ cancel_hotkey_display or 'Ctrl + F12'
-                    }} to stop.
-                </p>
+                <p class="hero-subtitle">Manage stashes, sort items, and gear up for the next dungeon crawl.</p>
             </div>
         </div>
     </div>
 
+    <!-- Quick-start tip strip -->
+    <div class="tip-strip">
+        <span class="material-icons tip-icon">lightbulb</span>
+        <span class="tip-text">
+            Select a character &rarr; pick a stash tab in-game &amp; in the app &rarr; press
+            <kbd>{{ sort_hotkey_display or 'Ctrl + F11' }}</kbd> to sort.
+            Press <kbd>{{ cancel_hotkey_display or 'Ctrl + F12' }}</kbd> to cancel.
+        </span>
+    </div>
+
+    <!-- Character grid -->
     <div class="characters-section">
         <div class="character-grid" id="characterGrid">
             <div class="loading" id="loading">Loading characters...</div>

@@ -1040,7 +1040,7 @@ const loadStashesFromPayload = async (stashesPayload) => {
                         previewImage.classList.add('hidden');
                         previewImage.removeAttribute('src');
                         previewContainer.classList.remove('hidden');
-                        previewContainer.className = 'stash-content-area';
+                        previewContainer.className = 'stash-panel-body';
                     }
                     await ensureStashData(currentStashId);
                     const items = await processStashData(stashes, currentStashId);
@@ -1074,7 +1074,7 @@ const loadStashesFromPayload = async (stashesPayload) => {
                                 previewImage.classList.add('hidden');
                                 previewImage.removeAttribute('src');
                                 previewContainer.classList.remove('hidden');
-                                previewContainer.className = 'stash-content-area';
+                                previewContainer.className = 'stash-panel-body';
                             }
                             await ensureStashData(currentStashId);
                             const items = await processStashData(stashes, currentStashId);
@@ -2144,7 +2144,7 @@ const createStashTabsWithoutDefault = (stashes) => {
                 tab.classList.add('active');
 
                 preview.classList.add('hidden');
-                previewContainer.className = 'stash-content-area';
+                previewContainer.className = 'stash-panel-body';
 
                 currentStashId = stashId;
                 usingCombinedCharacterView = false;
@@ -2828,7 +2828,7 @@ const loadStashes = async () => {
                         previewImage.classList.add('hidden');
                         previewImage.removeAttribute('src');
                         previewContainer.classList.remove('hidden');
-                        previewContainer.className = 'stash-content-area';
+                        previewContainer.className = 'stash-panel-body';
                     } else {
                         previewImage.src = stashes[currentStashId];
                         if (previewImage.src && previewImage.src !== window.location.href) {
@@ -2883,7 +2883,7 @@ const loadStashes = async () => {
                                 previewImage.classList.add('hidden');
                                 previewImage.removeAttribute('src');
                                 previewContainer.classList.remove('hidden');
-                                previewContainer.className = 'stash-content-area';
+                                previewContainer.className = 'stash-panel-body';
                             } else {
                                 previewImage.src = stashes[currentStashId];
                                 if (previewImage.src && previewImage.src !== window.location.href) {
