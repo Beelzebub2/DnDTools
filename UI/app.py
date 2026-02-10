@@ -3582,12 +3582,49 @@ def api_auto_resolution():
 
 @server.route('/api/restart', methods=['POST'])
 def api_restart():
-    import sys, os
+    import sys, os, subprocess
+
     def restart():
         import time
         time.sleep(0.5)
-        python = sys.executable
-        os.execl(python, python, *sys.argv)
+
+        # Build the command to re-launch the app.
+        # For a PyInstaller frozen exe, sys.executable *is* the app exe.
+        # For a normal Python invocation, re-run with the same script args.
+        if getattr(sys, 'frozen', False):
+            exe = sys.executable          # e.g. DnDTools.exe
+            cmd = [exe] + sys.argv[1:]    # forward any CLI flags
+        else:
+            exe = sys.executable          # python.exe
+            cmd = [exe] + sys.argv        # python app.py ...
+
+        try:
+            # Spawn a detached child that outlives this process.
+            # CREATE_NEW_PROCESS_GROUP + DETACHED_PROCESS ensure the new
+            # instance does not die when we terminate below.
+            creation_flags = 0
+            if sys.platform == 'win32':
+                creation_flags = (
+                    subprocess.CREATE_NEW_PROCESS_GROUP
+                    | subprocess.DETACHED_PROCESS
+                )
+
+            subprocess.Popen(
+                cmd,
+                creationflags=creation_flags,
+                close_fds=True,
+                start_new_session=(sys.platform != 'win32'),
+            )
+        except Exception as exc:
+            logger.error("Failed to spawn new instance for restart: %s", exc)
+            return
+
+        # Now tear down the current instance cleanly
+        try:
+            api.shutdown_application()
+        except Exception:
+            os._exit(0)
+
     import threading
     threading.Thread(target=restart, daemon=True).start()
     return '', 204
