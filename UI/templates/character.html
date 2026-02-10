@@ -29,113 +29,149 @@
         <!-- Stash content area -->
         <div id="stashPreview" class="stash-content-area hidden">
             <div class="stash-controls">
-                <div class="stash-controls-group">
-                    <button class="stash-action-button sort-button">
-                        <span class="material-icons">sort</span>
-                        <!-- Jelly Triangle Animation Container -->
-                        <div class="jelly-triangle-container">
-                            <div class="dot"></div>
-                            <div class="traveler"></div>
-                        </div>
-                        Sort Stash
-                    </button>
-                    <button class="stash-action-button preview-button" id="previewToggleButton">
-                        <span class="material-icons">visibility</span>
-                        <div class="jelly-triangle-container">
-                            <div class="dot"></div>
-                            <div class="traveler"></div>
-                        </div>
-                        Show Sort Preview
-                    </button>
-
-                    <div class="ordering-dropdown">
-                        <button class="stash-action-button sort-button" id="orderingButton">
-                            <span class="material-icons">tune</span>
-                            <!-- Jelly Triangle Animation Container -->
+                <!-- Row 1: Action buttons -->
+                <div class="stash-controls-row stash-controls-actions">
+                    <div class="stash-controls-group stash-primary-actions">
+                        <button class="stash-action-button btn-sort-stash">
+                            <span class="material-icons">sort</span>
                             <div class="jelly-triangle-container">
                                 <div class="dot"></div>
                                 <div class="traveler"></div>
                             </div>
-                            Ordering
+                            Sort Stash
                         </button>
-                        <div class="ordering-menu hidden" id="orderingMenu">
-                            <div class="ordering-option" data-sort="rarity" data-direction="desc"
-                                data-default-direction="desc" draggable="true">
-                                <span class="ordering-label">Rarity</span>
-                                <div class="ordering-controls">
-                                    <button type="button" class="direction-toggle"
-                                        aria-label="Toggle sort direction">Desc</button>
-                                    <div class="ordering-arrows">
-                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
-                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="ordering-option" data-sort="height" data-direction="desc"
-                                data-default-direction="desc" draggable="true">
-                                <span class="ordering-label">Height</span>
-                                <div class="ordering-controls">
-                                    <button type="button" class="direction-toggle"
-                                        aria-label="Toggle sort direction">Desc</button>
-                                    <div class="ordering-arrows">
-                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
-                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="ordering-option" data-sort="width" data-direction="desc"
-                                data-default-direction="desc" draggable="true">
-                                <span class="ordering-label">Width</span>
-                                <div class="ordering-controls">
-                                    <button type="button" class="direction-toggle"
-                                        aria-label="Toggle sort direction">Desc</button>
-                                    <div class="ordering-arrows">
-                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
-                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="ordering-option" data-sort="name" data-direction="desc"
-                                data-default-direction="desc" draggable="true">
-                                <span class="ordering-label">Name</span>
-                                <div class="ordering-controls">
-                                    <button type="button" class="direction-toggle"
-                                        aria-label="Toggle sort direction">Desc</button>
-                                    <div class="ordering-arrows">
-                                        <button type="button" class="arrow-up" aria-label="Move up">▲</button>
-                                        <button type="button" class="arrow-down" aria-label="Move down">▼</button>
-                                    </div>
-                                </div>
-                            </div>
 
-                            <div class="ordering-menu-footer">
-                                <button type="button" class="stash-action-button ordering-reset-button"
-                                    id="resetOrderingButton">
-                                    Restore Default Order
-                                </button>
+                        <button class="stash-action-button btn-preview" id="previewToggleButton">
+                            <span class="material-icons">visibility</span>
+                            <div class="jelly-triangle-container">
+                                <div class="dot"></div>
+                                <div class="traveler"></div>
+                            </div>
+                            Preview
+                        </button>
+
+                        <!-- Transfer to Stash dropdown -->
+                        <div class="transfer-dropdown" id="transferDropdown">
+                            <button class="stash-action-button btn-transfer" id="transferButton">
+                                <span class="material-icons">move_to_inbox</span>
+                                <div class="jelly-triangle-container">
+                                    <div class="dot"></div>
+                                    <div class="traveler"></div>
+                                </div>
+                                Deposit
+                            </button>
+                            <div class="transfer-menu hidden" id="transferMenu">
+                                <div class="transfer-menu-header">Select Destination Stash</div>
+                                <div class="transfer-stash-list" id="transferStashList">
+                                    <!-- Populated dynamically -->
+                                </div>
+                                <div class="transfer-feasibility hidden" id="transferFeasibility">
+                                    <div class="transfer-feasibility-icon">
+                                        <span class="material-icons" id="transferFeasibilityIcon">info</span>
+                                    </div>
+                                    <div class="transfer-feasibility-text" id="transferFeasibilityText"></div>
+                                    <div class="transfer-feasibility-details" id="transferFeasibilityDetails"></div>
+                                </div>
+                                <div class="transfer-menu-footer">
+                                    <button type="button" class="stash-action-button transfer-execute-button"
+                                        id="transferExecuteButton" disabled>
+                                        <span class="material-icons">send</span>
+                                        Execute Transfer
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="stash-controls-group">
-                    <div class="checkbox-group">
-                        <label class="custom-checkbox" for="packItemsToggle">
-                            <input type="checkbox" id="packItemsToggle">
-                            <span class="checkbox-mark"></span>
-                            <span class="checkbox-label">Pack Items</span>
-                        </label>
-                        <label class="custom-checkbox" for="stackItemsToggle">
-                            <input type="checkbox" id="stackItemsToggle">
-                            <span class="checkbox-mark"></span>
-                            <span class="checkbox-label">Stack Items</span>
-                        </label>
+                    <div class="stash-controls-separator"></div>
+
+                    <div class="stash-controls-group stash-config-actions">
+                        <div class="ordering-dropdown">
+                            <button class="stash-action-button btn-ordering" id="orderingButton">
+                                <span class="material-icons">tune</span>
+                                <div class="jelly-triangle-container">
+                                    <div class="dot"></div>
+                                    <div class="traveler"></div>
+                                </div>
+                                Ordering
+                            </button>
+                            <div class="ordering-menu hidden" id="orderingMenu">
+                                <div class="ordering-option" data-sort="rarity" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="ordering-label">Rarity</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ordering-option" data-sort="height" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="ordering-label">Height</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ordering-option" data-sort="width" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="ordering-label">Width</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ordering-option" data-sort="name" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="ordering-label">Name</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">▲</button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">▼</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="ordering-menu-footer">
+                                    <button type="button" class="stash-action-button ordering-reset-button"
+                                        id="resetOrderingButton">
+                                        Restore Default Order
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="checkbox-group">
+                            <label class="custom-checkbox" for="packItemsToggle">
+                                <input type="checkbox" id="packItemsToggle">
+                                <span class="checkbox-mark"></span>
+                                <span class="checkbox-label">Pack</span>
+                            </label>
+                            <label class="custom-checkbox" for="stackItemsToggle">
+                                <input type="checkbox" id="stackItemsToggle">
+                                <span class="checkbox-mark"></span>
+                                <span class="checkbox-label">Stack</span>
+                            </label>
+                        </div>
                     </div>
+
                     <div class="stash-value-indicator">
                         <span class="material-icons">monetization_on</span>
-                        <span>Total Value: </span>
                         <span id="totalStashValue">0</span>
-                        <span> coins</span>
+                        <span class="stash-value-label">coins</span>
                     </div>
                 </div>
             </div>

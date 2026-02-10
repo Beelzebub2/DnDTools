@@ -304,12 +304,11 @@
 /* Stash Controls */
 .stash-controls {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0;
     margin-bottom: 1.5rem;
     width: 100%;
-    padding: 1rem 2rem;
+    padding: 0.75rem 1.25rem;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-top: none;
@@ -319,36 +318,60 @@
     z-index: 20;
 }
 
+.stash-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+
+.stash-controls-actions {
+    justify-content: flex-start;
+}
+
 .stash-controls-group {
     display: flex;
-    gap: 0.75rem;
+    gap: 0.5rem;
     align-items: center;
+}
+
+.stash-controls-separator {
+    width: 1px;
+    height: 24px;
+    background: var(--border-color);
+    margin: 0 0.25rem;
+    flex-shrink: 0;
 }
 
 .stash-value-indicator {
-    background: rgba(0, 0, 0, 0.3);
-    padding: 0.6rem 1.2rem;
+    margin-left: auto;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 0.45rem 0.8rem;
     border-radius: 6px;
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(207, 163, 70, 0.2);
     color: var(--accent-gold);
     font-weight: 600;
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    gap: 0.35rem;
+    white-space: nowrap;
 }
 
 .stash-value-indicator .material-icons {
-    margin-right: 0.5rem;
-    font-size: 1.1rem;
+    font-size: 1rem;
     color: var(--accent-gold);
 }
 
+.stash-value-label {
+    color: var(--text-secondary);
+    font-weight: 400;
+    font-size: 0.8rem;
+}
+
 #totalStashValue {
-    margin: 0 0.25rem;
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 0.95rem;
 }
 
 /* Interactive Stash Grid Styles */
@@ -703,23 +726,21 @@
     background: rgba(20, 20, 20, 0.6);
     border: 1px solid var(--border-color);
     color: var(--text-secondary);
-    padding: 0.6rem 1.2rem;
+    padding: 0.5rem 0.9rem;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     font-weight: 500;
     transition: all 0.2s ease;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.4rem;
     will-change: transform, background-color, border-color;
     transform: translateZ(0);
+    white-space: nowrap;
 }
 
 .stash-action-button:hover {
-    background: rgba(228, 200, 105, 0.1);
-    border-color: var(--accent-gold);
-    color: var(--accent-gold);
     transform: translateY(-1px);
 }
 
@@ -728,10 +749,83 @@
 }
 
 .stash-action-button:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
+    transform: none !important;
 }
 
+/* ─ Sort Stash: primary gold/amber ─ */
+.btn-sort-stash {
+    background: linear-gradient(135deg, rgba(207, 163, 70, 0.18) 0%, rgba(207, 163, 70, 0.08) 100%);
+    border-color: rgba(207, 163, 70, 0.5);
+    color: var(--accent-gold);
+}
+
+.btn-sort-stash:hover {
+    background: linear-gradient(135deg, rgba(207, 163, 70, 0.3) 0%, rgba(207, 163, 70, 0.15) 100%);
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 12px rgba(207, 163, 70, 0.2);
+}
+
+.btn-sort-stash .material-icons {
+    font-size: 1rem;
+}
+
+/* ─ Preview: cool blue/slate ─ */
+.btn-preview {
+    background: rgba(100, 160, 220, 0.08);
+    border-color: rgba(100, 160, 220, 0.3);
+    color: rgba(140, 185, 230, 0.9);
+}
+
+.btn-preview:hover {
+    background: rgba(100, 160, 220, 0.16);
+    border-color: rgba(120, 175, 230, 0.6);
+    color: #9ec5e8;
+    box-shadow: 0 0 10px rgba(100, 160, 220, 0.15);
+}
+
+.btn-preview .material-icons {
+    font-size: 1rem;
+}
+
+/* ─ Transfer: teal/green ─ */
+.btn-transfer {
+    background: rgba(77, 182, 150, 0.08);
+    border-color: rgba(77, 182, 150, 0.3);
+    color: rgba(100, 200, 170, 0.9);
+}
+
+.btn-transfer:hover {
+    background: rgba(77, 182, 150, 0.16);
+    border-color: rgba(77, 182, 150, 0.55);
+    color: #6dd4b0;
+    box-shadow: 0 0 10px rgba(77, 182, 150, 0.15);
+}
+
+.btn-transfer .material-icons {
+    font-size: 1rem;
+}
+
+/* ─ Ordering: muted warm neutral ─ */
+.btn-ordering {
+    background: rgba(180, 160, 130, 0.06);
+    border-color: rgba(180, 160, 130, 0.25);
+    color: rgba(190, 175, 150, 0.85);
+}
+
+.btn-ordering:hover {
+    background: rgba(180, 160, 130, 0.14);
+    border-color: rgba(190, 175, 150, 0.5);
+    color: #c8b898;
+    box-shadow: 0 0 8px rgba(180, 160, 130, 0.12);
+}
+
+.btn-ordering .material-icons {
+    font-size: 1rem;
+}
+
+/* ─ Sorting-in-progress state (applied dynamically) ─ */
 .stash-action-button.sorting {
     position: relative;
     padding-left: 28px;
@@ -779,7 +873,7 @@
 
 .checkbox-group {
     display: flex;
-    gap: 1rem;
+    gap: 0.6rem;
     align-items: center;
 }
 
@@ -793,25 +887,29 @@
 .ordering-dropdown {
     position: relative;
     display: inline-block;
-    margin-left: auto;
 }
 
 /* Custom Checkbox Styles */
 .custom-checkbox {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.35rem;
     cursor: pointer;
     user-select: none;
-    font-size: 0.9rem;
+    font-size: 0.82rem;
     color: var(--text-secondary);
     transition: color 0.2s ease;
     position: relative;
-    padding: 0.25rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    background: rgba(20, 20, 20, 0.4);
 }
 
 .custom-checkbox:hover {
     color: var(--text-primary);
+    border-color: var(--border-color);
+    background: rgba(228, 200, 105, 0.04);
 }
 
 .custom-checkbox input[type="checkbox"] {
@@ -822,10 +920,10 @@
 }
 
 .checkbox-mark {
-    width: 18px;
-    height: 18px;
-    border: 2px solid var(--border-color);
-    border-radius: 4px;
+    width: 16px;
+    height: 16px;
+    border: 1.5px solid var(--border-color);
+    border-radius: 3px;
     background: var(--bg-dark);
     display: flex;
     align-items: center;
@@ -864,6 +962,8 @@
 
 .custom-checkbox.active {
     color: var(--accent-gold);
+    border-color: rgba(207, 163, 70, 0.3);
+    background: rgba(207, 163, 70, 0.06);
 }
 
 .checkbox-label {
@@ -1155,13 +1255,26 @@
 /* Combined Character View Styles */
 .combined-character-grid {
     display: flex;
-    flex-direction: column;
-    gap: 30px;
+    flex-direction: row;
+    gap: 20px;
     padding: 10px;
     width: 100%;
+    justify-content: center;
+    align-items: flex-start;
+    flex-wrap: wrap;
 }
 
-.equipment-section,
+.equipment-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: rgba(30, 30, 30, 0.6);
+    border-radius: 8px;
+    padding: 15px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
 .bag-section {
     display: flex;
     flex-direction: column;
@@ -1170,6 +1283,7 @@
     border-radius: 8px;
     padding: 15px;
     border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
 }
 
 .section-title {
@@ -1379,10 +1493,16 @@
     }
 
     .stash-controls {
-        flex-direction: column;
-        gap: 1rem;
-        align-items: stretch;
-        padding: 1rem 1.5rem;
+        padding: 0.6rem 1rem;
+    }
+
+    .stash-controls-row {
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .stash-controls-separator {
+        display: none;
     }
 
     .sorting-overlay-card {
@@ -1558,5 +1678,300 @@
 
     .sort-feedback-actions {
         flex-direction: column;
+    }
+}
+
+/* ── Transfer to Stash Dropdown ──────────────────────────────────── */
+.transfer-dropdown {
+    position: relative;
+    display: inline-block;
+}
+
+.btn-transfer .material-icons {
+    font-size: 1.1rem;
+}
+
+.transfer-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    width: 300px;
+    padding: 0;
+    overflow: hidden;
+    animation: slideUp 0.2s ease-out;
+}
+
+.transfer-menu-header {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--accent-gold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.transfer-stash-list {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.4rem;
+}
+
+.transfer-stash-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.8rem;
+    cursor: pointer;
+    color: var(--text-primary);
+    border-radius: 4px;
+    margin-bottom: 2px;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+    border: 1px solid transparent;
+    font-size: 0.9rem;
+}
+
+.transfer-stash-option:hover {
+    background: var(--hover-color);
+    border-color: rgba(228, 200, 105, 0.3);
+}
+
+.transfer-stash-option.selected {
+    background: rgba(228, 200, 105, 0.12);
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+    font-weight: 600;
+}
+
+.transfer-stash-option .transfer-stash-name {
+    flex: 1;
+}
+
+.transfer-stash-option .transfer-stash-info {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.transfer-stash-option.selected .transfer-stash-info {
+    color: var(--accent-gold);
+    opacity: 0.8;
+}
+
+.transfer-feasibility {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.transfer-feasibility-icon {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.transfer-feasibility-icon .material-icons {
+    font-size: 1.2rem;
+}
+
+.transfer-feasibility-icon.feasible {
+    color: #4caf50;
+}
+
+.transfer-feasibility-icon.partial {
+    color: #ff9800;
+}
+
+.transfer-feasibility-icon.impossible {
+    color: #f44336;
+}
+
+.transfer-feasibility-text {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.transfer-feasibility-details {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    line-height: 1.3;
+}
+
+.transfer-menu-footer {
+    padding: 0.6rem;
+    border-top: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.transfer-execute-button {
+    width: 100%;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    padding: 0.6rem 1rem;
+}
+
+.transfer-execute-button:not(:disabled) {
+    background: rgba(228, 200, 105, 0.12);
+    border-color: var(--accent-gold);
+    color: var(--accent-gold);
+}
+
+.transfer-execute-button:not(:disabled):hover {
+    background: rgba(228, 200, 105, 0.2);
+}
+
+.transfer-execute-button.transferring {
+    position: relative;
+}
+
+.transfer-execute-button.transferring .jelly-triangle-container {
+    display: block;
+}
+
+/* ── Game-like Character Stats Bar ───────────────────────────────── */
+.character-hero-section {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    background: linear-gradient(135deg, #1a1510 0%, #0d0b09 100%);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    border-radius: 8px;
+    padding: 0;
+    margin-bottom: 1.5rem;
+    position: relative;
+    overflow: hidden;
+}
+
+.character-hero-left {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    background: rgba(0, 0, 0, 0.3);
+    border-right: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.character-class-image {
+    width: 72px;
+    height: 72px;
+    border-radius: 6px;
+    border: 2px solid rgba(212, 175, 55, 0.4);
+    background: rgba(0, 0, 0, 0.4);
+    object-fit: cover;
+    transition: border-color 0.2s ease;
+}
+
+.character-class-image:hover {
+    border-color: var(--accent-gold);
+}
+
+.character-hero-content {
+    flex: 1;
+    min-width: 0;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.character-hero-name {
+    color: var(--accent-gold);
+    font-size: 1.6rem;
+    font-weight: 600;
+    margin: 0 0 0.15rem 0;
+    letter-spacing: 0.02em;
+}
+
+.character-hero-subtitle {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.character-stats-grid {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(212, 175, 55, 0.12);
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.2s ease;
+}
+
+.stat-item:hover {
+    border-color: rgba(212, 175, 55, 0.25);
+    transform: none;
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.stat-item .material-icons {
+    color: var(--accent-gold);
+    font-size: 1.1rem;
+    background: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+.stat-label {
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0;
+}
+
+.stat-value {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+/* ── Responsive: Character view side-by-side ─────────────────────── */
+@media (max-width: 900px) {
+    .combined-character-grid {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+@media (max-width: 768px) {
+    .character-hero-section {
+        flex-direction: column;
+    }
+
+    .character-hero-left {
+        border-right: none;
+        border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+        padding: 1rem;
+    }
+
+    .character-hero-name {
+        font-size: 1.3rem;
+    }
+
+    .transfer-menu {
+        width: 260px;
     }
 }

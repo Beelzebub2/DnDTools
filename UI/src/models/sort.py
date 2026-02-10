@@ -426,6 +426,162 @@ class StashSorter:
         except Exception:
             pass
 
+    # ── Transfer support ────────────────────────────────────────────
+
+    def mark_items_for_transfer(self, items: list) -> int:
+        """Mark inventory items as transfer targets to be placed in the stash.
+
+        Call this *after* construction and *before* ``sort()``.  Each item
+        must currently reside in ``self.inv`` (the inventory Storage).  The
+        items will be included in the layout plan so the sort pipeline
+        physically moves them from the inventory grid to their planned
+        stash positions.
+
+        Returns the number of items successfully marked.
+        """
+        marked = 0
+        for item in items:
+            if item is None:
+                continue
+            if item.stash is not self.inv:
+                logger.debug(
+                    "Skipping transfer mark for %s – not in inventory", item
+                )
+                continue
+            self._mark_buffered_inventory(item)
+            marked += 1
+        if marked:
+            logger.info(
+                "Transfer mode: %d inventory items marked for placement in stash",
+                marked,
+            )
+            self._metric_set("transfer_items_marked", float(marked))
+            # Pre-stack transfer items so the layout planner sees fewer items
+            self._prepare_transfer_stack_plan()
+        return marked
+
+    def _prepare_transfer_stack_plan(self):
+        """Merge stackable items among buffered inventory (transfer) items.
+
+        Groups transfer items by ``(item_id, rarity)`` and collapses
+        multiple partial stacks into fewer full stacks.  Generates
+        stacking instructions that will execute **in-game** (via macros)
+        before the main sort, and removes consumed items from the
+        buffered-inventory bookkeeping so the layout planner sees a
+        realistic item count.
+        """
+        buffered = list(self._buffered_inventory.values())
+        if not buffered:
+            return
+
+        # ── Phase 1: merge inventory items with EACH OTHER ──────────
+        grouped_inv: Dict[tuple, list] = {}
+        for item in buffered:
+            max_stack = getattr(item, "max_stack_size", 1) or 1
+            if max_stack <= 1:
+                continue
+            key = (getattr(item, "item_id", None), item.rarity)
+            grouped_inv.setdefault(key, []).append(item)
+
+        removal_ids: Set[int] = set()
+        new_instructions: list = []
+
+        for key, inv_items in grouped_inv.items():
+            if len(inv_items) <= 1:
+                continue
+
+            stackables = sorted(
+                inv_items,
+                key=lambda itm: getattr(itm, "quantity", 1),
+                reverse=True,
+            )
+            max_stack = max(1, getattr(stackables[0], "max_stack_size", 1) or 1)
+            total_qty = sum(max(1, getattr(itm, "quantity", 1)) for itm in stackables)
+            required_stacks = min(len(stackables), math.ceil(total_qty / max_stack))
+
+            targets = stackables[:required_stacks]
+            extras = stackables[required_stacks:]
+
+            target_capacity = {
+                t: max(0, max_stack - min(max_stack, getattr(t, "quantity", 1)))
+                for t in targets
+            }
+
+            for extra in extras:
+                if id(extra) in removal_ids:
+                    continue
+                extra_qty = max(1, getattr(extra, "quantity", 1))
+                chosen = None
+                for t, cap in target_capacity.items():
+                    if cap >= extra_qty:
+                        chosen = t
+                        break
+                if chosen:
+                    new_instructions.append((extra, chosen))
+                    target_capacity[chosen] -= extra_qty
+                    chosen.quantity = min(
+                        max_stack,
+                        getattr(chosen, "quantity", 1) + extra_qty,
+                    )
+                    removal_ids.add(id(extra))
+                else:
+                    targets.append(extra)
+                    target_capacity[extra] = max(
+                        0, max_stack - min(max_stack, getattr(extra, "quantity", 1))
+                    )
+
+        # ── Phase 2: merge inventory items into existing STASH stacks ──
+        # Re-group what remains after phase 1
+        remaining_inv: Dict[tuple, list] = {}
+        for item in buffered:
+            if id(item) in removal_ids:
+                continue
+            max_stack = getattr(item, "max_stack_size", 1) or 1
+            if max_stack <= 1:
+                continue
+            key = (getattr(item, "item_id", None), item.rarity)
+            remaining_inv.setdefault(key, []).append(item)
+
+        for stash_item in list(self.stash.pq):
+            max_stack = getattr(stash_item, "max_stack_size", 1) or 1
+            if max_stack <= 1:
+                continue
+            capacity = max(0, max_stack - min(max_stack, getattr(stash_item, "quantity", 1)))
+            if capacity <= 0:
+                continue
+            key = (getattr(stash_item, "item_id", None), stash_item.rarity)
+            candidates = remaining_inv.get(key, [])
+            for inv_item in list(candidates):
+                if id(inv_item) in removal_ids:
+                    continue
+                inv_qty = max(1, getattr(inv_item, "quantity", 1))
+                if inv_qty <= capacity:
+                    new_instructions.append((inv_item, stash_item))
+                    stash_item.quantity = min(
+                        max_stack,
+                        getattr(stash_item, "quantity", 1) + inv_qty,
+                    )
+                    capacity -= inv_qty
+                    removal_ids.add(id(inv_item))
+                    if capacity <= 0:
+                        break
+
+        # ── Housekeeping ────────────────────────────────────────────
+        for item in buffered:
+            if id(item) in removal_ids:
+                self._buffered_inventory.pop(id(item), None)
+                self._release_reserved_slots(item)
+
+        # Prepend so transfer stacking runs before any stash-internal stacking
+        if new_instructions:
+            self._stack_instructions = new_instructions + self._stack_instructions
+            logger.info(
+                "Transfer pre-stacking: %d merge instruction(s), "
+                "%d redundant item(s) removed",
+                len(new_instructions),
+                len(removal_ids),
+            )
+
     def _record_failure_reason(self, reason: str) -> None:
         if not self._failure_reason:
             self._failure_reason = reason
@@ -460,10 +616,8 @@ class StashSorter:
             macros.push_cancel_event(cancel_event)
 
         try:
-            if self.stack_mode and self._stack_instructions:
+            if self._stack_instructions:
                 self._overlay_update("Merging stackable items before sorting...", status="info")
-
-            if self.stack_mode:
                 if not self._perform_stacking_phase():
                     failure_reason = failure_reason or "stacking_failed"
                     self._overlay_log("Stacking phase failed; aborting sort.")
@@ -630,7 +784,7 @@ class StashSorter:
         self._pending_move_tokens = set()
         self._completed_move_tokens = set()
         for entry in plan.order:
-            if entry.item.position != entry.target:
+            if entry.item.position != entry.target or entry.item.stash is not self.stash:
                 required += 1
                 self._pending_move_tokens.add(id(entry.item))
         self._move_progress_done = 0
@@ -807,7 +961,7 @@ class StashSorter:
                 self._overlay_log("Sort cancelled by user.")
                 return False
 
-            if entry.item.position == entry.target:
+            if entry.item.position == entry.target and entry.item.stash is self.stash:
                 logger.debug("%s already at %s", entry.item, entry.target)
                 self._log_learning_outcome(entry.item, True, "already_aligned")
                 continue
@@ -827,7 +981,7 @@ class StashSorter:
             logger.debug("Detected cycle while moving %s; attempting to park it", item)
             return self._park_blocker(item)
 
-        if item.position == target_point:
+        if item.position == target_point and item.stash is self.stash:
             return True
 
         lineage.add(token)
