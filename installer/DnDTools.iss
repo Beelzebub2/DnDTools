@@ -34,7 +34,7 @@ WizardStyle=modern dynamic
 WizardBackColor=#0b0b0b
 
 ; Main left-side image (welcome/finish)
-WizardImageFile=..\\UI\\assets\\banner.jpg
+WizardImageFile=..\\UI\\assets\\banner.bmp
 WizardImageBackColor=#0e0e0e
 
 ; Small logo (used in titlebars and dialogs)
