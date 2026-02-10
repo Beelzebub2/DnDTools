@@ -4,6 +4,7 @@ import hashlib
 import json
 import logging
 import os
+import shutil
 import tempfile
 import threading
 import time
@@ -234,7 +235,19 @@ class AssetUpdater:
         expected_sha = str(file_info.get("sha256") or "").strip().lower()
         safe_name = relative_path.replace(os.sep, "-").replace("/", "-")
         suffix = f"-{safe_name}.tmp" if safe_name else ".tmp"
-        fd, temp_path = tempfile.mkstemp(prefix="dnd-asset-", suffix=suffix)
+
+        # Create the temp file inside assets_dir so it lives on the same
+        # drive / volume as the final target.  This lets Path.replace() work
+        # as an atomic same-filesystem rename and avoids cross-drive and
+        # Windows ACL problems (e.g. %TEMP% → "C:\Program Files\…").
+        try:
+            self.assets_dir.mkdir(parents=True, exist_ok=True)
+            fd, temp_path = tempfile.mkstemp(
+                prefix="dnd-asset-", suffix=suffix, dir=str(self.assets_dir)
+            )
+        except OSError:
+            # Fall back to system temp if assets_dir is not writable yet
+            fd, temp_path = tempfile.mkstemp(prefix="dnd-asset-", suffix=suffix)
         path = Path(temp_path)
 
         try:
@@ -326,6 +339,8 @@ class AssetUpdater:
     def _replace_file(self, tmp_path: Path, target: Path) -> None:
         attempts = 3
         last_error: Optional[Exception] = None
+
+        # --- Attempt 1-N: atomic rename (fastest, preserves permissions) ---
         for attempt in range(1, attempts + 1):
             try:
                 tmp_path.replace(target)
@@ -341,8 +356,45 @@ class AssetUpdater:
                     exc,
                 )
                 time.sleep(delay)
-            except FileNotFoundError as exc:
+            except (FileNotFoundError, OSError) as exc:
+                # OSError covers cross-drive renames and other filesystem
+                # errors that an atomic rename cannot handle.
                 last_error = exc
                 break
-        if last_error:
-            raise last_error
+
+        # --- Fallback: copy-then-delete ---
+        # Handles cross-drive moves and Windows ACL scenarios where the
+        # temp file cannot be *renamed* into the target directory but
+        # writing to the target file via a normal copy still succeeds.
+        self.logger.info(
+            "Atomic rename failed for %s; falling back to copy (%s)",
+            target.name,
+            last_error,
+        )
+        copy_error: Optional[Exception] = None
+        for attempt in range(1, attempts + 1):
+            try:
+                shutil.copy2(str(tmp_path), str(target))
+                # Copy succeeded – remove the temp file
+                try:
+                    tmp_path.unlink()
+                except OSError:
+                    pass
+                return
+            except PermissionError as exc:
+                copy_error = exc
+                delay = min(0.35 * attempt, 1.0)
+                self.logger.warning(
+                    "Copy fallback permission error for %s (attempt %s/%s): %s",
+                    target.name,
+                    attempt,
+                    attempts,
+                    exc,
+                )
+                time.sleep(delay)
+            except OSError as exc:
+                copy_error = exc
+                break
+
+        # Both strategies exhausted – raise the most relevant error
+        raise copy_error or last_error  # type: ignore[misc]
