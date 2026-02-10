@@ -635,6 +635,43 @@
     margin-left: 4px;
 }
 
+/* Kill / Props / Survive tracked progress */
+.objective-tracker {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.objective-tracker-bar {
+    flex: 1;
+    height: 6px;
+    min-width: 60px;
+    max-width: 180px;
+    border-radius: 3px;
+    background: rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+    border: 1px solid rgba(228, 200, 105, 0.08);
+}
+
+.objective-tracker-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent-gold);
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.objective-tracker-bar-fill--done {
+    background: #5aa86c;
+}
+
+.objective-tracker-text {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: rgba(231, 216, 181, 0.75);
+    white-space: nowrap;
+}
+
 /* Completed State */
 .objective-item.completed {
     background: rgba(90, 168, 108, 0.15);

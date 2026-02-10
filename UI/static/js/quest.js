@@ -641,6 +641,8 @@
             parts.push(objective.item_id);
         } else if (objective.monster) {
             parts.push(objective.monster);
+        } else if (objective.monster_type) {
+            parts.push(objective.monster_type);
         } else if (objective.module) {
             parts.push(objective.module);
         } else if (objective.interact) {
@@ -1522,6 +1524,43 @@
             item.appendChild(icon);
             item.appendChild(content);
 
+            let fetchInput = null;
+            let updateRemainingLabel = null;
+            let submittedValue = obj.count ? clampNumber(storedProgress.submitted ?? 0, 0, obj.count) : 0;
+
+            // Tracked progress bar for non-Fetch objectives (Kill, Props, Survive, etc.)
+            // Shows "2 / 10" with a mini bar when we have captured data.
+            let trackerTextEl = null;
+            let trackerFillEl = null;
+            if (obj.type !== 'Fetch' && obj.count && obj.count > 0) {
+                const tracker = document.createElement('div');
+                tracker.className = 'objective-tracker';
+
+                const bar = document.createElement('div');
+                bar.className = 'objective-tracker-bar';
+                trackerFillEl = document.createElement('div');
+                trackerFillEl.className = 'objective-tracker-bar-fill';
+                const pct = Math.min(100, Math.round((submittedValue / obj.count) * 100));
+                trackerFillEl.style.width = pct + '%';
+                if (pct >= 100) trackerFillEl.classList.add('objective-tracker-bar-fill--done');
+                bar.appendChild(trackerFillEl);
+                tracker.appendChild(bar);
+
+                trackerTextEl = document.createElement('span');
+                trackerTextEl.className = 'objective-tracker-text';
+                trackerTextEl.textContent = `${submittedValue} / ${obj.count}`;
+                tracker.appendChild(trackerTextEl);
+
+                // Only show if there's progress or objective is completed
+                if (submittedValue > 0 || objectiveCompleted) {
+                    content.appendChild(tracker);
+                } else {
+                    // Keep a reference so we can insert later when progress arrives
+                    tracker.style.display = 'none';
+                    content.appendChild(tracker);
+                }
+            }
+
             const progressContainer = document.createElement('div');
             progressContainer.className = 'objective-progress';
 
@@ -1569,11 +1608,6 @@
                     performRenders();
                 }
             };
-
-            let fetchInput = null;
-            let updateRemainingLabel = null;
-
-            let submittedValue = obj.type === 'Fetch' && obj.count ? clampNumber(storedProgress.submitted ?? 0, 0, obj.count) : 0;
 
             if (obj.type === 'Fetch' && obj.count) {
                 const countWrapper = document.createElement('div');
@@ -1659,6 +1693,19 @@
                     if (fetchInput) {
                         fetchInput.value = submittedValue > 0 ? submittedValue : '';
                     }
+                }
+                // For non-Fetch objectives: sync submitted with checkbox
+                if (obj.type !== 'Fetch' && obj.count) {
+                    submittedValue = checkbox.checked ? obj.count : 0;
+                }
+                // Update tracker bar if present
+                if (trackerFillEl && trackerTextEl && obj.count) {
+                    const pct = Math.min(100, Math.round((submittedValue / obj.count) * 100));
+                    trackerFillEl.style.width = pct + '%';
+                    trackerFillEl.classList.toggle('objective-tracker-bar-fill--done', pct >= 100);
+                    trackerTextEl.textContent = `${submittedValue} / ${obj.count}`;
+                    const trackerEl = trackerFillEl.closest('.objective-tracker');
+                    if (trackerEl) trackerEl.style.display = '';
                 }
                 if (updateRemainingLabel) {
                     updateRemainingLabel();
@@ -3621,58 +3668,84 @@
 
             const objectives = questDef.objectives || [];
 
-            // Strategy: match captured missions to objectives by position first,
-            // then by contentId = item_id for Fetch objectives
+            // Helper: normalise an identifier for fuzzy comparison.
+            // "Skeleton Champion" / "SkeletonChampion" / "skeleton_champion" → "skeletonchampion"
+            const normId = (s) => String(s || '').toLowerCase().replace(/[\s_\-]+/g, '');
+
+            // Pre-build a lookup of normalised objective fields → objective index
+            // so we can match packet content_ids to DarkerDB monster/item/interact fields.
+            const objFieldIndex = new Map(); // normId → first objective index
+            objectives.forEach((obj, idx) => {
+                [obj.item_id, obj.monster, obj.monster_type, obj.interact, obj.module].forEach(f => {
+                    if (f) {
+                        const k = normId(f);
+                        if (!objFieldIndex.has(k)) objFieldIndex.set(k, idx);
+                    }
+                });
+            });
+
+            // Track which objective indices have been claimed by a mission
+            // to avoid two missions matching the same objective.
+            const claimedObjectives = new Set();
+
+            // Strategy: match captured missions to objectives by content-based
+            // matching first, positional second.  Content-based matching normalises
+            // both sides (stripping spaces/underscores, lowercasing) so that
+            // packet IDs like "SkeletonChampion" match DarkerDB "Skeleton Champion".
             capturedMissions.forEach((mission, missionIdx) => {
                 const rawContentId = mission.content_id || '';
                 const contentId = normalizeGameId(rawContentId);
                 const currentValue = mission.current_value || 0;
 
-                // Try to find the matching objective
                 let matchedObj = null;
                 let matchedIndex = -1;
 
-                // 1. Try positional match
-                if (missionIdx < objectives.length) {
+                // 1. Content-based: try normalised contentId against objective fields
+                if (contentId) {
+                    const normContent = normId(contentId);
+                    const idx = objFieldIndex.get(normContent);
+                    if (idx !== undefined && !claimedObjectives.has(idx)) {
+                        matchedObj = objectives[idx];
+                        matchedIndex = idx;
+                    }
+                    // If exact lookup missed, try against raw contentId as well
+                    if (!matchedObj) {
+                        const normRaw = normId(rawContentId);
+                        const idxRaw = objFieldIndex.get(normRaw);
+                        if (idxRaw !== undefined && !claimedObjectives.has(idxRaw)) {
+                            matchedObj = objectives[idxRaw];
+                            matchedIndex = idxRaw;
+                        }
+                    }
+                }
+
+                // 2. Positional: only if no content-based match AND the positional
+                //    candidate is unclaimed AND the mission has no content_id (e.g.
+                //    Survive objectives where there's nothing to match on).
+                if (!matchedObj && missionIdx < objectives.length && !claimedObjectives.has(missionIdx)) {
                     const candidate = objectives[missionIdx];
-                    // If it's a Fetch with same item_id, or any type with current value
                     if (candidate) {
-                        if (candidate.type === 'Fetch' && (candidate.item_id === contentId || candidate.item_id === rawContentId)) {
+                        // For Fetch/Kill objectives with a content_id we require the
+                        // content to match (handled above). Only fall back positionally
+                        // when the mission carries no distinguishing content_id.
+                        const hasContentId = !!contentId;
+                        const candidateHasField = !!(candidate.item_id || candidate.monster || candidate.monster_type || candidate.interact || candidate.module);
+                        if (!hasContentId || !candidateHasField) {
                             matchedObj = candidate;
                             matchedIndex = missionIdx;
-                        } else if (contentId && (candidate.item_id === contentId || candidate.item_id === rawContentId)) {
-                            matchedObj = candidate;
-                            matchedIndex = missionIdx;
+                            console.log('[auto-track]   mission', missionIdx, 'positional match (no content_id)');
+                        } else {
+                            console.log('[auto-track]   mission', missionIdx, 'SKIPPED positional — contentId', contentId, 'did not match objective fields');
                         }
                     }
-                }
-
-                // 2. If positional didn't work, scan by contentId
-                if (!matchedObj && contentId) {
-                    const normContentId = normalizeGameId(contentId);
-                    for (let i = 0; i < objectives.length; i++) {
-                        const obj = objectives[i];
-                        // Try both raw and normalized forms against objective fields
-                        const fields = [obj.item_id, obj.monster, obj.interact, obj.module];
-                        if (fields.includes(contentId) || fields.includes(normContentId)) {
-                            matchedObj = obj;
-                            matchedIndex = i;
-                            break;
-                        }
-                    }
-                }
-
-                // 3. Fallback: use positional index if there's a count match potential
-                if (!matchedObj && missionIdx < objectives.length) {
-                    matchedObj = objectives[missionIdx];
-                    matchedIndex = missionIdx;
-                    console.log('[auto-track]   mission', missionIdx, 'fallback to positional match');
                 }
 
                 if (!matchedObj || matchedIndex < 0) {
                     console.warn('[auto-track]   mission', missionIdx, 'NO MATCH (contentId:', contentId, ')');
                     return;
                 }
+
+                claimedObjectives.add(matchedIndex);
 
                 const key = makeObjectiveKey(questDef, matchedIndex, matchedObj);
                 const existing = getObjectiveProgress(key) || {};

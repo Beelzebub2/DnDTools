@@ -2730,6 +2730,7 @@ def api_quests_list():
                 'count': objective.get('count'),
                 'item_id': objective.get('item_id'),
                 'monster': objective.get('monster'),
+                'monster_type': objective.get('monster_type'),
                 'interact': objective.get('interact'),
                 'module': objective.get('module'),
                 'must_escape': objective.get('must_escape', False),
