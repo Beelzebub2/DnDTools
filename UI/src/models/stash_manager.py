@@ -928,6 +928,14 @@ class StashManager:
             logger.error(f"Error focusing window: {e}")
             session.add_log("Unable to focus the game window automatically – please ensure it is active.")
 
+        # Show a translucent grid overlay so the user can verify that the
+        # detected stash / inventory regions line up with the game UI.
+        try:
+            from src.models.grid_debug_overlay import show_grid_overlay
+            show_grid_overlay(duration=2.5)
+        except Exception:
+            logger.debug("Grid debug overlay unavailable", exc_info=True)
+
         sorter = StashSorter(
             stash,
             inventory,
