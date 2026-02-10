@@ -174,7 +174,8 @@
                             <div class="setting-info">
                                 <label class="setting-label" for="noDelay">No delay</label>
                                 <div class="setting-description">
-                                    <span class="warning-text"><span class="material-icons">warning</span>Can miss items more regularly; precision increases with usage.</span>
+                                    <span class="warning-text"><span class="material-icons">warning</span>Can miss items
+                                        more regularly; precision increases with usage.</span>
                                 </div>
                             </div>
                             <div class="setting-control">
@@ -206,16 +207,29 @@
                             <div class="setting-control full-width">
                                 <select id="resolution" class="modern-select">
                                     <option value="Auto">Auto Detection</option>
-                                    <option value="3840x2160">3840 × 2160</option>
-                                    <option value="2560x1440">2560 × 1440</option>
-                                    <option value="1920x1080">1920 × 1080</option>
-                                    <option value="1680x1050">1680 × 1050</option>
-                                    <option value="1440x900">1440 × 900</option>
-                                    <option value="1366x768">1366 × 768</option>
-                                    <option value="1360x768">1360 × 768</option>
-                                    <option value="1280x800">1280 × 800</option>
-                                    <option value="1280x768">1280 × 768</option>
-                                    <option value="1280x720">1280 × 720</option>
+                                    <optgroup label="Standard (16:9)">
+                                        <option value="3840x2160">3840 × 2160</option>
+                                        <option value="2560x1440">2560 × 1440</option>
+                                        <option value="1920x1080">1920 × 1080</option>
+                                        <option value="1366x768">1366 × 768</option>
+                                        <option value="1360x768">1360 × 768</option>
+                                        <option value="1280x720">1280 × 720</option>
+                                    </optgroup>
+                                    <optgroup label="Standard (16:10)">
+                                        <option value="1680x1050">1680 × 1050</option>
+                                        <option value="1440x900">1440 × 900</option>
+                                        <option value="1280x800">1280 × 800</option>
+                                        <option value="1280x768">1280 × 768</option>
+                                    </optgroup>
+                                    <optgroup label="Ultrawide (21:9)">
+                                        <option value="5120x2160">5120 × 2160</option>
+                                        <option value="3440x1440">3440 × 1440</option>
+                                        <option value="2560x1080">2560 × 1080</option>
+                                    </optgroup>
+                                    <optgroup label="Super-ultrawide (32:9)">
+                                        <option value="5120x1440">5120 × 1440</option>
+                                        <option value="3840x1080">3840 × 1080</option>
+                                    </optgroup>
                                 </select>
                             </div>
                         </div>

@@ -70,6 +70,8 @@ except Exception:
 
 # Supported resolutions are generated from a single 1920x1080 calibration
 BASE_RESOLUTION = (1920, 1080)
+STANDARD_ASPECT = 16.0 / 9.0  # ~1.7778 – the aspect ratio the calibration targets
+
 BASE_LAYOUT = {
     'stash': Point(1378, 199),
     'inv': Point(690, 626),
@@ -93,6 +95,13 @@ COMMON_RESOLUTIONS = [
     (1280, 800),
     (1280, 768),
     (1280, 720),
+    # Ultrawide 21:9
+    (2560, 1080),
+    (3440, 1440),
+    (5120, 2160),
+    # Super-ultrawide 32:9
+    (3840, 1080),
+    (5120, 1440),
 ]
 
 
@@ -106,9 +115,35 @@ def _clone_layout(layout):
     return cloned
 
 
+def _is_ultrawide(resolution):
+    """Return True if the resolution has a wider aspect ratio than 16:9."""
+    w, h = resolution
+    return (w / max(1, h)) > (STANDARD_ASPECT + 0.01)
+
+
 def _scaled_layout(resolution):
-    scale_x = resolution[0] / BASE_RESOLUTION[0]
-    scale_y = resolution[1] / BASE_RESOLUTION[1]
+    w, h = resolution
+
+    if _is_ultrawide(resolution):
+        # Ultrawide / super-ultrawide: the game UI is rendered within a
+        # centred 16:9 viewport.  We scale uniformly by height and add a
+        # horizontal pillarbox offset so coordinates land inside that
+        # viewport instead of being stretched across the full width.
+        scale = h / BASE_RESOLUTION[1]
+        viewport_w = h * STANDARD_ASPECT
+        pillarbox = (w - viewport_w) / 2.0
+
+        return {
+            'stash': Point(int(round(BASE_LAYOUT['stash'].x * scale + pillarbox)),
+                           int(round(BASE_LAYOUT['stash'].y * scale))),
+            'inv': Point(int(round(BASE_LAYOUT['inv'].x * scale + pillarbox)),
+                         int(round(BASE_LAYOUT['inv'].y * scale))),
+            'jump': max(BASE_LAYOUT['jump'] * scale, 1.0)
+        }
+
+    # Standard (≤16:9) aspect ratio – independent axis scaling
+    scale_x = w / BASE_RESOLUTION[0]
+    scale_y = h / BASE_RESOLUTION[1]
 
     return {
         'stash': Point(int(round(BASE_LAYOUT['stash'].x * scale_x)),
