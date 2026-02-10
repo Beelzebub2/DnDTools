@@ -2765,6 +2765,12 @@ def api_quests_list():
                 )
             rewards_payload.append(reward_payload)
 
+        # Quests with no title AND no description are unreleased placeholders
+        # (e.g. Valentine_01-03, Huntress_01-72, Nicholas_01-03).
+        # Keep them in the data so the merchant remains visible, but flag
+        # them so the frontend can hide them from the quest list.
+        is_unreleased = quest.get('title') is None and quest.get('text') is None
+
         enriched_quests.append({
             'id': quest.get('id'),
             'title': quest.get('title') or quest.get('id') or 'Unknown Quest',
@@ -2778,6 +2784,7 @@ def api_quests_list():
             'completion_text': quest.get('completion_text'),
             'objectives': objectives_payload,
             'rewards': rewards_payload,
+            **(({'unreleased': True}) if is_unreleased else {}),
         })
 
     return jsonify({
@@ -3029,6 +3036,31 @@ def api_clear_quest_cache():
     if not any(results.values()):
         return jsonify({'success': True, 'message': 'Quest cache already empty', 'results': results})
     return jsonify({'success': True, 'results': results})
+
+
+@server.route('/api/quests/active-merchants', methods=['GET', 'POST', 'DELETE'])
+def api_quests_active_merchants():
+    """Persist / retrieve the list of active (in-game) merchant IDs."""
+    if request.method == 'GET':
+        merchants = quest_service.load_active_merchants()
+        return jsonify({'success': True, 'active_merchants': merchants})
+
+    if request.method == 'DELETE':
+        quest_service.save_active_merchants([])
+        return jsonify({'success': True, 'active_merchants': []})
+
+    # POST
+    try:
+        payload = request.get_json(force=True) or {}
+    except Exception:
+        return jsonify({'success': False, 'error': 'Invalid JSON payload'}), 400
+
+    merchant_ids = payload.get('active_merchants')
+    if not isinstance(merchant_ids, list):
+        return jsonify({'success': False, 'error': 'active_merchants must be an array'}), 400
+
+    quest_service.save_active_merchants(merchant_ids)
+    return jsonify({'success': True})
 
 
 @server.route('/api/quests/captured', methods=['GET', 'DELETE'])

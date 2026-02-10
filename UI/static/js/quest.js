@@ -4,6 +4,7 @@
     const ARCHIVE_STORAGE_KEY = 'dndtools.questArchived.v1';
     const CAPTURED_FLAGS_KEY = 'dndtools.capturedFlags.v1';
     const PROGRESS_SYNC_ENDPOINT = '/api/quests/progress';
+    const ACTIVE_MERCHANTS_ENDPOINT = '/api/quests/active-merchants';
     const SERVER_SYNC_DEBOUNCE = 400;
     const HOLDINGS_CACHE_TTL = 5 * 60 * 1000;
     const HOLDINGS_BULK_CHUNK_SIZE = 20;
@@ -1138,12 +1139,19 @@
     };
 
     const buildMerchantView = (quests, viewMode = 'active') => {
-        // Exclude time-limited quests (daily/weekly/seasonal) from all displayed
-        // quest lists — even if they exist in the local cache — per user request.
-        // We still keep the full data in `state.quests` so item tracking and
-        // badge computation continues to account for those quests.
+        // Exclude time-limited quests (daily/weekly/seasonal) unless the merchant
+        // has been confirmed active via game packet capture. When the user has
+        // live tracking data we know the merchant is in-game and all quests
+        // including dailies/seasonals should be shown.
         const originalQuests = Array.isArray(quests) ? quests.slice() : [];
-        const questsToDisplay = originalQuests.filter(q => !isQuestTimeLimited(q));
+        const merchantIsActive = state.selectedMerchant && (
+            merchantsWithTrackedData.has(state.selectedMerchant) ||
+            state.activeMerchantIds.size > 0
+        );
+        const questsToDisplay = (merchantIsActive
+            ? originalQuests
+            : originalQuests.filter(q => !isQuestTimeLimited(q))
+        ).filter(q => !q.unreleased);
         quests = questsToDisplay;
         const questsForView = [];
         let questsCount = 0;
@@ -1879,10 +1887,12 @@
         // Build per-merchant stats
         const merchantStats = {};
         visibleMerchants.forEach(m => { merchantStats[m] = { total: 0, active: 0, completed: 0, locked: 0 }; });
+        const hasActiveCaptureData = state.activeMerchantIds.size > 0;
         state.quests.forEach(quest => {
             const m = quest.merchant;
             if (!merchantStats[m]) return;
-            if (isQuestTimeLimited(quest)) return;
+            if (quest.unreleased) return;
+            if (!hasActiveCaptureData && isQuestTimeLimited(quest)) return;
             const partitions = partitionQuestObjectives(quest);
             const total = Number(partitions.totalCount) || 0;
             const allDone = total > 0
@@ -3158,14 +3168,18 @@
                 });
 
                 // Filter: only include merchants that have at least one non-time-limited
-                // quest
+                // quest. If we have active capture data from the game, include all
+                // merchants since the gallery is already filtered by captured IDs.
                 const frequencyRegex = /\b(daily|weekly|seasonal|season)\b/i;
+                const hasCapture = state.activeMerchantIds.size > 0;
                 const visibleMerchants = allMerchants.filter(m => {
                     if (!m) return false;
                     const key = normalizeMerchant(m);
                     if (FORCED_HIDDEN_MERCHANTS.has(key)) return false;
                     const questsFor = merchantMapNorm.get(key) || [];
                     if (!questsFor.length) return false;
+                    // When we have capture data, skip the time-limited check entirely
+                    if (hasCapture) return true;
                     // If the literal merchant string contains frequency and no non-time-limited
                     // quests exist in the normalized group, hide it. Otherwise keep.
                     const literalHasFreq = frequencyRegex.test(String(m));
@@ -3445,6 +3459,42 @@
         }
     }
 
+    /** Push the current set of active merchant IDs to the server for cross-session persistence. */
+    function sendActiveMerchantsToServer({ keepalive = false } = {}) {
+        const ids = Array.from(state.activeMerchantIds);
+        const payload = JSON.stringify({ active_merchants: ids });
+        try {
+            if (keepalive && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+                const blob = new Blob([payload], { type: 'application/json' });
+                if (navigator.sendBeacon(ACTIVE_MERCHANTS_ENDPOINT, blob)) return;
+            }
+            fetch(ACTIVE_MERCHANTS_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive
+            }).catch(err => console.warn('[active-merchants] server save failed', err));
+        } catch (e) {
+            console.warn('[active-merchants] server save failed', e);
+        }
+    }
+
+    /** Load active merchant IDs from the server and merge into the current set. Returns true if the set grew. */
+    async function loadActiveMerchantsFromServer() {
+        try {
+            const resp = await fetch(ACTIVE_MERCHANTS_ENDPOINT, { cache: 'no-store' });
+            if (!resp.ok) return false;
+            const data = await resp.json();
+            if (!data || !Array.isArray(data.active_merchants)) return false;
+            const prevSize = state.activeMerchantIds.size;
+            data.active_merchants.forEach(id => state.activeMerchantIds.add(id));
+            return state.activeMerchantIds.size !== prevSize;
+        } catch (e) {
+            console.warn('[active-merchants] server load failed', e);
+            return false;
+        }
+    }
+
     /** Restore captured quest flags & tracked merchants from localStorage (only fills gaps, never overwrites live data) */
     function restoreCapturedFlags() {
         try {
@@ -3708,6 +3758,7 @@
                     if (state.activeMerchantIds.size !== prevSize) {
                         // Active merchant set changed — re-render gallery & dropdown and persist
                         saveCapturedFlags();
+                        sendActiveMerchantsToServer();
                         renderMerchantGallery();
                         renderMerchantOptions();
                     }
@@ -3823,8 +3874,14 @@
         await originalRefreshAll(opts);
         if (state.questsLoaded) {
             restoreCapturedFlags();
+            // Merge server-persisted active merchants (survives app restarts)
+            const serverAdded = await loadActiveMerchantsFromServer();
             renderMerchantGallery();
+            renderMerchantOptions();
             renderMerchantView();
+            if (serverAdded) {
+                console.log('[active-merchants] Loaded additional merchant IDs from server, total:', state.activeMerchantIds.size);
+            }
             startAutoTrackPolling();
         }
     };
@@ -3844,6 +3901,7 @@
         }
         merchantsWithTrackedData.clear();
         state.activeMerchantIds.clear();
+        sendActiveMerchantsToServer();  // clear on server too
         state.quests.forEach(q => { delete q.__capturedFlag; });
         if (state.questsLoaded) {
             renderMerchantOptions();
@@ -3858,6 +3916,7 @@
     window.addEventListener('beforeunload', () => {
         stopAutoTrackPolling();
         saveCapturedFlags();
+        sendActiveMerchantsToServer({ keepalive: true });
         scheduleServerPersistProgress({ immediate: true });
     });
     refreshAll({ force: false });

@@ -35,15 +35,22 @@ class QuestService:
         "huntress daily equipment": "Huntress",
         "huntress seasonal": "Huntress",
         "huntress weekly": "Huntress",
+        "krampus daily": "Krampus",
+        "krampus seasonal": "Krampus",
         "tavern master final": "Tavern Master",
+        "tavern master tuto": "Tavern Master",
         "the collector final": "The Collector",
+        "valentine daily": "Valentine",
+        "valentine seasonal": "Valentine",
         "weaponsmith extra": "Weaponsmith",
     }
     MERCHANT_PREFIX_ALIASES = {
         "goblin merchant": "Goblin Merchant",
         "huntress": "Huntress",
+        "krampus": "Krampus",
         "tavern master": "Tavern Master",
         "the collector": "The Collector",
+        "valentine": "Valentine",
         "weaponsmith": "Weaponsmith",
     }
 
@@ -392,18 +399,51 @@ class QuestService:
         sanitized = self._sanitize_progress_payload(progress_payload)
         return sanitized, timestamp_value
 
-    def save_progress(self, progress: dict) -> None:
+    def save_progress(self, progress: dict, active_merchants: Optional[list] = None) -> None:
         sanitized = self._sanitize_progress_payload(progress)
+        payload: dict = {"version": 1, "timestamp": time.time(), "progress": sanitized}
+        # Preserve existing active_merchants if not explicitly provided
+        if active_merchants is not None:
+            payload["active_merchants"] = list(active_merchants)
+        else:
+            # Read existing value so we don't lose it
+            existing = self._read_progress_file()
+            if existing and "active_merchants" in existing:
+                payload["active_merchants"] = existing["active_merchants"]
         try:
             with open(self._progress_file, "w", encoding="utf-8") as handle:
-                json.dump(
-                    {"version": 1, "timestamp": time.time(), "progress": sanitized},
-                    handle,
-                    ensure_ascii=False,
-                    indent=2,
-                )
+                json.dump(payload, handle, ensure_ascii=False, indent=2)
         except Exception as exc:  # pragma: no cover - defensive
             self._logger.warning("Failed to persist quest progress to disk: %s", exc, exc_info=True)
+
+    def _read_progress_file(self) -> Optional[dict]:
+        """Read the raw progress file payload."""
+        try:
+            with open(self._progress_file, "r", encoding="utf-8") as handle:
+                return json.load(handle)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return None
+        except Exception:
+            return None
+
+    def save_active_merchants(self, merchant_ids: list) -> None:
+        """Persist the active (in-game) merchant ID list."""
+        existing = self._read_progress_file() or {}
+        existing["active_merchants"] = list(merchant_ids)
+        existing["timestamp"] = time.time()
+        existing.setdefault("version", 1)
+        try:
+            with open(self._progress_file, "w", encoding="utf-8") as handle:
+                json.dump(existing, handle, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            self._logger.warning("Failed to persist active merchants: %s", exc, exc_info=True)
+
+    def load_active_merchants(self) -> list:
+        """Load the persisted active merchant ID list."""
+        existing = self._read_progress_file()
+        if existing and isinstance(existing.get("active_merchants"), list):
+            return existing["active_merchants"]
+        return []
 
     def clear_progress_file(self) -> bool:
         try:
