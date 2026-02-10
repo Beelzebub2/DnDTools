@@ -1769,22 +1769,22 @@
      *  the in-game tavern NPCs.
      * ────────────────────────────────────────────── */
     const MERCHANT_META = {
-        'Tavern Master':    { icon: 'local_bar',        role: 'Tavern Keeper',   color: '#d4a44a' },
-        'Armourer':         { icon: 'shield',           role: 'Armour Specialist', color: '#7e98b0' },
-        'Alchemist':        { icon: 'science',          role: 'Potion Brewer',    color: '#6fcf7f' },
-        'Huntress':         { icon: 'gps_fixed',        role: 'Hunt Contracts',   color: '#c87070' },
-        'Fortune Teller':   { icon: 'auto_awesome',     role: 'Seer of Fate',    color: '#b48be4' },
-        'Goldsmith':        { icon: 'diamond',          role: 'Gem Crafter',      color: '#e4c869' },
-        'Miner':            { icon: 'hardware',         role: 'Firedeep Rescuer', color: '#c49856' },
-        'Woodsman':         { icon: 'park',             role: 'Wilderness Scout', color: '#78a85a' },
-        'Surgeon':          { icon: 'healing',          role: 'Field Medic',      color: '#d6685a' },
-        'Leathersmith':     { icon: 'checkroom',        role: 'Hide Worker',      color: '#a0785a' },
-        'Treasurer':        { icon: 'account_balance',  role: 'Guild Banker',     color: '#dbb960' },
-        'Tailor':           { icon: 'content_cut',      role: 'Cloth Artisan',    color: '#a090c0' },
-        'Weaponsmith':      { icon: 'gavel',            role: 'Weapon Forger',    color: '#8899aa' },
-        'Nicholas':         { icon: 'ac_unit',          role: 'Winter Guest',     color: '#88c8e8' },
-        'Krampus':          { icon: 'whatshot',          role: 'Winter Fiend',     color: '#d04040' },
-        'Goblin Merchant':  { icon: 'savings',          role: 'Black Market',     color: '#6bb85a' },
+        'Tavern Master': { icon: 'local_bar', role: 'Tavern Keeper', color: '#d4a44a' },
+        'Armourer': { icon: 'shield', role: 'Armour Specialist', color: '#7e98b0' },
+        'Alchemist': { icon: 'science', role: 'Potion Brewer', color: '#6fcf7f' },
+        'Huntress': { icon: 'gps_fixed', role: 'Hunt Contracts', color: '#c87070' },
+        'Fortune Teller': { icon: 'auto_awesome', role: 'Seer of Fate', color: '#b48be4' },
+        'Goldsmith': { icon: 'diamond', role: 'Gem Crafter', color: '#e4c869' },
+        'Miner': { icon: 'hardware', role: 'Firedeep Rescuer', color: '#c49856' },
+        'Woodsman': { icon: 'park', role: 'Wilderness Scout', color: '#78a85a' },
+        'Surgeon': { icon: 'healing', role: 'Field Medic', color: '#d6685a' },
+        'Leathersmith': { icon: 'checkroom', role: 'Hide Worker', color: '#a0785a' },
+        'Treasurer': { icon: 'account_balance', role: 'Guild Banker', color: '#dbb960' },
+        'Tailor': { icon: 'content_cut', role: 'Cloth Artisan', color: '#a090c0' },
+        'Weaponsmith': { icon: 'gavel', role: 'Weapon Forger', color: '#8899aa' },
+        'Nicholas': { icon: 'ac_unit', role: 'Winter Guest', color: '#88c8e8' },
+        'Krampus': { icon: 'whatshot', role: 'Winter Fiend', color: '#d04040' },
+        'Goblin Merchant': { icon: 'savings', role: 'Black Market', color: '#6bb85a' },
     };
     const DEFAULT_MERCHANT_META = { icon: 'store', role: 'Merchant', color: '#cfa346' };
 
