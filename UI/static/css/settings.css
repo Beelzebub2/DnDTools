@@ -198,8 +198,15 @@
 }
 
 @keyframes panelFadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 
@@ -278,7 +285,7 @@
     gap: 0.4rem;
 }
 
-.field + .field {
+.field+.field {
     margin-top: 0.35rem;
     padding-top: 1rem;
     border-top: 1px solid var(--border-subtle);
@@ -600,18 +607,18 @@
     transition: transform 0.25s var(--ease-out), background 0.25s var(--ease-out), box-shadow 0.25s var(--ease-out);
 }
 
-.toggle-switch input:checked + .toggle-slider {
+.toggle-switch input:checked+.toggle-slider {
     background: rgba(207, 163, 70, 0.15);
     border-color: var(--accent-gold);
 }
 
-.toggle-switch input:checked + .toggle-slider::before {
+.toggle-switch input:checked+.toggle-slider::before {
     transform: translateX(20px);
     background: var(--accent-gold);
     box-shadow: 0 0 8px rgba(207, 163, 70, 0.35);
 }
 
-.toggle-switch input:focus-visible + .toggle-slider {
+.toggle-switch input:focus-visible+.toggle-slider {
     box-shadow: 0 0 0 2px rgba(207, 163, 70, 0.25);
 }
 
@@ -657,7 +664,8 @@
 }
 
 /* Alias for JS compatibility */
-.btn-small { /* kept for JS selectors */
+.btn-small {
+    /* kept for JS selectors */
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
@@ -879,23 +887,47 @@
 }
 
 @keyframes messageSlideIn {
-    from { transform: translateY(-24px) scale(0.97); opacity: 0; }
-    to   { transform: translateY(0) scale(1);        opacity: 1; }
+    from {
+        transform: translateY(-24px) scale(0.97);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
 }
 
 @keyframes messageFadeOut {
-    from { transform: translateY(0) scale(1);        opacity: 1; }
-    to   { transform: translateY(-16px) scale(0.97); opacity: 0; }
+    from {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+    }
+
+    to {
+        transform: translateY(-16px) scale(0.97);
+        opacity: 0;
+    }
 }
 
 @keyframes messageIconPop {
-    from { transform: scale(0); }
-    to   { transform: scale(1); }
+    from {
+        transform: scale(0);
+    }
+
+    to {
+        transform: scale(1);
+    }
 }
 
 @keyframes messageProgress {
-    from { width: 100%; }
-    to   { width: 0%; }
+    from {
+        width: 100%;
+    }
+
+    to {
+        width: 0%;
+    }
 }
 
 
@@ -940,11 +972,27 @@
     animation: spinnerDash 1.2s ease-in-out infinite;
 }
 
-@keyframes spinnerRotate { to { transform: rotate(360deg); } }
+@keyframes spinnerRotate {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 @keyframes spinnerDash {
-    0%   { stroke-dasharray: 1, 150;  stroke-dashoffset: 0; }
-    50%  { stroke-dasharray: 90, 150; stroke-dashoffset: -45; }
-    100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
+    0% {
+        stroke-dasharray: 1, 150;
+        stroke-dashoffset: 0;
+    }
+
+    50% {
+        stroke-dasharray: 90, 150;
+        stroke-dashoffset: -45;
+    }
+
+    100% {
+        stroke-dasharray: 90, 150;
+        stroke-dashoffset: -124;
+    }
 }
 
 
@@ -1007,7 +1055,9 @@
     gap: 0.75rem;
 }
 
-.modal.unsaved-modal { z-index: 1600; }
+.modal.unsaved-modal {
+    z-index: 1600;
+}
 
 .unsaved-modal-card {
     max-width: 460px;
@@ -1062,7 +1112,9 @@
     transition: color 0.2s ease;
 }
 
-.unsaved-modal-close:hover { color: var(--accent-gold); }
+.unsaved-modal-close:hover {
+    color: var(--accent-gold);
+}
 
 .unsaved-modal-body {
     padding: 1.25rem 1.5rem 0.5rem;
@@ -1166,12 +1218,40 @@
     animation: spin 0.8s linear infinite;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
 @keyframes modalSlideIn {
-    from { transform: scale(0.92) translateY(16px); }
-    to   { transform: scale(1) translateY(0); }
+    from {
+        transform: scale(0.92) translateY(16px);
+    }
+
+    to {
+        transform: scale(1) translateY(0);
+    }
 }
 
 
@@ -1253,10 +1333,14 @@
    ══════════════════════════════════ */
 
 /* settings.js looks for .settings-tab */
-.nav-pill { /* also matches .settings-tab via JS */ }
+.nav-pill {
+    /* also matches .settings-tab via JS */
+}
 
 /* settings.js panels query */
-.settings-panel[data-panel] { /* matched by JS */ }
+.settings-panel[data-panel] {
+    /* matched by JS */
+}
 
 /* Unsaved glow on save button */
 body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.save-error) {
@@ -1265,8 +1349,15 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
 }
 
 @keyframes unsavedGlow {
-    0%, 100% { filter: brightness(1); }
-    50%      { filter: brightness(1.06); }
+
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+
+    50% {
+        filter: brightness(1.06);
+    }
 }
 
 /* Autosave callout compat class */
@@ -1323,9 +1414,19 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
 }
 
 @keyframes shake {
-    0%, 100% { transform: translateX(0); }
-    25%      { transform: translateX(-2px); }
-    75%      { transform: translateX(2px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    25% {
+        transform: translateX(-2px);
+    }
+
+    75% {
+        transform: translateX(2px);
+    }
 }
 
 /* Success ripple (JS) */
@@ -1338,25 +1439,56 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
 }
 
 @keyframes ripple {
-    from { transform: scale(0); opacity: 1; }
-    to   { transform: scale(1.5); opacity: 0; }
+    from {
+        transform: scale(0);
+        opacity: 1;
+    }
+
+    to {
+        transform: scale(1.5);
+        opacity: 0;
+    }
 }
 
-.success-icon { animation: successPop 0.5s ease; }
-.error-icon   { animation: errorPulse 0.5s ease; }
+.success-icon {
+    animation: successPop 0.5s ease;
+}
+
+.error-icon {
+    animation: errorPulse 0.5s ease;
+}
 
 @keyframes successPop {
-    0%   { transform: scale(0); opacity: 0; }
-    50%  { transform: scale(1.25); }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.25);
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 @keyframes errorPulse {
-    0%, 100% { transform: scale(1); }
-    50%      { transform: scale(1.08); }
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.08);
+    }
 }
 
-.save-loading-text { font-weight: 600; }
+.save-loading-text {
+    font-weight: 600;
+}
 
 .saving-dots {
     display: inline-block;
@@ -1366,9 +1498,19 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
 }
 
 @keyframes savingDots {
-    0%, 20% { opacity: 0.2; }
-    50%     { opacity: 1; }
-    100%    { opacity: 0.2; }
+
+    0%,
+    20% {
+        opacity: 0.2;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.2;
+    }
 }
 
 .save-success-content,
@@ -1402,7 +1544,10 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     gap: 0.85rem;
 }
 
-.setting-info { flex: 1; padding-right: 1.5rem; }
+.setting-info {
+    flex: 1;
+    padding-right: 1.5rem;
+}
 
 .setting-label {
     display: block;
@@ -1424,7 +1569,9 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     gap: 0.75rem;
 }
 
-.setting-control.full-width { width: 100%; }
+.setting-control.full-width {
+    width: 100%;
+}
 
 .setting-description .warning-text {
     color: #d4a24e;
@@ -1471,7 +1618,12 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     color: var(--text-primary);
 }
 
-.file-picker-row .btn-small { margin: 0; }
+.file-picker-row .btn-small {
+    margin: 0;
+}
 
 /* Hotkey container compat */
-.hotkey-container { position: relative; width: auto; }
+.hotkey-container {
+    position: relative;
+    width: auto;
+}
