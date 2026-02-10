@@ -24,38 +24,12 @@ if exist "%ASSET_STAGING%" rmdir /s /q "%ASSET_STAGING%"
 robocopy "UI\assets" "%ASSET_STAGING%" /E /XD icons >nul
 if %ERRORLEVEL% GEQ 8 goto :error
 
-REM Run pyinstaller to compile the application into an onedir build so resources stay alongside the executable
-pyinstaller ^
-  --noconfirm ^
-  --onedir ^
-  --noconsole ^
-  --icon=UI\assets\logo.ico ^
-  --add-data "UI\networking\protos;networking/protos" ^
-  --add-data "UI\templates;templates" ^
-  --add-data "UI\static;static" ^
-  --add-data "%ASSET_STAGING%;assets" ^
-  --name DnDTools ^
-  --distpath dist ^
-  --hidden-import=clr ^
-  --hidden-import=asyncio.events ^
-  --hidden-import=asyncio.windows_events ^
-  --hidden-import=asyncio.windows_utils ^
-  --hidden-import=pyshark.capture.live_capture ^
-  --hidden-import=pyshark.capture.capture ^
-  --hidden-import=pyshark.tshark.tshark ^
-  --exclude-module=tkinter ^
-  UI\app.py
+REM Build the main application using the spec file (onedir)
+pyinstaller --noconfirm --distpath dist DnDTools.spec
 if %ERRORLEVEL% NEQ 0 goto :error
 
-pyinstaller ^
-  --noconfirm ^
-  --onefile ^
-  --windowed ^
-  --icon=UI\assets\logo.ico ^
-  --add-data "UI\assets\logo.ico;assets" ^
-  --name update ^
-  --distpath dist ^
-  UI\update.py
+REM Build the standalone updater using the spec file (onefile)
+pyinstaller --noconfirm --distpath dist update.spec
 if %ERRORLEVEL% NEQ 0 goto :error
 
 echo Build complete. Check the dist directory for the app bundle and updater executable.

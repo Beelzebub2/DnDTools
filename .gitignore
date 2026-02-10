@@ -30,7 +30,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-*.spec
 res.py
 screenshot_with_boxes.png
 
