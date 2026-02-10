@@ -549,9 +549,35 @@ class UpdateManager:
         raise UpdateError("Updater helper not found", status_code=500)
 
     def _launch_updater_process(self, context_path: Path) -> subprocess.Popen[Any]:
+        """Copy the updater to a temp directory and launch it from there.
+
+        Why: ``update.exe`` lives inside the application install directory.
+        Inno Setup's ``CloseApplications=force`` will kill every process
+        whose executable resides under ``{app}``.  By copying the updater
+        to ``%TEMP%`` first, Inno Setup cannot touch us and the updater
+        stays alive through the entire installation, giving the user
+        continuous visual feedback.
+        """
         candidate, is_executable = self._resolve_updater_candidate()
+
+        # ── Copy the updater binary to a temp location ──────────────
+        staging_dir = Path(tempfile.gettempdir()) / "DnDToolsUpdate" / "bin"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+
         if is_executable:
-            args = [str(candidate), "--context", str(context_path)]
+            staged_exe = staging_dir / candidate.name
+            try:
+                shutil.copy2(str(candidate), str(staged_exe))
+            except Exception as exc:
+                # Do NOT silently fall back to launching from {app}.
+                # The updater MUST run from %TEMP% so that Inno Setup's
+                # CloseApplications=force doesn't kill it mid-install.
+                raise UpdateError(
+                    f"Could not copy updater to temp directory: {exc}. "
+                    "Please check disk space and permissions on your temp folder.",
+                    status_code=500,
+                )
+            args = [str(staged_exe), "--context", str(context_path)]
         else:
             python_exe = sys.executable
             args = [python_exe, str(candidate), "--context", str(context_path)]
@@ -561,7 +587,7 @@ class UpdateManager:
 
         popen_kwargs: dict[str, Any] = {
             "close_fds": False,
-            "cwd": str(candidate.parent),
+            "cwd": str(staging_dir) if is_executable else str(candidate.parent),
         }
 
         if os.name == "nt":
@@ -578,8 +604,38 @@ class UpdateManager:
 # Standalone updater application (compiled into update.exe)
 # ===========================================================================
 
+
+class _UpdateStep:
+    """Describes a single step in the updater workflow for UI display."""
+
+    __slots__ = ("key", "label", "icon_done", "icon_active", "icon_pending")
+
+    def __init__(self, key: str, label: str) -> None:
+        self.key = key
+        self.label = label
+        self.icon_done = "✓"
+        self.icon_active = "›"
+        self.icon_pending = " "
+
+
+# The ordered list of steps shown on the left rail of the updater window.
+_STEPS: list[_UpdateStep] = [
+    _UpdateStep("close", "Close DnDTools"),
+    _UpdateStep("download", "Download update"),
+    _UpdateStep("verify", "Verify download"),
+    _UpdateStep("install", "Install update"),
+    _UpdateStep("done", "Done"),
+]
+
+
 class UpdaterUI:
-    """Tkinter-based UI worker that orchestrates the update flow."""
+    """Tkinter-based UI worker that orchestrates the update flow.
+
+    The updater runs from a **temp directory** copy of ``update.exe`` so that
+    it is *not* inside ``{app}`` and Inno Setup's ``CloseApplications=force``
+    cannot kill it.  This lets us stay alive through the entire install and
+    give the user continuous feedback.
+    """
 
     def __init__(self, manifest: UpdateManifest, app_info: dict[str, Any], options: dict[str, Any]):
         self.manifest = manifest
@@ -589,45 +645,55 @@ class UpdaterUI:
         self._queue: "queue.Queue[tuple[str, Any]]" = queue.Queue()
         self._download_path: Optional[Path] = None
         self._temp_dir = Path(tempfile.mkdtemp(prefix="dndtools-update-"))
+        self._installer_proc: Optional[subprocess.Popen[Any]] = None
 
-        # Lazy import tkinter so importing this module in the main app doesn't require it
         import tkinter as tk
         from tkinter import ttk
 
         self.tk = tk
         self.ttk = ttk
 
+        # ── Colour palette (dark theme, gold accent) ──────────────────
         self.colors = {
             "bg": "#0b0b0b",
-            "panel": "#141414",
-            "panel_border": "#2a2a2a",
+            "panel": "#111111",
+            "panel_border": "#222222",
             "panel_hover": "#1a1a1a",
+            "rail": "#0e0e0e",
             "text_primary": "#e6e6e6",
+            "text_secondary": "#b0b0b0",
             "text_muted": "#888888",
-            "text_subtle": "#666666",
+            "text_subtle": "#555555",
             "accent": "#cfa346",
             "accent_hover": "#e0b85d",
             "accent_dark": "#8b6914",
+            "success": "#5cb85c",
+            "error": "#d9534f",
             "progress_trough": "#1a1a1a",
+            "step_done": "#5cb85c",
+            "step_active": "#cfa346",
+            "step_pending": "#444444",
         }
 
+        # ── Window ────────────────────────────────────────────────────
         self.root = tk.Tk()
         self.root.title("DnDTools Updater")
-        self.root.geometry("460x260")
+        self.root.geometry("540x340")
         self.root.configure(bg=self.colors["bg"])
         self.root.resizable(False, False)
+        self.root.attributes("-topmost", True)
+        self.root.after(3000, lambda: self.root.attributes("-topmost", False))
 
         try:
             self.root.iconbitmap(self._resolve_icon_path())
         except Exception:
             pass
 
-        self.status_var = tk.StringVar(value="Preparing update...")
-        self.detail_var = tk.StringVar(value="")
-
+        # ── Outer wrapper ─────────────────────────────────────────────
         outer = tk.Frame(self.root, bg=self.colors["bg"])
-        outer.pack(fill=tk.BOTH, expand=True)
+        outer.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
 
+        # Card frame
         card = tk.Frame(
             outer,
             bg=self.colors["panel"],
@@ -635,53 +701,109 @@ class UpdaterUI:
             highlightbackground=self.colors["panel_border"],
             bd=0,
         )
-        card.pack(expand=True, padx=24, pady=24, fill=tk.BOTH)
+        card.pack(expand=True, fill=tk.BOTH, padx=16, pady=16)
 
-        accent_bar = tk.Frame(card, bg=self.colors["accent"], height=3, bd=0)
-        accent_bar.pack(fill=tk.X, side=tk.TOP)
+        # Accent strip at the top
+        tk.Frame(card, bg=self.colors["accent"], height=3, bd=0).pack(fill=tk.X, side=tk.TOP)
 
-        padding = 20
-        container = tk.Frame(card, bg=self.colors["panel"], padx=padding, pady=padding, bd=0)
-        container.pack(fill=tk.BOTH, expand=True)
+        body = tk.Frame(card, bg=self.colors["panel"], bd=0)
+        body.pack(fill=tk.BOTH, expand=True)
 
-        title_label = tk.Label(
-            container,
-            text="Dark and Darker Tools",
+        # ── Left rail: step indicators ────────────────────────────────
+        rail = tk.Frame(body, bg=self.colors["rail"], width=170, bd=0)
+        rail.pack(side=tk.LEFT, fill=tk.Y)
+        rail.pack_propagate(False)
+
+        rail_pad = tk.Frame(rail, bg=self.colors["rail"], bd=0)
+        rail_pad.pack(fill=tk.BOTH, expand=True, padx=16, pady=(24, 16))
+
+        tk.Label(
+            rail_pad,
+            text="Update steps",
+            fg=self.colors["text_muted"],
+            bg=self.colors["rail"],
+            font=("Segoe UI", 9),
+            anchor="w",
+        ).pack(anchor="w", pady=(0, 12))
+
+        self._step_labels: dict[str, tk.Label] = {}
+        self._step_icons: dict[str, tk.Label] = {}
+        for step in _STEPS:
+            row = tk.Frame(rail_pad, bg=self.colors["rail"], bd=0)
+            row.pack(anchor="w", fill=tk.X, pady=3)
+            icon_lbl = tk.Label(
+                row,
+                text=step.icon_pending,
+                fg=self.colors["step_pending"],
+                bg=self.colors["rail"],
+                font=("Consolas", 11),
+                width=2,
+                anchor="w",
+            )
+            icon_lbl.pack(side=tk.LEFT)
+            text_lbl = tk.Label(
+                row,
+                text=step.label,
+                fg=self.colors["step_pending"],
+                bg=self.colors["rail"],
+                font=("Segoe UI", 10),
+                anchor="w",
+            )
+            text_lbl.pack(side=tk.LEFT)
+            self._step_icons[step.key] = icon_lbl
+            self._step_labels[step.key] = text_lbl
+
+        # Version tag at the bottom of the rail
+        ver_text = f"→ v{self.manifest.version}" if self.manifest else ""
+        tk.Label(
+            rail_pad,
+            text=ver_text,
+            fg=self.colors["text_subtle"],
+            bg=self.colors["rail"],
+            font=("Segoe UI", 9),
+            anchor="w",
+        ).pack(side=tk.BOTTOM, anchor="w")
+
+        # ── Right pane: status + progress ─────────────────────────────
+        right = tk.Frame(body, bg=self.colors["panel"], bd=0)
+        right.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        content = tk.Frame(right, bg=self.colors["panel"], padx=24, pady=24, bd=0)
+        content.pack(fill=tk.BOTH, expand=True)
+
+        tk.Label(
+            content,
+            text="DnDTools Updater",
             fg=self.colors["accent"],
             bg=self.colors["panel"],
-            font=("Segoe UI Semibold", 16),
-        )
-        title_label.pack(anchor="w")
+            font=("Segoe UI Semibold", 15),
+            anchor="w",
+        ).pack(anchor="w")
 
-        subtitle_label = tk.Label(
-            container,
-            text="Update in progress",
-            fg=self.colors["text_subtle"],
-            bg=self.colors["panel"],
-            font=("Segoe UI", 11),
-        )
-        subtitle_label.pack(anchor="w", pady=(4, 16))
+        self.status_var = tk.StringVar(value="Preparing update…")
+        self.detail_var = tk.StringVar(value="")
 
-        status_label = tk.Label(
-            container,
+        tk.Label(
+            content,
             textvariable=self.status_var,
             fg=self.colors["text_primary"],
             bg=self.colors["panel"],
             font=("Segoe UI", 11),
-        )
-        status_label.pack(anchor="w")
+            anchor="w",
+        ).pack(anchor="w", pady=(16, 0))
 
-        detail_label = tk.Label(
-            container,
+        tk.Label(
+            content,
             textvariable=self.detail_var,
             fg=self.colors["text_muted"],
             bg=self.colors["panel"],
             font=("Segoe UI", 9),
-            wraplength=360,
+            wraplength=300,
             justify="left",
-        )
-        detail_label.pack(anchor="w", pady=(6, 16))
+            anchor="w",
+        ).pack(anchor="w", pady=(6, 16))
 
+        # Progress bar
         self.style = ttk.Style(self.root)
         try:
             self.style.theme_use("clam")
@@ -694,23 +816,22 @@ class UpdaterUI:
             background=self.colors["accent"],
             lightcolor=self.colors["accent"],
             darkcolor=self.colors["accent_dark"],
-            thickness=12,
+            thickness=10,
             troughrelief="flat",
             relief="flat",
         )
-
         self.progress = ttk.Progressbar(
-            container,
+            content,
             orient="horizontal",
             mode="determinate",
             style="Updater.Horizontal.TProgressbar",
-            length=360,
         )
         self.progress.pack(fill=tk.X)
         self.progress.configure(value=0, maximum=100)
 
-        self.buttons_frame = tk.Frame(container, bg=self.colors["panel"])
-        self.buttons_frame.pack(anchor="e", fill=tk.X, pady=(22, 0))
+        # Buttons area
+        self.buttons_frame = tk.Frame(content, bg=self.colors["panel"])
+        self.buttons_frame.pack(anchor="e", fill=tk.X, pady=(20, 0))
 
         self._button_palette = {
             "accent": {
@@ -727,18 +848,23 @@ class UpdaterUI:
 
         self._workflow_thread = threading.Thread(target=self._workflow, name="UpdaterWorkflow", daemon=True)
 
+    # ------------------------------------------------------------------
+    # Icon path resolution
+    # ------------------------------------------------------------------
     def _resolve_icon_path(self) -> str:
         base_dir = Path(__file__).resolve().parent
         icon_path = base_dir / "assets" / "logo.ico"
         if icon_path.exists():
             return str(icon_path)
-        # Fallback to program directory when running from exe
         exe_dir = Path(sys.executable).resolve().parent
-        candidate = exe_dir / "logo.ico"
-        if candidate.exists():
-            return str(candidate)
+        for candidate in (exe_dir / "logo.ico", exe_dir / "assets" / "logo.ico"):
+            if candidate.exists():
+                return str(candidate)
         return str(base_dir / "logo.ico")
 
+    # ------------------------------------------------------------------
+    # Run / close
+    # ------------------------------------------------------------------
     def run(self) -> None:
         self.root.after(200, self._workflow_thread.start)
         self.root.after(100, self._process_queue)
@@ -746,13 +872,12 @@ class UpdaterUI:
         self.root.mainloop()
 
     def _on_close_attempt(self) -> None:
-        # Prevent closing while update in progress
         if self._workflow_thread.is_alive():
             return
         self.root.destroy()
 
     # ------------------------------------------------------------------
-    # UI helpers
+    # Queue helpers (thread-safe UI updates)
     # ------------------------------------------------------------------
     def _enqueue(self, action: str, payload: Any = None) -> None:
         self._queue.put((action, payload))
@@ -768,18 +893,49 @@ class UpdaterUI:
                 elif action == "progress":
                     value = float(payload)
                     self.progress.configure(value=max(0.0, min(100.0, value)))
+                elif action == "step":
+                    step_key, state = payload  # state: "active" | "done" | "pending"
+                    self._update_step_indicator(step_key, state)
                 elif action == "complete":
                     self._show_completion_buttons()
                 elif action == "error":
                     message = str(payload or "Update failed")
                     self._show_error_buttons(message)
-                elif action == "download_name":
-                    self.detail_var.set(payload)
         except queue.Empty:
             pass
         finally:
-            self.root.after(100, self._process_queue)
+            self.root.after(80, self._process_queue)
 
+    # ------------------------------------------------------------------
+    # Step-indicator helpers
+    # ------------------------------------------------------------------
+    def _update_step_indicator(self, key: str, state: str) -> None:
+        icon_lbl = self._step_icons.get(key)
+        text_lbl = self._step_labels.get(key)
+        if not icon_lbl or not text_lbl:
+            return
+
+        step = next((s for s in _STEPS if s.key == key), None)
+        if step is None:
+            return
+
+        if state == "done":
+            icon_lbl.configure(text=step.icon_done, fg=self.colors["step_done"])
+            text_lbl.configure(fg=self.colors["step_done"])
+        elif state == "active":
+            icon_lbl.configure(text=step.icon_active, fg=self.colors["step_active"])
+            text_lbl.configure(fg=self.colors["text_primary"])
+        else:
+            icon_lbl.configure(text=step.icon_pending, fg=self.colors["step_pending"])
+            text_lbl.configure(fg=self.colors["step_pending"])
+
+    def _mark_step(self, key: str, state: str) -> None:
+        """Thread-safe wrapper: enqueue a step-indicator change."""
+        self._enqueue("step", (key, state))
+
+    # ------------------------------------------------------------------
+    # Button helpers
+    # ------------------------------------------------------------------
     def _clear_buttons(self) -> None:
         for child in list(self.buttons_frame.winfo_children()):
             child.destroy()
@@ -802,7 +958,6 @@ class UpdaterUI:
             cursor="hand2",
             highlightthickness=0,
         )
-
         button.bind("<Enter>", lambda _e: button.configure(bg=colors["hover"]))
         button.bind("<Leave>", lambda _e: button.configure(bg=colors["bg"]))
         return button
@@ -818,16 +973,12 @@ class UpdaterUI:
 
         if can_launch:
             launch_button = self._create_button(
-                self.buttons_frame,
-                "Launch DnDTools",
-                self._launch_app,
-                variant="accent",
+                self.buttons_frame, "Launch DnDTools", self._launch_app, variant="accent",
             )
             launch_button.pack(side=self.tk.RIGHT, padx=(0, 8))
 
     def _show_error_buttons(self, message: str | None = None) -> None:
         self._clear_buttons()
-
         if message:
             self.detail_var.set(message)
 
@@ -837,13 +988,13 @@ class UpdaterUI:
         close_button.pack(side=self.tk.RIGHT)
 
         open_logs_button = self._create_button(
-            self.buttons_frame,
-            "View logs",
-            self._open_logs_directory,
-            variant="accent",
+            self.buttons_frame, "View logs", self._open_logs_directory, variant="accent",
         )
         open_logs_button.pack(side=self.tk.RIGHT, padx=(0, 8))
 
+    # ------------------------------------------------------------------
+    # Post-update actions
+    # ------------------------------------------------------------------
     def _launch_app(self) -> None:
         executable = self.app_info.get("executable")
         if not executable:
@@ -855,39 +1006,23 @@ class UpdaterUI:
             self.root.destroy()
             return
 
-        self.status_var.set("Launching DnDTools...")
-        self.detail_var.set("Updater will close automatically in about 10 seconds.")
+        self.status_var.set("Launching DnDTools…")
+        self.detail_var.set("The updater will close shortly.")
 
         try:
-            process = subprocess.Popen([str(exe_path)], cwd=str(exe_path.parent))
+            subprocess.Popen([str(exe_path)], cwd=str(exe_path.parent))
         except Exception as exc:
             self.logger.error("Failed to launch app after update: %s", exc)
             self.detail_var.set(f"Launch failed: {exc}")
             return
 
-        def _wait_for_launch() -> None:
-            timeout = 10.0
-            interval = 0.2
-            elapsed = 0.0
-
-            while elapsed < timeout:
-                result = process.poll()
-                if result is not None:
-                    self.logger.debug("Launch process exited with code %s during wait", result)
-                time.sleep(interval)
-                elapsed += interval
-
-            self.root.after(0, lambda: self.detail_var.set("Closing updater..."))
-            self.root.after(0, self.root.destroy)
-
-        threading.Thread(target=_wait_for_launch, daemon=True).start()
+        # Give the app a moment to spin up, then close.
+        self.root.after(3000, self.root.destroy)
 
     def _open_logs_directory(self) -> None:
         log_dir = self.options.get("log_directory") or self.app_info.get("log_directory")
         if not log_dir:
-            self.logger.info("No logs directory provided; falling back to temp directory")
             log_dir = str(self._temp_dir)
-
         path = Path(log_dir).expanduser()
         try:
             if sys.platform.startswith("win"):
@@ -899,26 +1034,56 @@ class UpdaterUI:
         except Exception as exc:
             self.logger.error("Failed to open logs directory: %s", exc)
 
-    # ------------------------------------------------------------------
-    # Workflow implementation
-    # ------------------------------------------------------------------
+    # ==================================================================
+    # Workflow
+    # ==================================================================
     def _workflow(self) -> None:
         try:
             if self.options.get("demo"):
                 self._run_demo_flow()
                 return
-            self._enqueue("status", ("Ensuring DnDTools is closed...", ""))
-            self._ensure_application_closed()
 
-            self._enqueue("status", ("Downloading update...", ""))
+            # Step 1 — Close DnDTools
+            self._mark_step("close", "active")
+            self._enqueue("status", ("Closing DnDTools…", "Waiting for the application to exit."))
+            self._enqueue("progress", 5)
+            self._ensure_application_closed()
+            self._mark_step("close", "done")
+            self._enqueue("progress", 15)
+
+            # Step 2 — Download
+            self._mark_step("download", "active")
+            self._enqueue("status", ("Downloading update…", "Connecting to server…"))
             installer_path = self._download_installer()
             self._download_path = installer_path
+            self._mark_step("download", "done")
 
-            self._enqueue("status", ("Launching installer...", ""))
-            self._run_installer(installer_path, wait=False)
-            self._notify_installation_in_progress()
-            self.root.after(300, self.root.destroy)
-            return
+            # Step 3 — Verify
+            if self.manifest.sha256:
+                self._mark_step("verify", "active")
+                self._enqueue("status", ("Verifying download…", "Checking file integrity."))
+                self._enqueue("progress", 78)
+                self._verify_sha256(installer_path, self.manifest.sha256)
+                self._mark_step("verify", "done")
+            else:
+                self._mark_step("verify", "done")
+            self._enqueue("progress", 80)
+
+            # Step 4 — Install (launch and monitor Inno Setup)
+            self._mark_step("install", "active")
+            self._enqueue("status", ("Installing update…", "This may take a moment."))
+            self._run_installer(installer_path, wait=True)
+            self._mark_step("install", "done")
+            self._enqueue("progress", 98)
+
+            # Step 5 — Done
+            self._mark_step("done", "active")
+            version = self.manifest.version if self.manifest else "latest"
+            self._enqueue("status", ("Update complete!", f"DnDTools has been updated to v{version}."))
+            self._enqueue("progress", 100)
+            self._mark_step("done", "done")
+            self._enqueue("complete")
+
         except Exception as exc:
             self.logger.error("Update workflow failed: %s", exc, exc_info=True)
             self._enqueue("status", ("Update failed", str(exc)))
@@ -927,29 +1092,31 @@ class UpdaterUI:
             self._cleanup_temp()
 
     def _run_demo_flow(self) -> None:
-        phantom_pid = self.options.get("phantom_pid", "?")
-        statuses = [
-            ("Ensuring DnDTools is closed...", f"Phantom PID {phantom_pid}", 20),
-            ("Downloading update...", "Simulated download (demo mode)", 60),
-            ("This will take a minute", "Simulated installer (demo mode)", 90),
+        steps = [
+            ("close", "Closing DnDTools…", "Looking for running instances.", 15),
+            ("download", "Downloading update…", "Simulated download (demo)", 65),
+            ("verify", "Verifying download…", "Checking file integrity.", 78),
+            ("install", "Installing update…", "Running installer (demo).", 95),
         ]
-
         progress = 0
-        for status, detail, target in statuses:
+        for key, status, detail, target in steps:
+            self._mark_step(key, "active")
             self._enqueue("status", (status, detail))
             while progress < target:
-                progress = min(target, progress + 5)
+                progress = min(target, progress + 3)
                 self._enqueue("progress", progress)
-                time.sleep(0.15)
+                time.sleep(0.12)
+            self._mark_step(key, "done")
 
-        final_message = (
-            f"DnDTools {self.manifest.version} installed (demo)."
-            if self.manifest else "Demo complete."
-        )
-        self._enqueue("status", ("Update complete", final_message))
+        version = self.manifest.version if self.manifest else "demo"
+        self._mark_step("done", "done")
+        self._enqueue("status", ("Update complete!", f"DnDTools updated to v{version} (demo)."))
         self._enqueue("progress", 100)
         self._enqueue("complete")
 
+    # ------------------------------------------------------------------
+    # Step implementations
+    # ------------------------------------------------------------------
     def _ensure_application_closed(self) -> None:
         pid = self.app_info.get("pid")
         executable = self.app_info.get("executable")
@@ -972,6 +1139,11 @@ class UpdaterUI:
                 if proc_exe == exe_path:
                     targets[proc.pid] = proc
 
+        if not targets:
+            return
+
+        self._enqueue("status", ("Closing DnDTools…", f"Waiting for {len(targets)} process(es) to exit."))
+
         deadline = time.time() + 25
         polling_targets = list(targets.values())
         while polling_targets and time.time() < deadline:
@@ -987,7 +1159,7 @@ class UpdaterUI:
             polling_targets = remaining
             time.sleep(0.4)
 
-        # Attempt graceful termination
+        # Graceful termination
         for proc in polling_targets:
             try:
                 proc.terminate()
@@ -995,6 +1167,8 @@ class UpdaterUI:
                 continue
 
         time.sleep(1.5)
+
+        # Force-kill survivors
         for proc in polling_targets:
             try:
                 if proc.is_running():
@@ -1008,11 +1182,12 @@ class UpdaterUI:
         filename = Path(parsed.path).name or f"DnDTools-Setup-{self.manifest.version}.exe"
         target_path = self._temp_dir / filename
 
-        with requests.get(url, stream=True, timeout=60) as response:
+        with requests.get(url, stream=True, timeout=120) as response:
             response.raise_for_status()
             total = int(response.headers.get("Content-Length", "0") or 0)
             downloaded = 0
-            chunk_size = 1024 * 512
+            chunk_size = 1024 * 256
+
             with target_path.open("wb") as handle:
                 for chunk in response.iter_content(chunk_size=chunk_size):
                     if not chunk:
@@ -1020,12 +1195,21 @@ class UpdaterUI:
                     handle.write(chunk)
                     downloaded += len(chunk)
                     if total:
-                        percent = downloaded * 100 / total
-                        self._enqueue("progress", percent)
-                        self._enqueue("status", ("Downloading update...", f"{downloaded // 1024} KB / {total // 1024} KB"))
-        self._enqueue("progress", 100)
-        if self.manifest.sha256:
-            self._verify_sha256(target_path, self.manifest.sha256)
+                        # Map download progress to 15 → 75 range
+                        frac = downloaded / total
+                        progress = 15 + frac * 60
+                        self._enqueue("progress", progress)
+                        dl_kb = downloaded // 1024
+                        total_kb = total // 1024
+                        if total_kb >= 1024:
+                            self._enqueue(
+                                "status",
+                                ("Downloading update…", f"{dl_kb / 1024:.1f} MB / {total_kb / 1024:.1f} MB"),
+                            )
+                        else:
+                            self._enqueue("status", ("Downloading update…", f"{dl_kb} KB / {total_kb} KB"))
+
+        self._enqueue("progress", 75)
         return target_path
 
     def _verify_sha256(self, file_path: Path, expected: str) -> None:
@@ -1047,8 +1231,11 @@ class UpdaterUI:
                 "/SUPPRESSMSGBOXES",
                 "/NORESTART",
                 "/SP-",
-                "/CLOSEAPPLICATIONS",
-                "/RESTARTAPPLICATIONS",
+                # Do NOT pass /CLOSEAPPLICATIONS — we already closed
+                # DnDTools ourselves.  That flag would also kill
+                # update.exe if it were running from {app}.
+                # Do NOT pass /RESTARTAPPLICATIONS — the updater UI
+                # handles relaunching via the "Launch DnDTools" button.
             ])
         else:
             args.extend([
@@ -1058,99 +1245,42 @@ class UpdaterUI:
                 "/SP-",
             ])
 
+        self.logger.info("Launching installer: %s", " ".join(args))
+
         popen_kwargs: dict[str, Any] = {
             "cwd": str(installer_path.parent),
             "close_fds": False,
         }
-        if os.name == "nt":
-            creation = 0
-            for flag in ("DETACHED_PROCESS", "CREATE_NEW_PROCESS_GROUP"):
-                creation |= getattr(subprocess, flag, 0)
-            popen_kwargs["creationflags"] = creation
+        # Don't detach — we WANT to wait for the installer and keep our
+        # window alive so the user sees progress.
 
         proc = subprocess.Popen(args, **popen_kwargs)
+        self._installer_proc = proc
+
         if wait:
-            return_code = proc.wait()
+            # Poll so we can keep the UI responsive with status updates.
+            elapsed = 0.0
+            while proc.poll() is None:
+                time.sleep(0.5)
+                elapsed += 0.5
+                # Animate install progress from 80 → 95
+                install_progress = min(95, 80 + elapsed * 0.5)
+                self._enqueue("progress", install_progress)
+                if elapsed % 5 < 0.6:
+                    self._enqueue("status", ("Installing update…", "Please wait, this may take a minute."))
+            return_code = proc.returncode
             if return_code != 0:
                 raise UpdateError(f"Installer exited with code {return_code}")
 
-    def _notify_installation_in_progress(self) -> None:
-        if os.name != "nt":
-            return
-
-        def _show_notification() -> None:
-            try:
-                import win32con
-                import win32gui
-            except ImportError:
-                self.logger.info("pywin32 not available; skipping Windows notification")
-                return
-
-            hwnd = self.root.winfo_id()
-            title = "Applying DnDTools update"
-            message = "Update is installing. The app will reopen shortly."
-            icon_path = self._resolve_icon_path()
-
-            hicon = 0
-            extra_icons: list[int] = []
-            try:
-                large_icons, small_icons = win32gui.ExtractIconEx(icon_path, 0, 1)
-                if large_icons:
-                    hicon = large_icons[0]
-                    extra_icons.extend(large_icons[1:])
-                elif small_icons:
-                    hicon = small_icons[0]
-                    extra_icons.extend(small_icons[1:])
-            except Exception:
-                hicon = 0
-
-            flags = win32con.NIF_INFO | win32con.NIF_TIP
-            if hicon:
-                flags |= win32con.NIF_ICON
-
-            tip = "DnDTools Updater"
-            nid = (
-                hwnd,
-                1,
-                flags,
-                0,
-                hicon,
-                tip,
-                message,
-                8000,
-                title,
-                win32con.NIIF_INFO,
-            )
-
-            try:
-                win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, nid)
-                win32gui.Shell_NotifyIcon(win32gui.NIM_MODIFY, nid)
-            except win32gui.error as exc:
-                self.logger.warning("Failed to display Windows notification: %s", exc)
-            finally:
-                def _cleanup() -> None:
-                    try:
-                        win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, nid)
-                    except Exception:
-                        pass
-                    for handle in [hicon, *extra_icons]:
-                        if handle:
-                            try:
-                                win32gui.DestroyIcon(handle)
-                            except Exception:
-                                pass
-
-                threading.Timer(9, _cleanup).start()
-
-        self.root.after(0, _show_notification)
-
     def _cleanup_temp(self) -> None:
+        """Best-effort cleanup of temp files after install finishes."""
+        # At this point the installer has already exited (we waited), so
+        # it is safe to remove the downloaded .exe.
         try:
             if self._download_path and self._download_path.exists():
                 self._download_path.unlink(missing_ok=True)
         except Exception:
             pass
-
         try:
             shutil.rmtree(self._temp_dir, ignore_errors=True)
         except Exception:
