@@ -26,20 +26,23 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 Compression=lzma2
 SolidCompression=yes
-; Use the modern style and follow system light/dark mode. Avoid modifiers
-; that require newer Inno Setup versions (e.g. includetitlebar/hidebevels)
-WizardStyle=modern dynamic
+; Modern style with dynamic light/dark following the OS setting.
+; windows11 provides a styled light theme that pairs with the built-in dark style
+; so neither mode looks like a plain white or plain black shell.
+WizardStyle=modern dynamic windows11
 
-; Dark-ish background used for the wizard pages (works for both modes)
-WizardBackColor=#0b0b0b
-
-; Main left-side image (welcome/finish)
+; ── Light-mode colours (used when Windows is in light mode) ──
 WizardImageFile=..\\UI\\assets\\banner.bmp
-WizardImageBackColor=#0e0e0e
-
-; Small logo (used in titlebars and dialogs)
+WizardImageBackColor=$F0F0F0
 WizardSmallImageFile=..\\UI\\assets\\logo.png
-WizardSmallImageBackColor=#111111
+WizardSmallImageBackColor=$F0F0F0
+
+; ── Dark-mode colours (used when Windows is in dark mode) ──
+; These match the app's own #0b0b0b / #0e0e0e palette.
+WizardImageFileDynamicDark=..\\UI\\assets\\banner.bmp
+WizardImageBackColorDynamicDark=$0b0b0b
+WizardSmallImageFileDynamicDark=..\\UI\\assets\\logo.png
+WizardSmallImageBackColorDynamicDark=$111111
 
 SetupIconFile=..\\UI\\assets\\logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
