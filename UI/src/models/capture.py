@@ -367,30 +367,43 @@ class PacketCapture:
         )
 
     def process_packet(self, data: bytes) -> Optional[bool]:
-        if len(data) > 0:
-            self.packet_data += data
+        if len(data) == 0:
+            return False
+
+        self.packet_data += data
+
+        # Loop to process all complete game packets in the buffer.
+        # A single TCP segment may contain multiple back-to-back game packets.
+        max_iterations = 50  # safety limit
+        iterations = 0
+        while iterations < max_iterations:
+            iterations += 1
             current_size = len(self.packet_data)
-            
+
+            if current_size == 0:
+                break
+
             if current_size > self.MAX_BUFFER_SIZE:
                 self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
                 self.reset_state()
                 return False
 
+            # Parse header if we haven't yet for this game packet
             if self.expected_packet_length is None and current_size >= 8:
                 try:
                     packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
-                    
+
                     packet_type_name = "Unknown"
                     if _PacketCommand_pb2 and proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number:
                         packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name
-                    
+
                     if not self.validate_packet_header(packet_length, proto_type, random_padding):
                         self.logger.warning(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
                         self.reset_state()
                         return False
-                    
+
                     self.logger.info(f"New packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
-                    
+
                     self.expected_packet_length = packet_length
                     self.expected_proto_type = proto_type
                 except struct.error:
@@ -398,16 +411,31 @@ class PacketCapture:
                     return False
 
             if self.expected_packet_length and self.expected_proto_type:
-                if current_size > self.expected_packet_length:
-                    self.logger.info(f"Trimming overflow {current_size} -> {self.expected_packet_length}")
-                    self.packet_data = self.packet_data[:self.expected_packet_length]
-                    current_size = self.expected_packet_length
+                if current_size >= self.expected_packet_length:
+                    # We have enough data — extract this packet and keep the overflow
+                    complete_packet = self.packet_data[:self.expected_packet_length]
+                    overflow = self.packet_data[self.expected_packet_length:]
 
-                if current_size == self.expected_packet_length:
-                    self.handle_packet(self.packet_data, self.expected_proto_type)
-                    self.reset_state()
-                elif current_size % 8192 == 0:
-                    self.logger.info(f"Accumulating: {current_size}/{self.expected_packet_length}")
+                    if current_size > self.expected_packet_length:
+                        self.logger.info(f"Splitting segment: {current_size} bytes = {self.expected_packet_length} (packet) + {len(overflow)} (overflow)")
+
+                    self.handle_packet(complete_packet, self.expected_proto_type)
+
+                    # Reset state and continue with overflow data
+                    self.expected_packet_length = None
+                    self.expected_proto_type = None
+                    self.packet_data = overflow
+                    # Continue the loop to process overflow data
+                    continue
+                else:
+                    # Need more data — wait for next TCP segment
+                    if current_size % 8192 == 0:
+                        self.logger.info(f"Accumulating: {current_size}/{self.expected_packet_length}")
+                    break
+            else:
+                # Need more data to parse the header
+                break
+
         return False
 
     def reset_state(self) -> None:
@@ -791,57 +819,70 @@ class PacketCapture:
     def handle_packet(self, packet_data, proto_type):
         if not _PacketCommand_pb2:
             return
-            
-        name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
-        message = self.parse_proto(packet_data, proto_type)
 
-        # Store for packet viewer
-        json_data = None
-        parsed = False
-        if message:
-            parsed = True
-            try:
-                json_data = MessageToDict(
-                    message,
-                    preserving_proto_field_name=True,
-                    including_default_value_fields=True
-                )
-            except TypeError:
-                json_data = MessageToDict(
-                    message,
-                    preserving_proto_field_name=True
-                )
+        try:
+            name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
+        except (ValueError, KeyError):
+            name = f"Unknown({proto_type})"
 
-        # Assign a monotonically increasing id so UI can track items across refreshes
-        self._packet_id_counter += 1
-        has_handler = bool(self.capture_info and proto_type in self.capture_info)
-        packet_info = {
-            'id': self._packet_id_counter,
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
-            'type': name,
-            'proto_type': proto_type,
-            'json': json_data,
-            'raw_length': len(packet_data),
-            'parsed': parsed,
-            'handled': has_handler,
-        }
-        self.captured_packets.append(packet_info)
+        try:
+            message = self.parse_proto(packet_data, proto_type)
 
-        if proto_type in self._quest_packet_types:
-            self._persist_quest_packet(packet_data, proto_type, name, message)
+            # Store for packet viewer
+            json_data = None
+            parsed = False
+            if message:
+                parsed = True
+                try:
+                    json_data = MessageToDict(
+                        message,
+                        preserving_proto_field_name=True,
+                        including_default_value_fields=True
+                    )
+                except TypeError:
+                    json_data = MessageToDict(
+                        message,
+                        preserving_proto_field_name=True
+                    )
+                except Exception as dict_err:
+                    self.logger.debug(f"MessageToDict failed for {name}: {dict_err}")
 
-        if self.capture_info:
-            if proto_type in self.capture_info:
-                self.logger.info(f"Parsing: {name} {proto_type}")
-                if message:
-                    self.capture_info[proto_type](message)
+            # Assign a monotonically increasing id so UI can track items across refreshes
+            self._packet_id_counter += 1
+            has_handler = bool(self.capture_info and proto_type in self.capture_info)
+            packet_info = {
+                'id': self._packet_id_counter,
+                'timestamp': datetime.utcnow().isoformat() + 'Z',
+                'type': name,
+                'proto_type': proto_type,
+                'json': json_data,
+                'raw_length': len(packet_data),
+                'parsed': parsed,
+                'handled': has_handler,
+            }
+            self.captured_packets.append(packet_info)
+
+            if proto_type in self._quest_packet_types:
+                self._persist_quest_packet(packet_data, proto_type, name, message)
+
+            if self.capture_info:
+                if proto_type in self.capture_info:
+                    self.logger.info(f"Parsing: {name} {proto_type}")
+                    if message:
+                        try:
+                            self.capture_info[proto_type](message)
+                        except Exception as handler_err:
+                            self.logger.error(f"Handler error for {name} ({proto_type}): {handler_err}", exc_info=True)
+                    else:
+                        self.logger.warning(f"No proto message for handled type: {name} {proto_type}")
                 else:
-                    self.logger.warning(f"No proto message for handled type: {name} {proto_type}")
-            else:
-                # Not an error — most packet types don't have app-level callbacks
-                self.logger.debug(f"Captured (no handler): {name} {proto_type} — {'parsed' if parsed else 'unparsed'}")
-        elif not parsed:
-            self.logger.debug(f"Captured but could not parse: {name} {proto_type}")
+                    # Not an error — most packet types don't have app-level callbacks
+                    self.logger.debug(f"Captured (no handler): {name} {proto_type} — {'parsed' if parsed else 'unparsed'}")
+            elif not parsed:
+                self.logger.debug(f"Captured but could not parse: {name} {proto_type}")
+
+        except Exception as exc:
+            self.logger.error(f"Unhandled error in handle_packet for {name} ({proto_type}): {exc}", exc_info=True)
 
     def _persist_quest_packet(self, packet_data: bytes, proto_type: int, packet_name: str, message) -> None:
         if not getattr(self, '_save_quest_packets', False):

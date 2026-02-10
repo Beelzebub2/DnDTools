@@ -52,12 +52,14 @@ class QuestService:
         self._data_dir = Path(get_quests_dir())
         self._cache_file = self._data_dir / "quests_cache.json"
         self._progress_file = self._data_dir / "quests_progress.json"
+        self._captured_state_file = self._data_dir / "quests_captured.json"
 
         self._quests_cache: Optional[list[dict]] = None
         self._quests_cache_timestamp: float = 0.0
         self._quests_lock = threading.RLock()
         self._items_index: Optional[dict[str, dict]] = None
         self._items_lock = threading.RLock()
+        self._captured_lock = threading.RLock()
 
     # ------------------------------------------------------------------
     # General helpers
@@ -65,7 +67,11 @@ class QuestService:
     @property
     def protected_filenames(self) -> set[str]:
         """Filenames that shouldn't be deleted when clearing character data."""
-        return {self._cache_file.name.lower(), self._progress_file.name.lower()}
+        return {
+            self._cache_file.name.lower(),
+            self._progress_file.name.lower(),
+            self._captured_state_file.name.lower(),
+        }
 
     @staticmethod
     def _default_progress_payload() -> dict:
@@ -414,6 +420,64 @@ class QuestService:
     # ------------------------------------------------------------------
     def normalize_merchant_name(self, name: Optional[str]) -> str:
         return self._normalize_merchant_name(name)
+
+    # ------------------------------------------------------------------
+    # Captured quest state (from packet capture auto-tracking)
+    # ------------------------------------------------------------------
+    def save_captured_state(self, state: dict) -> None:
+        """Persist captured quest state from packet handler to disk."""
+        with self._captured_lock:
+            try:
+                with open(self._captured_state_file, "w", encoding="utf-8") as handle:
+                    json.dump(
+                        {"version": 1, "timestamp": time.time(), "state": state},
+                        handle,
+                        ensure_ascii=False,
+                        indent=2,
+                    )
+            except Exception as exc:
+                self._logger.warning(
+                    "Failed to persist captured quest state: %s", exc, exc_info=True
+                )
+
+    def load_captured_state(self) -> tuple[Optional[dict], Optional[float]]:
+        """Load captured quest state from disk."""
+        with self._captured_lock:
+            try:
+                with open(self._captured_state_file, "r", encoding="utf-8") as handle:
+                    payload = json.load(handle)
+            except FileNotFoundError:
+                return None, None
+            except Exception as exc:
+                self._logger.warning(
+                    "Failed to read captured quest state: %s", exc, exc_info=True
+                )
+                return None, None
+
+            if not isinstance(payload, dict):
+                return None, None
+
+            timestamp = payload.get("timestamp")
+            try:
+                timestamp_value = float(timestamp)
+            except (TypeError, ValueError):
+                timestamp_value = None
+
+            return payload.get("state"), timestamp_value
+
+    def clear_captured_state(self) -> bool:
+        """Remove captured quest state file."""
+        with self._captured_lock:
+            try:
+                os.remove(self._captured_state_file)
+                return True
+            except FileNotFoundError:
+                return False
+            except OSError as exc:
+                self._logger.warning(
+                    "Failed to remove captured quest state file: %s", exc, exc_info=True
+                )
+                return False
 
 
 __all__ = ["QuestService", "RARITY_ORDER"]

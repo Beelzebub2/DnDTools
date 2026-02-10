@@ -634,6 +634,7 @@ class Api:
         self._sort_sync_service: Optional[SortSyncService] = None
         self._sort_feedback_sync_service = None  # backward compat reference
         self._sort_learning_trainer: Optional[SortLearningTrainer] = None
+        self._quest_packet_handler = None
 
     # ── Lazy capture controller ─────────────────────────────────────────
     @property
@@ -654,9 +655,24 @@ class Api:
     def _init_capture_controller(self):
         """Create the CaptureController (triggers pyshark / proto imports)."""
         from networking.protos import _PacketCommand_pb2
+        from src.quest_packet_handler import QuestPacketHandler
+
+        # Create the quest packet handler for automatic quest tracking
+        self._quest_packet_handler = QuestPacketHandler(
+            quest_service=quest_service,
+            ui_notify=self._on_quest_packet_event,
+        )
+
         capture_info = {
             _PacketCommand_pb2.PacketCommand.S2C_LOBBY_CHARACTER_INFO_RES: handle_character,
             _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
+            # Quest auto-tracking handlers
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_LIST_RES: self._quest_packet_handler.handle_merchant_list,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_LIST_INFO_RES: self._quest_packet_handler.handle_quest_list,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_LOG_LIST_RES: self._quest_packet_handler.handle_quest_log,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_SELECT_RES: self._quest_packet_handler.handle_quest_select,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_COMPLETE_RES: self._quest_packet_handler.handle_quest_complete,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_CONTENT_VALUE_STACK_RES: self._quest_packet_handler.handle_quest_content_value_stack,
         }
         self._capture_controller = CaptureController(
             self._capture_settings, capture_info, wireshark_path=self._wireshark_path
@@ -664,6 +680,67 @@ class Api:
         # Normalize settings from controller (ensures tuple types)
         self._capture_settings = self._capture_controller.settings()
         self._apply_wireshark_path(self._wireshark_path)
+
+    # Notification templates for quest packet events.
+    # showNotification(msg, type, {id, duration}) is provided globally by app.js
+    # on every page, so these always work regardless of which tab the user is on.
+    _QUEST_EVENT_NOTIFICATIONS = {
+        "quest_accepted":        ("New quest accepted",       "success", 3500),
+        "quest_completed":       ("Quest completed!",         "success", 5000),
+        "quest_items_submitted": ("Quest items submitted",    "info",    3500),
+        "quest_list_update":     ("Quest board updated",      "info",    3500),
+        "quest_log_update":      ("Quest log synced",         "info",    3500),
+        "quest_merchant_list":   ("Merchant data updated",    "info",    3500),
+    }
+
+    def _on_quest_packet_event(self, event_name: str, payload: str) -> None:
+        """Callback from QuestPacketHandler to notify the UI of quest events.
+
+        Shows a notification via the global showNotification() (app.js, every
+        page) and, if the quest page is open, forwards the event to
+        window.onQuestPacketEvent for data refresh.
+        """
+        if not self.window or getattr(self, '_shutting_down', False):
+            return
+
+        safe_payload = (payload or '{}').replace('\\', '\\\\').replace("'", "\\'").replace('\n', ' ')
+
+        # ── Build notification JS ──
+        notif_js = ''
+        template = self._QUEST_EVENT_NOTIFICATIONS.get(event_name)
+        if template:
+            msg, ntype, duration = template
+
+            # Enrich message from detail payload where useful
+            try:
+                import json as _json
+                detail = _json.loads(payload) if payload else {}
+            except Exception:
+                detail = {}
+
+            if event_name == "quest_completed" and detail.get("reward_count"):
+                rc = int(detail["reward_count"])
+                msg += f" \u2014 {rc} reward{'s' if rc > 1 else ''} received"
+            elif event_name in ("quest_list_update", "quest_log_update") and detail.get("in_progress"):
+                msg += f" \u2014 {int(detail['in_progress'])} in progress"
+
+            safe_msg = msg.replace("'", "\\'")
+            notif_js = (
+                f"if(typeof showNotification==='function')"
+                f"showNotification('{safe_msg}','{ntype}',"
+                f"{{id:'quest-event-{event_name}',duration:{duration}}});"
+            )
+
+        # ── Build quest-page data-refresh JS ──
+        quest_js = (
+            f"if(window.onQuestPacketEvent)"
+            f"window.onQuestPacketEvent('{event_name}','{safe_payload}');"
+        )
+
+        try:
+            self.window.evaluate_js(f'{notif_js}{quest_js}')
+        except Exception:
+            pass
 
     def _start_deferred_subsystems(self):
         """Initialise subsystems that are not needed before the window appears.
@@ -2952,6 +3029,34 @@ def api_clear_quest_cache():
     if not any(results.values()):
         return jsonify({'success': True, 'message': 'Quest cache already empty', 'results': results})
     return jsonify({'success': True, 'results': results})
+
+
+@server.route('/api/quests/captured', methods=['GET', 'DELETE'])
+def api_quests_captured():
+    """Return or clear automatically captured quest progress from packet capture."""
+    handler = getattr(api, '_quest_packet_handler', None) if api else None
+
+    if request.method == 'DELETE':
+        if handler:
+            handler.clear()
+        quest_service.clear_captured_state()
+        return jsonify({'success': True, 'message': 'Captured quest state cleared'})
+
+    # GET
+    if not handler:
+        return jsonify({
+            'success': True,
+            'available': False,
+            'message': 'Quest packet handler not initialised (capture not started)',
+            'auto_progress': {'quests': {}, 'completions': [], 'merchant_flags': {}, 'last_update': 0},
+        })
+
+    auto_progress = handler.get_auto_progress()
+    return jsonify({
+        'success': True,
+        'available': True,
+        'auto_progress': auto_progress,
+    })
 
 
 @server.route('/api/characters/data', methods=['DELETE'])

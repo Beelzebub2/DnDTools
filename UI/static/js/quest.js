@@ -3127,6 +3127,318 @@
     updateMerchantViewToggle();
     registerEvents();
     syncProgressFromServer();
+
+    /* ─── Auto-tracking via packet capture ─── */
+    const CAPTURED_ENDPOINT = '/api/quests/captured';
+    const AUTO_TRACK_POLL_INTERVAL = 8000; // 8 seconds
+    let autoTrackLastUpdate = 0;
+    let autoTrackPollTimer = null;
+    let autoTrackInFlight = false;
+
+    /**
+     * Reconcile captured quest data from packets with DarkerDB quest definitions.
+     *
+     * The captured data has quest IDs (e.g. "DesignDataQuest:Id_Quest_...")
+     * that match the `id` field from the DarkerDB API quests.  For each
+     * captured quest we find the matching quest definition, then match
+     * captured missions (by contentId = item_id) to objectives and update
+     * the progress state.
+     */
+    function reconcileCapturedProgress(autoProgress) {
+        if (!autoProgress || !autoProgress.quests) return false;
+        const capturedQuests = autoProgress.quests;
+        if (!capturedQuests || typeof capturedQuests !== 'object') return false;
+
+        const questKeys = Object.keys(capturedQuests);
+        if (questKeys.length === 0) return false;
+
+        // Strip common game-engine prefixes so packet IDs match DarkerDB short IDs.
+        // The Python handler normally does this, but be defensive in case any slip through.
+        const GAME_PREFIXES = [
+            'DesignDataQuest:Id_Quest_',
+            'DesignDataQuestChapter:Id_QuestChapter_',
+            'DesignDataMerchant:Id_Merchant_',
+            'DesignDataItem:Id_Item_',
+            'DesignDataMonster:Id_Monster_',
+            'DesignDataObject:Id_Object_',
+        ];
+        function normalizeGameId(raw) {
+            if (!raw) return raw;
+            for (const p of GAME_PREFIXES) {
+                if (raw.startsWith(p)) return raw.slice(p.length);
+            }
+            // Generic fallback: "DesignData*:Id_Category_Rest" → "Rest"
+            const colonIdx = raw.indexOf(':Id_');
+            if (colonIdx >= 0) {
+                const after = raw.slice(colonIdx + 4);
+                const usIdx = after.indexOf('_');
+                if (usIdx >= 0) return after.slice(usIdx + 1);
+            }
+            return raw;
+        }
+
+        // Build lookup from quest ID to DarkerDB quest definition
+        const questById = {};
+        state.quests.forEach(q => {
+            if (q.id) questById[q.id] = q;
+        });
+
+        let anyChanged = false;
+
+        console.log('[auto-track] reconciling', questKeys.length, 'captured quests. DarkerDB has', state.quests.length, 'quests, questById keys:', Object.keys(questById).slice(0, 10));
+
+        questKeys.forEach(rawQuestId => {
+            const captured = capturedQuests[rawQuestId];
+            if (!captured) return;
+
+            const questId = normalizeGameId(rawQuestId);
+            const questDef = questById[questId] || questById[rawQuestId];
+            if (!questDef) {
+                console.warn('[auto-track] No DarkerDB match for quest:', rawQuestId, '→', questId,
+                    '| Available IDs sample:', Object.keys(questById).slice(0, 20));
+                return;
+            }
+
+            const capturedMissions = captured.missions || [];
+            const questFlag = captured.quest_flag;
+            // quest_flag: 2 = success (ready to turn in), 3 = complete
+            const isQuestComplete = questFlag === 2 || questFlag === 3;
+
+            console.log('[auto-track] Matched quest:', questId, '| flag:', questFlag,
+                '| isComplete:', isQuestComplete, '| missions:', capturedMissions.length,
+                '| objectives:', (questDef.objectives || []).length);
+
+            const objectives = questDef.objectives || [];
+
+            // Strategy: match captured missions to objectives by position first,
+            // then by contentId = item_id for Fetch objectives
+            capturedMissions.forEach((mission, missionIdx) => {
+                const rawContentId = mission.content_id || '';
+                const contentId = normalizeGameId(rawContentId);
+                const currentValue = mission.current_value || 0;
+
+                // Try to find the matching objective
+                let matchedObj = null;
+                let matchedIndex = -1;
+
+                // 1. Try positional match
+                if (missionIdx < objectives.length) {
+                    const candidate = objectives[missionIdx];
+                    // If it's a Fetch with same item_id, or any type with current value
+                    if (candidate) {
+                        if (candidate.type === 'Fetch' && (candidate.item_id === contentId || candidate.item_id === rawContentId)) {
+                            matchedObj = candidate;
+                            matchedIndex = missionIdx;
+                        } else if (contentId && (candidate.item_id === contentId || candidate.item_id === rawContentId)) {
+                            matchedObj = candidate;
+                            matchedIndex = missionIdx;
+                        }
+                    }
+                }
+
+                // 2. If positional didn't work, scan by contentId
+                if (!matchedObj && contentId) {
+                    const normContentId = normalizeGameId(contentId);
+                    for (let i = 0; i < objectives.length; i++) {
+                        const obj = objectives[i];
+                        // Try both raw and normalized forms against objective fields
+                        const fields = [obj.item_id, obj.monster, obj.interact, obj.module];
+                        if (fields.includes(contentId) || fields.includes(normContentId)) {
+                            matchedObj = obj;
+                            matchedIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                // 3. Fallback: use positional index if there's a count match potential
+                if (!matchedObj && missionIdx < objectives.length) {
+                    matchedObj = objectives[missionIdx];
+                    matchedIndex = missionIdx;
+                    console.log('[auto-track]   mission', missionIdx, 'fallback to positional match');
+                }
+
+                if (!matchedObj || matchedIndex < 0) {
+                    console.warn('[auto-track]   mission', missionIdx, 'NO MATCH (contentId:', contentId, ')');
+                    return;
+                }
+
+                const key = makeObjectiveKey(questDef, matchedIndex, matchedObj);
+                const existing = getObjectiveProgress(key) || {};
+                const existingSubmitted = Number(existing.submitted) || 0;
+                const newSubmitted = Math.max(existingSubmitted, currentValue);
+                const isComplete = isQuestComplete ||
+                    (matchedObj.count && newSubmitted >= matchedObj.count);
+
+                console.log('[auto-track]   mission', missionIdx, '→ obj', matchedIndex,
+                    '| key:', key, '| value:', currentValue, '→', newSubmitted,
+                    '| complete:', isComplete, '| existing:', existingSubmitted);
+
+                // Only update if we have new data
+                if (newSubmitted > existingSubmitted || (isComplete && !existing.completed)) {
+                    console.log('[auto-track]   UPDATING progress for key:', key);
+                    setObjectiveProgress(key, {
+                        quest_id: questId,
+                        objective_index: matchedIndex,
+                        type: matchedObj.type || 'Fetch',
+                        item_id: matchedObj.item_id || contentId || undefined,
+                        submitted: newSubmitted,
+                        completed: isComplete,
+                    });
+                    anyChanged = true;
+                }
+            });
+
+            // If the quest is complete but we missed missions, mark all objectives done
+            if (isQuestComplete) {
+                console.log('[auto-track] Quest', questId, 'is complete, marking all', objectives.length, 'objectives done');
+                objectives.forEach((obj, idx) => {
+                    const key = makeObjectiveKey(questDef, idx, obj);
+                    const existing = getObjectiveProgress(key) || {};
+                    if (!existing.completed) {
+                        console.log('[auto-track]   Marking completed:', key);
+                        setObjectiveProgress(key, {
+                            quest_id: questId,
+                            objective_index: idx,
+                            type: obj.type || 'Objective',
+                            item_id: obj.item_id || undefined,
+                            submitted: obj.count || existing.submitted || 0,
+                            completed: true,
+                        });
+                        anyChanged = true;
+                    }
+                });
+            }
+        });
+
+        return anyChanged;
+    }
+
+    async function fetchCapturedQuestData() {
+        if (autoTrackInFlight || typeof fetch !== 'function') return;
+        autoTrackInFlight = true;
+        try {
+            const response = await fetch(CAPTURED_ENDPOINT, { cache: 'no-store' });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data || data.success === false || !data.available) return;
+
+            const autoProgress = data.auto_progress;
+            if (!autoProgress || !autoProgress.last_update) return;
+
+            // Skip if no new data since last check
+            if (autoProgress.last_update <= autoTrackLastUpdate) return;
+            autoTrackLastUpdate = autoProgress.last_update;
+
+            console.log('[auto-track] New captured data:', JSON.stringify(autoProgress).substring(0, 500));
+
+            if (!state.questsLoaded || state.quests.length === 0) {
+                console.warn('[auto-track] Quests not loaded yet, skipping reconciliation');
+                return;
+            }
+
+            const changed = reconcileCapturedProgress(autoProgress);
+            console.log('[auto-track] reconciliation result: changed =', changed);
+            if (changed) {
+                scheduleGlobalRender();
+                // Update the auto-tracking indicator
+                updateAutoTrackIndicator(true);
+            }
+        } catch (error) {
+            console.warn('Failed to fetch captured quest data', error);
+        } finally {
+            autoTrackInFlight = false;
+        }
+    }
+
+    function startAutoTrackPolling() {
+        if (autoTrackPollTimer) return;
+        // Initial fetch after quests are loaded
+        fetchCapturedQuestData();
+        autoTrackPollTimer = window.setInterval(fetchCapturedQuestData, AUTO_TRACK_POLL_INTERVAL);
+    }
+
+    function stopAutoTrackPolling() {
+        if (autoTrackPollTimer) {
+            window.clearInterval(autoTrackPollTimer);
+            autoTrackPollTimer = null;
+        }
+    }
+
+    function updateAutoTrackIndicator(hasData) {
+        let indicator = document.getElementById('autoTrackIndicator');
+        if (!indicator) {
+            // Create the indicator in the header actions area
+            const headerActions = document.querySelector('.header-actions');
+            if (!headerActions) return;
+            indicator = document.createElement('div');
+            indicator.id = 'autoTrackIndicator';
+            indicator.className = 'auto-track-indicator';
+            indicator.title = 'Quest progress is being automatically tracked from game packets';
+            indicator.innerHTML = '<span class="material-icons" aria-hidden="true">sensors</span><span class="auto-track-label">Auto-tracking</span>';
+            headerActions.insertBefore(indicator, headerActions.firstChild);
+        }
+        indicator.classList.toggle('active', Boolean(hasData));
+    }
+
+    // ── Quest event notification helpers ──
+    const QUEST_EVENT_MESSAGES = {
+        quest_accepted: { message: 'New quest accepted', type: 'success', icon: 'assignment_turned_in' },
+        quest_completed: { message: 'Quest completed!', type: 'success', icon: 'emoji_events' },
+        quest_items_submitted: { message: 'Quest items submitted', type: 'info', icon: 'inventory_2' },
+        quest_list_update: { message: 'Quest board updated', type: 'info', icon: 'sync' },
+        quest_log_update: { message: 'Quest log synced', type: 'info', icon: 'sync' },
+        quest_merchant_list: { message: 'Merchant data updated', type: 'info', icon: 'storefront' },
+    };
+
+    let _questEventDebounce = null;
+
+    function showQuestEventNotification(eventName, detail) {
+        const template = QUEST_EVENT_MESSAGES[eventName];
+        if (!template || typeof showNotification !== 'function') return;
+
+        let msg = template.message;
+        // Enrich message with detail data when available
+        if (detail) {
+            if (eventName === 'quest_completed' && detail.reward_count) {
+                msg += ` — ${detail.reward_count} reward${detail.reward_count > 1 ? 's' : ''} received`;
+            } else if ((eventName === 'quest_list_update' || eventName === 'quest_log_update') && detail.in_progress) {
+                msg += ` — ${detail.in_progress} in progress`;
+            }
+        }
+
+        showNotification(msg, template.type, {
+            id: 'quest-event-' + eventName,
+            duration: eventName === 'quest_completed' ? 5000 : 3500,
+        });
+    }
+
+    // Listen for quest packet events from the capture system.
+    // Notifications are shown by the Python backend via showNotification()
+    // (works on every page). This handler only handles quest-page data refresh.
+    window.onQuestPacketEvent = function (eventName, rawDetail) {
+        // Debounce the data fetch — packets come in bursts
+        if (_questEventDebounce) clearTimeout(_questEventDebounce);
+        if (autoTrackPollTimer) {
+            window.clearInterval(autoTrackPollTimer);
+            autoTrackPollTimer = null;
+        }
+        _questEventDebounce = window.setTimeout(() => {
+            _questEventDebounce = null;
+            fetchCapturedQuestData();
+            autoTrackPollTimer = window.setInterval(fetchCapturedQuestData, AUTO_TRACK_POLL_INTERVAL);
+        }, 500);
+    };
+
+    // Start polling once quests are loaded
+    const originalRefreshAll = refreshAll;
+    refreshAll = async function (opts) {
+        await originalRefreshAll(opts);
+        if (state.questsLoaded) {
+            startAutoTrackPolling();
+        }
+    };
+
     window.addEventListener('questDataCleared', () => {
         state.progress = sanitizeProgressData(null);
         lastServerSyncPayload = '';
@@ -3144,6 +3456,7 @@
         syncProgressFromServer();
     });
     window.addEventListener('beforeunload', () => {
+        stopAutoTrackPolling();
         scheduleServerPersistProgress({ immediate: true });
     });
     refreshAll({ force: false });
