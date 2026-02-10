@@ -1383,7 +1383,10 @@
             subtitle.className = 'quest-meta';
             subtitle.appendChild(createMetaChip('book', quest.chapter));
             if (quest.prerequisite) {
-                subtitle.appendChild(createMetaChip('flag', `Prerequisite: ${quest.prerequisite}`));
+                const prereqTitles = Array.isArray(quest.__resolvedPrerequisiteTitles) && quest.__resolvedPrerequisiteTitles.length
+                    ? quest.__resolvedPrerequisiteTitles
+                    : [quest.prerequisite];
+                subtitle.appendChild(createMetaChip('flag', `Prerequisite: ${prereqTitles.join(', ')}`));
             }
             if (quest.dungeons && quest.dungeons.length) {
                 subtitle.appendChild(createMetaChip('map', quest.dungeons.join(', ')));
