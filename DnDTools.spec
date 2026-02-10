@@ -40,6 +40,6 @@ coll = COLLECT(
     a.datas,
     strip=True,
     upx=True,
-    upx_exclude=[],
+    upx_exclude=['python311.dll', 'python3.dll', 'ucrtbase.dll', 'vcruntime140.dll'],
     name='DnDTools',
 )

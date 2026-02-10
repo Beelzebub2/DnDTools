@@ -26,7 +26,23 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 Compression=lzma2
 SolidCompression=yes
-WizardStyle=modern
+WizardStyle=modern dynamic includetitlebar hidebevels
+
+; Dark theme colours that match the application's palette
+WizardBackColor=#111111
+WizardBackColorDynamicDark=#0b0b0b
+
+; Main left-side image (welcome/finish). Provide a dark variant for dynamic dark mode as well.
+WizardImageFile=..\UI\assets\banner.jpg
+WizardImageFileDynamicDark=..\UI\assets\banner.jpg
+WizardImageBackColor=#0e0e0e
+WizardImageBackColorDynamicDark=#0b0b0b
+
+; Small logo (used in titlebars and dialogs)
+WizardSmallImageFile=..\UI\assets\logo.png
+WizardSmallImageFileDynamicDark=..\UI\assets\logo.png
+WizardSmallImageBackColor=#111111
+
 SetupIconFile=..\UI\assets\logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputBaseFilename={#MyAppName}-Setup-{#MyAppVersion}
