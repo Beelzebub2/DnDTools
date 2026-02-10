@@ -50,22 +50,21 @@
                             Preview
                         </button>
 
-                        <!-- Transfer to Stash dropdown -->
+                        <!-- Deposit to current stash -->
                         <div class="transfer-dropdown" id="transferDropdown">
-                            <button class="stash-action-button btn-transfer" id="transferButton">
+                            <button class="stash-action-button btn-transfer" id="transferButton" disabled
+                                title="Select a storage stash to enable deposit">
                                 <span class="material-icons">move_to_inbox</span>
                                 <div class="jelly-triangle-container">
                                     <div class="dot"></div>
                                     <div class="traveler"></div>
                                 </div>
-                                Deposit
+                                <span class="transfer-btn-label">Deposit</span>
+                                <span class="transfer-btn-badge" id="transferBadge"></span>
                             </button>
                             <div class="transfer-menu hidden" id="transferMenu">
-                                <div class="transfer-menu-header">Select Destination Stash</div>
-                                <div class="transfer-stash-list" id="transferStashList">
-                                    <!-- Populated dynamically -->
-                                </div>
-                                <div class="transfer-feasibility hidden" id="transferFeasibility">
+                                <div class="transfer-menu-header" id="transferMenuHeader">Deposit to Storage</div>
+                                <div class="transfer-feasibility" id="transferFeasibility">
                                     <div class="transfer-feasibility-icon">
                                         <span class="material-icons" id="transferFeasibilityIcon">info</span>
                                     </div>
@@ -76,7 +75,7 @@
                                     <button type="button" class="stash-action-button transfer-execute-button"
                                         id="transferExecuteButton" disabled>
                                         <span class="material-icons">send</span>
-                                        Execute Transfer
+                                        Execute Deposit
                                     </button>
                                 </div>
                             </div>

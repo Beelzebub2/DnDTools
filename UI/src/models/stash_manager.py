@@ -1056,7 +1056,7 @@ class StashManager:
         target_items_raw = char.get("stashes", {}).get(str(target_stash_id))
 
         if source_items_raw is None:
-            return {"feasible": False, "message": "Source stash not found",
+            return {"feasible": False, "message": "Source stash empty",
                     "placeable": 0, "unplaceable": 0, "total": 0,
                     "target_free_cells": 0, "target_total_cells": 0, "items": []}
         if target_items_raw is None:

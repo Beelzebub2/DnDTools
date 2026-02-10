@@ -1092,6 +1092,9 @@ const loadStashesFromPayload = async (stashesPayload) => {
             previewContainer.classList.remove('hidden');
         }
         spinner.classList.add('hidden');
+
+        // Refresh deposit button state now that stash data is up to date
+        updateDepositButtonState();
     } catch (error) {
         console.error('Error rendering stashes:', error);
         handleApiError(error, document.getElementById('stashContainer'));
@@ -2167,6 +2170,9 @@ const createStashTabsWithoutDefault = (stashes) => {
 };
 
 const updateCurrentStash = async (stashId) => {
+    // Update deposit button whenever the active stash changes
+    updateDepositButtonState();
+
     try {
         await fetch(`/api/character/${charId}/current-stash/${stashId}`, {
             method: 'POST',
@@ -2371,11 +2377,12 @@ const triggerSort = async () => {
     }
 };
 
-// ── Transfer to Stash Logic ──────────────────────────────────────────
+// ── Deposit to Current Stash Logic ───────────────────────────────────
 let transferSelectedTargetId = null;
 let transferFeasibilityCache = null;
 let transferMenuOpen = false;
 let transferBusy = false;
+let depositFeasibilityAbort = null; // AbortController for in-flight feasibility checks
 
 function initTransferUI() {
     const transferButton = document.getElementById('transferButton');
@@ -2386,6 +2393,7 @@ function initTransferUI() {
 
     transferButton.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (transferButton.disabled) return;
         toggleTransferMenu();
     });
 
@@ -2404,6 +2412,105 @@ function initTransferUI() {
     });
 }
 
+/**
+ * Returns true if the given stash ID is a valid deposit target
+ * (i.e. not bag, equipment, or the combined character view).
+ */
+function isDepositableStash(stashId) {
+    return stashId && stashId !== 'character' && stashId !== '2' && stashId !== '3';
+}
+
+/**
+ * Called whenever the active stash tab changes.
+ * Updates the deposit button label, enables/disables it,
+ * and kicks off a background feasibility check.
+ */
+async function updateDepositButtonState() {
+    const btn = document.getElementById('transferButton');
+    const badge = document.getElementById('transferBadge');
+    const label = btn ? btn.querySelector('.transfer-btn-label') : null;
+    if (!btn) return;
+
+    // Cancel any in-flight feasibility check
+    if (depositFeasibilityAbort) {
+        depositFeasibilityAbort.abort();
+        depositFeasibilityAbort = null;
+    }
+
+    const stashId = currentStashId;
+    const depositable = isDepositableStash(stashId);
+
+    if (!depositable) {
+        btn.disabled = true;
+        btn.title = 'Select a storage stash to enable deposit';
+        if (label) label.textContent = 'Deposit';
+        if (badge) { badge.className = 'transfer-btn-badge'; badge.textContent = ''; }
+        // Close menu if open
+        if (transferMenuOpen) closeTransferMenu();
+        return;
+    }
+
+    const stashName = getStashName(parseInt(stashId));
+    if (label) label.textContent = `Deposit → ${stashName}`;
+    btn.title = `Deposit bag items into ${stashName}`;
+    btn.disabled = false;
+
+    // Show loading badge while checking
+    if (badge) {
+        badge.className = 'transfer-btn-badge checking';
+        badge.textContent = '…';
+    }
+
+    // Background feasibility check
+    const abortCtrl = new AbortController();
+    depositFeasibilityAbort = abortCtrl;
+
+    try {
+        const sourceId = getSourceStashIdForTransfer();
+        const response = await fetch(`/api/character/${charId}/stash/transfer/check`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                sourceStashId: sourceId,
+                targetStashId: stashId,
+                pack: isPackMode,
+                stack: isStackMode,
+            }),
+            signal: abortCtrl.signal,
+        });
+        const result = await response.json();
+
+        // If stash changed while we were waiting, discard
+        if (currentStashId !== stashId) return;
+
+        transferFeasibilityCache = result;
+        transferSelectedTargetId = stashId;
+
+        if (result.success === false && result.error) {
+            if (badge) { badge.className = 'transfer-btn-badge impossible'; badge.textContent = '✗'; }
+            btn.title = result.error;
+            return;
+        }
+
+        const { feasible, placeable, total } = result;
+        if (feasible) {
+            if (badge) { badge.className = 'transfer-btn-badge feasible'; badge.textContent = '✓'; }
+            btn.title = `All ${total} item(s) can be deposited into ${stashName}`;
+        } else if (placeable > 0) {
+            if (badge) { badge.className = 'transfer-btn-badge partial'; badge.textContent = `${placeable}/${total}`; }
+            btn.title = `Only ${placeable} of ${total} items fit into ${stashName}`;
+        } else {
+            if (badge) { badge.className = 'transfer-btn-badge impossible'; badge.textContent = '✗'; }
+            btn.title = `No items can be deposited into ${stashName} — stash is full`;
+        }
+    } catch (err) {
+        if (err.name === 'AbortError') return; // expected
+        console.error('Deposit feasibility check failed:', err);
+        if (badge) { badge.className = 'transfer-btn-badge'; badge.textContent = ''; }
+        btn.title = 'Could not check deposit feasibility';
+    }
+}
+
 function toggleTransferMenu() {
     const menu = document.getElementById('transferMenu');
     if (!menu) return;
@@ -2419,8 +2526,25 @@ function openTransferMenu() {
     const menu = document.getElementById('transferMenu');
     if (!menu) return;
 
-    // Populate stash list
-    populateTransferStashList();
+    const stashId = currentStashId;
+    if (!isDepositableStash(stashId)) return;
+
+    transferSelectedTargetId = stashId;
+
+    // Update header to show target
+    const header = document.getElementById('transferMenuHeader');
+    if (header) header.textContent = `Deposit to ${getStashName(parseInt(stashId))}`;
+
+    // Show the cached feasibility or re-check
+    const feasibilityEl = document.getElementById('transferFeasibility');
+    if (feasibilityEl) feasibilityEl.classList.remove('hidden');
+
+    if (transferFeasibilityCache) {
+        renderFeasibility(transferFeasibilityCache);
+    } else {
+        checkTransferFeasibility(stashId);
+    }
+
     menu.classList.remove('hidden');
     transferMenuOpen = true;
 }
@@ -2431,15 +2555,6 @@ function closeTransferMenu() {
 
     menu.classList.add('hidden');
     transferMenuOpen = false;
-    transferSelectedTargetId = null;
-    transferFeasibilityCache = null;
-
-    // Reset feasibility display
-    const feasibilityEl = document.getElementById('transferFeasibility');
-    if (feasibilityEl) feasibilityEl.classList.add('hidden');
-
-    const executeBtn = document.getElementById('transferExecuteButton');
-    if (executeBtn) executeBtn.disabled = true;
 }
 
 function getSourceStashIdForTransfer() {
@@ -2447,68 +2562,44 @@ function getSourceStashIdForTransfer() {
     return '2';
 }
 
-function populateTransferStashList() {
-    const listEl = document.getElementById('transferStashList');
-    if (!listEl) return;
-    listEl.innerHTML = '';
+/**
+ * Render already-fetched feasibility data into the panel.
+ */
+function renderFeasibility(result) {
+    const feasibilityIcon = document.getElementById('transferFeasibilityIcon');
+    const feasibilityText = document.getElementById('transferFeasibilityText');
+    const feasibilityDetails = document.getElementById('transferFeasibilityDetails');
+    const executeBtn = document.getElementById('transferExecuteButton');
 
-    const sourceId = getSourceStashIdForTransfer();
-    if (!latestStashData) return;
+    if (!feasibilityIcon) return;
 
-    const stashKeys = latestStashData.previewImages
-        ? Object.keys(latestStashData.previewImages || {})
-        : Object.keys(latestStashData || {});
-
-    stashKeys.forEach(stashId => {
-        // Skip bag (always the source), equipment, and the combined character key
-        if (stashId === '2' || stashId === '3' || stashId === 'character') return;
-
-        const option = document.createElement('div');
-        option.className = 'transfer-stash-option';
-        option.dataset.stashId = stashId;
-
-        const nameSpan = document.createElement('span');
-        nameSpan.className = 'transfer-stash-name';
-        nameSpan.textContent = getStashName(parseInt(stashId));
-
-        const infoSpan = document.createElement('span');
-        infoSpan.className = 'transfer-stash-info';
-        // Show item count if available
-        const stats = latestStashData.stashStats ? latestStashData.stashStats[stashId] : null;
-        if (stats) {
-            infoSpan.textContent = `${stats.itemCount || 0} items`;
-        }
-
-        option.appendChild(nameSpan);
-        option.appendChild(infoSpan);
-
-        option.addEventListener('click', (e) => {
-            e.stopPropagation();
-            selectTransferTarget(stashId);
-        });
-
-        listEl.appendChild(option);
-    });
-
-    if (listEl.children.length === 0) {
-        const empty = document.createElement('div');
-        empty.style.cssText = 'padding: 0.75rem; text-align: center; color: var(--text-secondary); font-size: 0.85rem;';
-        empty.textContent = 'No other stashes available';
-        listEl.appendChild(empty);
-    }
-}
-
-async function selectTransferTarget(targetStashId) {
-    // Highlight selected option
-    const listEl = document.getElementById('transferStashList');
-    if (listEl) {
-        listEl.querySelectorAll('.transfer-stash-option').forEach(opt => {
-            opt.classList.toggle('selected', opt.dataset.stashId === targetStashId);
-        });
+    if (result.success === false && result.error) {
+        feasibilityIcon.parentElement.className = 'transfer-feasibility-icon impossible';
+        feasibilityIcon.textContent = 'error';
+        if (feasibilityText) feasibilityText.textContent = result.error;
+        if (feasibilityDetails) feasibilityDetails.textContent = '';
+        if (executeBtn) executeBtn.disabled = true;
+        return;
     }
 
-    transferSelectedTargetId = targetStashId;
-    await checkTransferFeasibility(targetStashId);
+    const { feasible, placeable, unplaceable, total, target_free_cells, target_total_cells, message } = result;
+
+    if (feasible) {
+        feasibilityIcon.parentElement.className = 'transfer-feasibility-icon feasible';
+        feasibilityIcon.textContent = 'check_circle';
+        if (executeBtn) executeBtn.disabled = false;
+    } else if (placeable > 0) {
+        feasibilityIcon.parentElement.className = 'transfer-feasibility-icon partial';
+        feasibilityIcon.textContent = 'warning';
+        if (executeBtn) executeBtn.disabled = true;
+    } else {
+        feasibilityIcon.parentElement.className = 'transfer-feasibility-icon impossible';
+        feasibilityIcon.textContent = 'cancel';
+        if (executeBtn) executeBtn.disabled = true;
+    }
+
+    if (feasibilityText) feasibilityText.textContent = message || '';
+    if (feasibilityDetails) feasibilityDetails.textContent = `Target: ${target_free_cells}/${target_total_cells} cells free · ${total} item(s) to move`;
 }
 
 async function checkTransferFeasibility(targetStashId) {
@@ -2544,34 +2635,7 @@ async function checkTransferFeasibility(targetStashId) {
         });
         const result = await response.json();
         transferFeasibilityCache = result;
-
-        if (result.success === false && result.error) {
-            feasibilityIcon.parentElement.className = 'transfer-feasibility-icon impossible';
-            feasibilityIcon.textContent = 'error';
-            feasibilityText.textContent = result.error;
-            feasibilityDetails.textContent = '';
-            if (executeBtn) executeBtn.disabled = true;
-            return;
-        }
-
-        const { feasible, placeable, unplaceable, total, target_free_cells, target_total_cells, message } = result;
-
-        if (feasible) {
-            feasibilityIcon.parentElement.className = 'transfer-feasibility-icon feasible';
-            feasibilityIcon.textContent = 'check_circle';
-            if (executeBtn) executeBtn.disabled = false;
-        } else if (placeable > 0) {
-            feasibilityIcon.parentElement.className = 'transfer-feasibility-icon partial';
-            feasibilityIcon.textContent = 'warning';
-            if (executeBtn) executeBtn.disabled = true;
-        } else {
-            feasibilityIcon.parentElement.className = 'transfer-feasibility-icon impossible';
-            feasibilityIcon.textContent = 'cancel';
-            if (executeBtn) executeBtn.disabled = true;
-        }
-
-        feasibilityText.textContent = message || '';
-        feasibilityDetails.textContent = `Target: ${target_free_cells}/${target_total_cells} cells free · ${total} item(s) to move`;
+        renderFeasibility(result);
 
     } catch (error) {
         console.error('Transfer feasibility check failed:', error);
@@ -2612,22 +2676,22 @@ async function executeTransfer() {
         const result = await response.json();
 
         if (result.success) {
-            window.showNotification('Transfer completed! Refresh character data to see updates.', 'success');
+            window.showNotification('Deposit completed! Refreshing stash data…', 'success');
             closeTransferMenu();
             await loadStashes();
         } else {
-            const errMsg = result.error || 'Transfer failed';
+            const errMsg = result.error || 'Deposit failed';
             window.showNotification(errMsg, 'error');
         }
     } catch (error) {
         console.error('Transfer execution failed:', error);
-        window.showNotification('Network error during transfer', 'error');
+        window.showNotification('Network error during deposit', 'error');
     } finally {
         transferBusy = false;
         setSortingState(false);
         if (executeBtn) {
             executeBtn.disabled = false;
-            executeBtn.innerHTML = '<span class="material-icons">send</span> Execute Transfer';
+            executeBtn.innerHTML = '<span class="material-icons">send</span> Execute Deposit';
         }
     }
 }
@@ -2917,6 +2981,9 @@ const loadStashes = async () => {
             previewContainer.classList.remove('hidden');
         }
         spinner.classList.add('hidden');
+
+        // Refresh deposit button state now that stash data is up to date
+        updateDepositButtonState();
     } catch (error) {
         console.error('Error loading stashes:', error);
         handleApiError(error, document.getElementById('stashContainer'));
@@ -2970,7 +3037,11 @@ window.addEventListener('sortingEnded', () => {
 // Add update handler for character data
 window.updateCharacterData = async () => {
     await updateCharacterInfo(charId);
+    // Invalidate stale feasibility cache before reloading stashes
+    transferFeasibilityCache = null;
     await loadStashes();
+    // Refresh deposit badge with fresh data
+    updateDepositButtonState();
     dismissSortCancelNotification();
     dismissSortSuccessNotification();
 };
