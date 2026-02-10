@@ -3462,7 +3462,8 @@ def main():
         height=800,
         min_size=(800, 600),
         frameless=True,
-        easy_drag=False  # Use custom drag region to limit draggable area
+        easy_drag=False,  # Use custom drag region to limit draggable area
+        background_color='#0b0b0b'
     )
     
     # Expose API methods in parallel

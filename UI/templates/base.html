@@ -26,6 +26,49 @@
             opacity: 0.85;
         }
 
+        /* App loading screen — shown until page is fully ready */
+        .app-loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            background: #0b0b0b;
+            transition: opacity 0.35s ease;
+        }
+
+        .app-loading-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .app-loading-spinner {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 3px solid rgba(207, 163, 70, 0.15);
+            border-top-color: #cfa346;
+            animation: appLoadSpin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        }
+
+        .app-loading-text {
+            color: rgba(207, 163, 70, 0.7);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        @keyframes appLoadSpin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
         ::-webkit-scrollbar-track {
             background: #222222;
             border-radius: 4px;
@@ -538,6 +581,11 @@
 </head>
 
 <body>
+    <!-- Loading screen — hidden once page is ready -->
+    <div id="app-loading" class="app-loading-overlay">
+        <div class="app-loading-spinner"></div>
+        <div class="app-loading-text">Loading</div>
+    </div>
     <!-- Title bar -->
     <div class="titlebar">
         <div class="titlebar-title pywebview-drag-region">
@@ -665,6 +713,26 @@
     </div>
     <!-- Unified notification container (managed by app.js) -->
     <div id="notifications-container"></div>
+    <!-- Dismiss loading overlay once page is fully ready -->
+    <script>
+        (function () {
+            var overlay = document.getElementById('app-loading');
+            if (!overlay) return;
+            function dismiss() {
+                overlay.classList.add('fade-out');
+                overlay.addEventListener('transitionend', function () {
+                    overlay.remove();
+                }, { once: true });
+                // Safety fallback — remove even if transitionend doesn't fire
+                setTimeout(function () { if (overlay.parentNode) overlay.remove(); }, 500);
+            }
+            if (document.readyState === 'complete') {
+                dismiss();
+            } else {
+                window.addEventListener('load', dismiss);
+            }
+        })();
+    </script>
     <!-- Global scripts -->
     <script>
         // Global variables for unsaved changes tracking
