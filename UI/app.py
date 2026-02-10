@@ -104,6 +104,30 @@ class GameWindowState:
     window_found: bool
     window_title: Optional[str]
     window_visible: bool
+    window_focused: bool
+    window_rect: Optional[Tuple[int, int, int, int]]
+
+    def to_log_dict(self) -> Dict[str, object]:
+        rect_payload: Optional[Dict[str, int]] = None
+        if self.window_rect:
+            left, top, right, bottom = self.window_rect
+            rect_payload = {
+                "left": left,
+                "top": top,
+                "right": right,
+                "bottom": bottom,
+                "width": right - left,
+                "height": bottom - top,
+            }
+
+        return {
+            "game_running": self.game_running,
+            "window_found": self.window_found,
+            "window_title": self.window_title,
+            "window_visible": self.window_visible,
+            "window_focused": self.window_focused,
+            "window_rect": rect_payload,
+        }
 
 
 def _hwnd_to_int(raw) -> Optional[int]:
@@ -130,30 +154,6 @@ def _hwnd_to_int(raw) -> Optional[int]:
         return int(raw)
     except Exception:
         return None
-    window_focused: bool
-    window_rect: Optional[Tuple[int, int, int, int]]
-
-    def to_log_dict(self) -> Dict[str, object]:
-        rect_payload: Optional[Dict[str, int]] = None
-        if self.window_rect:
-            left, top, right, bottom = self.window_rect
-            rect_payload = {
-                "left": left,
-                "top": top,
-                "right": right,
-                "bottom": bottom,
-                "width": right - left,
-                "height": bottom - top,
-            }
-
-        return {
-            "game_running": self.game_running,
-            "window_found": self.window_found,
-            "window_title": self.window_title,
-            "window_visible": self.window_visible,
-            "window_focused": self.window_focused,
-            "window_rect": rect_payload,
-        }
 
 
 
@@ -856,9 +856,16 @@ class Api:
             try:
                 state = self._collect_game_window_state()
                 previously_running = getattr(self, '_game_was_running', False)
+
                 if state.game_running and not previously_running:
+                    # Game just opened → pop out from tray
                     self._log_game_monitor(logging.INFO, "Detected Dark and Darker launch. Restoring DnDTools window.")
                     self._restore_window_after_game_launch()
+                elif not state.game_running and previously_running:
+                    # Game just closed → hide back to tray
+                    self._log_game_monitor(logging.INFO, "Detected Dark and Darker closed. Minimizing DnDTools to tray.")
+                    self._hide_window_after_game_close()
+
                 self._game_was_running = state.game_running
                 self._log_game_state_if_needed(state)
             except Exception as exc:
@@ -888,8 +895,10 @@ class Api:
             return False
 
     def _log_game_monitor(self, level: int, message: str, *args, **kwargs) -> None:
-        if level < logging.WARNING and not self._should_log_game_state():
-            return
+        # Always log WARNING+ and INFO game transitions; suppress DEBUG unless devMode
+        if level < logging.INFO:
+            if not self._should_log_game_state():
+                return
         logger.log(level, message, *args, **kwargs)
 
     def _collect_game_window_state(self) -> GameWindowState:
@@ -1062,6 +1071,22 @@ class Api:
                 self.bring_window_to_front()
             except Exception:
                 logger.debug("Unable to bring window to front after game launch detection", exc_info=True)
+
+    def _hide_window_after_game_close(self) -> None:
+        """Minimize DnDTools to the system tray when the game window closes."""
+        if not self.is_close_to_tray_enabled():
+            return
+        window = getattr(self, 'window', None)
+        if not window:
+            return
+        try:
+            hidden = self.hide_to_tray()
+            if hidden:
+                self._log_game_monitor(logging.INFO, "DnDTools hidden to tray after game closed.")
+            else:
+                self._log_game_monitor(logging.DEBUG, "hide_to_tray returned False — window may already be hidden.")
+        except Exception:
+            logger.debug("Unable to hide window to tray after game close", exc_info=True)
 
     def _stop_game_monitor(self) -> None:
         stop_event = getattr(self, '_game_monitor_stop', None)
