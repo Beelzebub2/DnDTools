@@ -6,413 +6,344 @@
 
 {% block content %}
 <div class="settings-container">
-    <div class="settings-hero">
-        <div class="hero-copy">
-            <p class="hero-eyebrow">DnDTools control center</p>
-            <h1>Craft a layout that matches your raid routine</h1>
-            <div class="hero-pills">
-                <span class="hero-pill subtle">
-                    <span class="material-icons" aria-hidden="true">verified</span>
-                    Version {{ app_version }}
-                </span>
-            </div>
-        </div>
-        <div class="hero-visual">
-            <div class="hero-visual-card">
-                <span class="material-icons" aria-hidden="true">autorenew</span>
-                <div>
-                    <p>No more manual saving</p>
-                    <strong>New auto-save feature</strong>
-                </div>
-            </div>
-            <div class="hero-visual-card">
-                <span class="material-icons" aria-hidden="true">dataset</span>
-                <div>
-                    <p>Easier to use</p>
-                    <strong>New look</strong>
-                </div>
-            </div>
-            <div class="hero-visual-glow"></div>
-        </div>
-    </div>
 
-    <div class="settings-tabs" role="tablist">
-        <button class="settings-tab active" type="button" id="capture-tab" data-tab="capture" role="tab"
+    <!-- ─── Compact Header ─── -->
+    <header class="settings-header-bar">
+        <div class="header-bar-left">
+            <span class="material-icons header-bar-icon" aria-hidden="true">settings</span>
+            <div>
+                <h1 class="header-bar-title">Settings</h1>
+                <p class="header-bar-subtitle">Configure DnDTools to match your setup</p>
+            </div>
+        </div>
+        <span class="header-bar-version">v{{ app_version }}</span>
+    </header>
+
+    <!-- ─── Tab Navigation ─── -->
+    <nav class="settings-nav" role="tablist">
+        <button class="nav-pill active" type="button" id="capture-tab" data-tab="capture" role="tab"
             aria-selected="true">
             <span class="material-icons" aria-hidden="true">tune</span>
-            Capture & Controls
+            <span class="nav-pill-label">Capture &amp; Controls</span>
         </button>
-        <button class="settings-tab" type="button" id="performance-tab" data-tab="performance" role="tab"
+        <button class="nav-pill" type="button" id="performance-tab" data-tab="performance" role="tab"
             aria-selected="false">
             <span class="material-icons" aria-hidden="true">speed</span>
-            Performance
+            <span class="nav-pill-label">Performance</span>
         </button>
-        <button class="settings-tab" type="button" id="data-tab" data-tab="data" role="tab" aria-selected="false">
+        <button class="nav-pill" type="button" id="data-tab" data-tab="data" role="tab" aria-selected="false">
             <span class="material-icons" aria-hidden="true">inventory_2</span>
-            Data & Maintenance
+            <span class="nav-pill-label">Data &amp; Maintenance</span>
         </button>
-        <button class="settings-tab" type="button" id="misc-tab" data-tab="misc" role="tab" aria-selected="false">
-            <span class="material-icons" aria-hidden="true">settings</span>
-            Misc
+        <button class="nav-pill" type="button" id="misc-tab" data-tab="misc" role="tab" aria-selected="false">
+            <span class="material-icons" aria-hidden="true">more_horiz</span>
+            <span class="nav-pill-label">Misc</span>
         </button>
-    </div>
+    </nav>
 
+    <!-- ═══════════════ Panels ═══════════════ -->
     <div class="settings-panels">
+
+        <!-- ── Capture & Controls ── -->
         <section class="settings-panel active" data-panel="capture" aria-labelledby="capture-tab" aria-hidden="false">
-            <header class="panel-header">
-                <div>
-                    <p class="panel-eyebrow">Step 1</p>
-                    <h2>Keep packet capture locked onto the correct route</h2>
-                    <p class="panel-body">Select the interface Dark and Darker uses, verify Wireshark, and adjust the
-                        automation hotkeys without leaving this view.</p>
-                </div>
-            </header>
-            <div class="settings-grid two-column">
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">wifi</span>
-                        <h3>Network interface</h3>
+            <div class="panel-grid two-col">
+
+                <!-- Network Interface Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">wifi</span>
+                        <h2 class="card-head-title">Network Interface</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item vertical">
-                            <div class="setting-info">
-                                <label class="setting-label" for="interface">Interface</label>
-                                <div class="setting-description">Pick the adapter Dark and Darker is currently streaming
-                                    through.</div>
-                            </div>
-                            <div class="setting-control full-width">
-                                <select id="interface" class="modern-select">
-                                    <option value="">Loading interfaces...</option>
-                                </select>
-                            </div>
+                    <div class="card-body">
+                        <div class="field">
+                            <label class="field-label" for="interface">Active interface</label>
+                            <p class="field-hint">The adapter Dark and Darker is streaming through.</p>
+                            <select id="interface" class="modern-select">
+                                <option value="">Loading interfaces…</option>
+                            </select>
                         </div>
 
-                        <div class="setting-item vertical">
-                            <div class="setting-info">
-                                <label class="setting-label" for="wiresharkPath">Wireshark installation</label>
-                                <div class="setting-description">Point to the folder containing tshark.exe to unlock
-                                    auto-capture.</div>
-                            </div>
-                            <div class="setting-control full-width">
-                                <div class="file-picker-row">
-                                    <input type="text" id="wiresharkPath" placeholder="Auto-detected Wireshark folder">
-                                    <button id="detectWiresharkPath" type="button" class="btn-small">
-                                        <span class="material-icons">travel_explore</span>
-                                    </button>
-                                    <button id="browseWiresharkPath" type="button" class="btn-small">
-                                        <span class="material-icons">folder_open</span>
-                                    </button>
-                                </div>
+                        <div class="field">
+                            <label class="field-label" for="wiresharkPath">Wireshark path</label>
+                            <p class="field-hint">Folder containing <strong>tshark.exe</strong> — needed for
+                                auto-capture.</p>
+                            <div class="input-row">
+                                <input type="text" id="wiresharkPath" class="input" placeholder="Auto-detected…">
+                                <button id="detectWiresharkPath" type="button" class="icon-btn" title="Auto-detect">
+                                    <span class="material-icons">travel_explore</span>
+                                </button>
+                                <button id="browseWiresharkPath" type="button" class="icon-btn" title="Browse…">
+                                    <span class="material-icons">folder_open</span>
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">keyboard</span>
-                        <h3>Global hotkeys</h3>
+                <!-- Global Hotkeys Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">keyboard</span>
+                        <h2 class="card-head-title">Global Hotkeys</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="sortHotkey">Sort stash</label>
-                                <div class="setting-description">Trigger sorting from anywhere.</div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="sortHotkey">Sort stash</label>
+                                <p class="field-hint">Trigger sorting from anywhere.</p>
                             </div>
-                            <div class="setting-control">
-                                <div class="hotkey-container">
-                                    <input type="text" id="sortHotkey" class="hotkey-input-modern"
-                                        placeholder="Record..." readonly>
-                                </div>
-                            </div>
+                            <input type="text" id="sortHotkey" class="hotkey-input-modern" placeholder="Record…"
+                                readonly>
                         </div>
 
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="cancelHotkey">Cancel sort</label>
-                                <div class="setting-description">Safety hotkey to stop auto-sorting.</div>
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="cancelHotkey">Cancel sort</label>
+                                <p class="field-hint">Safety key to stop auto-sorting.</p>
                             </div>
-                            <div class="setting-control">
-                                <div class="hotkey-container">
-                                    <input type="text" id="cancelHotkey" class="hotkey-input-modern"
-                                        placeholder="Record..." readonly>
-                                </div>
-                            </div>
+                            <input type="text" id="cancelHotkey" class="hotkey-input-modern" placeholder="Record…"
+                                readonly>
                         </div>
                     </div>
                 </div>
+
             </div>
         </section>
 
+        <!-- ── Performance ── -->
         <section class="settings-panel" data-panel="performance" aria-labelledby="performance-tab" aria-hidden="true">
-            <header class="panel-header">
-                <div>
-                    <p class="panel-eyebrow">Step 2</p>
-                    <h2>Nail the timing and resolution</h2>
-                    <p class="panel-body">Fine tune how fast items move and map the UI to your monitor resolution.</p>
-                </div>
-            </header>
-            <div class="settings-grid two-column">
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">timer</span>
-                        <h3>Sort pacing</h3>
+            <div class="panel-grid two-col">
+
+                <!-- Sort Pacing Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">timer</span>
+                        <h2 class="card-head-title">Sort Pacing</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="sortSpeed">Sort speed (seconds)</label>
-                                <div class="setting-description">Lower values = faster. Higher = stable.</div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="sortSpeed">Sort speed</label>
+                                <p class="field-hint">Lower = faster, higher = more stable.</p>
                             </div>
-                            <div class="setting-control">
-                                <input type="number" id="sortSpeed" min="0" max="1.0" step="0.01" value="0.2"
-                                    style="width: 80px; padding: 0.5rem; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-dark); color: var(--text-primary);">
+                            <div class="field-row-control">
+                                <input type="number" id="sortSpeed" class="input input-compact" min="0" max="1.0"
+                                    step="0.01" value="0.2">
+                                <span class="field-unit">sec</span>
                             </div>
                         </div>
 
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="noDelay">No delay</label>
-                                <div class="setting-description">
-                                    <span class="warning-text"><span class="material-icons">warning</span>Can miss items
-                                        more regularly; precision increases with usage.</span>
-                                </div>
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="noDelay">No delay</label>
+                                <p class="field-hint warning-hint">
+                                    <span class="material-icons">warning_amber</span>
+                                    May miss items — precision improves with use.
+                                </p>
                             </div>
-                            <div class="setting-control">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="noDelay">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="noDelay">
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">desktop_windows</span>
-                        <h3>Game resolution</h3>
+                <!-- Game Resolution Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">desktop_windows</span>
+                        <h2 class="card-head-title">Game Resolution</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item vertical">
-                            <div class="setting-info">
-                                <label class="setting-label" for="resolution">Primary resolution</label>
-                                <div class="setting-description">
-                                    Current detected: <span id="detectedResolution"
-                                        style="color: var(--accent-gold);">Loading...</span>
-                                    <button id="refreshResolution" class="btn-small"
-                                        style="margin-left: 0.5rem;">Refresh</button>
-                                </div>
+                    <div class="card-body">
+                        <div class="field">
+                            <div class="field-label-row">
+                                <label class="field-label" for="resolution">Primary resolution</label>
+                                <span class="field-badge" id="detectedResolution">Loading…</span>
                             </div>
-                            <div class="setting-control full-width">
-                                <select id="resolution" class="modern-select">
-                                    <option value="Auto">Auto Detection</option>
-                                    <optgroup label="Standard (16:9)">
-                                        <option value="3840x2160">3840 × 2160</option>
-                                        <option value="2560x1440">2560 × 1440</option>
-                                        <option value="1920x1080">1920 × 1080</option>
-                                        <option value="1366x768">1366 × 768</option>
-                                        <option value="1360x768">1360 × 768</option>
-                                        <option value="1280x720">1280 × 720</option>
-                                    </optgroup>
-                                    <optgroup label="Standard (16:10)">
-                                        <option value="1680x1050">1680 × 1050</option>
-                                        <option value="1440x900">1440 × 900</option>
-                                        <option value="1280x800">1280 × 800</option>
-                                        <option value="1280x768">1280 × 768</option>
-                                    </optgroup>
-                                    <optgroup label="Ultrawide (21:9)">
-                                        <option value="5120x2160">5120 × 2160</option>
-                                        <option value="3440x1440">3440 × 1440</option>
-                                        <option value="2560x1080">2560 × 1080</option>
-                                    </optgroup>
-                                    <optgroup label="Super-ultrawide (32:9)">
-                                        <option value="5120x1440">5120 × 1440</option>
-                                        <option value="3840x1080">3840 × 1080</option>
-                                    </optgroup>
-                                </select>
+                            <div class="field-label-row" style="margin-bottom: 0.75rem;">
+                                <p class="field-hint" style="margin:0;">Set to match your in-game render resolution.</p>
+                                <button id="refreshResolution" class="link-btn" type="button">
+                                    <span class="material-icons">refresh</span> Refresh
+                                </button>
                             </div>
+                            <select id="resolution" class="modern-select">
+                                <option value="Auto">Auto Detection</option>
+                                <optgroup label="Standard (16:9)">
+                                    <option value="3840x2160">3840 × 2160</option>
+                                    <option value="2560x1440">2560 × 1440</option>
+                                    <option value="1920x1080">1920 × 1080</option>
+                                    <option value="1366x768">1366 × 768</option>
+                                    <option value="1360x768">1360 × 768</option>
+                                    <option value="1280x720">1280 × 720</option>
+                                </optgroup>
+                                <optgroup label="Standard (16:10)">
+                                    <option value="1680x1050">1680 × 1050</option>
+                                    <option value="1440x900">1440 × 900</option>
+                                    <option value="1280x800">1280 × 800</option>
+                                    <option value="1280x768">1280 × 768</option>
+                                </optgroup>
+                                <optgroup label="Ultrawide (21:9)">
+                                    <option value="5120x2160">5120 × 2160</option>
+                                    <option value="3440x1440">3440 × 1440</option>
+                                    <option value="2560x1080">2560 × 1080</option>
+                                </optgroup>
+                                <optgroup label="Super-ultrawide (32:9)">
+                                    <option value="5120x1440">5120 × 1440</option>
+                                    <option value="3840x1080">3840 × 1080</option>
+                                </optgroup>
+                            </select>
                         </div>
                     </div>
                 </div>
+
             </div>
         </section>
 
+        <!-- ── Data & Maintenance ── -->
         <section class="settings-panel" data-panel="data" aria-labelledby="data-tab" aria-hidden="true">
-            <header class="panel-header">
-                <div>
-                    <p class="panel-eyebrow">Step 3</p>
-                    <h2>Keep your local data lean</h2>
-                    <p class="panel-body">Clear cached quests or character captures in a couple of clicks.</p>
-                </div>
-            </header>
-            <div class="settings-grid single-column">
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">task</span>
-                        <h3>Quest tracker cache</h3>
+            <div class="panel-grid single-col">
+
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">storage</span>
+                        <h2 class="card-head-title">Local Data</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label">Quest payload</label>
-                                <div class="setting-description">Stored quests keep browsing fast. Clear them to force a
-                                    fresh pull.</div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label">Quest cache</label>
+                                <p class="field-hint">Stored quests keep browsing fast. Clear to force a fresh pull.</p>
                             </div>
-                            <div class="setting-control">
-                                <button id="clearQuestData" type="button" class="btn-small danger">
-                                    <span class="material-icons" aria-hidden="true">delete_sweep</span>
-                                    Clear Data
-                                </button>
+                            <button id="clearQuestData" type="button" class="btn-action danger">
+                                <span class="material-icons" aria-hidden="true">delete_sweep</span>
+                                Clear
+                            </button>
+                        </div>
+
+                        <hr class="field-divider">
+
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label">Character snapshots</label>
+                                <p class="field-hint">Remove captured packets &amp; snapshots to free disk space.</p>
                             </div>
+                            <button id="clearCharacterData" type="button" class="btn-action danger">
+                                <span class="material-icons" aria-hidden="true">delete_forever</span>
+                                Delete
+                            </button>
                         </div>
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">inventory</span>
-                        <h3>Captured character data</h3>
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">diversity_2</span>
+                        <h2 class="card-head-title">Global Sort Learning</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label">Snapshots & packets</label>
-                                <div class="setting-description">Remove local captures to reclaim disk space.</div>
-                            </div>
-                            <div class="setting-control">
-                                <button id="clearCharacterData" type="button" class="btn-small danger">
-                                    <span class="material-icons" aria-hidden="true">delete_forever</span>
-                                    Delete Data
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">diversity_2</span>
-                        <h3>Global sort learning</h3>
-                    </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="sortFeedbackSyncEnabled">Share anonymized
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="sortFeedbackSyncEnabled">Share anonymized
                                     feedback</label>
-                                <div class="setting-description">
-                                    Let DnDTools upload success and failure metrics to improve reliability for everyone.
-                                    No stash layouts or character names are sent.
-                                </div>
+                                <p class="field-hint">Upload success/failure metrics to improve reliability for
+                                    everyone. No stash layouts or character names are sent.</p>
                             </div>
-                            <div class="setting-control">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="sortFeedbackSyncEnabled">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="sortFeedbackSyncEnabled">
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
-                        <p class="setting-description" style="margin-top: 0.5rem;">
-                            Background sync runs slowly over HTTPS. You can turn this off anytime.
-                        </p>
+                        <p class="field-footnote">Background sync runs slowly over HTTPS. You can turn it off
+                            anytime.</p>
                     </div>
                 </div>
+
             </div>
         </section>
 
+        <!-- ── Misc ── -->
         <section class="settings-panel" data-panel="misc" aria-labelledby="misc-tab" aria-hidden="true">
-            <header class="panel-header">
-                <div>
-                    <p class="panel-eyebrow">Optional</p>
-                    <h2>Dial in the extras</h2>
-                    <p class="panel-body">Toggle the quality-of-life settings that make DnDTools feel right.</p>
-                </div>
-            </header>
-            <div class="settings-grid single-column">
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">science</span>
-                        <h3>Development builds</h3>
+            <div class="panel-grid single-col">
+
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">science</span>
+                        <h2 class="card-head-title">Development Builds</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="includeDevReleases">Opt into Test builds</label>
-                                <div class="setting-description">
-                                    <span class="warning-text">Fetch GitHub development releases (unstable).</span>
-                                </div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="includeDevReleases">Opt into test builds</label>
+                                <p class="field-hint warning-hint">
+                                    <span class="material-icons">warning_amber</span>
+                                    Fetches GitHub dev releases — may be unstable.
+                                </p>
                             </div>
-                            <div class="setting-control">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="includeDevReleases">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="includeDevReleases">
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">system_update_alt</span>
-                        <h3>Window behavior</h3>
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">desktop_windows</span>
+                        <h2 class="card-head-title">Window Behavior</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="closeToTrayEnabled">Keep running in tray when
-                                    closed</label>
-                                <div class="setting-description">Stop showing the closing animation when you only want
-                                    to hide.</div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="closeToTrayEnabled">Close to system tray</label>
+                                <p class="field-hint">Keep DnDTools running in the background when you close the
+                                    window.</p>
                             </div>
-                            <div class="setting-control">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="closeToTrayEnabled" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="closeToTrayEnabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="section-header">
-                        <span class="material-icons">bug_report</span>
-                        <h3>Developer mode</h3>
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">bug_report</span>
+                        <h2 class="card-head-title">Developer Mode</h2>
                     </div>
-                    <div class="section-content">
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label class="setting-label" for="developerMode">Show diagnostics in tooltips</label>
-                                <div class="setting-description">Adds stash slot numbers and internal IDs to tooltips.
-                                </div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="developerMode">Show diagnostics in tooltips</label>
+                                <p class="field-hint">Adds stash-slot numbers and internal IDs to tooltips.</p>
                             </div>
-                            <div class="setting-control">
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="developerMode">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="developerMode">
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                     </div>
                 </div>
+
             </div>
         </section>
+
     </div>
 
-    <div class="settings-actions autosave-callout">
-        <div class="autosave-message">
-            <span class="material-icons" aria-hidden="true">autorenew</span>
-            <div>
-                <p class="autosave-title">Auto-save enabled</p>
-                <p class="autosave-subtitle">Every tweak writes instantly. Need a clean slate? Tap reset.</p>
-            </div>
+    <!-- ─── Autosave Footer ─── -->
+    <footer class="settings-footer-bar">
+        <div class="footer-bar-status">
+            <span class="material-icons footer-bar-icon" aria-hidden="true">check_circle</span>
+            <span class="footer-bar-text">Auto-save is on — changes apply instantly</span>
         </div>
-        <button id="resetSettings" class="btn btn-secondary">
+        <button id="resetSettings" class="btn btn-secondary btn-sm">
             <span class="material-icons">restore</span>
             Reset to Defaults
         </button>
-    </div>
+    </footer>
+
 </div>
 {% endblock %}
 

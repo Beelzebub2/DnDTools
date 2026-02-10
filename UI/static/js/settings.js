@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const feedbackSyncCheckbox = document.getElementById('sortFeedbackSyncEnabled');
     const saveButton = document.getElementById('saveSettings');
     const resetButton = document.getElementById('resetSettings');
-    const tabButtons = Array.from(document.querySelectorAll('.settings-tab'));
+    const tabButtons = Array.from(document.querySelectorAll('.nav-pill'));
     const panels = Array.from(document.querySelectorAll('.settings-panel'));
 
     let currentSettings = {};
