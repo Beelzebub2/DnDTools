@@ -890,6 +890,12 @@ class UpdaterUI:
 
         self._workflow_thread = threading.Thread(target=self._workflow, name="UpdaterWorkflow", daemon=True)
 
+        # ── Smooth animation state ────────────────────────────────────
+        self._progress_current: float = 0.0   # what the bar shows right now
+        self._progress_target: float = 0.0    # where it should go
+        self._TICK_MS = 16                     # ~60 fps
+        self._LERP_SPEED = 0.12               # 0→1 how fast to approach target
+
     # ------------------------------------------------------------------
     # Icon path resolution
     # ------------------------------------------------------------------
@@ -954,6 +960,7 @@ class UpdaterUI:
         self._queue.put((action, payload))
 
     def _process_queue(self) -> None:
+        # ── Drain the message queue ───────────────────────────────
         try:
             while True:
                 action, payload = self._queue.get_nowait()
@@ -962,10 +969,9 @@ class UpdaterUI:
                     self.status_var.set(message)
                     self.detail_var.set(detail or "")
                 elif action == "progress":
-                    value = float(payload)
-                    self.progress.configure(value=max(0.0, min(100.0, value)))
+                    self._progress_target = max(0.0, min(100.0, float(payload)))
                 elif action == "step":
-                    step_key, state = payload  # state: "active" | "done" | "pending"
+                    step_key, state = payload
                     self._update_step_indicator(step_key, state)
                 elif action == "complete":
                     self._show_completion_buttons()
@@ -974,8 +980,16 @@ class UpdaterUI:
                     self._show_error_buttons(message)
         except queue.Empty:
             pass
-        finally:
-            self.root.after(80, self._process_queue)
+
+        # ── Smoothly animate the progress bar toward its target ───
+        diff = self._progress_target - self._progress_current
+        if abs(diff) > 0.15:
+            self._progress_current += diff * self._LERP_SPEED
+        else:
+            self._progress_current = self._progress_target
+        self.progress.configure(value=self._progress_current)
+
+        self.root.after(self._TICK_MS, self._process_queue)
 
     # ------------------------------------------------------------------
     # Step-indicator helpers
@@ -1173,10 +1187,12 @@ class UpdaterUI:
         for key, status, detail, target in steps:
             self._mark_step(key, "active")
             self._enqueue("status", (status, detail))
-            while progress < target:
-                progress = min(target, progress + 3)
-                self._enqueue("progress", progress)
-                time.sleep(0.12)
+            # Just set the target — the UI lerp handles smooth animation
+            self._enqueue("progress", target)
+            # Wait proportionally to the distance so it looks natural
+            distance = target - progress
+            time.sleep(max(0.4, distance * 0.03))
+            progress = target
             self._mark_step(key, "done")
 
         version = self.manifest.version if self.manifest else "demo"
@@ -1329,15 +1345,17 @@ class UpdaterUI:
         self._installer_proc = proc
 
         if wait:
-            # Poll so we can keep the UI responsive with status updates.
+            # Poll the installer; advance the target slowly so the
+            # UI lerp produces a smooth creeping bar.
             elapsed = 0.0
+            self._enqueue("progress", 82)
             while proc.poll() is None:
-                time.sleep(0.5)
-                elapsed += 0.5
-                # Animate install progress from 80 → 95
-                install_progress = min(95, 80 + elapsed * 0.5)
+                time.sleep(0.25)
+                elapsed += 0.25
+                # Slowly creep 80 → 96, approaching asymptotically
+                install_progress = 80 + 16 * (1 - 1 / (1 + elapsed * 0.08))
                 self._enqueue("progress", install_progress)
-                if elapsed % 5 < 0.6:
+                if int(elapsed) % 8 < 1 and elapsed > 1:
                     self._enqueue("status", ("Installing update…", "Please wait, this may take a minute."))
             return_code = proc.returncode
             if return_code != 0:
