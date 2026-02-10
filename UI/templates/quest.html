@@ -28,8 +28,10 @@
 
     <div class="quest-toolbar">
         <div class="quest-tabs" role="tablist">
-            <button type="button" class="quest-tab active" data-view="merchant" role="tab" aria-selected="true"
-                id="merchantTab">By Merchant</button>
+            <button type="button" class="quest-tab active" data-view="gallery" role="tab" aria-selected="true"
+                id="galleryTab">Merchants</button>
+            <button type="button" class="quest-tab" data-view="merchant" role="tab" aria-selected="false"
+                id="merchantTab">Quests</button>
             <button type="button" class="quest-tab" data-view="items" role="tab" aria-selected="false"
                 id="itemsTab">Item Checklist</button>
         </div>
@@ -53,8 +55,21 @@
     </div>
 
     <div class="quest-views">
-        <section id="merchantView" class="quest-view" role="tabpanel" aria-labelledby="merchantTab">
+        <section id="galleryView" class="quest-view" role="tabpanel" aria-labelledby="galleryTab">
+            <div id="merchantGallery" class="merchant-gallery">
+                <div class="loading-spinner" id="galleryLoading">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p>Loading merchants...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="merchantView" class="quest-view hidden" role="tabpanel" aria-labelledby="merchantTab">
             <div class="merchant-controls">
+                <button type="button" class="merchant-back-btn" id="backToGallery" title="Back to merchants">
+                    <span class="material-icons" aria-hidden="true">arrow_back</span>
+                    <span>Merchants</span>
+                </button>
                 <div class="control-group">
                     <label for="merchantSelect">Merchant</label>
                     <div class="control-input">

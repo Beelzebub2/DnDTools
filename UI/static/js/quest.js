@@ -253,6 +253,7 @@
         }
         globalRenderTimeout = window.setTimeout(() => {
             globalRenderTimeout = null;
+            renderMerchantGallery();
             renderMerchantView();
             if (state.itemsLoaded) {
                 renderItemsList();
@@ -295,9 +296,12 @@
         merchantRefresh: document.getElementById('merchantRefresh'),
         questTabs: document.querySelectorAll('.quest-tab'),
         views: {
+            gallery: document.getElementById('galleryView'),
             merchant: document.getElementById('merchantView'),
             items: document.getElementById('itemsView')
         },
+        merchantGallery: document.getElementById('merchantGallery'),
+        galleryLoading: document.getElementById('galleryLoading'),
         refreshAll: document.getElementById('refreshAll'),
         itemsLoading: document.getElementById('itemsLoading'),
         itemsList: document.getElementById('itemsList'),
@@ -1760,6 +1764,168 @@
         `;
     }
 
+    /* ──────────────────────────────────────────────
+     *  Merchant metadata — icons and roles matching
+     *  the in-game tavern NPCs.
+     * ────────────────────────────────────────────── */
+    const MERCHANT_META = {
+        'Tavern Master':    { icon: 'local_bar',        role: 'Tavern Keeper',   color: '#d4a44a' },
+        'Armourer':         { icon: 'shield',           role: 'Armour Specialist', color: '#7e98b0' },
+        'Alchemist':        { icon: 'science',          role: 'Potion Brewer',    color: '#6fcf7f' },
+        'Huntress':         { icon: 'gps_fixed',        role: 'Hunt Contracts',   color: '#c87070' },
+        'Fortune Teller':   { icon: 'auto_awesome',     role: 'Seer of Fate',    color: '#b48be4' },
+        'Goldsmith':        { icon: 'diamond',          role: 'Gem Crafter',      color: '#e4c869' },
+        'Miner':            { icon: 'hardware',         role: 'Firedeep Rescuer', color: '#c49856' },
+        'Woodsman':         { icon: 'park',             role: 'Wilderness Scout', color: '#78a85a' },
+        'Surgeon':          { icon: 'healing',          role: 'Field Medic',      color: '#d6685a' },
+        'Leathersmith':     { icon: 'checkroom',        role: 'Hide Worker',      color: '#a0785a' },
+        'Treasurer':        { icon: 'account_balance',  role: 'Guild Banker',     color: '#dbb960' },
+        'Tailor':           { icon: 'content_cut',      role: 'Cloth Artisan',    color: '#a090c0' },
+        'Weaponsmith':      { icon: 'gavel',            role: 'Weapon Forger',    color: '#8899aa' },
+        'Nicholas':         { icon: 'ac_unit',          role: 'Winter Guest',     color: '#88c8e8' },
+        'Krampus':          { icon: 'whatshot',          role: 'Winter Fiend',     color: '#d04040' },
+        'Goblin Merchant':  { icon: 'savings',          role: 'Black Market',     color: '#6bb85a' },
+    };
+    const DEFAULT_MERCHANT_META = { icon: 'store', role: 'Merchant', color: '#cfa346' };
+
+    function getMerchantMeta(merchantName) {
+        if (!merchantName) return DEFAULT_MERCHANT_META;
+        // Try exact match first, then case-insensitive partial match
+        if (MERCHANT_META[merchantName]) return MERCHANT_META[merchantName];
+        const lower = merchantName.toLowerCase();
+        for (const [key, meta] of Object.entries(MERCHANT_META)) {
+            if (lower === key.toLowerCase() || lower.startsWith(key.toLowerCase())) return meta;
+        }
+        return DEFAULT_MERCHANT_META;
+    }
+
+    /* ──────────────────────────────────────────────
+     *  Merchant gallery — game-style NPC grid
+     * ────────────────────────────────────────────── */
+    let lastGalleryHash = '';
+
+    function renderMerchantGallery() {
+        if (!elements.merchantGallery || !state.questsLoaded) return;
+
+        toggleLoading(elements.galleryLoading, false);
+
+        // Quick hash to avoid redundant DOM thrashing
+        const hash = state.merchants.join('|') + '|' + JSON.stringify(state.progress).length;
+        if (hash === lastGalleryHash) return;
+        lastGalleryHash = hash;
+
+        recomputeQuestLockState();
+
+        // Build per-merchant stats
+        const merchantStats = {};
+        state.merchants.forEach(m => { merchantStats[m] = { total: 0, active: 0, completed: 0, locked: 0 }; });
+        state.quests.forEach(quest => {
+            const m = quest.merchant;
+            if (!merchantStats[m]) return;
+            if (isQuestTimeLimited(quest)) return;
+            const partitions = partitionQuestObjectives(quest);
+            const total = Number(partitions.totalCount) || 0;
+            const allDone = total > 0
+                ? partitions.completed.length === total
+                : partitions.active.length === 0 && partitions.completed.length === 0;
+            merchantStats[m].total += 1;
+            if (allDone) {
+                merchantStats[m].completed += 1;
+            } else {
+                merchantStats[m].active += 1;
+            }
+            const qk = questKeyFor(quest);
+            if (qk && questLockIndex.get(qk) === true) {
+                merchantStats[m].locked += 1;
+            }
+        });
+
+        const fragment = document.createDocumentFragment();
+
+        state.merchants.forEach((merchant, idx) => {
+            const meta = getMerchantMeta(merchant);
+            const stats = merchantStats[merchant] || { total: 0, active: 0, completed: 0, locked: 0 };
+            const allDone = stats.total > 0 && stats.completed === stats.total;
+            const progressPct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'merchant-card' + (allDone ? ' merchant-card--done' : '');
+            card.style.setProperty('--merchant-accent', meta.color);
+            card.style.animationDelay = `${idx * 40}ms`;
+            card.setAttribute('aria-label', `${merchant} — ${stats.active} active quests`);
+            card.addEventListener('click', () => navigateToMerchant(merchant));
+
+            // Banner / accent bar
+            const banner = document.createElement('div');
+            banner.className = 'merchant-card-banner';
+            card.appendChild(banner);
+
+            // Icon
+            const iconWrap = document.createElement('div');
+            iconWrap.className = 'merchant-card-icon';
+            const icon = document.createElement('span');
+            icon.className = 'material-icons';
+            icon.setAttribute('aria-hidden', 'true');
+            icon.textContent = meta.icon;
+            iconWrap.appendChild(icon);
+            card.appendChild(iconWrap);
+
+            // Name & role
+            const body = document.createElement('div');
+            body.className = 'merchant-card-body';
+
+            const name = document.createElement('h3');
+            name.className = 'merchant-card-name';
+            name.textContent = merchant;
+            body.appendChild(name);
+
+            const role = document.createElement('span');
+            role.className = 'merchant-card-role';
+            role.textContent = meta.role;
+            body.appendChild(role);
+
+            card.appendChild(body);
+
+            // Progress ring / badge area
+            const foot = document.createElement('div');
+            foot.className = 'merchant-card-footer';
+
+            // Mini progress bar
+            const bar = document.createElement('div');
+            bar.className = 'merchant-card-progress';
+            const fill = document.createElement('div');
+            fill.className = 'merchant-card-progress-fill';
+            fill.style.width = progressPct + '%';
+            bar.appendChild(fill);
+            foot.appendChild(bar);
+
+            // Stats text
+            const statsEl = document.createElement('div');
+            statsEl.className = 'merchant-card-stats';
+            if (allDone) {
+                statsEl.innerHTML = '<span class="merchant-stat-done"><span class="material-icons" aria-hidden="true">check_circle</span> All Complete</span>';
+            } else {
+                statsEl.innerHTML = `<span>${stats.completed}/${stats.total} done</span>` +
+                    (stats.active > 0 ? `<span class="merchant-stat-active">${stats.active} active</span>` : '');
+            }
+            foot.appendChild(statsEl);
+
+            card.appendChild(foot);
+            fragment.appendChild(card);
+        });
+
+        elements.merchantGallery.innerHTML = '';
+        if (state.merchants.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.className = 'merchant-gallery-empty';
+            emptyMsg.innerHTML = '<span class="material-icons">storefront</span><p>No merchants available</p><p class="hint">Try refreshing quest data.</p>';
+            elements.merchantGallery.appendChild(emptyMsg);
+        } else {
+            elements.merchantGallery.appendChild(fragment);
+        }
+    }
+
     function renderMerchantOptions() {
         if (!elements.merchantSelect) {
             return;
@@ -2936,6 +3102,7 @@
             }
             state.questsLoaded = true;
             renderMerchantOptions();
+            renderMerchantGallery();
             renderMerchantView();
         } catch (error) {
             console.error(error);
@@ -2947,6 +3114,7 @@
             }
         } finally {
             toggleLoading(elements.questLoading, false);
+            toggleLoading(elements.galleryLoading, false);
             setRefreshing(elements.questList, false);
             hideProgressBar();
         }
@@ -3047,6 +3215,26 @@
             tab.classList.toggle('active', isActive);
             tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
+        // Lazy-render the gallery when switching to it
+        if (view === 'gallery' && state.questsLoaded) {
+            renderMerchantGallery();
+        }
+    }
+
+    /**
+     * Navigate from the gallery to a specific merchant's quest list.
+     */
+    function navigateToMerchant(merchantName) {
+        if (!merchantName) return;
+        state.selectedMerchant = merchantName;
+        if (elements.merchantSelect) {
+            elements.merchantSelect.value = merchantName;
+        }
+        switchView('merchant');
+        renderMerchantView();
+        if (state.itemsLoaded) {
+            renderItemsList();
+        }
     }
 
     function registerEvents() {
@@ -3060,6 +3248,14 @@
 
         if (elements.merchantRefresh) {
             elements.merchantRefresh.addEventListener('click', () => runWithButtonLoading(elements.merchantRefresh, () => refreshAll({ force: true })));
+        }
+
+        // Back to gallery button
+        const backBtn = document.getElementById('backToGallery');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                switchView('gallery');
+            });
         }
 
         if (elements.itemsRefresh) {
