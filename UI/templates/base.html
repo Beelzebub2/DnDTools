@@ -429,11 +429,6 @@
             -webkit-transform: translateZ(0);
         }
 
-        /* Ensure notifications appear on top */
-        .notification {
-            z-index: 20000;
-        }
-
         .closing-overlay {
             position: fixed;
             inset: 0;
@@ -670,8 +665,9 @@
         <div class="closing-overlay-message">Closing application...</div>
         <div id="closing-overlay-status" class="closing-overlay-status"></div>
     </div>
-    <!-- Global modals and notifications -->
-    <div id="notifications-container"></div> <!-- Global scripts -->
+    <!-- Unified notification container (managed by app.js) -->
+    <div id="notifications-container"></div>
+    <!-- Global scripts -->
     <script>
         // Global variables for unsaved changes tracking
         window.hasUnsavedChanges = false;
@@ -1073,8 +1069,8 @@
         document.addEventListener('DOMContentLoaded', updateDeveloperModeLink);
         setInterval(updateDeveloperModeLink, 2000);
     </script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/window_state.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     {% block scripts %}{% endblock %}
