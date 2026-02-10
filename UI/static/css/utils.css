@@ -70,10 +70,21 @@
     margin-top: 1px;
 }
 
-.notification.success::before { content: 'check_circle'; }
-.notification.error::before   { content: 'error'; }
-.notification.info::before    { content: 'info'; }
-.notification.warning::before { content: 'warning'; }
+.notification.success::before {
+    content: 'check_circle';
+}
+
+.notification.error::before {
+    content: 'error';
+}
+
+.notification.info::before {
+    content: 'info';
+}
+
+.notification.warning::before {
+    content: 'warning';
+}
 
 /* Message text */
 .notification .notification-text {
@@ -132,6 +143,7 @@
         transform: translateX(24px);
         opacity: 0;
     }
+
     to {
         transform: translateX(0);
         opacity: 1;
@@ -143,6 +155,7 @@
         transform: translateX(0);
         opacity: 1;
     }
+
     to {
         transform: translateX(40px);
         opacity: 0;
@@ -150,8 +163,13 @@
 }
 
 @keyframes notifTimerShrink {
-    from { transform: scaleX(1); }
-    to   { transform: scaleX(0); }
+    from {
+        transform: scaleX(1);
+    }
+
+    to {
+        transform: scaleX(0);
+    }
 }
 
 /* Error state styles */

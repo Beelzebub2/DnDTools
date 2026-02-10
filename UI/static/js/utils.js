@@ -183,7 +183,7 @@ if (typeof module !== 'undefined' && module.exports) {
         formatDate,
         formatDateTime,
         handleApiError,
-        showNotification: typeof window !== 'undefined' ? window.showNotification : function () {},
+        showNotification: typeof window !== 'undefined' ? window.showNotification : function () { },
         formatNumber,
         setLoading,
         debounce,
