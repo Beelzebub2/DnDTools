@@ -1120,8 +1120,8 @@ class StashManager:
                 logger.debug("Skipping item during transfer feasibility: %s", exc)
                 continue
 
-        # Merge stackable items when stack_mode is on
-        if stack_mode:
+        # Merge stackable items to get an accurate item count for the planner
+        if source_items:
             source_items, source_item_info = self._merge_stackable_for_transfer(
                 source_items, source_item_info, target_storage
             )
@@ -1193,11 +1193,78 @@ class StashManager:
         source_info: List[Dict],
         target_storage,
     ):
-        """Merge stackable source items with existing stacks in the target."""
-        from src.models.item import Item
+        """Merge stackable source items with each other and into existing
+        target stash stacks so the feasibility check sees a realistic
+        item count after stacking."""
+        import math
 
-        # For now we just pass through — the LayoutPlanner handles stacking
-        # conceptually.  A full implementation would merge quantities into
-        # existing stacks, but that requires actual game interaction which
-        # the feasibility check cannot perform.
-        return source_items, source_info
+        if not source_items:
+            return source_items, source_info
+
+        # ── Phase 1: merge source items with each other ─────────────
+        grouped: Dict[tuple, List[int]] = {}  # key → list of indices
+        for idx, item in enumerate(source_items):
+            max_stack = getattr(item, "max_stack_size", 1) or 1
+            if max_stack <= 1:
+                continue
+            key = (getattr(item, "item_id", None), item.rarity)
+            grouped.setdefault(key, []).append(idx)
+
+        keep_indices: set = set(range(len(source_items)))  # start with all
+
+        for key, indices in grouped.items():
+            if len(indices) <= 1:
+                continue
+            items_in_group = [source_items[i] for i in indices]
+            max_stack = max(1, getattr(items_in_group[0], "max_stack_size", 1) or 1)
+            total_qty = sum(max(1, getattr(itm, "quantity", 1)) for itm in items_in_group)
+            required_stacks = min(len(indices), math.ceil(total_qty / max_stack))
+
+            # Sort by descending quantity so the biggest stacks survive
+            sorted_indices = sorted(indices, key=lambda i: getattr(source_items[i], "quantity", 1), reverse=True)
+            kept = sorted_indices[:required_stacks]
+            removed = sorted_indices[required_stacks:]
+
+            remaining_qty = total_qty
+            for i in kept:
+                qty = min(max_stack, remaining_qty)
+                source_items[i].quantity = qty
+                remaining_qty -= qty
+
+            for i in removed:
+                keep_indices.discard(i)
+
+        # ── Phase 2: merge remaining source items into target stash stacks
+        stash_groups: Dict[tuple, list] = {}
+        if target_storage:
+            for stash_item in list(target_storage.pq):
+                ms = getattr(stash_item, "max_stack_size", 1) or 1
+                if ms <= 1:
+                    continue
+                cap = max(0, ms - min(ms, getattr(stash_item, "quantity", 1)))
+                if cap <= 0:
+                    continue
+                key = (getattr(stash_item, "item_id", None), stash_item.rarity)
+                stash_groups.setdefault(key, []).append((stash_item, cap))
+
+        for idx in list(keep_indices):
+            item = source_items[idx]
+            ms = getattr(item, "max_stack_size", 1) or 1
+            if ms <= 1:
+                continue
+            key = (getattr(item, "item_id", None), item.rarity)
+            targets = stash_groups.get(key, [])
+            inv_qty = max(1, getattr(item, "quantity", 1))
+            for ti, (stash_item, cap) in enumerate(targets):
+                if cap <= 0:
+                    continue
+                if inv_qty <= cap:
+                    stash_item.quantity = min(ms, getattr(stash_item, "quantity", 1) + inv_qty)
+                    targets[ti] = (stash_item, cap - inv_qty)
+                    keep_indices.discard(idx)
+                    break
+
+        # ── Rebuild filtered lists ──────────────────────────────────
+        merged_items = [source_items[i] for i in sorted(keep_indices)]
+        merged_info = [source_info[i] for i in sorted(keep_indices)]
+        return merged_items, merged_info

@@ -2006,7 +2006,7 @@ const createStashTabs = (stashes) => {
     const selector = document.getElementById('stashSelector');
     const preview = document.getElementById('currentStashPreview');
     const gridContainer = document.getElementById('interactiveStashGrid');
-    const sortButton = document.querySelector('.sort-button');
+    const sortButton = document.querySelector('.btn-sort-stash');
     selector.innerHTML = '';
 
     // Ensure stashes is an object
@@ -2077,7 +2077,7 @@ const createStashTabsWithoutDefault = (stashes) => {
     const preview = document.getElementById('currentStashPreview');
     const previewContainer = document.getElementById('stashPreview');
     const gridContainer = document.getElementById('interactiveStashGrid');
-    const sortButton = document.querySelector('.sort-button');
+    const sortButton = document.querySelector('.btn-sort-stash');
     selector.innerHTML = '';
 
     // Ensure stashes is an object
@@ -2324,7 +2324,7 @@ const triggerSort = async () => {
     if (abortController) abortController.abort();
     abortController = new AbortController();
 
-    const sortButton = document.querySelector('.sort-button');
+    const sortButton = document.querySelector('.btn-sort-stash');
     setSortingState(true);
 
     try {
@@ -2443,10 +2443,8 @@ function closeTransferMenu() {
 }
 
 function getSourceStashIdForTransfer() {
-    // In combined character view, the source is the bag (2)
-    // Otherwise it's the current stash
-    if (usingCombinedCharacterView) return '2';
-    return currentStashId;
+    // Transfer always moves items from the character inventory / bag
+    return '2';
 }
 
 function populateTransferStashList() {
@@ -2462,10 +2460,8 @@ function populateTransferStashList() {
         : Object.keys(latestStashData || {});
 
     stashKeys.forEach(stashId => {
-        // Skip the source stash and equipment stash
-        if (stashId === sourceId || stashId === '3' || stashId === 'character') return;
-        // Skip bag if we're already viewing it in combined view
-        if (usingCombinedCharacterView && stashId === '2') return;
+        // Skip bag (always the source), equipment, and the combined character key
+        if (stashId === '2' || stashId === '3' || stashId === 'character') return;
 
         const option = document.createElement('div');
         option.className = 'transfer-stash-option';
@@ -2676,7 +2672,7 @@ function setSortingState(isSorting) {
     if (isSorting) {
         hideSortFeedbackPrompt();
     }
-    const sortButton = document.querySelector('.sort-button');
+    const sortButton = document.querySelector('.btn-sort-stash');
     const sortingOverlay = document.getElementById('sortingOverlay');
     const interactiveStashGrid = document.getElementById('interactiveStashGrid');
 
