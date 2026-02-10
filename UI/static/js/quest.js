@@ -2,6 +2,7 @@
 (() => {
     const PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
     const ARCHIVE_STORAGE_KEY = 'dndtools.questArchived.v1';
+    const CAPTURED_FLAGS_KEY = 'dndtools.capturedFlags.v1';
     const PROGRESS_SYNC_ENDPOINT = '/api/quests/progress';
     const SERVER_SYNC_DEBOUNCE = 400;
     const HOLDINGS_CACHE_TTL = 5 * 60 * 1000;
@@ -243,8 +244,11 @@
         activeHoldingsItemId: null,
         activeHoldingsAnchor: null,
         bodyScrollLock: null,
-        hideLockedQuests: false
+        hideLockedQuests: false,
+        activeMerchantIds: new Set()  // normalized IDs from captured merchant list packet
     };
+
+    let galleryScrollY = 0;
 
     let globalRenderTimeout = null;
     const scheduleGlobalRender = () => {
@@ -298,7 +302,8 @@
         views: {
             gallery: document.getElementById('galleryView'),
             merchant: document.getElementById('merchantView'),
-            items: document.getElementById('itemsView')
+            items: document.getElementById('itemsView'),
+            info: document.getElementById('infoView')
         },
         merchantGallery: document.getElementById('merchantGallery'),
         galleryLoading: document.getElementById('galleryLoading'),
@@ -1382,6 +1387,25 @@
         title.textContent = quest.title || quest.id;
         header.appendChild(title);
 
+        // Quest status badge from captured packet data
+        if (typeof quest.__capturedFlag === 'number') {
+            const flag = quest.__capturedFlag;
+            const QUEST_STATUS_MAP = {
+                1: { label: 'In Progress', icon: 'pending', cls: 'quest-status--progress' },
+                2: { label: 'Ready to Turn In', icon: 'check_circle', cls: 'quest-status--success' },
+                3: { label: 'Completed', icon: 'verified', cls: 'quest-status--complete' },
+                5: { label: 'Not Accepted', icon: 'radio_button_unchecked', cls: 'quest-status--available' },
+            };
+            const status = QUEST_STATUS_MAP[flag];
+            if (status) {
+                const badge = document.createElement('span');
+                badge.className = 'quest-status-badge ' + status.cls;
+                badge.innerHTML = `<span class="material-icons" aria-hidden="true">${status.icon}</span>${status.label}`;
+                badge.title = `Quest status from game: ${status.label}`;
+                header.appendChild(badge);
+            }
+        }
+
         if (quest.chapter) {
             const subtitle = document.createElement('div');
             subtitle.className = 'quest-meta';
@@ -1769,32 +1793,44 @@
      *  the in-game tavern NPCs.
      * ────────────────────────────────────────────── */
     const MERCHANT_META = {
-        'Tavern Master': { icon: 'local_bar', role: 'Tavern Keeper', color: '#d4a44a' },
-        'Armourer': { icon: 'shield', role: 'Armour Specialist', color: '#7e98b0' },
-        'Alchemist': { icon: 'science', role: 'Potion Brewer', color: '#6fcf7f' },
-        'Huntress': { icon: 'gps_fixed', role: 'Hunt Contracts', color: '#c87070' },
-        'Fortune Teller': { icon: 'auto_awesome', role: 'Seer of Fate', color: '#b48be4' },
-        'Goldsmith': { icon: 'diamond', role: 'Gem Crafter', color: '#e4c869' },
-        'Miner': { icon: 'hardware', role: 'Firedeep Rescuer', color: '#c49856' },
-        'Woodsman': { icon: 'park', role: 'Wilderness Scout', color: '#78a85a' },
-        'Surgeon': { icon: 'healing', role: 'Field Medic', color: '#d6685a' },
-        'Leathersmith': { icon: 'checkroom', role: 'Hide Worker', color: '#a0785a' },
-        'Treasurer': { icon: 'account_balance', role: 'Guild Banker', color: '#dbb960' },
-        'Tailor': { icon: 'content_cut', role: 'Cloth Artisan', color: '#a090c0' },
-        'Weaponsmith': { icon: 'gavel', role: 'Weapon Forger', color: '#8899aa' },
-        'Nicholas': { icon: 'ac_unit', role: 'Winter Guest', color: '#88c8e8' },
-        'Krampus': { icon: 'whatshot', role: 'Winter Fiend', color: '#d04040' },
-        'Goblin Merchant': { icon: 'savings', role: 'Black Market', color: '#6bb85a' },
+        'Tavern Master': { icon: 'local_bar', image: 'tavern_master.png', role: 'Tavern Keeper', color: '#d4a44a' },
+        'Armourer': { icon: 'shield', image: 'armourer.png', role: 'Armour Specialist', color: '#7e98b0' },
+        'Alchemist': { icon: 'science', image: 'alchemist.png', role: 'Potion Brewer', color: '#6fcf7f' },
+        'Huntress': { icon: 'gps_fixed', image: 'huntress.png', role: 'Hunt Contracts', color: '#c87070' },
+        'Fortune Teller': { icon: 'auto_awesome', image: 'fortune_teller.png', role: 'Seer of Fate', color: '#b48be4' },
+        'Goldsmith': { icon: 'diamond', image: 'goldsmith.png', role: 'Gem Crafter', color: '#e4c869' },
+        'Miner': { icon: 'hardware', image: null, role: 'Firedeep Rescuer', color: '#c49856' },
+        'Woodsman': { icon: 'park', image: 'woodsman.png', role: 'Wilderness Scout', color: '#78a85a' },
+        'Surgeon': { icon: 'healing', image: 'surgeon.png', role: 'Field Medic', color: '#d6685a' },
+        'Leathersmith': { icon: 'checkroom', image: 'leathersmith.png', role: 'Hide Worker', color: '#a0785a' },
+        'Treasurer': { icon: 'account_balance', image: 'treasurer.png', role: 'Guild Banker', color: '#dbb960' },
+        'Tailor': { icon: 'content_cut', image: 'tailor.png', role: 'Cloth Artisan', color: '#a090c0' },
+        'Weaponsmith': { icon: 'gavel', image: 'weaponsmith.png', role: 'Weapon Forger', color: '#8899aa' },
+        'Nicholas': { icon: 'ac_unit', image: 'nicholas.png', role: 'Winter Guest', color: '#88c8e8' },
+        'Krampus': { icon: 'whatshot', image: 'krampus.png', role: 'Winter Fiend', color: '#d04040' },
+        'Goblin Merchant': { icon: 'savings', image: 'goblin_merchant.png', role: 'Black Market', color: '#6bb85a' },
+        'Valentine': { icon: 'favorite', image: 'valentine.png', role: 'Cupid Contracts', color: '#e06080' },
+        'The Collector': { icon: 'collections_bookmark', image: 'the_collector.png', role: 'Rare Acquisitor', color: '#c0a060' },
+        'Squire': { icon: 'military_tech', image: 'squire.png', role: 'Knight Errant', color: '#90a8c0' },
+        'Navigator': { icon: 'explore', image: 'navigator.png', role: 'Pathfinder', color: '#68a8c8' },
+        'Dealmaker': { icon: 'handshake', image: 'dealmaker.png', role: 'Deal Broker', color: '#b8a060' },
+        'Cockatrice': { icon: 'egg', image: 'cockatrice_merchant.png', role: 'Exotic Trader', color: '#c8a848' },
+        'Nightmare Mummy': { icon: 'psychology', image: 'nightmare_mummy.png', role: 'Cursed Dealer', color: '#8870a0' },
+        'Skeleton Footman': { icon: 'skull', image: 'skeleton_merchant.png', role: 'Bone Trader', color: '#a0a0a0' },
+        'Jack O Lantern': { icon: 'local_fire_department', image: 'jack_o_lantern.png', role: 'Harvest Herald', color: '#e08830' },
     };
-    const DEFAULT_MERCHANT_META = { icon: 'store', role: 'Merchant', color: '#cfa346' };
+    const DEFAULT_MERCHANT_META = { icon: 'store', image: null, role: 'Merchant', color: '#cfa346' };
 
     function getMerchantMeta(merchantName) {
         if (!merchantName) return DEFAULT_MERCHANT_META;
-        // Try exact match first, then case-insensitive partial match
+        // Try exact match first
         if (MERCHANT_META[merchantName]) return MERCHANT_META[merchantName];
+        // Case-insensitive partial match — check both directions so
+        // "Huntress Daily" matches key "Huntress" and vice versa
         const lower = merchantName.toLowerCase();
         for (const [key, meta] of Object.entries(MERCHANT_META)) {
-            if (lower === key.toLowerCase() || lower.startsWith(key.toLowerCase())) return meta;
+            const keyLower = key.toLowerCase();
+            if (lower === keyLower || lower.startsWith(keyLower) || keyLower.startsWith(lower)) return meta;
         }
         return DEFAULT_MERCHANT_META;
     }
@@ -1804,13 +1840,37 @@
      * ────────────────────────────────────────────── */
     let lastGalleryHash = '';
 
+    /**
+     * Normalize a merchant name for matching captured packet IDs to DarkerDB names.
+     * Strips spaces and lowercases so "Goblin Merchant" matches "GoblinMerchant",
+     * "Tavern Master" matches "TavernMaster", etc.
+     */
+    function normalizeMerchantForMatch(name) {
+        if (!name) return '';
+        return String(name).replace(/\s+/g, '').toLowerCase();
+    }
+
+    /**
+     * Return the filtered list of merchants to display.
+     * If we have captured merchant IDs from the game, only include merchants
+     * that match; otherwise fall back to the full list.
+     */
+    function getVisibleMerchants() {
+        if (state.activeMerchantIds.size === 0) return state.merchants;
+        const normSet = new Set();
+        state.activeMerchantIds.forEach(id => normSet.add(normalizeMerchantForMatch(id)));
+        return state.merchants.filter(m => normSet.has(normalizeMerchantForMatch(m)));
+    }
+
     function renderMerchantGallery() {
         if (!elements.merchantGallery || !state.questsLoaded) return;
 
         toggleLoading(elements.galleryLoading, false);
 
+        const visibleMerchants = getVisibleMerchants();
+
         // Quick hash to avoid redundant DOM thrashing
-        const hash = state.merchants.join('|') + '|' + JSON.stringify(state.progress).length;
+        const hash = visibleMerchants.join('|') + '|' + JSON.stringify(state.progress).length + '|tracked:' + merchantsWithTrackedData.size + '|active:' + state.activeMerchantIds.size;
         if (hash === lastGalleryHash) return;
         lastGalleryHash = hash;
 
@@ -1818,7 +1878,7 @@
 
         // Build per-merchant stats
         const merchantStats = {};
-        state.merchants.forEach(m => { merchantStats[m] = { total: 0, active: 0, completed: 0, locked: 0 }; });
+        visibleMerchants.forEach(m => { merchantStats[m] = { total: 0, active: 0, completed: 0, locked: 0 }; });
         state.quests.forEach(quest => {
             const m = quest.merchant;
             if (!merchantStats[m]) return;
@@ -1842,7 +1902,7 @@
 
         const fragment = document.createDocumentFragment();
 
-        state.merchants.forEach((merchant, idx) => {
+        visibleMerchants.forEach((merchant, idx) => {
             const meta = getMerchantMeta(merchant);
             const stats = merchantStats[merchant] || { total: 0, active: 0, completed: 0, locked: 0 };
             const allDone = stats.total > 0 && stats.completed === stats.total;
@@ -1861,14 +1921,33 @@
             banner.className = 'merchant-card-banner';
             card.appendChild(banner);
 
-            // Icon
+            // Live-tracking badge — pulse dot when we have captured data for this merchant
+            if (merchantsWithTrackedData.has(merchant)) {
+                const trackedBadge = document.createElement('div');
+                trackedBadge.className = 'merchant-card-tracked';
+                trackedBadge.title = 'Live tracking active — quest data captured from game';
+                trackedBadge.innerHTML = '<span class="material-icons" aria-hidden="true">sensors</span>';
+                card.appendChild(trackedBadge);
+            }
+
+            // Icon / portrait
             const iconWrap = document.createElement('div');
             iconWrap.className = 'merchant-card-icon';
-            const icon = document.createElement('span');
-            icon.className = 'material-icons';
-            icon.setAttribute('aria-hidden', 'true');
-            icon.textContent = meta.icon;
-            iconWrap.appendChild(icon);
+            if (meta.image) {
+                const img = document.createElement('img');
+                img.src = '/assets/merchants/' + meta.image;
+                img.alt = merchant;
+                img.className = 'merchant-card-portrait';
+                img.loading = 'lazy';
+                img.draggable = false;
+                iconWrap.appendChild(img);
+            } else {
+                const icon = document.createElement('span');
+                icon.className = 'material-icons';
+                icon.setAttribute('aria-hidden', 'true');
+                icon.textContent = meta.icon;
+                iconWrap.appendChild(icon);
+            }
             card.appendChild(iconWrap);
 
             // Name & role
@@ -1916,7 +1995,7 @@
         });
 
         elements.merchantGallery.innerHTML = '';
-        if (state.merchants.length === 0) {
+        if (visibleMerchants.length === 0) {
             const emptyMsg = document.createElement('div');
             emptyMsg.className = 'merchant-gallery-empty';
             emptyMsg.innerHTML = '<span class="material-icons">storefront</span><p>No merchants available</p><p class="hint">Try refreshing quest data.</p>';
@@ -1934,8 +2013,9 @@
         elements.merchantSelect.disabled = true;
         const previousSelection = state.selectedMerchant;
         const fragment = document.createDocumentFragment();
+        const visible = getVisibleMerchants();
 
-        state.merchants.forEach(merchant => {
+        visible.forEach(merchant => {
             const option = document.createElement('option');
             option.value = merchant;
             option.textContent = merchant;
@@ -1945,11 +2025,11 @@
         elements.merchantSelect.innerHTML = '';
         elements.merchantSelect.appendChild(fragment);
 
-        if (state.merchants.length) {
+        if (visible.length) {
             // enable select when we have merchants
             elements.merchantSelect.disabled = false;
-            if (!state.selectedMerchant || !state.merchants.includes(previousSelection)) {
-                state.selectedMerchant = state.merchants[0];
+            if (!state.selectedMerchant || !visible.includes(previousSelection)) {
+                state.selectedMerchant = visible[0];
             }
             elements.merchantSelect.value = state.selectedMerchant;
         } else {
@@ -3226,11 +3306,14 @@
      */
     function navigateToMerchant(merchantName) {
         if (!merchantName) return;
+        // Remember scroll position so we can restore it when going back
+        galleryScrollY = window.scrollY || document.documentElement.scrollTop || 0;
         state.selectedMerchant = merchantName;
         if (elements.merchantSelect) {
             elements.merchantSelect.value = merchantName;
         }
         switchView('merchant');
+        window.scrollTo({ top: 0, behavior: 'instant' });
         renderMerchantView();
         if (state.itemsLoaded) {
             renderItemsList();
@@ -3255,6 +3338,10 @@
         if (backBtn) {
             backBtn.addEventListener('click', () => {
                 switchView('gallery');
+                // Restore the scroll position the user was at in the gallery
+                requestAnimationFrame(() => {
+                    window.scrollTo({ top: galleryScrollY, behavior: 'instant' });
+                });
             });
         }
 
@@ -3333,6 +3420,65 @@
     let autoTrackLastUpdate = 0;
     let autoTrackPollTimer = null;
     let autoTrackInFlight = false;
+    /** Merchants that have live-tracked quest data from packets */
+    const merchantsWithTrackedData = new Set();
+
+    /** Persist captured quest flags & tracked merchants to localStorage */
+    function saveCapturedFlags() {
+        try {
+            const flags = {};
+            state.quests.forEach(q => {
+                if (typeof q.__capturedFlag === 'number') {
+                    flags[q.id] = q.__capturedFlag;
+                }
+            });
+            const payload = {
+                flags,
+                trackedMerchants: Array.from(merchantsWithTrackedData),
+                activeMerchantIds: Array.from(state.activeMerchantIds),
+            };
+            window.localStorage?.setItem(CAPTURED_FLAGS_KEY, JSON.stringify(payload));
+        } catch (e) {
+            console.warn('[auto-track] Failed to save captured flags', e);
+        }
+    }
+
+    /** Restore captured quest flags & tracked merchants from localStorage (only fills gaps, never overwrites live data) */
+    function restoreCapturedFlags() {
+        try {
+            const raw = window.localStorage?.getItem(CAPTURED_FLAGS_KEY);
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (!data || typeof data !== 'object') return;
+
+            const flags = data.flags || {};
+            const tracked = data.trackedMerchants || [];
+            let restoredFlags = 0;
+
+            // Re-apply flags only to quests that don't already have a live flag
+            if (state.quests && state.quests.length > 0) {
+                state.quests.forEach(q => {
+                    if (q.id && typeof flags[q.id] === 'number' && typeof q.__capturedFlag !== 'number') {
+                        q.__capturedFlag = flags[q.id];
+                        restoredFlags++;
+                    }
+                });
+            }
+
+            // Restore tracked merchants set
+            tracked.forEach(m => merchantsWithTrackedData.add(m));
+
+            // Restore active (in-game) merchant IDs
+            const activeIds = data.activeMerchantIds || [];
+            activeIds.forEach(id => state.activeMerchantIds.add(id));
+
+            if (restoredFlags > 0 || tracked.length > 0 || activeIds.length > 0) {
+                console.log('[auto-track] Restored', restoredFlags, 'quest flags,', tracked.length, 'tracked merchants, and', activeIds.length, 'active merchant IDs from storage');
+            }
+        } catch (e) {
+            console.warn('[auto-track] Failed to restore captured flags', e);
+        }
+    }
 
     /**
      * Reconcile captured quest data from packets with DarkerDB quest definitions.
@@ -3402,6 +3548,16 @@
             const questFlag = captured.quest_flag;
             // quest_flag: 2 = success (ready to turn in), 3 = complete
             const isQuestComplete = questFlag === 2 || questFlag === 3;
+
+            // Store the quest flag on the definition for UI display
+            // 0=none, 1=progress (accepted), 2=success (ready), 3=complete, 4=locked, 5=available (not accepted)
+            if (typeof questFlag === 'number') {
+                questDef.__capturedFlag = questFlag;
+                // Track which merchants have live data for the gallery badge
+                if (questDef.merchant) {
+                    merchantsWithTrackedData.add(questDef.merchant);
+                }
+            }
 
             console.log('[auto-track] Matched quest:', questId, '| flag:', questFlag,
                 '| isComplete:', isQuestComplete, '| missions:', capturedMissions.length,
@@ -3510,6 +3666,11 @@
             }
         });
 
+        // Persist captured flags to survive app restarts
+        if (anyChanged) {
+            saveCapturedFlags();
+        }
+
         return anyChanged;
     }
 
@@ -3531,6 +3692,22 @@
 
             console.log('[auto-track] New captured data:', JSON.stringify(autoProgress).substring(0, 500));
 
+            // Update the set of active (in-game) merchants from the captured merchant list
+            const mFlags = autoProgress.merchant_flags;
+            if (mFlags && typeof mFlags === 'object') {
+                const newIds = Object.keys(mFlags);
+                if (newIds.length > 0) {
+                    const prevSize = state.activeMerchantIds.size;
+                    newIds.forEach(id => state.activeMerchantIds.add(id));
+                    if (state.activeMerchantIds.size !== prevSize) {
+                        // Active merchant set changed — re-render gallery & dropdown and persist
+                        saveCapturedFlags();
+                        renderMerchantGallery();
+                        renderMerchantOptions();
+                    }
+                }
+            }
+
             if (!state.questsLoaded || state.quests.length === 0) {
                 console.warn('[auto-track] Quests not loaded yet, skipping reconciliation');
                 return;
@@ -3538,10 +3715,13 @@
 
             const changed = reconcileCapturedProgress(autoProgress);
             console.log('[auto-track] reconciliation result: changed =', changed);
+
+            // Show the auto-tracking indicator whenever we have captured data
+            const hasCapturedData = autoProgress.quests && Object.keys(autoProgress.quests).length > 0;
+            updateAutoTrackIndicator(hasCapturedData);
+
             if (changed) {
                 scheduleGlobalRender();
-                // Update the auto-tracking indicator
-                updateAutoTrackIndicator(true);
             }
         } catch (error) {
             console.warn('Failed to fetch captured quest data', error);
@@ -3552,6 +3732,8 @@
 
     function startAutoTrackPolling() {
         if (autoTrackPollTimer) return;
+        // Show indicator immediately in inactive state
+        updateAutoTrackIndicator(false);
         // Initial fetch after quests are loaded
         fetchCapturedQuestData();
         autoTrackPollTimer = window.setInterval(fetchCapturedQuestData, AUTO_TRACK_POLL_INTERVAL);
@@ -3634,6 +3816,9 @@
     refreshAll = async function (opts) {
         await originalRefreshAll(opts);
         if (state.questsLoaded) {
+            restoreCapturedFlags();
+            renderMerchantGallery();
+            renderMerchantView();
             startAutoTrackPolling();
         }
     };
@@ -3646,7 +3831,17 @@
         } catch (error) {
             console.warn('Failed to clear quest progress storage', error);
         }
+        try {
+            window.localStorage?.removeItem(CAPTURED_FLAGS_KEY);
+        } catch (error) {
+            console.warn('Failed to clear captured flags storage', error);
+        }
+        merchantsWithTrackedData.clear();
+        state.activeMerchantIds.clear();
+        state.quests.forEach(q => { delete q.__capturedFlag; });
         if (state.questsLoaded) {
+            renderMerchantOptions();
+            renderMerchantGallery();
             renderMerchantView();
         }
         if (state.itemsLoaded) {

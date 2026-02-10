@@ -7,6 +7,8 @@ automatically-tracked progress.
 """
 from __future__ import annotations
 
+import hashlib
+import json as _json
 import logging
 import threading
 import time
@@ -105,6 +107,7 @@ class QuestPacketHandler:
         self._merchant_flags: Dict[str, int] = {}            # merchantId → flag
         self._quest_completions: List[dict] = []             # recent completions
         self._captured_quest_log: Optional[List[dict]] = None  # full quest log snapshot
+        self._data_hashes: Dict[str, str] = {}               # change-detection hashes
 
     # ------------------------------------------------------------------
     # Public API — called by Flask routes
@@ -166,7 +169,8 @@ class QuestPacketHandler:
                 len(merchant_list),
                 {m.get("merchantId"): m.get("merchantFlag") for m in merchant_list if m.get("merchantId")},
             )
-            self._notify_ui("quest_merchant_list", {"count": len(merchant_list)})
+            if self._has_data_changed("merchant_flags", self._merchant_flags):
+                self._notify_ui("quest_merchant_list", {"count": len(merchant_list)})
             return True
         except Exception as exc:
             logger.error("Error handling merchant list packet: %s", exc, exc_info=True)
@@ -229,10 +233,12 @@ class QuestPacketHandler:
                 )
             # Count quests with progress to notify meaningfully
             in_progress = sum(1 for q in quest_entries if q.get("quest_flag") == QUEST_FLAG_PROGRESS)
-            self._notify_ui("quest_list_update", {
-                "quest_count": len(quest_entries),
-                "in_progress": in_progress,
-            })
+            hash_key = f"quest_list:{merchant_id or '_last'}"
+            if self._has_data_changed(hash_key, quest_entries):
+                self._notify_ui("quest_list_update", {
+                    "quest_count": len(quest_entries),
+                    "in_progress": in_progress,
+                })
             return True
         except Exception as exc:
             logger.error("Error handling quest list packet: %s", exc, exc_info=True)
@@ -288,10 +294,11 @@ class QuestPacketHandler:
                 "Captured full quest log: %d merchants, %d total quests",
                 len(all_entries), total_quests,
             )
-            self._notify_ui("quest_log_update", {
-                "quest_count": total_quests,
-                "in_progress": total_in_progress,
-            })
+            if self._has_data_changed("quest_log", all_entries):
+                self._notify_ui("quest_log_update", {
+                    "quest_count": total_quests,
+                    "in_progress": total_in_progress,
+                })
             return True
         except Exception as exc:
             logger.error("Error handling quest log packet: %s", exc, exc_info=True)
@@ -428,6 +435,25 @@ class QuestPacketHandler:
     def _touch(self) -> None:
         """Update last-modified timestamp (must hold lock)."""
         self._last_update = time.time()
+
+    def _has_data_changed(self, key: str, data: Any) -> bool:
+        """Return True if *data* differs from the last value stored under *key*.
+
+        Uses a SHA-256 hash of the JSON representation so we don't keep full
+        copies of previous payloads in memory.  Must be called while holding
+        ``self._lock``.
+        """
+        try:
+            digest = hashlib.sha256(
+                _json.dumps(data, sort_keys=True, default=str).encode()
+            ).hexdigest()
+        except Exception:
+            return True  # can't hash → assume changed
+        previous = self._data_hashes.get(key)
+        if previous == digest:
+            return False
+        self._data_hashes[key] = digest
+        return True
 
     def _build_auto_progress(self) -> dict:
         """Build a progress dict from captured packet data.

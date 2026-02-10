@@ -225,9 +225,9 @@
 /* Controls */
 .merchant-controls {
     display: flex;
-    flex-wrap: wrap;
-    align-items: flex-end;
-    gap: 24px;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 16px;
     margin-bottom: 24px;
     padding-bottom: 20px;
     border-bottom: 1px solid rgba(228, 200, 105, 0.08);
@@ -236,12 +236,12 @@
 .control-group {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    min-width: 240px;
+    gap: 4px;
+    min-width: 200px;
 }
 
 .control-group label {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
@@ -259,10 +259,11 @@
     background: rgba(16, 10, 8, 0.6);
     color: var(--accent-gold);
     border: 1px solid var(--quest-border);
-    border-radius: 12px;
-    padding: 12px 16px;
-    min-width: 220px;
+    border-radius: 10px;
+    padding: 10px 14px;
+    min-width: 180px;
     font-weight: 600;
+    font-size: 0.9rem;
     letter-spacing: 0.3px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -328,11 +329,14 @@
 /* Stats & Toggles */
 .merchant-stats {
     flex: 1;
-    min-width: 240px;
+    min-width: 0;
     color: var(--quest-muted);
-    font-size: 0.95rem;
+    font-size: 0.85rem;
     padding: 0 12px;
     border-left: 2px solid rgba(228, 200, 105, 0.15);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .merchant-stats strong {
@@ -1515,6 +1519,49 @@
 }
 
 /* ─── Auto-tracking indicator ─── */
+
+/* ─── Quest status badges (from captured packets) ─── */
+.quest-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    width: fit-content;
+}
+
+.quest-status-badge .material-icons {
+    font-size: 14px;
+}
+
+.quest-status--available {
+    background: rgba(180, 180, 180, 0.08);
+    border: 1px solid rgba(180, 180, 180, 0.2);
+    color: rgba(180, 180, 180, 0.8);
+}
+
+.quest-status--progress {
+    background: rgba(100, 180, 255, 0.08);
+    border: 1px solid rgba(100, 180, 255, 0.25);
+    color: #7cb8f0;
+}
+
+.quest-status--success {
+    background: rgba(100, 200, 130, 0.08);
+    border: 1px solid rgba(100, 200, 130, 0.25);
+    color: #6fd88b;
+}
+
+.quest-status--complete {
+    background: rgba(228, 200, 105, 0.08);
+    border: 1px solid rgba(228, 200, 105, 0.2);
+    color: var(--accent-gold);
+}
+
+/* ─── Auto-tracking indicator ─── */
 .auto-track-indicator {
     display: flex;
     align-items: center;
@@ -1640,10 +1687,10 @@
     opacity: 0.35;
 }
 
-/* ─── Icon ─── */
+/* ─── Icon / Portrait ─── */
 .merchant-card-icon {
-    width: 56px;
-    height: 56px;
+    width: 72px;
+    height: 72px;
     border-radius: 50%;
     background: linear-gradient(135deg,
             color-mix(in srgb, var(--merchant-accent) 20%, rgba(22, 22, 22, 1)) 0%,
@@ -1652,10 +1699,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: -28px;
+    margin-top: -36px;
     position: relative;
     z-index: 1;
     transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    overflow: hidden;
 }
 
 .merchant-card:hover .merchant-card-icon {
@@ -1667,6 +1715,22 @@
     font-size: 26px;
     color: var(--merchant-accent);
     filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.6));
+}
+
+.merchant-card-portrait {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+    pointer-events: none;
+    user-select: none;
+    filter: brightness(0.95) saturate(1.1);
+    transition: filter 0.3s ease, transform 0.3s ease;
+}
+
+.merchant-card:hover .merchant-card-portrait {
+    filter: brightness(1.05) saturate(1.2);
+    transform: scale(1.08);
 }
 
 /* ─── Body ─── */
@@ -1755,6 +1819,40 @@
     border-color: rgba(100, 200, 130, 0.12);
 }
 
+/* ─── Live-tracked indicator badge ─── */
+.merchant-card-tracked {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(100, 200, 130, 0.12);
+    border: 1px solid rgba(100, 200, 130, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    animation: merchantTrackedPulse 2.5s ease-in-out infinite;
+}
+
+.merchant-card-tracked .material-icons {
+    font-size: 16px;
+    color: #6fd88b;
+}
+
+@keyframes merchantTrackedPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(100, 200, 130, 0.3);
+    }
+
+    50% {
+        box-shadow: 0 0 8px 3px rgba(100, 200, 130, 0.15);
+    }
+}
+
 .merchant-card--done .merchant-card-banner {
     background: linear-gradient(135deg,
             rgba(100, 200, 130, 0.12) 0%,
@@ -1803,7 +1901,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 14px;
+    padding: 10px 14px;
     border-radius: 10px;
     border: 1px solid rgba(228, 200, 105, 0.15);
     background: rgba(228, 200, 105, 0.05);
@@ -1813,7 +1911,7 @@
     letter-spacing: 0.3px;
     cursor: pointer;
     transition: all 0.2s ease;
-    align-self: center;
+    flex-shrink: 0;
 }
 
 .merchant-back-btn:hover {
@@ -1834,6 +1932,10 @@
 
 /* ─── Responsive adjustments ─── */
 @media (max-width: 768px) {
+    .merchant-controls {
+        flex-wrap: wrap;
+    }
+
     .merchant-gallery {
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 14px;
@@ -1844,9 +1946,9 @@
     }
 
     .merchant-card-icon {
-        width: 48px;
-        height: 48px;
-        margin-top: -24px;
+        width: 60px;
+        height: 60px;
+        margin-top: -30px;
     }
 
     .merchant-card-icon .material-icons {
@@ -1869,6 +1971,188 @@
 @media (max-width: 480px) {
     .merchant-gallery {
         grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}
+
+/* ══════════════════════════════════════════════════════════
+   Info Tab
+   ══════════════════════════════════════════════════════════ */
+
+.info-content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 16px 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+}
+
+.info-section {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    padding: 24px;
+}
+
+.info-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.92);
+    margin: 0 0 14px;
+}
+
+.info-section-title .material-icons {
+    font-size: 22px;
+    color: var(--accent-gold, #e4c869);
+}
+
+.info-desc {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    margin: 0 0 16px;
+}
+
+.info-body {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 0.9rem;
+    line-height: 1.65;
+}
+
+.info-body p {
+    margin: 0 0 10px;
+}
+
+.info-body p:last-child {
+    margin-bottom: 0;
+}
+
+.info-body ul {
+    margin: 8px 0 12px 18px;
+    padding: 0;
+}
+
+.info-body li {
+    margin-bottom: 5px;
+}
+
+.info-body strong {
+    color: rgba(255, 255, 255, 0.85);
+}
+
+/* ─── Legend grid ─── */
+.info-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.info-legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+}
+
+.info-legend-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.info-legend-icon.merchant-tracked-sample {
+    background: rgba(100, 200, 130, 0.12);
+    border: 1px solid rgba(100, 200, 130, 0.35);
+}
+
+.info-legend-icon.merchant-tracked-sample .material-icons {
+    font-size: 18px;
+    color: #6fd88b;
+}
+
+.info-legend-icon.done-sample {
+    background: rgba(100, 200, 130, 0.10);
+    border: 1px solid rgba(100, 200, 130, 0.25);
+}
+
+.info-legend-icon.done-sample .material-icons {
+    font-size: 18px;
+    color: #6fd88b;
+}
+
+.info-legend-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-top: 2px;
+}
+
+.info-legend-text strong {
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 0.9rem;
+}
+
+.info-legend-text span {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 0.84rem;
+    line-height: 1.5;
+}
+
+/* Quest status badge samples inside the info legend */
+.info-badge-sample {
+    flex-shrink: 0;
+    min-width: max-content;
+    margin-top: 4px;
+}
+
+/* ─── Credits link ─── */
+.info-credit-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px 18px;
+    border-radius: 10px;
+    background: rgba(228, 200, 105, 0.06);
+    border: 1px solid rgba(228, 200, 105, 0.18);
+    color: var(--accent-gold, #e4c869);
+    font-size: 0.9rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+}
+
+.info-credit-link:hover {
+    background: rgba(228, 200, 105, 0.12);
+    border-color: rgba(228, 200, 105, 0.32);
+    transform: translateY(-1px);
+}
+
+.info-credit-link .material-icons {
+    font-size: 18px;
+}
+
+.info-credits .info-section-title .material-icons {
+    color: #e57373;
+}
+
+@media (max-width: 600px) {
+    .info-content {
+        padding: 16px 10px 32px;
+    }
+
+    .info-section {
+        padding: 18px 14px;
+    }
+
+    .info-legend-item {
         gap: 10px;
     }
 }

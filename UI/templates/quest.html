@@ -34,6 +34,8 @@
                 id="merchantTab">Quests</button>
             <button type="button" class="quest-tab" data-view="items" role="tab" aria-selected="false"
                 id="itemsTab">Item Checklist</button>
+            <button type="button" class="quest-tab" data-view="info" role="tab" aria-selected="false"
+                id="infoTab">Info</button>
         </div>
         <div class="prerequisite-control">
             <label for="prerequisiteFilter">Prerequisites</label>
@@ -123,6 +125,129 @@
                     <div class="spinner" aria-hidden="true"></div>
                     <p>Aggregating quest requirements...</p>
                 </div>
+            </div>
+        </section>
+
+        <section id="infoView" class="quest-view hidden" role="tabpanel" aria-labelledby="infoTab">
+            <div class="info-content">
+
+                <div class="info-section">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">storefront</span>
+                        Merchant Card Symbols
+                    </h2>
+                    <p class="info-desc">Each card in the <strong>Merchants</strong> gallery can display the following
+                        indicators:</p>
+                    <div class="info-legend">
+                        <div class="info-legend-item">
+                            <span class="info-legend-icon merchant-tracked-sample">
+                                <span class="material-icons">sensors</span>
+                            </span>
+                            <div class="info-legend-text">
+                                <strong>Live Tracking Active</strong>
+                                <span>A pulsing green badge in the top-right corner means the app has captured quest
+                                    data from the game for this merchant. Quest status and objective progress are being
+                                    tracked automatically.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="info-legend-icon done-sample">
+                                <span class="material-icons">check_circle</span>
+                            </span>
+                            <div class="info-legend-text">
+                                <strong>All Quests Completed</strong>
+                                <span>When every quest for a merchant has all objectives fulfilled, the card shows a
+                                    green accent and a checkmark to indicate full completion.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">label</span>
+                        Quest Status Badges
+                    </h2>
+                    <p class="info-desc">When auto-tracking is active, each quest card shows a badge reflecting its
+                        in-game status:</p>
+                    <div class="info-legend">
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--available info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">radio_button_unchecked</span>Not
+                                Accepted
+                            </span>
+                            <div class="info-legend-text">
+                                <span>The quest is available at the merchant but you haven't accepted it yet.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--progress info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">pending</span>In Progress
+                            </span>
+                            <div class="info-legend-text">
+                                <span>You have accepted this quest and it is currently active.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--success info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">check_circle</span>Ready to Turn In
+                            </span>
+                            <div class="info-legend-text">
+                                <span>All objectives are met. Return to the merchant to turn in the quest and claim your
+                                    reward.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--complete info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">verified</span>Completed
+                            </span>
+                            <div class="info-legend-text">
+                                <span>The quest has been turned in and completed successfully.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">track_changes</span>
+                        How Auto-Tracking Works
+                    </h2>
+                    <div class="info-body">
+                        <p>DnDTools listens to the game's network traffic in real time using <strong>TShark</strong>
+                            (packet capture). When you open a merchant, accept a quest, or complete objectives in
+                            <em>Dark and Darker</em>, the app intercepts those packets and extracts quest data
+                            automatically.</p>
+                        <p>The captured data is reconciled with the <strong>DarkerDB</strong> quest database to match
+                            quest IDs, objectives, and item requirements. This allows the tracker to:</p>
+                        <ul>
+                            <li>Detect which quests you have accepted, completed, or haven't picked up yet</li>
+                            <li>Track individual objective progress (e.g. "Bring 3 Healing Potions — 2/3")</li>
+                            <li>Show live merchant status in the gallery cards</li>
+                        </ul>
+                        <p>Your captured quest status (accepted, in-progress, completed) is <strong>saved across
+                                sessions</strong> so you won't lose progress when you close the app.</p>
+                        <p><strong>Requirements:</strong> WireShark must be installed and packet capture must be enabled
+                            in Settings for auto-tracking to function.</p>
+                    </div>
+                </div>
+
+                <div class="info-section info-credits">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">favorite</span>
+                        Credits
+                    </h2>
+                    <div class="info-body">
+                        <p>Quest data and merchant information is provided by <strong>DarkerDB</strong>.</p>
+                        <p>Merchant portrait images are sourced from the community wiki:</p>
+                        <a href="https://darkanddarker.wiki.spellsandguns.com/" target="_blank"
+                            rel="noopener noreferrer" class="info-credit-link">
+                            <span class="material-icons" aria-hidden="true">open_in_new</span>
+                            darkanddarker.wiki.spellsandguns.com
+                        </a>
+                    </div>
+                </div>
+
             </div>
         </section>
     </div>
