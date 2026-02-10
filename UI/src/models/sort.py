@@ -426,6 +426,38 @@ class StashSorter:
         except Exception:
             pass
 
+    # ── Transfer support ────────────────────────────────────────────
+
+    def mark_items_for_transfer(self, items: list) -> int:
+        """Mark inventory items as transfer targets to be placed in the stash.
+
+        Call this *after* construction and *before* ``sort()``.  Each item
+        must currently reside in ``self.inv`` (the inventory Storage).  The
+        items will be included in the layout plan so the sort pipeline
+        physically moves them from the inventory grid to their planned
+        stash positions.
+
+        Returns the number of items successfully marked.
+        """
+        marked = 0
+        for item in items:
+            if item is None:
+                continue
+            if item.stash is not self.inv:
+                logger.debug(
+                    "Skipping transfer mark for %s – not in inventory", item
+                )
+                continue
+            self._mark_buffered_inventory(item)
+            marked += 1
+        if marked:
+            logger.info(
+                "Transfer mode: %d inventory items marked for placement in stash",
+                marked,
+            )
+            self._metric_set("transfer_items_marked", float(marked))
+        return marked
+
     def _record_failure_reason(self, reason: str) -> None:
         if not self._failure_reason:
             self._failure_reason = reason

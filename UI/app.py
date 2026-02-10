@@ -50,7 +50,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.7.5"
+APP_VERSION = "3.7.6"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -2180,6 +2180,89 @@ class Api:
             overlay_session.finish(success, error_msg)
             self.current_sort_event = None
 
+    def transfer_items(self, character_id, source_stash_id, target_stash_id,
+                       pack_mode=False, stack_mode=False):
+        """Transfer items from the inventory/bag to a target stash.
+
+        The source must be the bag (stash 2).  A feasibility check runs
+        first using the ML-enhanced LayoutPlanner.  If the items can fit,
+        the sort pipeline is invoked on the *target* stash with
+        ``include_inventory=True`` so that every inventory item is marked
+        as a transfer candidate and physically moved from the bag into
+        the stash via mouse macros.
+        """
+        # 1. Feasibility check
+        check = self.stash_manager.check_transfer_feasibility(
+            character_id, source_stash_id, target_stash_id,
+            pack_mode=pack_mode, stack_mode=stack_mode,
+        )
+        if not check.get("feasible"):
+            return {"success": False, "error": check.get("message", "Transfer not feasible"),
+                    "check": check}
+
+        # 2. Prepare overlay / cancel support
+        cancel_event = threading.Event()
+        self.current_sort_event = cancel_event
+
+        overlay_context = {
+            "character": None,
+            "character_id": character_id,
+            "stash": target_stash_id,
+        }
+        try:
+            char_details = self.stash_manager.get_character_details(str(character_id))
+            if char_details:
+                overlay_context["character"] = char_details.get("nickname")
+                overlay_context["character_class"] = char_details.get("class")
+        except Exception:
+            pass
+
+        overlay_session = self.overlay_manager.begin_sort_session(
+            countdown_seconds=1.0,
+            context=overlay_context,
+        )
+
+        success = False
+        error_msg = None
+        try:
+            if pack_mode is not None:
+                self.set_pack_mode(pack_mode)
+            if stack_mode is not None:
+                self.set_stack_mode(stack_mode)
+
+            if overlay_session.wait_for_countdown():
+                overlay_session.update_status("Preparing transfer…", status="info")
+
+            # 3. sort_stash with include_inventory=True marks every bag
+            #    item as a transfer target and the sort execution physically
+            #    moves them from the bag grid into the stash using macros.
+            result = self.stash_manager.sort_stash(
+                character_id, target_stash_id,
+                cancel_event=cancel_event,
+                pack_mode=self.get_pack_mode(),
+                stack_mode=self.get_stack_mode(),
+                overlay_session=overlay_session,
+                include_inventory=True,
+            )
+
+            if isinstance(result, tuple):
+                success = result[0] if len(result) >= 1 else False
+                error_msg = result[1] if len(result) >= 2 else None
+            else:
+                success = bool(result)
+
+            return {
+                "success": success,
+                "error": error_msg,
+                "check": check,
+                "message": "Transfer completed successfully" if success else (error_msg or "Transfer failed"),
+            }
+        except Exception as exc:
+            return {"success": False, "error": str(exc), "check": check}
+        finally:
+            overlay_session.finish(success, error_msg)
+            self.current_sort_event = None
+
     def minimize(self):
         self.window.minimize()
         
@@ -3210,6 +3293,79 @@ def api_sort_stash(character_id, stash_id):
     except Exception as e:
         logger.error(f"Error sorting stash: {e}")
         return jsonify({'success': False, 'error': 'Failed to sort stash'}), 500
+
+
+@server.route('/api/character/<character_id>/stash/transfer/check', methods=['POST'])
+def api_transfer_check(character_id):
+    """Check whether items from a source stash can fit in a target stash."""
+    character_id = validate_character_id(character_id)
+    if not character_id:
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
+
+    payload = request.get_json(silent=True) or {}
+    source_stash_id = str(payload.get('sourceStashId', '')).strip()
+    target_stash_id = str(payload.get('targetStashId', '')).strip()
+
+    if not source_stash_id or not target_stash_id:
+        return jsonify({'success': False, 'error': 'sourceStashId and targetStashId are required'}), 400
+
+    if source_stash_id == target_stash_id:
+        return jsonify({'success': False, 'error': 'Source and target stash cannot be the same'}), 400
+
+    item_indices = payload.get('itemIndices')
+    if item_indices is not None and not isinstance(item_indices, list):
+        item_indices = None
+
+    pack_mode = bool(payload.get('pack', False))
+    stack_mode = bool(payload.get('stack', False))
+
+    try:
+        result = api.stash_manager.check_transfer_feasibility(
+            character_id,
+            source_stash_id,
+            target_stash_id,
+            item_indices=item_indices,
+            pack_mode=pack_mode,
+            stack_mode=stack_mode,
+        )
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Error checking transfer feasibility: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to check transfer feasibility'}), 500
+
+
+@server.route('/api/character/<character_id>/stash/transfer/execute', methods=['POST'])
+def api_transfer_execute(character_id):
+    """Execute a stash transfer — moves items from source to target stash in-game."""
+    character_id = validate_character_id(character_id)
+    if not character_id:
+        return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
+
+    payload = request.get_json(silent=True) or {}
+    source_stash_id = str(payload.get('sourceStashId', '')).strip()
+    target_stash_id = str(payload.get('targetStashId', '')).strip()
+
+    if not source_stash_id or not target_stash_id:
+        return jsonify({'success': False, 'error': 'sourceStashId and targetStashId are required'}), 400
+
+    if source_stash_id == target_stash_id:
+        return jsonify({'success': False, 'error': 'Source and target stash cannot be the same'}), 400
+
+    pack_mode = bool(payload.get('pack', False))
+    stack_mode = bool(payload.get('stack', False))
+
+    try:
+        result = api.transfer_items(
+            character_id,
+            source_stash_id,
+            target_stash_id,
+            pack_mode=pack_mode,
+            stack_mode=stack_mode,
+        )
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Error executing transfer: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Failed to execute transfer'}), 500
 
 
 @server.route('/api/sort-feedback', methods=['POST'])

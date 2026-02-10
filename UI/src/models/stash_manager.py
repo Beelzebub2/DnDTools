@@ -878,6 +878,7 @@ class StashManager:
         pack_mode=False,
         stack_mode=False,
         overlay_session: Union[SortOverlaySession, NullOverlaySession, None] = None,
+        include_inventory=False,
     ):
         logger.info(f"Sorting stash {stash_id} for character {character_id}")
         session_summary = None
@@ -938,6 +939,17 @@ class StashManager:
         session.add_log(
             f"Pack mode: {'On' if sorter.pack_mode else 'Off'} · Stack mode: {'On' if sorter.stack_mode else 'Off'}"
         )
+
+        # ── Transfer mode: mark inventory items for placement in stash ──
+        if include_inventory and inventory and inventory.pq:
+            transfer_count = sorter.mark_items_for_transfer(list(inventory.pq))
+            if transfer_count:
+                session.add_log(
+                    f"Transfer mode: {transfer_count} inventory item(s) will be placed into the stash."
+                )
+            else:
+                session.add_log("Transfer mode enabled but no inventory items to transfer.")
+
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled", session_summary
         success = sorter.sort(cancel_event, overlay_session=session)
@@ -992,3 +1004,200 @@ class StashManager:
         # Preview generation is currently not implemented
         # This could be extended to use the StashPreviewGenerator class
         pass
+
+    # ── Transfer feasibility & execution ─────────────────────────────
+
+    def check_transfer_feasibility(
+        self,
+        character_id: str,
+        source_stash_id: str,
+        target_stash_id: str,
+        item_indices: Optional[List[int]] = None,
+        pack_mode: bool = False,
+        stack_mode: bool = False,
+    ) -> Dict:
+        """Check whether items from *source_stash_id* can fit in *target_stash_id*.
+
+        Uses the same ML-enhanced LayoutPlanner that powers the sort feature so
+        that pack/stack preferences and learned placement scores are respected.
+
+        Parameters
+        ----------
+        character_id : str
+        source_stash_id : str
+            Stash id whose items we want to move (e.g. ``"2"`` for bag).
+        target_stash_id : str
+            Destination stash id (e.g. ``"4"`` for Storage).
+        item_indices : list[int] | None
+            If provided, only consider items at these indices within the source
+            stash list.  ``None`` means *all* items.
+        pack_mode, stack_mode : bool
+            Forwarded to the LayoutPlanner.
+
+        Returns
+        -------
+        dict
+            ``{"feasible": bool, "placeable": int, "unplaceable": int,
+               "total": int, "target_free_cells": int, "target_total_cells": int,
+               "items": [...], "message": str}``
+        """
+        from src.models.sort import LayoutPlanner, LayoutPlanError
+        from src.models.sort_learning import get_sort_learning_manager
+        from src.models.item import Item
+        from src.models.point import Point
+
+        char = self.characters_cache.get(str(character_id))
+        if not char:
+            return {"feasible": False, "message": "Character not found", "placeable": 0,
+                    "unplaceable": 0, "total": 0, "target_free_cells": 0,
+                    "target_total_cells": 0, "items": []}
+
+        source_items_raw = char.get("stashes", {}).get(str(source_stash_id))
+        target_items_raw = char.get("stashes", {}).get(str(target_stash_id))
+
+        if source_items_raw is None:
+            return {"feasible": False, "message": "Source stash not found",
+                    "placeable": 0, "unplaceable": 0, "total": 0,
+                    "target_free_cells": 0, "target_total_cells": 0, "items": []}
+        if target_items_raw is None:
+            return {"feasible": False, "message": "Target stash not found",
+                    "placeable": 0, "unplaceable": 0, "total": 0,
+                    "target_free_cells": 0, "target_total_cells": 0, "items": []}
+
+        # Determine target grid dimensions
+        target_sid = int(target_stash_id)
+        if target_sid == StashType.BAG.value:
+            grid_w, grid_h = 10, 5
+        elif target_sid == StashType.EQUIPMENT.value:
+            return {"feasible": False, "message": "Cannot transfer to equipment stash",
+                    "placeable": 0, "unplaceable": 0, "total": 0,
+                    "target_free_cells": 0, "target_total_cells": 0, "items": []}
+        else:
+            grid_w, grid_h = 12, 20
+
+        # Build Item objects for existing target items so we can pre-mark occupancy
+        target_storage = Storage(target_sid, target_items_raw if isinstance(target_items_raw, list) else [])
+        total_cells = grid_w * grid_h
+        occupied = sum(1 for x in range(grid_w) for y in range(grid_h) if target_storage.grid[x][y] != 0)
+        free_cells = total_cells - occupied
+
+        # Select source items to consider
+        if not isinstance(source_items_raw, list):
+            source_items_raw = []
+        if item_indices is not None:
+            selected_raw = [source_items_raw[i] for i in item_indices if 0 <= i < len(source_items_raw)]
+        else:
+            selected_raw = list(source_items_raw)
+
+        if not selected_raw:
+            return {"feasible": True, "message": "No items to transfer",
+                    "placeable": 0, "unplaceable": 0, "total": 0,
+                    "target_free_cells": free_cells, "target_total_cells": total_cells,
+                    "items": []}
+
+        # Convert raw items to lightweight Item objects for the planner
+        source_items: List[Item] = []
+        source_item_info: List[Dict] = []
+        for raw in selected_raw:
+            try:
+                design_str = raw.get("itemId", "")
+                iid = item_data_manager.get_item_id_from_design_str(design_str)
+                meta = item_data_manager.get_item_data(iid)
+                w = meta.get("inventory_width", 1) or 1
+                h = meta.get("inventory_height", 1) or 1
+                rarity = item_data_manager.rarity_to_id(meta.get("rarity", "Common"))
+                name = meta.get("name", "Unknown")
+                quantity = raw.get("itemCount", 1)
+                max_stack = meta.get("max_stack_size", 1) or 1
+                itm = Item(iid, name, rarity, Point(0, 0), w, h, None,
+                           vendor_price=meta.get("vendor_price", 0),
+                           quantity=quantity, max_stack_size=max_stack)
+                source_items.append(itm)
+                source_item_info.append({"name": name, "width": w, "height": h,
+                                         "rarity": meta.get("rarity", "Common"),
+                                         "itemId": iid, "quantity": quantity})
+            except Exception as exc:
+                logger.debug("Skipping item during transfer feasibility: %s", exc)
+                continue
+
+        # Merge stackable items when stack_mode is on
+        if stack_mode:
+            source_items, source_item_info = self._merge_stackable_for_transfer(
+                source_items, source_item_info, target_storage
+            )
+
+        # Combine existing target items + candidate source items and try layout
+        combined_items: List[Item] = list(target_storage.pq) + source_items
+        learning_mgr = get_sort_learning_manager()
+
+        planner = LayoutPlanner(
+            grid_w, grid_h,
+            prefer_dense=pack_mode,
+            stash=target_storage,
+            stack_mode=stack_mode,
+            learning_manager=learning_mgr,
+        )
+
+        placeable = 0
+        unplaceable = 0
+        item_results = []
+
+        try:
+            plan = planner.build(combined_items)
+            # All items placed — the source items that were in the plan are placeable
+            placeable = len(source_items)
+            for info in source_item_info:
+                item_results.append({**info, "placeable": True})
+        except LayoutPlanError:
+            # Not everything fits — try one-by-one to see which fit
+            for idx, itm in enumerate(source_items):
+                test_planner = LayoutPlanner(
+                    grid_w, grid_h,
+                    prefer_dense=pack_mode,
+                    stash=target_storage,
+                    stack_mode=stack_mode,
+                    learning_manager=learning_mgr,
+                )
+                test_items = list(target_storage.pq) + [itm]
+                try:
+                    test_planner.build(test_items)
+                    placeable += 1
+                    item_results.append({**source_item_info[idx], "placeable": True})
+                except LayoutPlanError:
+                    unplaceable += 1
+                    item_results.append({**source_item_info[idx], "placeable": False})
+
+        total = placeable + unplaceable
+        feasible = unplaceable == 0 and total > 0
+        if feasible:
+            msg = f"All {total} item(s) can be transferred."
+        elif placeable > 0:
+            msg = f"{placeable} of {total} item(s) can be placed. {unplaceable} won't fit."
+        else:
+            msg = "No items can fit in the target stash."
+
+        return {
+            "feasible": feasible,
+            "placeable": placeable,
+            "unplaceable": unplaceable,
+            "total": total,
+            "target_free_cells": free_cells,
+            "target_total_cells": total_cells,
+            "items": item_results,
+            "message": msg,
+        }
+
+    @staticmethod
+    def _merge_stackable_for_transfer(
+        source_items: List,
+        source_info: List[Dict],
+        target_storage,
+    ):
+        """Merge stackable source items with existing stacks in the target."""
+        from src.models.item import Item
+
+        # For now we just pass through — the LayoutPlanner handles stacking
+        # conceptually.  A full implementation would merge quantities into
+        # existing stacks, but that requires actual game interaction which
+        # the feasibility check cannot perform.
+        return source_items, source_info
