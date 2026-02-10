@@ -2,7 +2,9 @@
 (() => {
     const PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
     const ARCHIVE_STORAGE_KEY = 'dndtools.questArchived.v1';
+    const CAPTURED_FLAGS_KEY = 'dndtools.capturedFlags.v1';
     const PROGRESS_SYNC_ENDPOINT = '/api/quests/progress';
+    const ACTIVE_MERCHANTS_ENDPOINT = '/api/quests/active-merchants';
     const SERVER_SYNC_DEBOUNCE = 400;
     const HOLDINGS_CACHE_TTL = 5 * 60 * 1000;
     const HOLDINGS_BULK_CHUNK_SIZE = 20;
@@ -243,8 +245,11 @@
         activeHoldingsItemId: null,
         activeHoldingsAnchor: null,
         bodyScrollLock: null,
-        hideLockedQuests: false
+        hideLockedQuests: false,
+        activeMerchantIds: new Set()  // normalized IDs from captured merchant list packet
     };
+
+    let galleryScrollY = 0;
 
     let globalRenderTimeout = null;
     const scheduleGlobalRender = () => {
@@ -253,6 +258,7 @@
         }
         globalRenderTimeout = window.setTimeout(() => {
             globalRenderTimeout = null;
+            renderMerchantGallery();
             renderMerchantView();
             if (state.itemsLoaded) {
                 renderItemsList();
@@ -295,9 +301,13 @@
         merchantRefresh: document.getElementById('merchantRefresh'),
         questTabs: document.querySelectorAll('.quest-tab'),
         views: {
+            gallery: document.getElementById('galleryView'),
             merchant: document.getElementById('merchantView'),
-            items: document.getElementById('itemsView')
+            items: document.getElementById('itemsView'),
+            info: document.getElementById('infoView')
         },
+        merchantGallery: document.getElementById('merchantGallery'),
+        galleryLoading: document.getElementById('galleryLoading'),
         refreshAll: document.getElementById('refreshAll'),
         itemsLoading: document.getElementById('itemsLoading'),
         itemsList: document.getElementById('itemsList'),
@@ -631,6 +641,8 @@
             parts.push(objective.item_id);
         } else if (objective.monster) {
             parts.push(objective.monster);
+        } else if (objective.monster_type) {
+            parts.push(objective.monster_type);
         } else if (objective.module) {
             parts.push(objective.module);
         } else if (objective.interact) {
@@ -1129,12 +1141,19 @@
     };
 
     const buildMerchantView = (quests, viewMode = 'active') => {
-        // Exclude time-limited quests (daily/weekly/seasonal) from all displayed
-        // quest lists — even if they exist in the local cache — per user request.
-        // We still keep the full data in `state.quests` so item tracking and
-        // badge computation continues to account for those quests.
+        // Exclude time-limited quests (daily/weekly/seasonal) unless the merchant
+        // has been confirmed active via game packet capture. When the user has
+        // live tracking data we know the merchant is in-game and all quests
+        // including dailies/seasonals should be shown.
         const originalQuests = Array.isArray(quests) ? quests.slice() : [];
-        const questsToDisplay = originalQuests.filter(q => !isQuestTimeLimited(q));
+        const merchantIsActive = state.selectedMerchant && (
+            merchantsWithTrackedData.has(state.selectedMerchant) ||
+            state.activeMerchantIds.size > 0
+        );
+        const questsToDisplay = (merchantIsActive
+            ? originalQuests
+            : originalQuests.filter(q => !isQuestTimeLimited(q))
+        ).filter(q => !q.unreleased);
         quests = questsToDisplay;
         const questsForView = [];
         let questsCount = 0;
@@ -1378,12 +1397,34 @@
         title.textContent = quest.title || quest.id;
         header.appendChild(title);
 
+        // Quest status badge from captured packet data
+        if (typeof quest.__capturedFlag === 'number') {
+            const flag = quest.__capturedFlag;
+            const QUEST_STATUS_MAP = {
+                1: { label: 'In Progress', icon: 'pending', cls: 'quest-status--progress' },
+                2: { label: 'Ready to Turn In', icon: 'check_circle', cls: 'quest-status--success' },
+                3: { label: 'Completed', icon: 'verified', cls: 'quest-status--complete' },
+                5: { label: 'Not Accepted', icon: 'radio_button_unchecked', cls: 'quest-status--available' },
+            };
+            const status = QUEST_STATUS_MAP[flag];
+            if (status) {
+                const badge = document.createElement('span');
+                badge.className = 'quest-status-badge ' + status.cls;
+                badge.innerHTML = `<span class="material-icons" aria-hidden="true">${status.icon}</span>${status.label}`;
+                badge.title = `Quest status from game: ${status.label}`;
+                header.appendChild(badge);
+            }
+        }
+
         if (quest.chapter) {
             const subtitle = document.createElement('div');
             subtitle.className = 'quest-meta';
             subtitle.appendChild(createMetaChip('book', quest.chapter));
             if (quest.prerequisite) {
-                subtitle.appendChild(createMetaChip('flag', `Prerequisite: ${quest.prerequisite}`));
+                const prereqTitles = Array.isArray(quest.__resolvedPrerequisiteTitles) && quest.__resolvedPrerequisiteTitles.length
+                    ? quest.__resolvedPrerequisiteTitles
+                    : [quest.prerequisite];
+                subtitle.appendChild(createMetaChip('flag', `Prerequisite: ${prereqTitles.join(', ')}`));
             }
             if (quest.dungeons && quest.dungeons.length) {
                 subtitle.appendChild(createMetaChip('map', quest.dungeons.join(', ')));
@@ -1439,13 +1480,23 @@
                 const targetName = obj.item && obj.item.name ? obj.item.name : (obj.item_id || 'Unknown Item');
                 titleText = `Collect ${obj.count || 0}× ${targetName}`;
             } else if (obj.type === 'Kill') {
-                titleText = `Eliminate ${obj.count || 0}× ${obj.monster || 'enemies'}`;
+                titleText = `Eliminate ${obj.count || 0}× ${obj.monster || obj.monster_type || 'enemies'}`;
             } else if (obj.type === 'Props') {
                 titleText = `Interact with ${obj.count || 0}× ${obj.interact || 'objects'}`;
             } else if (obj.type === 'Explore') {
                 titleText = `Explore ${obj.module || 'the objective area'}`;
             } else if (obj.type === 'Survive') {
-                titleText = `Survive ${obj.count || 0} waves`;
+                // Match Survive objectives to quest dungeons by position
+                const dungeons = quest.dungeons || [];
+                const surviveIndex = (quest.objectives || [])
+                    .slice(0, originalIndex + 1)
+                    .filter(o => o.type === 'Survive').length - 1;
+                const dungeon = dungeons[surviveIndex] || dungeons[originalIndex];
+                if (dungeon) {
+                    titleText = `Survive in ${dungeon}`;
+                } else {
+                    titleText = 'Survive and extract';
+                }
             } else {
                 titleText = `${obj.type || 'Objective'} – ${obj.count || 0}`;
             }
@@ -1482,6 +1533,43 @@
 
             item.appendChild(icon);
             item.appendChild(content);
+
+            let fetchInput = null;
+            let updateRemainingLabel = null;
+            let submittedValue = obj.count ? clampNumber(storedProgress.submitted ?? 0, 0, obj.count) : 0;
+
+            // Tracked progress bar for non-Fetch objectives (Kill, Props, Survive, etc.)
+            // Shows "2 / 10" with a mini bar when we have captured data.
+            let trackerTextEl = null;
+            let trackerFillEl = null;
+            if (obj.type !== 'Fetch' && obj.count && obj.count > 0) {
+                const tracker = document.createElement('div');
+                tracker.className = 'objective-tracker';
+
+                const bar = document.createElement('div');
+                bar.className = 'objective-tracker-bar';
+                trackerFillEl = document.createElement('div');
+                trackerFillEl.className = 'objective-tracker-bar-fill';
+                const pct = Math.min(100, Math.round((submittedValue / obj.count) * 100));
+                trackerFillEl.style.width = pct + '%';
+                if (pct >= 100) trackerFillEl.classList.add('objective-tracker-bar-fill--done');
+                bar.appendChild(trackerFillEl);
+                tracker.appendChild(bar);
+
+                trackerTextEl = document.createElement('span');
+                trackerTextEl.className = 'objective-tracker-text';
+                trackerTextEl.textContent = `${submittedValue} / ${obj.count}`;
+                tracker.appendChild(trackerTextEl);
+
+                // Only show if there's progress or objective is completed
+                if (submittedValue > 0 || objectiveCompleted) {
+                    content.appendChild(tracker);
+                } else {
+                    // Keep a reference so we can insert later when progress arrives
+                    tracker.style.display = 'none';
+                    content.appendChild(tracker);
+                }
+            }
 
             const progressContainer = document.createElement('div');
             progressContainer.className = 'objective-progress';
@@ -1530,11 +1618,6 @@
                     performRenders();
                 }
             };
-
-            let fetchInput = null;
-            let updateRemainingLabel = null;
-
-            let submittedValue = obj.type === 'Fetch' && obj.count ? clampNumber(storedProgress.submitted ?? 0, 0, obj.count) : 0;
 
             if (obj.type === 'Fetch' && obj.count) {
                 const countWrapper = document.createElement('div');
@@ -1620,6 +1703,19 @@
                     if (fetchInput) {
                         fetchInput.value = submittedValue > 0 ? submittedValue : '';
                     }
+                }
+                // For non-Fetch objectives: sync submitted with checkbox
+                if (obj.type !== 'Fetch' && obj.count) {
+                    submittedValue = checkbox.checked ? obj.count : 0;
+                }
+                // Update tracker bar if present
+                if (trackerFillEl && trackerTextEl && obj.count) {
+                    const pct = Math.min(100, Math.round((submittedValue / obj.count) * 100));
+                    trackerFillEl.style.width = pct + '%';
+                    trackerFillEl.classList.toggle('objective-tracker-bar-fill--done', pct >= 100);
+                    trackerTextEl.textContent = `${submittedValue} / ${obj.count}`;
+                    const trackerEl = trackerFillEl.closest('.objective-tracker');
+                    if (trackerEl) trackerEl.style.display = '';
                 }
                 if (updateRemainingLabel) {
                     updateRemainingLabel();
@@ -1757,6 +1853,225 @@
         `;
     }
 
+    /* ──────────────────────────────────────────────
+     *  Merchant metadata — icons and roles matching
+     *  the in-game tavern NPCs.
+     * ────────────────────────────────────────────── */
+    const MERCHANT_META = {
+        'Tavern Master': { icon: 'local_bar', image: 'tavern_master.png', role: 'Tavern Keeper', color: '#d4a44a' },
+        'Armourer': { icon: 'shield', image: 'armourer.png', role: 'Armour Specialist', color: '#7e98b0' },
+        'Alchemist': { icon: 'science', image: 'alchemist.png', role: 'Potion Brewer', color: '#6fcf7f' },
+        'Huntress': { icon: 'gps_fixed', image: 'huntress.png', role: 'Hunt Contracts', color: '#c87070' },
+        'Fortune Teller': { icon: 'auto_awesome', image: 'fortune_teller.png', role: 'Seer of Fate', color: '#b48be4' },
+        'Goldsmith': { icon: 'diamond', image: 'goldsmith.png', role: 'Gem Crafter', color: '#e4c869' },
+        'Miner': { icon: 'hardware', image: null, role: 'Firedeep Rescuer', color: '#c49856' },
+        'Woodsman': { icon: 'park', image: 'woodsman.png', role: 'Wilderness Scout', color: '#78a85a' },
+        'Surgeon': { icon: 'healing', image: 'surgeon.png', role: 'Field Medic', color: '#d6685a' },
+        'Leathersmith': { icon: 'checkroom', image: 'leathersmith.png', role: 'Hide Worker', color: '#a0785a' },
+        'Treasurer': { icon: 'account_balance', image: 'treasurer.png', role: 'Guild Banker', color: '#dbb960' },
+        'Tailor': { icon: 'content_cut', image: 'tailor.png', role: 'Cloth Artisan', color: '#a090c0' },
+        'Weaponsmith': { icon: 'gavel', image: 'weaponsmith.png', role: 'Weapon Forger', color: '#8899aa' },
+        'Nicholas': { icon: 'ac_unit', image: 'nicholas.png', role: 'Winter Guest', color: '#88c8e8' },
+        'Krampus': { icon: 'whatshot', image: 'krampus.png', role: 'Winter Fiend', color: '#d04040' },
+        'Goblin Merchant': { icon: 'savings', image: 'goblin_merchant.png', role: 'Black Market', color: '#6bb85a' },
+        'Valentine': { icon: 'favorite', image: 'valentine.png', role: 'Cupid Contracts', color: '#e06080' },
+        'The Collector': { icon: 'collections_bookmark', image: 'the_collector.png', role: 'Rare Acquisitor', color: '#c0a060' },
+        'Squire': { icon: 'military_tech', image: 'squire.png', role: 'Knight Errant', color: '#90a8c0' },
+        'Navigator': { icon: 'explore', image: 'navigator.png', role: 'Pathfinder', color: '#68a8c8' },
+        'Dealmaker': { icon: 'handshake', image: 'dealmaker.png', role: 'Deal Broker', color: '#b8a060' },
+        'Cockatrice': { icon: 'egg', image: 'cockatrice_merchant.png', role: 'Exotic Trader', color: '#c8a848' },
+        'Nightmare Mummy': { icon: 'psychology', image: 'nightmare_mummy.png', role: 'Cursed Dealer', color: '#8870a0' },
+        'Skeleton Footman': { icon: 'skull', image: 'skeleton_merchant.png', role: 'Bone Trader', color: '#a0a0a0' },
+        'Jack O Lantern': { icon: 'local_fire_department', image: 'jack_o_lantern.png', role: 'Harvest Herald', color: '#e08830' },
+    };
+    const DEFAULT_MERCHANT_META = { icon: 'store', image: null, role: 'Merchant', color: '#cfa346' };
+
+    function getMerchantMeta(merchantName) {
+        if (!merchantName) return DEFAULT_MERCHANT_META;
+        // Try exact match first
+        if (MERCHANT_META[merchantName]) return MERCHANT_META[merchantName];
+        // Case-insensitive partial match — check both directions so
+        // "Huntress Daily" matches key "Huntress" and vice versa
+        const lower = merchantName.toLowerCase();
+        for (const [key, meta] of Object.entries(MERCHANT_META)) {
+            const keyLower = key.toLowerCase();
+            if (lower === keyLower || lower.startsWith(keyLower) || keyLower.startsWith(lower)) return meta;
+        }
+        return DEFAULT_MERCHANT_META;
+    }
+
+    /* ──────────────────────────────────────────────
+     *  Merchant gallery — game-style NPC grid
+     * ────────────────────────────────────────────── */
+    let lastGalleryHash = '';
+
+    /**
+     * Normalize a merchant name for matching captured packet IDs to DarkerDB names.
+     * Strips spaces and lowercases so "Goblin Merchant" matches "GoblinMerchant",
+     * "Tavern Master" matches "TavernMaster", etc.
+     */
+    function normalizeMerchantForMatch(name) {
+        if (!name) return '';
+        return String(name).replace(/\s+/g, '').toLowerCase();
+    }
+
+    /**
+     * Return the filtered list of merchants to display.
+     * If we have captured merchant IDs from the game, only include merchants
+     * that match; otherwise fall back to the full list.
+     */
+    function getVisibleMerchants() {
+        if (state.activeMerchantIds.size === 0) return state.merchants;
+        const normSet = new Set();
+        state.activeMerchantIds.forEach(id => normSet.add(normalizeMerchantForMatch(id)));
+        return state.merchants.filter(m => normSet.has(normalizeMerchantForMatch(m)));
+    }
+
+    function renderMerchantGallery() {
+        if (!elements.merchantGallery || !state.questsLoaded) return;
+
+        toggleLoading(elements.galleryLoading, false);
+
+        const visibleMerchants = getVisibleMerchants();
+
+        // Quick hash to avoid redundant DOM thrashing
+        const hash = visibleMerchants.join('|') + '|' + JSON.stringify(state.progress).length + '|tracked:' + merchantsWithTrackedData.size + '|active:' + state.activeMerchantIds.size;
+        if (hash === lastGalleryHash) return;
+        lastGalleryHash = hash;
+
+        recomputeQuestLockState();
+
+        // Build per-merchant stats
+        const merchantStats = {};
+        visibleMerchants.forEach(m => { merchantStats[m] = { total: 0, active: 0, completed: 0, locked: 0 }; });
+        const hasActiveCaptureData = state.activeMerchantIds.size > 0;
+        state.quests.forEach(quest => {
+            const m = quest.merchant;
+            if (!merchantStats[m]) return;
+            if (quest.unreleased) return;
+            if (!hasActiveCaptureData && isQuestTimeLimited(quest)) return;
+            const partitions = partitionQuestObjectives(quest);
+            const total = Number(partitions.totalCount) || 0;
+            const allDone = total > 0
+                ? partitions.completed.length === total
+                : partitions.active.length === 0 && partitions.completed.length === 0;
+            merchantStats[m].total += 1;
+            if (allDone) {
+                merchantStats[m].completed += 1;
+            } else {
+                merchantStats[m].active += 1;
+            }
+            const qk = questKeyFor(quest);
+            if (qk && questLockIndex.get(qk) === true) {
+                merchantStats[m].locked += 1;
+            }
+        });
+
+        const fragment = document.createDocumentFragment();
+
+        visibleMerchants.forEach((merchant, idx) => {
+            const meta = getMerchantMeta(merchant);
+            const stats = merchantStats[merchant] || { total: 0, active: 0, completed: 0, locked: 0 };
+            const allDone = stats.total > 0 && stats.completed === stats.total;
+            const progressPct = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0;
+
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'merchant-card' + (allDone ? ' merchant-card--done' : '');
+            card.style.setProperty('--merchant-accent', meta.color);
+            card.style.animationDelay = `${idx * 40}ms`;
+            card.setAttribute('aria-label', `${merchant} — ${stats.active} active quests`);
+            card.addEventListener('click', () => navigateToMerchant(merchant));
+
+            // Banner / accent bar
+            const banner = document.createElement('div');
+            banner.className = 'merchant-card-banner';
+            card.appendChild(banner);
+
+            // Live-tracking badge — pulse dot when we have captured data for this merchant
+            if (merchantsWithTrackedData.has(merchant)) {
+                const trackedBadge = document.createElement('div');
+                trackedBadge.className = 'merchant-card-tracked';
+                trackedBadge.title = 'Live tracking active — quest data captured from game';
+                trackedBadge.innerHTML = '<span class="material-icons" aria-hidden="true">sensors</span>';
+                card.appendChild(trackedBadge);
+            }
+
+            // Icon / portrait
+            const iconWrap = document.createElement('div');
+            iconWrap.className = 'merchant-card-icon';
+            if (meta.image) {
+                const img = document.createElement('img');
+                img.src = '/assets/merchants/' + meta.image;
+                img.alt = merchant;
+                img.className = 'merchant-card-portrait';
+                img.loading = 'lazy';
+                img.draggable = false;
+                iconWrap.appendChild(img);
+            } else {
+                const icon = document.createElement('span');
+                icon.className = 'material-icons';
+                icon.setAttribute('aria-hidden', 'true');
+                icon.textContent = meta.icon;
+                iconWrap.appendChild(icon);
+            }
+            card.appendChild(iconWrap);
+
+            // Name & role
+            const body = document.createElement('div');
+            body.className = 'merchant-card-body';
+
+            const name = document.createElement('h3');
+            name.className = 'merchant-card-name';
+            name.textContent = merchant;
+            body.appendChild(name);
+
+            const role = document.createElement('span');
+            role.className = 'merchant-card-role';
+            role.textContent = meta.role;
+            body.appendChild(role);
+
+            card.appendChild(body);
+
+            // Progress ring / badge area
+            const foot = document.createElement('div');
+            foot.className = 'merchant-card-footer';
+
+            // Mini progress bar
+            const bar = document.createElement('div');
+            bar.className = 'merchant-card-progress';
+            const fill = document.createElement('div');
+            fill.className = 'merchant-card-progress-fill';
+            fill.style.width = progressPct + '%';
+            bar.appendChild(fill);
+            foot.appendChild(bar);
+
+            // Stats text
+            const statsEl = document.createElement('div');
+            statsEl.className = 'merchant-card-stats';
+            if (allDone) {
+                statsEl.innerHTML = '<span class="merchant-stat-done"><span class="material-icons" aria-hidden="true">check_circle</span> All Complete</span>';
+            } else {
+                statsEl.innerHTML = `<span>${stats.completed}/${stats.total} done</span>` +
+                    (stats.active > 0 ? `<span class="merchant-stat-active">${stats.active} active</span>` : '');
+            }
+            foot.appendChild(statsEl);
+
+            card.appendChild(foot);
+            fragment.appendChild(card);
+        });
+
+        elements.merchantGallery.innerHTML = '';
+        if (visibleMerchants.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.className = 'merchant-gallery-empty';
+            emptyMsg.innerHTML = '<span class="material-icons">storefront</span><p>No merchants available</p><p class="hint">Try refreshing quest data.</p>';
+            elements.merchantGallery.appendChild(emptyMsg);
+        } else {
+            elements.merchantGallery.appendChild(fragment);
+        }
+    }
+
     function renderMerchantOptions() {
         if (!elements.merchantSelect) {
             return;
@@ -1765,8 +2080,9 @@
         elements.merchantSelect.disabled = true;
         const previousSelection = state.selectedMerchant;
         const fragment = document.createDocumentFragment();
+        const visible = getVisibleMerchants();
 
-        state.merchants.forEach(merchant => {
+        visible.forEach(merchant => {
             const option = document.createElement('option');
             option.value = merchant;
             option.textContent = merchant;
@@ -1776,11 +2092,11 @@
         elements.merchantSelect.innerHTML = '';
         elements.merchantSelect.appendChild(fragment);
 
-        if (state.merchants.length) {
+        if (visible.length) {
             // enable select when we have merchants
             elements.merchantSelect.disabled = false;
-            if (!state.selectedMerchant || !state.merchants.includes(previousSelection)) {
-                state.selectedMerchant = state.merchants[0];
+            if (!state.selectedMerchant || !visible.includes(previousSelection)) {
+                state.selectedMerchant = visible[0];
             }
             elements.merchantSelect.value = state.selectedMerchant;
         } else {
@@ -2909,14 +3225,18 @@
                 });
 
                 // Filter: only include merchants that have at least one non-time-limited
-                // quest
+                // quest. If we have active capture data from the game, include all
+                // merchants since the gallery is already filtered by captured IDs.
                 const frequencyRegex = /\b(daily|weekly|seasonal|season)\b/i;
+                const hasCapture = state.activeMerchantIds.size > 0;
                 const visibleMerchants = allMerchants.filter(m => {
                     if (!m) return false;
                     const key = normalizeMerchant(m);
                     if (FORCED_HIDDEN_MERCHANTS.has(key)) return false;
                     const questsFor = merchantMapNorm.get(key) || [];
                     if (!questsFor.length) return false;
+                    // When we have capture data, skip the time-limited check entirely
+                    if (hasCapture) return true;
                     // If the literal merchant string contains frequency and no non-time-limited
                     // quests exist in the normalized group, hide it. Otherwise keep.
                     const literalHasFreq = frequencyRegex.test(String(m));
@@ -2933,6 +3253,7 @@
             }
             state.questsLoaded = true;
             renderMerchantOptions();
+            renderMerchantGallery();
             renderMerchantView();
         } catch (error) {
             console.error(error);
@@ -2944,6 +3265,7 @@
             }
         } finally {
             toggleLoading(elements.questLoading, false);
+            toggleLoading(elements.galleryLoading, false);
             setRefreshing(elements.questList, false);
             hideProgressBar();
         }
@@ -3044,6 +3366,30 @@
             tab.classList.toggle('active', isActive);
             tab.setAttribute('aria-selected', isActive ? 'true' : 'false');
         });
+        // Lazy-render the gallery when switching to it
+        if (view === 'gallery' && state.questsLoaded) {
+            renderMerchantGallery();
+        }
+    }
+
+    /**
+     * Navigate from the gallery to a specific merchant's quest list.
+     */
+    function navigateToMerchant(merchantName) {
+        if (!merchantName) return;
+        // Remember scroll position so we can restore it when going back
+        const scrollContainer = document.querySelector('.content') || document.documentElement;
+        galleryScrollY = scrollContainer.scrollTop || 0;
+        state.selectedMerchant = merchantName;
+        if (elements.merchantSelect) {
+            elements.merchantSelect.value = merchantName;
+        }
+        switchView('merchant');
+        scrollContainer.scrollTop = 0;
+        renderMerchantView();
+        if (state.itemsLoaded) {
+            renderItemsList();
+        }
     }
 
     function registerEvents() {
@@ -3057,6 +3403,19 @@
 
         if (elements.merchantRefresh) {
             elements.merchantRefresh.addEventListener('click', () => runWithButtonLoading(elements.merchantRefresh, () => refreshAll({ force: true })));
+        }
+
+        // Back to gallery button
+        const backBtn = document.getElementById('backToGallery');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                switchView('gallery');
+                // Restore the scroll position the user was at in the gallery
+                requestAnimationFrame(() => {
+                    const scrollContainer = document.querySelector('.content') || document.documentElement;
+                    scrollContainer.scrollTop = galleryScrollY;
+                });
+            });
         }
 
         if (elements.itemsRefresh) {
@@ -3127,6 +3486,489 @@
     updateMerchantViewToggle();
     registerEvents();
     syncProgressFromServer();
+
+    /* ─── Auto-tracking via packet capture ─── */
+    const CAPTURED_ENDPOINT = '/api/quests/captured';
+    const AUTO_TRACK_POLL_INTERVAL = 8000; // 8 seconds
+    let autoTrackLastUpdate = 0;
+    let autoTrackPollTimer = null;
+    let autoTrackInFlight = false;
+    /** Merchants that have live-tracked quest data from packets */
+    const merchantsWithTrackedData = new Set();
+
+    /** Persist captured quest flags & tracked merchants to localStorage */
+    function saveCapturedFlags() {
+        try {
+            const flags = {};
+            state.quests.forEach(q => {
+                if (typeof q.__capturedFlag === 'number') {
+                    flags[q.id] = q.__capturedFlag;
+                }
+            });
+            const payload = {
+                flags,
+                trackedMerchants: Array.from(merchantsWithTrackedData),
+                activeMerchantIds: Array.from(state.activeMerchantIds),
+            };
+            window.localStorage?.setItem(CAPTURED_FLAGS_KEY, JSON.stringify(payload));
+        } catch (e) {
+            console.warn('[auto-track] Failed to save captured flags', e);
+        }
+    }
+
+    /** Push the current set of active merchant IDs to the server for cross-session persistence. */
+    function sendActiveMerchantsToServer({ keepalive = false } = {}) {
+        const ids = Array.from(state.activeMerchantIds);
+        const payload = JSON.stringify({ active_merchants: ids });
+        try {
+            if (keepalive && typeof navigator !== 'undefined' && typeof navigator.sendBeacon === 'function') {
+                const blob = new Blob([payload], { type: 'application/json' });
+                if (navigator.sendBeacon(ACTIVE_MERCHANTS_ENDPOINT, blob)) return;
+            }
+            fetch(ACTIVE_MERCHANTS_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: payload,
+                keepalive
+            }).catch(err => console.warn('[active-merchants] server save failed', err));
+        } catch (e) {
+            console.warn('[active-merchants] server save failed', e);
+        }
+    }
+
+    /** Load active merchant IDs from the server and merge into the current set. Returns true if the set grew. */
+    async function loadActiveMerchantsFromServer() {
+        try {
+            const resp = await fetch(ACTIVE_MERCHANTS_ENDPOINT, { cache: 'no-store' });
+            if (!resp.ok) return false;
+            const data = await resp.json();
+            if (!data || !Array.isArray(data.active_merchants)) return false;
+            const prevSize = state.activeMerchantIds.size;
+            data.active_merchants.forEach(id => state.activeMerchantIds.add(id));
+            return state.activeMerchantIds.size !== prevSize;
+        } catch (e) {
+            console.warn('[active-merchants] server load failed', e);
+            return false;
+        }
+    }
+
+    /** Restore captured quest flags & tracked merchants from localStorage (only fills gaps, never overwrites live data) */
+    function restoreCapturedFlags() {
+        try {
+            const raw = window.localStorage?.getItem(CAPTURED_FLAGS_KEY);
+            if (!raw) return;
+            const data = JSON.parse(raw);
+            if (!data || typeof data !== 'object') return;
+
+            const flags = data.flags || {};
+            const tracked = data.trackedMerchants || [];
+            let restoredFlags = 0;
+
+            // Re-apply flags only to quests that don't already have a live flag
+            if (state.quests && state.quests.length > 0) {
+                state.quests.forEach(q => {
+                    if (q.id && typeof flags[q.id] === 'number' && typeof q.__capturedFlag !== 'number') {
+                        q.__capturedFlag = flags[q.id];
+                        restoredFlags++;
+                    }
+                });
+            }
+
+            // Restore tracked merchants set
+            tracked.forEach(m => merchantsWithTrackedData.add(m));
+
+            // Restore active (in-game) merchant IDs
+            const activeIds = data.activeMerchantIds || [];
+            activeIds.forEach(id => state.activeMerchantIds.add(id));
+
+            if (restoredFlags > 0 || tracked.length > 0 || activeIds.length > 0) {
+                console.log('[auto-track] Restored', restoredFlags, 'quest flags,', tracked.length, 'tracked merchants, and', activeIds.length, 'active merchant IDs from storage');
+            }
+        } catch (e) {
+            console.warn('[auto-track] Failed to restore captured flags', e);
+        }
+    }
+
+    /**
+     * Reconcile captured quest data from packets with DarkerDB quest definitions.
+     *
+     * The captured data has quest IDs (e.g. "DesignDataQuest:Id_Quest_...")
+     * that match the `id` field from the DarkerDB API quests.  For each
+     * captured quest we find the matching quest definition, then match
+     * captured missions (by contentId = item_id) to objectives and update
+     * the progress state.
+     */
+    function reconcileCapturedProgress(autoProgress) {
+        if (!autoProgress || !autoProgress.quests) return false;
+        const capturedQuests = autoProgress.quests;
+        if (!capturedQuests || typeof capturedQuests !== 'object') return false;
+
+        const questKeys = Object.keys(capturedQuests);
+        if (questKeys.length === 0) return false;
+
+        // Strip common game-engine prefixes so packet IDs match DarkerDB short IDs.
+        // The Python handler normally does this, but be defensive in case any slip through.
+        const GAME_PREFIXES = [
+            'DesignDataQuest:Id_Quest_',
+            'DesignDataQuestChapter:Id_QuestChapter_',
+            'DesignDataMerchant:Id_Merchant_',
+            'DesignDataItem:Id_Item_',
+            'DesignDataMonster:Id_Monster_',
+            'DesignDataObject:Id_Object_',
+        ];
+        function normalizeGameId(raw) {
+            if (!raw) return raw;
+            for (const p of GAME_PREFIXES) {
+                if (raw.startsWith(p)) return raw.slice(p.length);
+            }
+            // Generic fallback: "DesignData*:Id_Category_Rest" → "Rest"
+            const colonIdx = raw.indexOf(':Id_');
+            if (colonIdx >= 0) {
+                const after = raw.slice(colonIdx + 4);
+                const usIdx = after.indexOf('_');
+                if (usIdx >= 0) return after.slice(usIdx + 1);
+            }
+            return raw;
+        }
+
+        // Build lookup from quest ID to DarkerDB quest definition
+        const questById = {};
+        state.quests.forEach(q => {
+            if (q.id) questById[q.id] = q;
+        });
+
+        let anyChanged = false;
+
+        console.log('[auto-track] reconciling', questKeys.length, 'captured quests. DarkerDB has', state.quests.length, 'quests, questById keys:', Object.keys(questById).slice(0, 10));
+
+        questKeys.forEach(rawQuestId => {
+            const captured = capturedQuests[rawQuestId];
+            if (!captured) return;
+
+            const questId = normalizeGameId(rawQuestId);
+            const questDef = questById[questId] || questById[rawQuestId];
+            if (!questDef) {
+                console.warn('[auto-track] No DarkerDB match for quest:', rawQuestId, '→', questId,
+                    '| Available IDs sample:', Object.keys(questById).slice(0, 20));
+                return;
+            }
+
+            const capturedMissions = captured.missions || [];
+            const questFlag = captured.quest_flag;
+            // quest_flag: 2 = success (ready to turn in), 3 = complete
+            const isQuestComplete = questFlag === 2 || questFlag === 3;
+
+            // Store the quest flag on the definition for UI display
+            // 0=none, 1=progress (accepted), 2=success (ready), 3=complete, 4=locked, 5=available (not accepted)
+            if (typeof questFlag === 'number') {
+                if (questDef.__capturedFlag !== questFlag) {
+                    questDef.__capturedFlag = questFlag;
+                    anyChanged = true;
+                }
+                // Track which merchants have live data for the gallery badge
+                if (questDef.merchant && !merchantsWithTrackedData.has(questDef.merchant)) {
+                    merchantsWithTrackedData.add(questDef.merchant);
+                    anyChanged = true;
+                }
+            }
+
+            console.log('[auto-track] Matched quest:', questId, '| flag:', questFlag,
+                '| isComplete:', isQuestComplete, '| missions:', capturedMissions.length,
+                '| objectives:', (questDef.objectives || []).length);
+
+            const objectives = questDef.objectives || [];
+
+            // Helper: normalise an identifier for fuzzy comparison.
+            // "Skeleton Champion" / "SkeletonChampion" / "skeleton_champion" → "skeletonchampion"
+            const normId = (s) => String(s || '').toLowerCase().replace(/[\s_\-]+/g, '');
+
+            // Pre-build a lookup of normalised objective fields → objective index
+            // so we can match packet content_ids to DarkerDB monster/item/interact fields.
+            const objFieldIndex = new Map(); // normId → first objective index
+            objectives.forEach((obj, idx) => {
+                [obj.item_id, obj.monster, obj.monster_type, obj.interact, obj.module].forEach(f => {
+                    if (f) {
+                        const k = normId(f);
+                        if (!objFieldIndex.has(k)) objFieldIndex.set(k, idx);
+                    }
+                });
+            });
+
+            // Track which objective indices have been claimed by a mission
+            // to avoid two missions matching the same objective.
+            const claimedObjectives = new Set();
+
+            // Strategy: match captured missions to objectives by content-based
+            // matching first, positional second.  Content-based matching normalises
+            // both sides (stripping spaces/underscores, lowercasing) so that
+            // packet IDs like "SkeletonChampion" match DarkerDB "Skeleton Champion".
+            capturedMissions.forEach((mission, missionIdx) => {
+                const rawContentId = mission.content_id || '';
+                const contentId = normalizeGameId(rawContentId);
+                const currentValue = mission.current_value || 0;
+
+                let matchedObj = null;
+                let matchedIndex = -1;
+
+                // 1. Content-based: try normalised contentId against objective fields
+                if (contentId) {
+                    const normContent = normId(contentId);
+                    const idx = objFieldIndex.get(normContent);
+                    if (idx !== undefined && !claimedObjectives.has(idx)) {
+                        matchedObj = objectives[idx];
+                        matchedIndex = idx;
+                    }
+                    // If exact lookup missed, try against raw contentId as well
+                    if (!matchedObj) {
+                        const normRaw = normId(rawContentId);
+                        const idxRaw = objFieldIndex.get(normRaw);
+                        if (idxRaw !== undefined && !claimedObjectives.has(idxRaw)) {
+                            matchedObj = objectives[idxRaw];
+                            matchedIndex = idxRaw;
+                        }
+                    }
+                }
+
+                // 2. Positional: only if no content-based match AND the positional
+                //    candidate is unclaimed AND the mission has no content_id (e.g.
+                //    Survive objectives where there's nothing to match on).
+                if (!matchedObj && missionIdx < objectives.length && !claimedObjectives.has(missionIdx)) {
+                    const candidate = objectives[missionIdx];
+                    if (candidate) {
+                        // For Fetch/Kill objectives with a content_id we require the
+                        // content to match (handled above). Only fall back positionally
+                        // when the mission carries no distinguishing content_id.
+                        const hasContentId = !!contentId;
+                        const candidateHasField = !!(candidate.item_id || candidate.monster || candidate.monster_type || candidate.interact || candidate.module);
+                        if (!hasContentId || !candidateHasField) {
+                            matchedObj = candidate;
+                            matchedIndex = missionIdx;
+                            console.log('[auto-track]   mission', missionIdx, 'positional match (no content_id)');
+                        } else {
+                            console.log('[auto-track]   mission', missionIdx, 'SKIPPED positional — contentId', contentId, 'did not match objective fields');
+                        }
+                    }
+                }
+
+                if (!matchedObj || matchedIndex < 0) {
+                    console.warn('[auto-track]   mission', missionIdx, 'NO MATCH (contentId:', contentId, ')');
+                    return;
+                }
+
+                claimedObjectives.add(matchedIndex);
+
+                const key = makeObjectiveKey(questDef, matchedIndex, matchedObj);
+                const existing = getObjectiveProgress(key) || {};
+                const existingSubmitted = Number(existing.submitted) || 0;
+                const newSubmitted = Math.max(existingSubmitted, currentValue);
+                const isComplete = isQuestComplete ||
+                    (matchedObj.count && newSubmitted >= matchedObj.count);
+
+                console.log('[auto-track]   mission', missionIdx, '→ obj', matchedIndex,
+                    '| key:', key, '| value:', currentValue, '→', newSubmitted,
+                    '| complete:', isComplete, '| existing:', existingSubmitted);
+
+                // Only update if we have new data
+                if (newSubmitted > existingSubmitted || (isComplete && !existing.completed)) {
+                    console.log('[auto-track]   UPDATING progress for key:', key);
+                    setObjectiveProgress(key, {
+                        quest_id: questId,
+                        objective_index: matchedIndex,
+                        type: matchedObj.type || 'Fetch',
+                        item_id: matchedObj.item_id || contentId || undefined,
+                        submitted: newSubmitted,
+                        completed: isComplete,
+                    });
+                    anyChanged = true;
+                }
+            });
+
+            // If the quest is complete but we missed missions, mark all objectives done
+            if (isQuestComplete) {
+                console.log('[auto-track] Quest', questId, 'is complete, marking all', objectives.length, 'objectives done');
+                objectives.forEach((obj, idx) => {
+                    const key = makeObjectiveKey(questDef, idx, obj);
+                    const existing = getObjectiveProgress(key) || {};
+                    if (!existing.completed) {
+                        console.log('[auto-track]   Marking completed:', key);
+                        setObjectiveProgress(key, {
+                            quest_id: questId,
+                            objective_index: idx,
+                            type: obj.type || 'Objective',
+                            item_id: obj.item_id || undefined,
+                            submitted: obj.count || existing.submitted || 0,
+                            completed: true,
+                        });
+                        anyChanged = true;
+                    }
+                });
+            }
+        });
+
+        // Persist captured flags to survive app restarts
+        if (anyChanged) {
+            saveCapturedFlags();
+        }
+
+        return anyChanged;
+    }
+
+    async function fetchCapturedQuestData() {
+        if (autoTrackInFlight || typeof fetch !== 'function') return;
+        autoTrackInFlight = true;
+        try {
+            const response = await fetch(CAPTURED_ENDPOINT, { cache: 'no-store' });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (!data || data.success === false || !data.available) return;
+
+            const autoProgress = data.auto_progress;
+            if (!autoProgress || !autoProgress.last_update) return;
+
+            // Skip if no new data since last check
+            if (autoProgress.last_update <= autoTrackLastUpdate) return;
+            autoTrackLastUpdate = autoProgress.last_update;
+
+            console.log('[auto-track] New captured data:', JSON.stringify(autoProgress).substring(0, 500));
+
+            // Update the set of active (in-game) merchants from the captured merchant list
+            const mFlags = autoProgress.merchant_flags;
+            if (mFlags && typeof mFlags === 'object') {
+                const newIds = Object.keys(mFlags);
+                if (newIds.length > 0) {
+                    const prevSize = state.activeMerchantIds.size;
+                    newIds.forEach(id => state.activeMerchantIds.add(id));
+                    if (state.activeMerchantIds.size !== prevSize) {
+                        // Active merchant set changed — re-render gallery & dropdown and persist
+                        saveCapturedFlags();
+                        sendActiveMerchantsToServer();
+                        renderMerchantGallery();
+                        renderMerchantOptions();
+                    }
+                }
+            }
+
+            if (!state.questsLoaded || state.quests.length === 0) {
+                console.warn('[auto-track] Quests not loaded yet, skipping reconciliation');
+                return;
+            }
+
+            const changed = reconcileCapturedProgress(autoProgress);
+            console.log('[auto-track] reconciliation result: changed =', changed);
+
+            // Show the auto-tracking indicator whenever we have captured data
+            const hasCapturedData = autoProgress.quests && Object.keys(autoProgress.quests).length > 0;
+            updateAutoTrackIndicator(hasCapturedData);
+
+            if (changed) {
+                scheduleGlobalRender();
+            }
+        } catch (error) {
+            console.warn('Failed to fetch captured quest data', error);
+        } finally {
+            autoTrackInFlight = false;
+        }
+    }
+
+    function startAutoTrackPolling() {
+        if (autoTrackPollTimer) return;
+        // Show indicator immediately in inactive state
+        updateAutoTrackIndicator(false);
+        // Initial fetch after quests are loaded
+        fetchCapturedQuestData();
+        autoTrackPollTimer = window.setInterval(fetchCapturedQuestData, AUTO_TRACK_POLL_INTERVAL);
+    }
+
+    function stopAutoTrackPolling() {
+        if (autoTrackPollTimer) {
+            window.clearInterval(autoTrackPollTimer);
+            autoTrackPollTimer = null;
+        }
+    }
+
+    function updateAutoTrackIndicator(hasData) {
+        let indicator = document.getElementById('autoTrackIndicator');
+        if (!indicator) {
+            // Create the indicator in the header actions area
+            const headerActions = document.querySelector('.header-actions');
+            if (!headerActions) return;
+            indicator = document.createElement('div');
+            indicator.id = 'autoTrackIndicator';
+            indicator.className = 'auto-track-indicator';
+            indicator.title = 'Quest progress is being automatically tracked from game packets';
+            indicator.innerHTML = '<span class="material-icons" aria-hidden="true">sensors</span><span class="auto-track-label">Auto-tracking</span>';
+            headerActions.insertBefore(indicator, headerActions.firstChild);
+        }
+        indicator.classList.toggle('active', Boolean(hasData));
+    }
+
+    // ── Quest event notification helpers ──
+    const QUEST_EVENT_MESSAGES = {
+        quest_accepted: { message: 'New quest accepted', type: 'success', icon: 'assignment_turned_in' },
+        quest_completed: { message: 'Quest completed!', type: 'success', icon: 'emoji_events' },
+        quest_items_submitted: { message: 'Quest items submitted', type: 'info', icon: 'inventory_2' },
+        quest_list_update: { message: 'Quest board updated', type: 'info', icon: 'sync' },
+        quest_log_update: { message: 'Quest log synced', type: 'info', icon: 'sync' },
+        quest_merchant_list: { message: 'Merchant data updated', type: 'info', icon: 'storefront' },
+    };
+
+    let _questEventDebounce = null;
+
+    function showQuestEventNotification(eventName, detail) {
+        const template = QUEST_EVENT_MESSAGES[eventName];
+        if (!template || typeof showNotification !== 'function') return;
+
+        let msg = template.message;
+        // Enrich message with detail data when available
+        if (detail) {
+            if (eventName === 'quest_completed' && detail.reward_count) {
+                msg += ` — ${detail.reward_count} reward${detail.reward_count > 1 ? 's' : ''} received`;
+            } else if ((eventName === 'quest_list_update' || eventName === 'quest_log_update') && detail.in_progress) {
+                msg += ` — ${detail.in_progress} in progress`;
+            }
+        }
+
+        showNotification(msg, template.type, {
+            id: 'quest-event-' + eventName,
+            duration: eventName === 'quest_completed' ? 5000 : 3500,
+        });
+    }
+
+    // Listen for quest packet events from the capture system.
+    // Notifications are shown by the Python backend via showNotification()
+    // (works on every page). This handler only handles quest-page data refresh.
+    window.onQuestPacketEvent = function (eventName, rawDetail) {
+        // Debounce the data fetch — packets come in bursts
+        if (_questEventDebounce) clearTimeout(_questEventDebounce);
+        if (autoTrackPollTimer) {
+            window.clearInterval(autoTrackPollTimer);
+            autoTrackPollTimer = null;
+        }
+        _questEventDebounce = window.setTimeout(() => {
+            _questEventDebounce = null;
+            fetchCapturedQuestData();
+            autoTrackPollTimer = window.setInterval(fetchCapturedQuestData, AUTO_TRACK_POLL_INTERVAL);
+        }, 500);
+    };
+
+    // Start polling once quests are loaded
+    const originalRefreshAll = refreshAll;
+    refreshAll = async function (opts) {
+        await originalRefreshAll(opts);
+        if (state.questsLoaded) {
+            restoreCapturedFlags();
+            // Merge server-persisted active merchants (survives app restarts)
+            const serverAdded = await loadActiveMerchantsFromServer();
+            renderMerchantGallery();
+            renderMerchantOptions();
+            renderMerchantView();
+            if (serverAdded) {
+                console.log('[active-merchants] Loaded additional merchant IDs from server, total:', state.activeMerchantIds.size);
+            }
+            startAutoTrackPolling();
+        }
+    };
+
     window.addEventListener('questDataCleared', () => {
         state.progress = sanitizeProgressData(null);
         lastServerSyncPayload = '';
@@ -3135,7 +3977,18 @@
         } catch (error) {
             console.warn('Failed to clear quest progress storage', error);
         }
+        try {
+            window.localStorage?.removeItem(CAPTURED_FLAGS_KEY);
+        } catch (error) {
+            console.warn('Failed to clear captured flags storage', error);
+        }
+        merchantsWithTrackedData.clear();
+        state.activeMerchantIds.clear();
+        sendActiveMerchantsToServer();  // clear on server too
+        state.quests.forEach(q => { delete q.__capturedFlag; });
         if (state.questsLoaded) {
+            renderMerchantOptions();
+            renderMerchantGallery();
             renderMerchantView();
         }
         if (state.itemsLoaded) {
@@ -3144,6 +3997,9 @@
         syncProgressFromServer();
     });
     window.addEventListener('beforeunload', () => {
+        stopAutoTrackPolling();
+        saveCapturedFlags();
+        sendActiveMerchantsToServer({ keepalive: true });
         scheduleServerPersistProgress({ immediate: true });
     });
     refreshAll({ force: false });
