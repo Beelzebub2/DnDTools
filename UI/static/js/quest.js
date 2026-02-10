@@ -3307,13 +3307,14 @@
     function navigateToMerchant(merchantName) {
         if (!merchantName) return;
         // Remember scroll position so we can restore it when going back
-        galleryScrollY = window.scrollY || document.documentElement.scrollTop || 0;
+        const scrollContainer = document.querySelector('.content') || document.documentElement;
+        galleryScrollY = scrollContainer.scrollTop || 0;
         state.selectedMerchant = merchantName;
         if (elements.merchantSelect) {
             elements.merchantSelect.value = merchantName;
         }
         switchView('merchant');
-        window.scrollTo({ top: 0, behavior: 'instant' });
+        scrollContainer.scrollTop = 0;
         renderMerchantView();
         if (state.itemsLoaded) {
             renderItemsList();
@@ -3340,7 +3341,8 @@
                 switchView('gallery');
                 // Restore the scroll position the user was at in the gallery
                 requestAnimationFrame(() => {
-                    window.scrollTo({ top: galleryScrollY, behavior: 'instant' });
+                    const scrollContainer = document.querySelector('.content') || document.documentElement;
+                    scrollContainer.scrollTop = galleryScrollY;
                 });
             });
         }
@@ -3552,10 +3554,14 @@
             // Store the quest flag on the definition for UI display
             // 0=none, 1=progress (accepted), 2=success (ready), 3=complete, 4=locked, 5=available (not accepted)
             if (typeof questFlag === 'number') {
-                questDef.__capturedFlag = questFlag;
+                if (questDef.__capturedFlag !== questFlag) {
+                    questDef.__capturedFlag = questFlag;
+                    anyChanged = true;
+                }
                 // Track which merchants have live data for the gallery badge
-                if (questDef.merchant) {
+                if (questDef.merchant && !merchantsWithTrackedData.has(questDef.merchant)) {
                     merchantsWithTrackedData.add(questDef.merchant);
+                    anyChanged = true;
                 }
             }
 
@@ -3851,6 +3857,7 @@
     });
     window.addEventListener('beforeunload', () => {
         stopAutoTrackPolling();
+        saveCapturedFlags();
         scheduleServerPersistProgress({ immediate: true });
     });
     refreshAll({ force: false });
