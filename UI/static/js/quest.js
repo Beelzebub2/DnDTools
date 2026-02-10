@@ -1486,7 +1486,17 @@
             } else if (obj.type === 'Explore') {
                 titleText = `Explore ${obj.module || 'the objective area'}`;
             } else if (obj.type === 'Survive') {
-                titleText = obj.count === 1 ? 'Survive and extract' : `Survive ${obj.count || 0}× runs`;
+                // Match Survive objectives to quest dungeons by position
+                const dungeons = quest.dungeons || [];
+                const surviveIndex = (quest.objectives || [])
+                    .slice(0, originalIndex + 1)
+                    .filter(o => o.type === 'Survive').length - 1;
+                const dungeon = dungeons[surviveIndex] || dungeons[originalIndex];
+                if (dungeon) {
+                    titleText = `Survive in ${dungeon}`;
+                } else {
+                    titleText = 'Survive and extract';
+                }
             } else {
                 titleText = `${obj.type || 'Objective'} – ${obj.count || 0}`;
             }
