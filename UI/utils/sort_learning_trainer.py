@@ -10,8 +10,6 @@ from typing import Optional
 
 from src.models.sort_sync_service import SortSyncService
 
-logger = logging.getLogger(__name__)
-
 
 class SortLearningTrainer:
     """

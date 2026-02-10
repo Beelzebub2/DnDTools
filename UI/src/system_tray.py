@@ -1,14 +1,8 @@
 import logging
 import threading
 import webbrowser
-import sys
 from pathlib import Path
-from typing import Optional, Callable, Any, Union, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from PIL.Image import Image as PILImage
-else:
-    PILImage = Any
+from typing import Optional, Callable, Any, Union
 
 try:
     import pystray

@@ -20,7 +20,6 @@ Usage (inside main()):
 """
 
 import ctypes
-import ctypes.wintypes as wintypes
 import logging
 import sys
 import threading

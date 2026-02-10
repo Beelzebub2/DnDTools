@@ -1,7 +1,6 @@
 import ctypes
-from ctypes import wintypes
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir
 from src.models.settings import (
@@ -13,12 +12,9 @@ import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file, session
 import os
 import threading
-import asyncio
 from src.models.stash_manager import StashManager
 from src.models.sort_feedback import get_sort_feedback_manager
-from src.models.sort_learning import get_sort_learning_manager
 from src.models.sort_sync_service import SortSyncService
-from src.models.sort_feedback_sync import SortFeedbackSyncService  # backward compat alias
 import json
 import sys
 import multiprocessing
@@ -26,14 +22,11 @@ import logging
 import warnings
 import re
 from pathlib import Path
-from urllib.parse import urlparse
 from utils.logging_setup import setup_logging, set_logging_level
 import atexit
 import secrets
 import time
 import shutil
-import subprocess
-import tempfile
 from datetime import datetime
 from utils.sort_learning_trainer import SortLearningTrainer
 
