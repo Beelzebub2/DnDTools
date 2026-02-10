@@ -1921,12 +1921,12 @@ const renderInteractiveGrid = (stashId, items) => {
 };
 
 // --- Event delegation for grid tooltips (set up once per container) ---
-let _gridTooltipDelegationInstalled = false;
+const _gridTooltipContainers = new WeakSet();
 let _currentHoveredItem = null;
 
 function _ensureGridTooltipDelegation(container) {
-    if (_gridTooltipDelegationInstalled || !container) return;
-    _gridTooltipDelegationInstalled = true;
+    if (!container || _gridTooltipContainers.has(container)) return;
+    _gridTooltipContainers.add(container);
 
     container.addEventListener('mouseover', (e) => {
         const itemEl = e.target.closest('.stash-item');
