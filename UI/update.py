@@ -678,9 +678,18 @@ class UpdaterUI:
         # ── Window ────────────────────────────────────────────────────
         self.root = tk.Tk()
         self.root.title("DnDTools Updater")
-        self.root.geometry("540x340")
-        self.root.configure(bg=self.colors["bg"])
+        self.root.configure(bg=self.colors["panel_border"])
         self.root.resizable(False, False)
+        self.root.overrideredirect(True)  # frameless window
+
+        # Centre the window on the primary monitor
+        win_w, win_h = 540, 340
+        screen_w = self.root.winfo_screenwidth()
+        screen_h = self.root.winfo_screenheight()
+        x = (screen_w - win_w) // 2
+        y = (screen_h - win_h) // 2
+        self.root.geometry(f"{win_w}x{win_h}+{x}+{y}")
+
         self.root.attributes("-topmost", True)
         self.root.after(3000, lambda: self.root.attributes("-topmost", False))
 
@@ -689,22 +698,55 @@ class UpdaterUI:
         except Exception:
             pass
 
-        # ── Outer wrapper ─────────────────────────────────────────────
-        outer = tk.Frame(self.root, bg=self.colors["bg"])
+        # ── Drag-to-move state ────────────────────────────────────────
+        self._drag_x = 0
+        self._drag_y = 0
+
+        # ── Outer wrapper (1px border) ────────────────────────────────
+        outer = tk.Frame(self.root, bg=self.colors["panel_border"])
         outer.pack(fill=tk.BOTH, expand=True, padx=1, pady=1)
 
-        # Card frame
-        card = tk.Frame(
-            outer,
-            bg=self.colors["panel"],
-            highlightthickness=1,
-            highlightbackground=self.colors["panel_border"],
-            bd=0,
-        )
-        card.pack(expand=True, fill=tk.BOTH, padx=16, pady=16)
+        # Card frame (the visible window body)
+        card = tk.Frame(outer, bg=self.colors["panel"], bd=0)
+        card.pack(expand=True, fill=tk.BOTH)
 
-        # Accent strip at the top
-        tk.Frame(card, bg=self.colors["accent"], height=3, bd=0).pack(fill=tk.X, side=tk.TOP)
+        # ── Custom title bar ──────────────────────────────────────────
+        title_bar = tk.Frame(card, bg=self.colors["bg"], height=32, bd=0)
+        title_bar.pack(fill=tk.X, side=tk.TOP)
+        title_bar.pack_propagate(False)
+
+        # Drag bindings on the title bar
+        title_bar.bind("<ButtonPress-1>", self._on_drag_start)
+        title_bar.bind("<B1-Motion>", self._on_drag_motion)
+
+        title_bar_label = tk.Label(
+            title_bar,
+            text="  DnDTools Updater",
+            fg=self.colors["text_muted"],
+            bg=self.colors["bg"],
+            font=("Segoe UI", 9),
+            anchor="w",
+        )
+        title_bar_label.pack(side=tk.LEFT, fill=tk.Y, padx=(4, 0))
+        title_bar_label.bind("<ButtonPress-1>", self._on_drag_start)
+        title_bar_label.bind("<B1-Motion>", self._on_drag_motion)
+
+        # Close button (✕) on the right side of the title bar
+        self._close_btn = tk.Label(
+            title_bar,
+            text=" ✕ ",
+            fg=self.colors["text_muted"],
+            bg=self.colors["bg"],
+            font=("Segoe UI", 11),
+            cursor="hand2",
+        )
+        self._close_btn.pack(side=tk.RIGHT, padx=(0, 2))
+        self._close_btn.bind("<Enter>", lambda _e: self._close_btn.configure(fg=self.colors["error"], bg="#2a1515"))
+        self._close_btn.bind("<Leave>", lambda _e: self._close_btn.configure(fg=self.colors["text_muted"], bg=self.colors["bg"]))
+        self._close_btn.bind("<ButtonRelease-1>", lambda _e: self._on_close_attempt())
+
+        # Accent strip below the title bar
+        tk.Frame(card, bg=self.colors["accent"], height=2, bd=0).pack(fill=tk.X, side=tk.TOP)
 
         body = tk.Frame(card, bg=self.colors["panel"], bd=0)
         body.pack(fill=tk.BOTH, expand=True)
@@ -863,9 +905,38 @@ class UpdaterUI:
         return str(base_dir / "logo.ico")
 
     # ------------------------------------------------------------------
+    # Frameless window drag support
+    # ------------------------------------------------------------------
+    def _on_drag_start(self, event) -> None:
+        self._drag_x = event.x
+        self._drag_y = event.y
+
+    def _on_drag_motion(self, event) -> None:
+        x = self.root.winfo_x() + (event.x - self._drag_x)
+        y = self.root.winfo_y() + (event.y - self._drag_y)
+        self.root.geometry(f"+{x}+{y}")
+
+    # ------------------------------------------------------------------
     # Run / close
     # ------------------------------------------------------------------
     def run(self) -> None:
+        # Ensure the frameless window appears on the Windows taskbar.
+        # overrideredirect hides it by default; re-adding the WS_EX_APPWINDOW
+        # extended style forces the shell to show a taskbar button.
+        if sys.platform.startswith("win"):
+            try:
+                import ctypes
+                GWL_EXSTYLE = -20
+                WS_EX_APPWINDOW = 0x00040000
+                hwnd = int(self.root.frame(), 16)
+                style = ctypes.windll.user32.GetWindowLongW(hwnd, GWL_EXSTYLE)
+                ctypes.windll.user32.SetWindowLongW(hwnd, GWL_EXSTYLE, style | WS_EX_APPWINDOW)
+                # Toggle visibility so the shell picks up the new style
+                self.root.withdraw()
+                self.root.after(10, self.root.deiconify)
+            except Exception:
+                pass
+
         self.root.after(200, self._workflow_thread.start)
         self.root.after(100, self._process_queue)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close_attempt)
