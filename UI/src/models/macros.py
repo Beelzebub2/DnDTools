@@ -203,6 +203,8 @@ DOUBLE_CLICK_PROTECT_WINDOW = 0.18
 
 _last_drop_signature = None
 _last_drop_time = 0.0
+_last_pickup_signature = None
+_last_pickup_time = 0.0
 
 
 def move_mouse(x, y):
@@ -369,7 +371,7 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
     Adds random jitter and delay to mimic human input.
     Now uses smooth mouse movement with cancellation awareness.
     """
-    global _last_drop_signature, _last_drop_time
+    global _last_drop_signature, _last_drop_time, _last_pickup_signature, _last_pickup_time
 
     _ensure_not_cancelled()
     DELAY = max(0.0, get_sort_delay() or 0.0)
@@ -384,7 +386,7 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
 
         if no_delay_mode:
             floor = INSTANT_MODE_MIN_PAUSE if enforce_floor else (INSTANT_MODE_MIN_PAUSE * 0.5)
-            total = max(floor, base_delay + jitter_component)
+            total = floor
         else:
             total = max(0.0, base_delay + jitter_component)
 
@@ -430,6 +432,23 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
             no_delay=no_delay_mode,
         )
         maybe_sleep(DELAY, 0.07, enforce_floor=True)
+
+        # Protect against rapid consecutive pickups from the same slot or
+        # picking up from where we just dropped — the game may interpret
+        # this as a double-click / move action.
+        pickup_signature = (id(start_stash), int(getattr(start_pos, "x", 0)), int(getattr(start_pos, "y", 0)))
+        if no_delay_mode:
+            now_pickup = time.perf_counter()
+            same_pickup = (
+                _last_pickup_signature == pickup_signature
+                and (now_pickup - _last_pickup_time) < DOUBLE_CLICK_PROTECT_WINDOW
+            )
+            same_as_drop = (
+                _last_drop_signature == pickup_signature
+                and (now_pickup - _last_drop_time) < DOUBLE_CLICK_PROTECT_WINDOW
+            )
+            if same_pickup or same_as_drop:
+                _sleep_with_cancel(DOUBLE_CLICK_PROTECT_WINDOW)
 
         _ensure_not_cancelled()
         mouse_down()
@@ -489,6 +508,8 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
             logger.debug("Skipping reliability click to avoid double-click on %s", drop_signature)
             maybe_sleep(INSTANT_MODE_MIN_PAUSE, 0.005, enforce_floor=True)
 
+        _last_pickup_signature = pickup_signature
+        _last_pickup_time = now
         _last_drop_signature = drop_signature
         _last_drop_time = now
     finally:
