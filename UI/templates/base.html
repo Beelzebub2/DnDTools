@@ -5,12 +5,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dark and Darker Stash Organizer</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar-indicator.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/utils.css') }}">
     {% block head %}{% endblock %}
+    <!-- Hide loading overlay on tab switches (only show on very first app launch) -->
+    <script>
+        if (sessionStorage.getItem('dnd-app-loaded')) {
+            document.documentElement.classList.add('app-loaded');
+        }
+    </script>
     <style>
+        /* Skip loading overlay when navigating between tabs */
+        html.app-loaded .app-loading-overlay {
+            display: none !important;
+        }
+
         /* Global scrollbar styling */
         ::-webkit-scrollbar {
             width: 10px;
@@ -23,6 +35,49 @@
             font-weight: 400;
             letter-spacing: 0.4px;
             opacity: 0.85;
+        }
+
+        /* App loading screen — shown until page is fully ready */
+        .app-loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            background: #0b0b0b;
+            transition: opacity 0.35s ease;
+        }
+
+        .app-loading-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .app-loading-spinner {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 3px solid rgba(207, 163, 70, 0.15);
+            border-top-color: #cfa346;
+            animation: appLoadSpin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        }
+
+        .app-loading-text {
+            color: rgba(207, 163, 70, 0.7);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        @keyframes appLoadSpin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         ::-webkit-scrollbar-track {
@@ -45,15 +100,12 @@
 
         /* Animation and transition styles */
         body {
-            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body.animating {
-            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            filter: blur(8px) brightness(0.7);
-            opacity: 0.9;
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.7;
         }
 
         /* Add smooth page transitions */
@@ -299,7 +351,7 @@
             border-radius: 8px;
             margin: 0 0.5rem 0.25rem 0.5rem;
             position: relative;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
         }
 
@@ -429,11 +481,6 @@
             -webkit-transform: translateZ(0);
         }
 
-        /* Ensure notifications appear on top */
-        .notification {
-            z-index: 20000;
-        }
-
         .closing-overlay {
             position: fixed;
             inset: 0;
@@ -545,6 +592,11 @@
 </head>
 
 <body>
+    <!-- Loading screen — hidden once page is ready -->
+    <div id="app-loading" class="app-loading-overlay">
+        <div class="app-loading-spinner"></div>
+        <div class="app-loading-text">Loading</div>
+    </div>
     <!-- Title bar -->
     <div class="titlebar">
         <div class="titlebar-title pywebview-drag-region">
@@ -670,8 +722,31 @@
         <div class="closing-overlay-message">Closing application...</div>
         <div id="closing-overlay-status" class="closing-overlay-status"></div>
     </div>
-    <!-- Global modals and notifications -->
-    <div id="notifications-container"></div> <!-- Global scripts -->
+    <!-- Unified notification container (managed by app.js) -->
+    <div id="notifications-container"></div>
+    <!-- Dismiss loading overlay once page is fully ready -->
+    <script>
+        (function () {
+            var overlay = document.getElementById('app-loading');
+            if (!overlay) return;
+            function dismiss() {
+                // Mark app as loaded so subsequent tab switches skip the overlay
+                try { sessionStorage.setItem('dnd-app-loaded', '1'); } catch (e) { /* ignore */ }
+                overlay.classList.add('fade-out');
+                overlay.addEventListener('transitionend', function () {
+                    overlay.remove();
+                }, { once: true });
+                // Safety fallback — remove even if transitionend doesn't fire
+                setTimeout(function () { if (overlay.parentNode) overlay.remove(); }, 500);
+            }
+            if (document.readyState === 'complete') {
+                dismiss();
+            } else {
+                window.addEventListener('load', dismiss);
+            }
+        })();
+    </script>
+    <!-- Global scripts -->
     <script>
         // Global variables for unsaved changes tracking
         window.hasUnsavedChanges = false;
@@ -692,25 +767,6 @@
                     link.classList.add('active');
                 }
             });
-
-            // Add smooth hover animations
-            navLinks.forEach(link => {
-                if (!link.classList.contains('disabled')) {
-                    link.addEventListener('mouseenter', function () {
-                        this.style.transform = 'translateX(6px)';
-                    });
-
-                    link.addEventListener('mouseleave', function () {
-                        this.style.transform = this.classList.contains('active') ? 'translateX(2px)' : 'translateX(0)';
-                    });
-                }
-            });
-
-            // Set active link position
-            const activeLink = document.querySelector('.nav-link.active');
-            if (activeLink) {
-                activeLink.style.transform = 'translateX(2px)';
-            }
         });
 
         // Create modal for unsaved changes prompt
@@ -1069,12 +1125,12 @@
             }
         }
 
-        // Check developer mode on load and every 2 seconds
+        // Check developer mode on load and periodically
         document.addEventListener('DOMContentLoaded', updateDeveloperModeLink);
-        setInterval(updateDeveloperModeLink, 2000);
+        setInterval(updateDeveloperModeLink, 30000);
     </script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/window_state.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     {% block scripts %}{% endblock %}

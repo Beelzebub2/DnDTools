@@ -93,6 +93,8 @@ let isStackMode = false;
 let stackModeToggle = null;
 const SORT_CANCEL_NOTIFICATION_ID = 'character-sort-cancelled';
 const SORT_CANCEL_MESSAGE = "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+const SORT_SUCCESS_NOTIFICATION_ID = 'character-sort-success';
+const SORT_SUCCESS_MESSAGE = "Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
 
 const rarityRankMap = {
     'none': 0,
@@ -437,10 +439,8 @@ function scheduleViewportScroll(target, options) {
     if (!target) {
         return;
     }
-    console.log('[SCROLL DEBUG] scheduleViewportScroll called for:', target, options);
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            console.log('[SCROLL DEBUG] Executing scrollViewportToElement');
             scrollViewportToElement(target, options);
         });
     });
@@ -471,19 +471,15 @@ function resolveFocusContainer(element) {
 }
 
 function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', scrollContainer: explicitContainer } = {}) {
-    console.log('[SCROLL DEBUG] scrollViewportToElement called for:', element, 'margin:', margin);
     if (typeof window === 'undefined' || !element || typeof element.getBoundingClientRect !== 'function') {
-        console.log('[SCROLL DEBUG] Early return - window or element invalid');
         return;
     }
 
     const docRef = typeof document !== 'undefined' ? document : null;
     const scrollContainer = explicitContainer || getPrimaryScrollContainer();
     const isElementContainer = !!(scrollContainer && scrollContainer.nodeType === 1 && scrollContainer !== docRef?.documentElement && scrollContainer !== docRef?.body && scrollContainer !== docRef?.scrollingElement);
-    console.log('[SCROLL DEBUG] Using scroll container:', scrollContainer, 'isElementContainer:', isElementContainer);
 
     const rect = element.getBoundingClientRect();
-    console.log('[SCROLL DEBUG] Element rect:', rect);
 
     let viewportHeight = window.innerHeight;
     let currentScroll = window.pageYOffset;
@@ -522,12 +518,10 @@ function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', s
     }
 
     const scrollOptions = { top: targetTop, behavior };
-    console.log('[SCROLL DEBUG] Calculated targetTop:', targetTop, 'scrollOptions:', scrollOptions);
 
     let scrolled = false;
 
     if (isElementContainer && scrollContainer) {
-        console.log('[SCROLL DEBUG] Attempting scroll on element container');
         try {
             if (typeof scrollContainer.scrollTo === 'function') {
                 scrollContainer.scrollTo(scrollOptions);
@@ -535,32 +529,26 @@ function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', s
                 scrollContainer.scrollTop = targetTop;
             }
             scrolled = true;
-            console.log('[SCROLL DEBUG] Element container scroll succeeded');
         } catch (err) {
-            console.log('[SCROLL DEBUG] Element container scroll failed:', err);
+            // scroll failed on element container
         }
     }
 
     if (!scrolled && typeof window.scrollTo === 'function') {
-        console.log('[SCROLL DEBUG] Attempting window.scrollTo');
         try {
             window.scrollTo(scrollOptions);
             scrolled = true;
-            console.log('[SCROLL DEBUG] window.scrollTo succeeded');
         } catch (err) {
-            console.log('[SCROLL DEBUG] window.scrollTo failed, trying legacy:', err);
             try {
                 window.scrollTo(0, targetTop);
                 scrolled = true;
-                console.log('[SCROLL DEBUG] Legacy window.scrollTo succeeded');
             } catch (fallbackError) {
-                console.log('[SCROLL DEBUG] Legacy window.scrollTo also failed:', fallbackError);
+                // legacy scroll also failed
             }
         }
     }
 
     if (!scrolled && scrollContainer && !isElementContainer) {
-        console.log('[SCROLL DEBUG] Attempting scroll on fallback container:', scrollContainer);
         try {
             if (typeof scrollContainer.scrollTo === 'function') {
                 scrollContainer.scrollTo(scrollOptions);
@@ -568,18 +556,14 @@ function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', s
                 scrollContainer.scrollTop = targetTop;
             }
             scrolled = true;
-            console.log('[SCROLL DEBUG] Fallback container scroll succeeded');
         } catch (err) {
-            console.log('[SCROLL DEBUG] Fallback container scroll failed:', err);
+            // fallback container scroll failed
         }
     }
 
     if (!scrolled && docRef && docRef.body) {
-        console.log('[SCROLL DEBUG] Final fallback: setting body.scrollTop');
         docRef.body.scrollTop = targetTop;
     }
-
-    console.log('[SCROLL DEBUG] scrollViewportToElement completed, scrolled:', scrolled);
 }
 
 function ensureHighlightedItemsVisible(highlightedElements) {
@@ -651,21 +635,16 @@ function ensureHighlightedItemsVisible(highlightedElements) {
 }
 
 function focusStashIfRequested(sourceElement, highlightedElements = []) {
-    console.log('[SCROLL DEBUG] focusStashIfRequested called, sourceElement:', sourceElement, 'containerFocus:', pendingContainerFocus, 'itemFocus:', pendingItemFocus, 'highlightedElements:', highlightedElements.length);
     if (!sourceElement || (!pendingContainerFocus && !pendingItemFocus)) {
-        console.log('[SCROLL DEBUG] Early return - no source or no pending focus');
         return;
     }
 
     const hasHighlights = Array.isArray(highlightedElements) && highlightedElements.length;
     const primaryHighlight = hasHighlights ? highlightedElements.find(el => el && el.isConnected) : null;
-    console.log('[SCROLL DEBUG] hasHighlights:', hasHighlights, 'primaryHighlight:', primaryHighlight);
 
     const containerTarget = resolveFocusContainer(primaryHighlight || sourceElement);
-    console.log('[SCROLL DEBUG] containerTarget:', containerTarget);
 
     if (pendingItemFocus && primaryHighlight) {
-        console.log('[SCROLL DEBUG] Item focus path - scrolling to highlighted item only');
         ensureHighlightedItemsVisible(highlightedElements);
         scheduleViewportScroll(primaryHighlight, { margin: 160 });
         pendingItemFocus = false;
@@ -674,11 +653,9 @@ function focusStashIfRequested(sourceElement, highlightedElements = []) {
     }
 
     if (pendingContainerFocus && containerTarget) {
-        console.log('[SCROLL DEBUG] Container focus path - calling scheduleViewportScroll');
         scheduleViewportScroll(containerTarget, { margin: 220 });
         pendingContainerFocus = false;
     }
-    console.log('[SCROLL DEBUG] focusStashIfRequested completed');
 }
 
 let pendingHighlightRequest = null;
@@ -848,6 +825,21 @@ function showSortCancelNotification() {
 function dismissSortCancelNotification() {
     if (typeof window.dismissNotification === 'function') {
         window.dismissNotification(SORT_CANCEL_NOTIFICATION_ID);
+    }
+}
+
+function showSortSuccessNotification() {
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(SORT_SUCCESS_MESSAGE, 'info', {
+            id: SORT_SUCCESS_NOTIFICATION_ID,
+            persistent: true
+        });
+    }
+}
+
+function dismissSortSuccessNotification() {
+    if (typeof window.dismissNotification === 'function') {
+        window.dismissNotification(SORT_SUCCESS_NOTIFICATION_ID);
     }
 }
 
@@ -2348,7 +2340,13 @@ const triggerSort = async () => {
 
         if (result.success) {
             await loadStashes();
-            window.showNotification('Stash sorted successfully', 'success');
+            showSortSuccessNotification();
+            // Turn off sort preview after successful sort
+            if (isPreviewMode) {
+                isPreviewMode = false;
+                updatePreviewToggleUI();
+                refreshCurrentStashView();
+            }
         } else {
             const errorMessage = result.error || 'Failed to sort stash. The stash might be full.';
             if (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes('cancel')) {
@@ -2665,122 +2663,7 @@ const loadStashes = async () => {
     }
 };
 
-// Function to show notification
-if (typeof window.showNotification !== 'function') {
-    const fallbackNotifications = new Map();
-
-    const fallbackRemove = (id, element) => {
-        if (!element) {
-            return;
-        }
-        element.classList.add('fade-out');
-        setTimeout(() => {
-            if (element.parentNode) {
-                element.parentNode.removeChild(element);
-            }
-            if (id && fallbackNotifications.has(id)) {
-                const stored = fallbackNotifications.get(id);
-                if (stored && stored.element === element) {
-                    fallbackNotifications.delete(id);
-                }
-            }
-        }, 300);
-    };
-
-    const fallbackScheduleRemove = (id, element, duration) => {
-        const safeDuration = Number.isFinite(duration) && duration >= 0 ? duration : 3000;
-        return setTimeout(() => fallbackRemove(id, element), safeDuration);
-    };
-
-    window.showNotification = function (message, type = 'info', options = {}) {
-        if (typeof type === 'object' && type !== null) {
-            options = type;
-            type = options.type || 'info';
-        }
-
-        const { id = null, persistent = false, duration = 3000 } = options || {};
-
-        if (id && fallbackNotifications.has(id)) {
-            const existing = fallbackNotifications.get(id);
-            if (existing.timeout) {
-                clearTimeout(existing.timeout);
-                existing.timeout = null;
-            }
-
-            existing.element.textContent = message;
-            existing.element.className = `notification ${type}`;
-            existing.element.dataset.notificationType = type;
-            existing.element.dataset.persistent = persistent ? '1' : '0';
-            existing.element.classList.toggle('persistent', persistent);
-            existing.element.setAttribute('role', 'alert');
-            existing.element.setAttribute('aria-live', 'assertive');
-            existing.element.setAttribute('aria-atomic', 'true');
-            existing.element.classList.remove('fade-out');
-            existing.element.style.animation = 'none';
-            void existing.element.offsetWidth;
-            existing.element.style.animation = '';
-
-            if (!persistent) {
-                existing.timeout = fallbackScheduleRemove(id, existing.element, duration);
-            }
-
-            existing.persistent = persistent;
-            return { id, dismiss: () => window.dismissNotification && window.dismissNotification(id) };
-        }
-
-        const container = document.createElement('div');
-        container.className = `notification ${type}`;
-        container.textContent = message;
-
-        container.style.position = 'fixed';
-        container.style.top = '60px';
-        container.style.right = '24px';
-        container.style.zIndex = '9999';
-        container.dataset.notificationType = type;
-        container.dataset.persistent = persistent ? '1' : '0';
-        container.classList.toggle('persistent', persistent);
-        container.setAttribute('role', 'alert');
-        container.setAttribute('aria-live', 'assertive');
-        container.setAttribute('aria-atomic', 'true');
-
-        if (id) {
-            container.dataset.notificationId = id;
-        }
-
-        document.body.appendChild(container);
-
-        let timeout = null;
-        if (!persistent) {
-            timeout = fallbackScheduleRemove(id, container, duration);
-        }
-
-        if (id) {
-            fallbackNotifications.set(id, {
-                element: container,
-                timeout,
-                persistent
-            });
-        }
-
-        return { id, dismiss: () => window.dismissNotification && window.dismissNotification(id) };
-    };
-
-    if (typeof window.dismissNotification !== 'function') {
-        window.dismissNotification = function (id) {
-            if (!id || !fallbackNotifications.has(id)) {
-                return false;
-            }
-
-            const entry = fallbackNotifications.get(id);
-            if (entry.timeout) {
-                clearTimeout(entry.timeout);
-            }
-
-            fallbackRemove(id, entry.element);
-            return true;
-        };
-    }
-}
+// Notification system is now unified in app.js — no fallback needed here.
 
 // Keep a lightweight in-app escape hatch. Global hotkeys are managed natively by the desktop layer,
 // so we only watch for ESC while a sort is running to provide immediate visual feedback.
@@ -2815,6 +2698,12 @@ window.addEventListener('sortingStarted', () => {
 
 window.addEventListener('sortingEnded', () => {
     setSortingState(false);
+    // Turn off sort preview after sort ends to avoid confusing the user
+    if (isPreviewMode) {
+        isPreviewMode = false;
+        updatePreviewToggleUI();
+        refreshCurrentStashView();
+    }
 });
 
 // Add update handler for character data
@@ -2822,6 +2711,7 @@ window.updateCharacterData = async () => {
     await updateCharacterInfo(charId);
     await loadStashes();
     dismissSortCancelNotification();
+    dismissSortSuccessNotification();
 };
 
 // Character capture animation function (placeholder for character page)

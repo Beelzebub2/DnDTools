@@ -69,57 +69,8 @@ function handleApiError(error, element = null, customMessage = null) {
     }
 }
 
-/**
- * Show notification to user
- * @param {string} message - Message to display
- * @param {string} type - Type of notification ('success', 'error', 'info', 'warning')
- * @param {number} duration - Duration in milliseconds (default: 5000)
- */
-function showNotification(message, type = 'info', duration = 5000) {
-    // Get or create notification container
-    let container = document.getElementById('notifications-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'notifications-container';
-        document.body.appendChild(container);
-    }
-
-    const notification = document.createElement('div');
-    notification.className = `app-notification notification-${type}`;
-
-    const iconMap = {
-        'success': 'check_circle',
-        'error': 'error',
-        'warning': 'warning',
-        'info': 'info'
-    };
-
-    notification.innerHTML = `
-        <span class="material-icons">${iconMap[type] || 'info'}</span>
-        <span class="notification-message">${message}</span>
-        <button class="notification-close">
-            <span class="material-icons">close</span>
-        </button>
-    `;
-
-    container.appendChild(notification);
-
-    const close = () => {
-        if (notification.parentElement) {
-            notification.style.animation = 'slideOutRight 0.3s ease-in forwards';
-            notification.addEventListener('animationend', () => {
-                if (notification.parentElement) {
-                    notification.remove();
-                }
-            });
-        }
-    };
-
-    notification.querySelector('.notification-close').addEventListener('click', close);
-
-    // Auto-remove after duration
-    setTimeout(close, duration);
-}
+// showNotification is provided globally by app.js (loaded before this file).
+// Do NOT redeclare it here — a function declaration would overwrite window.showNotification.
 
 /**
  * Format number values consistently
@@ -189,9 +140,13 @@ function isValidJSON(str) {
  * @returns {string} HTML-escaped string
  */
 function escapeHtml(unsafe) {
-    const div = document.createElement('div');
-    div.textContent = unsafe;
-    return div.innerHTML;
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 /**
@@ -232,7 +187,7 @@ if (typeof module !== 'undefined' && module.exports) {
         formatDate,
         formatDateTime,
         handleApiError,
-        showNotification,
+        showNotification: typeof window !== 'undefined' ? window.showNotification : function () { },
         formatNumber,
         setLoading,
         debounce,

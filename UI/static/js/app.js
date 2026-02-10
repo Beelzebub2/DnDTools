@@ -21,131 +21,175 @@ function handleApiError(error, element) {
     }
 }
 
-const activeNotifications = new Map();
 const GLOBAL_SORT_CANCEL_NOTIFICATION_ID = 'character-sort-cancelled';
 const GLOBAL_SORT_CANCEL_MESSAGE = 'Sort canceled. Refresh your character data. If switching tabs doesn\'t update, move any item in the stash and switch tabs again.';
+const GLOBAL_SORT_SUCCESS_NOTIFICATION_ID = 'character-sort-success';
+const GLOBAL_SORT_SUCCESS_MESSAGE = 'Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn\'t update, move any item in the stash and switch tabs again.';
 
-function removeNotificationElement(id, element) {
-    if (!element) {
-        return;
+// ===== Unified Notification System =====
+// Single global notification manager. Supports stacking, ids, persistent, close button, timer bar.
+(function () {
+    const registry = new Map();
+    const MAX_VISIBLE = 5;
+
+    function getContainer() {
+        let c = document.getElementById('notifications-container');
+        if (!c) {
+            c = document.createElement('div');
+            c.id = 'notifications-container';
+            document.body.appendChild(c);
+        }
+        return c;
     }
 
-    element.classList.add('fade-out');
-    setTimeout(() => {
-        if (element.parentNode) {
-            element.parentNode.removeChild(element);
-        }
-        if (id && activeNotifications.has(id)) {
-            const stored = activeNotifications.get(id);
-            if (stored && stored.element === element) {
-                activeNotifications.delete(id);
+    function removeElement(id, el) {
+        if (!el) return;
+        if (el.classList.contains('notification-exit')) return;
+        el.classList.add('notification-exit');
+        const onDone = () => {
+            el.removeEventListener('animationend', onDone);
+            if (el.parentNode) el.parentNode.removeChild(el);
+            if (id && registry.has(id)) {
+                const stored = registry.get(id);
+                if (stored && stored.element === el) registry.delete(id);
             }
-        }
-    }, 300);
-}
-
-function scheduleAutoDismiss(id, element, duration) {
-    const safeDuration = Number.isFinite(duration) && duration >= 0 ? duration : 3000;
-    return setTimeout(() => {
-        removeNotificationElement(id, element);
-    }, safeDuration);
-}
-
-// Global notification function
-function showNotification(message, type = 'error', options = {}) {
-    if (typeof type === 'object' && type !== null) {
-        options = type;
-        type = options.type || 'error';
+            pruneOverflow();
+        };
+        el.addEventListener('animationend', onDone);
+        // Safety net if animation doesn't fire
+        setTimeout(onDone, 350);
     }
 
-    const { id = null, persistent = false, duration = 3000 } = options || {};
+    function pruneOverflow() {
+        const container = getContainer();
+        const children = Array.from(container.querySelectorAll('.notification:not(.notification-exit)'));
+        while (children.length > MAX_VISIBLE) {
+            const oldest = children.shift();
+            const oldId = oldest.dataset.notificationId || null;
+            const entry = oldId && registry.get(oldId);
+            if (entry && entry.timeout) clearTimeout(entry.timeout);
+            removeElement(oldId, oldest);
+        }
+    }
 
-    if (id && activeNotifications.has(id)) {
-        const existing = activeNotifications.get(id);
-        if (existing && existing.element) {
-            if (existing.timeout) {
-                clearTimeout(existing.timeout);
-                existing.timeout = null;
-            }
+    function scheduleAutoDismiss(id, el, duration) {
+        const ms = Number.isFinite(duration) && duration >= 0 ? duration : 3500;
+        // Add a shrinking timer bar
+        const bar = el.querySelector('.notification-timer');
+        if (bar) {
+            bar.style.animation = `notifTimerShrink ${ms}ms linear forwards`;
+        }
+        return setTimeout(() => removeElement(id, el), ms);
+    }
 
-            existing.element.textContent = message;
-            existing.element.className = `notification ${type}`;
-            existing.element.dataset.notificationType = type;
-            existing.element.dataset.persistent = persistent ? '1' : '0';
-            existing.element.classList.toggle('persistent', persistent);
-            existing.element.setAttribute('role', 'alert');
-            existing.element.setAttribute('aria-live', 'assertive');
-            existing.element.setAttribute('aria-atomic', 'true');
-            existing.element.classList.remove('fade-out');
-            existing.element.style.animation = 'none';
-            // Force reflow to restart animation
-            void existing.element.offsetWidth;
-            existing.element.style.animation = '';
+    function buildNotificationEl(message, type, id, persistent) {
+        const el = document.createElement('div');
+        el.className = `notification ${type}`;
+        el.setAttribute('role', 'alert');
+        el.setAttribute('aria-live', 'assertive');
+        el.setAttribute('aria-atomic', 'true');
+        if (id) el.dataset.notificationId = id;
 
-            if (!persistent) {
-                existing.timeout = scheduleAutoDismiss(id, existing.element, duration);
-            }
+        // Text node
+        const textSpan = document.createElement('span');
+        textSpan.className = 'notification-text';
+        textSpan.textContent = message;
+        el.appendChild(textSpan);
 
-            existing.persistent = persistent;
+        // Close button
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'notification-close';
+        closeBtn.setAttribute('aria-label', 'Dismiss');
+        closeBtn.innerHTML = '<span class="material-icons">close</span>';
+        closeBtn.addEventListener('click', () => {
+            const entry = id && registry.get(id);
+            if (entry && entry.timeout) clearTimeout(entry.timeout);
+            removeElement(id, el);
+        });
+        el.appendChild(closeBtn);
+
+        // Timer bar (hidden for persistent)
+        if (!persistent) {
+            const timer = document.createElement('div');
+            timer.className = 'notification-timer';
+            el.appendChild(timer);
         }
 
+        return el;
+    }
+
+    function showNotification(message, type, options) {
+        // Handle overloaded signatures:
+        //   showNotification(msg, type)
+        //   showNotification(msg, {type, ...})
+        //   showNotification(msg, type, {id, persistent, duration})
+        if (typeof type === 'object' && type !== null) {
+            options = type;
+            type = options.type || 'info';
+        }
+        type = type || 'info';
+        const opts = options && typeof options === 'object' ? options : {};
+        const id = opts.id || null;
+        const persistent = Boolean(opts.persistent);
+        const duration = opts.duration != null ? opts.duration : 3500;
+
+        // If an id already exists, update in place
+        if (id && registry.has(id)) {
+            const existing = registry.get(id);
+            if (existing && existing.element) {
+                if (existing.timeout) { clearTimeout(existing.timeout); existing.timeout = null; }
+                const el = existing.element;
+                const textEl = el.querySelector('.notification-text');
+                if (textEl) textEl.textContent = message;
+                el.className = `notification ${type}`;
+                el.classList.remove('notification-exit');
+                // Restart entrance animation
+                el.style.animation = 'none';
+                void el.offsetWidth;
+                el.style.animation = '';
+                // Rebuild timer bar if needed
+                const oldBar = el.querySelector('.notification-timer');
+                if (oldBar) oldBar.remove();
+                if (!persistent) {
+                    const timer = document.createElement('div');
+                    timer.className = 'notification-timer';
+                    el.appendChild(timer);
+                    existing.timeout = scheduleAutoDismiss(id, el, duration);
+                }
+                existing.persistent = persistent;
+                return { id, dismiss: () => dismissNotification(id) };
+            }
+        }
+
+        const container = getContainer();
+        const el = buildNotificationEl(message, type, id, persistent);
+        container.appendChild(el);
+
+        let timeout = null;
+        if (!persistent) {
+            timeout = scheduleAutoDismiss(id, el, duration);
+        }
+
+        if (id) {
+            registry.set(id, { element: el, timeout, persistent });
+        }
+
+        pruneOverflow();
         return { id, dismiss: () => dismissNotification(id) };
     }
 
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    notification.dataset.notificationType = type;
-    notification.dataset.persistent = persistent ? '1' : '0';
-    notification.classList.toggle('persistent', persistent);
-    notification.setAttribute('role', 'alert');
-    notification.setAttribute('aria-live', 'assertive');
-    notification.setAttribute('aria-atomic', 'true');
-
-    // Add inline styling to position the notification below the topbar
-    notification.style.position = 'fixed';
-    notification.style.top = '60px';
-    notification.style.right = '24px';
-    notification.style.zIndex = '9999';
-
-    if (id) {
-        notification.dataset.notificationId = id;
+    function dismissNotification(id) {
+        if (!id || !registry.has(id)) return false;
+        const entry = registry.get(id);
+        if (entry.timeout) clearTimeout(entry.timeout);
+        removeElement(id, entry.element);
+        return true;
     }
 
-    document.body.appendChild(notification);
-
-    let timeout = null;
-    if (!persistent) {
-        timeout = scheduleAutoDismiss(id, notification, duration);
-    }
-
-    if (id) {
-        activeNotifications.set(id, {
-            element: notification,
-            timeout,
-            persistent
-        });
-    }
-
-    return { id, dismiss: () => dismissNotification(id) };
-}
-
-function dismissNotification(id) {
-    if (!id || !activeNotifications.has(id)) {
-        return false;
-    }
-
-    const entry = activeNotifications.get(id);
-    if (entry.timeout) {
-        clearTimeout(entry.timeout);
-    }
-
-    removeNotificationElement(id, entry.element);
-    return true;
-}
-
-window.dismissNotification = dismissNotification;
-window.showNotification = showNotification;
+    // Expose globally
+    window.showNotification = showNotification;
+    window.dismissNotification = dismissNotification;
+})();
 
 (function () {
     const BANNER_ID = 'asset-update-banner';
@@ -292,6 +336,22 @@ window.addEventListener('sortCancelled', (event) => {
         });
     } catch (err) {
         console.error('Failed to display sort cancellation notification', err);
+    }
+});
+
+window.addEventListener('sortCompleted', (event) => {
+    try {
+        const detail = event && typeof event.detail === 'object' ? event.detail : null;
+        const message = detail && typeof detail.message === 'string' && detail.message.trim()
+            ? detail.message
+            : GLOBAL_SORT_SUCCESS_MESSAGE;
+
+        showNotification(message, 'info', {
+            id: GLOBAL_SORT_SUCCESS_NOTIFICATION_ID,
+            persistent: true
+        });
+    } catch (err) {
+        console.error('Failed to display sort completion notification', err);
     }
 });
 

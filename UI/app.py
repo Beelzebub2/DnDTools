@@ -1,7 +1,6 @@
 import ctypes
-from ctypes import wintypes
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir
 from src.models.settings import (
@@ -13,26 +12,21 @@ import webview
 from flask import Flask, render_template, jsonify, request, send_from_directory, redirect, url_for, send_file, session
 import os
 import threading
-import asyncio
 from src.models.stash_manager import StashManager
 from src.models.sort_feedback import get_sort_feedback_manager
-from src.models.sort_learning import get_sort_learning_manager
 from src.models.sort_sync_service import SortSyncService
-from src.models.sort_feedback_sync import SortFeedbackSyncService  # backward compat alias
 import json
 import sys
 import multiprocessing
 import logging
+import warnings
 import re
 from pathlib import Path
-from urllib.parse import urlparse
 from utils.logging_setup import setup_logging, set_logging_level
 import atexit
 import secrets
 import time
 import shutil
-import subprocess
-import tempfile
 from datetime import datetime
 from utils.sort_learning_trainer import SortLearningTrainer
 
@@ -56,7 +50,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.7.3"
+APP_VERSION = "3.7.5"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -65,6 +59,9 @@ UPDATE_CACHE_DURATION = 5 * 60
 AUTO_UPDATE_SILENT = os.environ.get("DND_UPDATE_SILENT", "1").lower() not in {"0", "false", "no", "off"}
 SORT_CANCEL_NOTIFICATION_MESSAGE = (
     "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again."
+)
+SORT_SUCCESS_NOTIFICATION_MESSAGE = (
+    "Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again."
 )
 
 GAME_PROCESS_NAMES = (
@@ -103,6 +100,30 @@ class GameWindowState:
     window_found: bool
     window_title: Optional[str]
     window_visible: bool
+    window_focused: bool
+    window_rect: Optional[Tuple[int, int, int, int]]
+
+    def to_log_dict(self) -> Dict[str, object]:
+        rect_payload: Optional[Dict[str, int]] = None
+        if self.window_rect:
+            left, top, right, bottom = self.window_rect
+            rect_payload = {
+                "left": left,
+                "top": top,
+                "right": right,
+                "bottom": bottom,
+                "width": right - left,
+                "height": bottom - top,
+            }
+
+        return {
+            "game_running": self.game_running,
+            "window_found": self.window_found,
+            "window_title": self.window_title,
+            "window_visible": self.window_visible,
+            "window_focused": self.window_focused,
+            "window_rect": rect_payload,
+        }
 
 
 def _hwnd_to_int(raw) -> Optional[int]:
@@ -129,30 +150,6 @@ def _hwnd_to_int(raw) -> Optional[int]:
         return int(raw)
     except Exception:
         return None
-    window_focused: bool
-    window_rect: Optional[Tuple[int, int, int, int]]
-
-    def to_log_dict(self) -> Dict[str, object]:
-        rect_payload: Optional[Dict[str, int]] = None
-        if self.window_rect:
-            left, top, right, bottom = self.window_rect
-            rect_payload = {
-                "left": left,
-                "top": top,
-                "right": right,
-                "bottom": bottom,
-                "width": right - left,
-                "height": bottom - top,
-            }
-
-        return {
-            "game_running": self.game_running,
-            "window_found": self.window_found,
-            "window_title": self.window_title,
-            "window_visible": self.window_visible,
-            "window_focused": self.window_focused,
-            "window_rect": rect_payload,
-        }
 
 
 
@@ -207,83 +204,115 @@ def _clear_character_storage() -> dict[str, object]:
         'reload_failed': reload_failed,
     }
 
-# Initialize logging first
-# Check developer mode from settings before initializing logging
-try:
-    dev_mode = settings_manager.get('developerMode', False)
-    initial_level = logging.INFO if dev_mode else logging.WARNING
-except Exception:
-    initial_level = logging.WARNING
+# ── Guard: skip heavy initialization in multiprocessing child processes ──
+# On Windows, multiprocessing.spawn re-imports the __main__ module (app.py)
+# in every child process.  The child processes (GameWindowWatcher, tshark
+# cleanup) are self-contained and don't need Flask, StashManager, QuestService,
+# etc.  Skip all of that work to avoid ~5 seconds of wasted init per child.
+_is_child_process = multiprocessing.parent_process() is not None
 
-setup_logging(initial_level)
-register_overlay_logging()
-logger = logging.getLogger(__name__)
-settings_manager.set_logger(logger)
+if _is_child_process:
+    # Provide minimal stubs so the module finishes importing without error.
+    # _NullServer absorbs @server.route() decorators and any other Flask
+    # calls so the rest of the module can be parsed without crashing.
+    class _NullServer:
+        """No-op stand-in for Flask when running inside a multiprocessing child."""
+        def route(self, *a, **kw):
+            return lambda fn: fn
+        def context_processor(self, fn):
+            return fn
+        def __getattr__(self, name):
+            return lambda *a, **kw: None
 
-# Deferred: update_manager is created in _init_api() to avoid
-# importing the heavy ``update`` module (requests + psutil) at load time.
-update_manager = None
-
-# Migrate data files to new structure
-try:
-    migrate_data_files()
-except Exception as e:
-    logger.error(f"Failed to migrate data files: {e}")
-
-quest_service = QuestService(logger)
-CHARACTER_STORAGE_PROTECTED_FILES = set(quest_service.protected_filenames)
-
-# Load environment variables (deferred import of dotenv)
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
-
-# Determine base directory for resources
-app_dir = resource_path('')
-logger.info(f"Base directory: {app_dir}")
-
-# Debug: Print and check template folder
-template_folder_path = get_templates_dir()
-logger.info(f"Template folder resolved to: {template_folder_path}")
-if not os.path.exists(template_folder_path):
-    logger.error(f"Template folder does not exist: {template_folder_path}")
+    logger = logging.getLogger(__name__)
+    server = _NullServer()
+    stash_manager = None
+    quest_service = None
+    update_manager = None
+    api = None
+    asset_updater = None
+    app_dir = ''
+    template_folder_path = ''
+    _cache = {}
+    CHARACTER_STORAGE_PROTECTED_FILES = set()
 else:
-    if not os.path.exists(os.path.join(template_folder_path, 'index.html')):
-        logger.error(f"index.html not found in template folder: {template_folder_path}")
-    else:
-        logger.info(f"index.html found in template folder: {template_folder_path}")
-
-# Use get_templates_dir and get_static_dir for Flask app
-server = Flask(__name__, 
-    static_folder=get_static_dir(),
-    template_folder=template_folder_path
-)
-server.config['JSON_AS_ASCII'] = False
-# Persist Flask secret key so sessions survive app restarts
-_stored_secret = settings_manager.get('_flask_secret_key')
-if not _stored_secret:
-    _stored_secret = secrets.token_hex(32)
+    # Initialize logging first
+    # Check developer mode from settings before initializing logging
     try:
-        settings_manager.update({'_flask_secret_key': _stored_secret}, persist=True)
+        dev_mode = settings_manager.get('developerMode', False)
+        initial_level = logging.INFO if dev_mode else logging.WARNING
     except Exception:
+        initial_level = logging.WARNING
+
+    setup_logging(initial_level)
+    register_overlay_logging()
+    logger = logging.getLogger(__name__)
+    settings_manager.set_logger(logger)
+
+    # Deferred: update_manager is created in _init_api() to avoid
+    # importing the heavy ``update`` module (requests + psutil) at load time.
+    update_manager = None
+
+    # Migrate data files to new structure
+    try:
+        migrate_data_files()
+    except Exception as e:
+        logger.error(f"Failed to migrate data files: {e}")
+
+    quest_service = QuestService(logger)
+    CHARACTER_STORAGE_PROTECTED_FILES = set(quest_service.protected_filenames)
+
+    # Load environment variables (deferred import of dotenv)
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
         pass
-server.secret_key = _stored_secret
+
+    # Determine base directory for resources
+    app_dir = resource_path('')
+    logger.info(f"Base directory: {app_dir}")
+
+    # Debug: Print and check template folder
+    template_folder_path = get_templates_dir()
+    logger.info(f"Template folder resolved to: {template_folder_path}")
+    if not os.path.exists(template_folder_path):
+        logger.error(f"Template folder does not exist: {template_folder_path}")
+    else:
+        if not os.path.exists(os.path.join(template_folder_path, 'index.html')):
+            logger.error(f"index.html not found in template folder: {template_folder_path}")
+        else:
+            logger.info(f"index.html found in template folder: {template_folder_path}")
+
+    # Use get_templates_dir and get_static_dir for Flask app
+    server = Flask(__name__, 
+        static_folder=get_static_dir(),
+        template_folder=template_folder_path
+    )
+    server.config['JSON_AS_ASCII'] = False
+    # Persist Flask secret key so sessions survive app restarts
+    _stored_secret = settings_manager.get('_flask_secret_key')
+    if not _stored_secret:
+        _stored_secret = secrets.token_hex(32)
+        try:
+            settings_manager.update({'_flask_secret_key': _stored_secret}, persist=True)
+        except Exception:
+            pass
+    server.secret_key = _stored_secret
 
 
-@server.context_processor
-def inject_desktop_preferences():
-    return {
-        'close_to_tray_enabled': settings_manager.get('closeToTrayEnabled', True),
-        'developer_mode_enabled': settings_manager.get('developerMode', False),
-    }
+    @server.context_processor
+    def inject_desktop_preferences():
+        return {
+            'close_to_tray_enabled': settings_manager.get('closeToTrayEnabled', True),
+            'developer_mode_enabled': settings_manager.get('developerMode', False),
+        }
 
-# Initialize StashManager with explicit path, but defer actual data loading
-stash_manager = StashManager(app_dir, defer_loading=True)
+    # Initialize StashManager with explicit path, but defer actual data loading
+    stash_manager = StashManager(app_dir, defer_loading=True)
 
-# Cache for frequently accessed data
-_cache = {}
+    # Cache for frequently accessed data
+    _cache = {}
 
 import re
 _CHARACTER_ID_RE = re.compile(r'^[a-zA-Z0-9_-]+$')
@@ -322,10 +351,13 @@ def validate_stash_id(stash_id):
 def handle_alive_packet(message):
     """Handle S2C_ALIVE_RES packets to trigger traffic animation"""
     # Notify UI of alive packet reception for traffic animation
-    if api.window:
-        api.window.evaluate_js('''
-            if(window.triggerTrafficParticle) window.triggerTrafficParticle();
-        ''')
+    if api.window and not getattr(api, '_shutting_down', False):
+        try:
+            api.window.evaluate_js('''
+                if(window.triggerTrafficParticle) window.triggerTrafficParticle();
+            ''')
+        except Exception:
+            pass
     return True
 
 def handle_character(message):
@@ -354,15 +386,18 @@ def handle_character(message):
             char_nickname = char_data.nickName.originalNickName if hasattr(char_data.nickName, 'originalNickName') else "Unknown"
             
             # Notify UI of data update with character capture animation
-            if api.window:
+            if api.window and not getattr(api, '_shutting_down', False):
                 # Escape quotes in nickname for JavaScript
                 escaped_nickname = char_nickname.replace('"', '\\"')
-                api.window.evaluate_js(f'''
-                    showNotification("New character data received", "success");
-                    if(window.showCharacterCaptureAnimation) window.showCharacterCaptureAnimation("{char_class}", "{escaped_nickname}");
-                    if(window.updateCharacterData) window.updateCharacterData();
-                    if(window.updateCharacterList) window.updateCharacterList();
-                ''')
+                try:
+                    api.window.evaluate_js(f'''
+                        showNotification("New character data received", "success");
+                        if(window.showCharacterCaptureAnimation) window.showCharacterCaptureAnimation("{char_class}", "{escaped_nickname}");
+                        if(window.updateCharacterData) window.updateCharacterData();
+                        if(window.updateCharacterList) window.updateCharacterList();
+                    ''')
+                except Exception:
+                    pass
         except Exception as e:
             logger.error(f"Error extracting character info for animation: {e}")
     
@@ -665,6 +700,25 @@ class Api:
         except Exception as exc:
             logger.debug("Sort learning trainer unavailable: %s", exc, exc_info=True)
 
+    def _safe_evaluate_js(self, script: str) -> None:
+        """Call window.evaluate_js only when the window is still alive.
+
+        During shutdown the WebView2 control may already be disposed which
+        causes a System.ObjectDisposedException.  This wrapper silently
+        swallows that error so callers don't need individual try/except
+        blocks.
+        """
+        if self._shutting_down:
+            return
+        window = self.window
+        if not window:
+            return
+        try:
+            window.evaluate_js(script)
+        except Exception:
+            # Window / WebView2 already disposed — nothing we can do.
+            pass
+
     def _update_closing_overlay(self, message):
         if not self.window:
             return
@@ -689,8 +743,9 @@ class Api:
                 "})();"
             )
             self.window.evaluate_js(script)
-        except Exception as overlay_err:
-            logger.debug(f"Unable to update closing overlay: {overlay_err}")
+        except Exception:
+            # Window/WebView2 may already be disposed during shutdown — ignore
+            pass
 
     def is_close_to_tray_enabled(self) -> bool:
         return bool(getattr(self, '_close_to_tray_enabled', True))
@@ -797,9 +852,16 @@ class Api:
             try:
                 state = self._collect_game_window_state()
                 previously_running = getattr(self, '_game_was_running', False)
+
                 if state.game_running and not previously_running:
+                    # Game just opened → pop out from tray
                     self._log_game_monitor(logging.INFO, "Detected Dark and Darker launch. Restoring DnDTools window.")
                     self._restore_window_after_game_launch()
+                elif not state.game_running and previously_running:
+                    # Game just closed → hide back to tray
+                    self._log_game_monitor(logging.INFO, "Detected Dark and Darker closed. Minimizing DnDTools to tray.")
+                    self._hide_window_after_game_close()
+
                 self._game_was_running = state.game_running
                 self._log_game_state_if_needed(state)
             except Exception as exc:
@@ -829,8 +891,10 @@ class Api:
             return False
 
     def _log_game_monitor(self, level: int, message: str, *args, **kwargs) -> None:
-        if level < logging.WARNING and not self._should_log_game_state():
-            return
+        # Always log WARNING+ and INFO game transitions; suppress DEBUG unless devMode
+        if level < logging.INFO:
+            if not self._should_log_game_state():
+                return
         logger.log(level, message, *args, **kwargs)
 
     def _collect_game_window_state(self) -> GameWindowState:
@@ -1003,6 +1067,22 @@ class Api:
                 self.bring_window_to_front()
             except Exception:
                 logger.debug("Unable to bring window to front after game launch detection", exc_info=True)
+
+    def _hide_window_after_game_close(self) -> None:
+        """Minimize DnDTools to the system tray when the game window closes."""
+        if not self.is_close_to_tray_enabled():
+            return
+        window = getattr(self, 'window', None)
+        if not window:
+            return
+        try:
+            hidden = self.hide_to_tray()
+            if hidden:
+                self._log_game_monitor(logging.INFO, "DnDTools hidden to tray after game closed.")
+            else:
+                self._log_game_monitor(logging.DEBUG, "hide_to_tray returned False — window may already be hidden.")
+        except Exception:
+            logger.debug("Unable to hide window to tray after game close", exc_info=True)
 
     def _stop_game_monitor(self) -> None:
         stop_event = getattr(self, '_game_monitor_stop', None)
@@ -1198,7 +1278,7 @@ class Api:
         except Exception as exc:  # pragma: no cover - defensive safeguard
             logger.warning("Failed to refresh quest item index after asset update: %s", exc, exc_info=True)
 
-        if not self.window:
+        if not self.window or self._shutting_down:
             return
 
         detail_json = json.dumps(metadata or {})
@@ -1809,8 +1889,11 @@ class Api:
         sort_char_id = char_id or self._current_char_id
         sort_stash_id = stash_id or self._current_stash_id
 
-        if self.window:
-            self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
+        if self.window and not self._shutting_down:
+            try:
+                self.window.evaluate_js('window.dispatchEvent(new Event("sortingStarted"))')
+            except Exception:
+                pass
         result = self.sort_stash(
             sort_char_id,
             sort_stash_id,
@@ -1837,10 +1920,17 @@ class Api:
                     self.window.evaluate_js(
                         f'window.dispatchEvent(new CustomEvent("sortCancelled", {{ detail: {cancel_detail} }}))'
                     )
+                elif isinstance(result, dict) and result.get('success'):
+                    success_detail = json.dumps({
+                        "source": "worker",
+                        "message": SORT_SUCCESS_NOTIFICATION_MESSAGE,
+                    })
+                    self.window.evaluate_js(
+                        f'window.dispatchEvent(new CustomEvent("sortCompleted", {{ detail: {success_detail} }}))'
+                    )
             except Exception as exc:
-                logger.debug("Failed to dispatch worker sortCancelled event: %s", exc, exc_info=True)
-        # Optionally, communicate result back to UI
-        
+                logger.debug("Failed to dispatch worker sort result event: %s", exc, exc_info=True)
+
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""
         logger.info(f"Cancel hotkey activated: {self.settings_manager.get('cancelHotkey')}")
@@ -2041,13 +2131,31 @@ class Api:
         return {"hidden": False}
 
     def shutdown_application(self):
-        """Fully stop capture threads and exit the application."""
+        """Fully stop capture threads and exit the application.
+
+        Mirrors the clean taskbar-close path: null the window reference
+        first (so no background thread can call evaluate_js on a
+        disposing WebView2), do all service cleanup, then os._exit(0)
+        immediately — no lingering for GC __del__ noise.
+        """
         if self._shutting_down:
             return
         self._shutting_down = True
         self._allow_window_close = True
 
-        # Release single-instance guard so a fresh launch can acquire it
+        # ── 1. Detach the window reference immediately ──────────────────
+        # Keep a local copy for the final destroy, but clear self.window
+        # so every ``if self.window`` / ``if api.window`` guard in
+        # background threads becomes a no-op.  This is the key reason the
+        # taskbar-close path never hits ObjectDisposedException.
+        window_ref = self.window
+        self.window = None
+
+        # Suppress noisy ResourceWarning about unclosed asyncio transports.
+        warnings.filterwarnings('ignore', category=ResourceWarning,
+                                message='.*unclosed transport.*')
+
+        # ── 2. Release single-instance guard ────────────────────────────
         guard = getattr(self, '_instance_guard', None)
         if guard:
             try:
@@ -2055,23 +2163,36 @@ class Api:
             except Exception as exc:
                 logger.debug("Single-instance guard release failed: %s", exc)
 
+        # ── 3. Stop lightweight services ────────────────────────────────
         try:
             self._active_ping_service.stop()
-        except Exception as exc:
-            logger.debug("Active ping service stop failed: %s", exc)
+        except Exception:
+            pass
+
         if self._sort_feedback_sync_service:
             try:
                 self._sort_feedback_sync_service.stop()
-            except Exception as exc:
-                logger.debug("Sort feedback sync service stop failed: %s", exc)
+            except Exception:
+                pass
+
         if self._sort_learning_trainer:
             try:
                 self._sort_learning_trainer.stop()
-            except Exception as exc:
-                logger.debug("Sort learning trainer stop failed: %s", exc)
+            except Exception:
+                pass
+
         self._stop_game_monitor()
+
         try:
-            self._update_closing_overlay("Stopping capture...")
+            if getattr(self, 'hotkey_manager', None):
+                self.hotkey_manager.shutdown()
+        except Exception:
+            pass
+        finally:
+            self.hotkey_manager = None
+
+        # ── 4. Shut down packet capture ─────────────────────────────────
+        try:
             packet_capture = None
             should_resume = False
 
@@ -2082,12 +2203,8 @@ class Api:
                     should_resume = bool(
                         state.get('desiredRunning') or state.get('running')
                     )
-                except Exception as state_exc:
-                    logger.debug(
-                        "Unable to snapshot capture state before shutdown: %s",
-                        state_exc,
-                        exc_info=True,
-                    )
+                except Exception:
+                    should_resume = False
 
                 try:
                     controller.shutdown(persist_running_state=should_resume)
@@ -2111,98 +2228,45 @@ class Api:
             if packet_capture:
                 try:
                     packet_capture._terminate_capture_processes(timeout=5.0)
-                except Exception as proc_exc:
-                    logger.debug(
-                        "Failed to terminate capture helpers on shutdown: %s",
-                        proc_exc,
-                        exc_info=True,
-                    )
+                except Exception:
+                    pass
 
             self._capture_shutdown_completed = True
-
-            # Give helper threads/processes a moment to exit cleanly
-            time.sleep(0.35)
         except Exception as exc:
-            logger.error(f"Error during window close: {exc}", exc_info=True)
-        finally:
-            try:
-                self._update_closing_overlay("Capture stopped. Closing application...")
-            except Exception:
-                pass
-            self.force_close_window()
-            
-    def force_close_window(self):
-        # Quick shutdown without delays
-        self._allow_window_close = True
-        try:
-            self._active_ping_service.stop()
-        except Exception as exc:
-            logger.debug("Active ping service stop failed: %s", exc)
-        if self._sort_learning_trainer:
-            try:
-                self._sort_learning_trainer.stop()
-            except Exception as exc:
-                logger.debug("Sort learning trainer stop failed: %s", exc)
-        self._stop_game_monitor()
-        try:
-            if getattr(self, 'hotkey_manager', None):
-                self.hotkey_manager.shutdown()
-        except Exception as exc:
-            logger.debug("Failed to shut down hotkey manager: %s", exc)
-        finally:
-            self.hotkey_manager = None
+            logger.error(f"Error during capture shutdown: {exc}", exc_info=True)
 
-        try:
-            already_shutdown = getattr(self, '_capture_shutdown_completed', False)
-            if not already_shutdown:
-                if self._capture_controller:
-                    try:
-                        self._capture_controller.stop_capture_switch()
-                    except Exception:
-                        pass
-                elif hasattr(self, 'packet_capture') and self.packet_capture:
-                    try:
-                        self.packet_capture.stop_capture_switch()
-                    except Exception:
-                        pass
-        except Exception as e:
-            logger.error(f"Error stopping packet capture on close: {e}")
-        
-        # Start exit timer as a fallback to ensure shutdown even if UI hangs
-        threading.Timer(2.0, lambda: os._exit(0)).start()
-
-        # Remove delay - close immediately
+        # ── 5. Stop system tray ─────────────────────────────────────────
         try:
             if getattr(self, 'tray_manager', None):
+                self.tray_manager.stop()
+        except Exception:
+            pass
+
+        # ── 6. Destroy the window and hard-exit ─────────────────────────
+        # This matches the clean taskbar-close behaviour: destroy + immediate
+        # os._exit so Python never gets a chance to run __del__ on asyncio
+        # transports whose pipes are already closed.
+        try:
+            if window_ref:
                 try:
-                    self.tray_manager.stop()
-                except Exception as exc:
-                    logger.debug("Tray manager shutdown failed: %s", exc)
-            
-            if self.window:
-                # Only destroy window if on main thread to avoid GIL/COM issues
-                if threading.current_thread() is threading.main_thread():
-                    self.window.destroy()
-                else:
-                    # If on background thread (e.g. Tray), post a close message to the main thread
-                    try:
-                        if sys.platform == 'win32':
-                            native = self.window.native
-                            raw = native.Handle if hasattr(native, 'Handle') else native
-                            hwnd = _hwnd_to_int(raw)
-                            if hwnd:
-                                # WM_CLOSE = 0x0010
-                                ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
-                            else:
-                                # Fallback: just hide and let timer kill it
-                                self.window.minimize()
-                        else:
-                            # Non-Windows fallback
-                            self.window.destroy()
-                    except Exception as e:
-                        logger.debug(f"Failed to post close message: {e}")
+                    if threading.current_thread() is threading.main_thread():
+                        window_ref.destroy()
+                    elif sys.platform == 'win32':
+                        native = window_ref.native
+                        raw = native.Handle if hasattr(native, 'Handle') else native
+                        hwnd = _hwnd_to_int(raw)
+                        if hwnd:
+                            ctypes.windll.user32.PostMessageW(hwnd, 0x0010, 0, 0)
+                    else:
+                        window_ref.destroy()
+                except Exception:
+                    pass
         finally:
-            self._capture_shutdown_completed = False
+            os._exit(0)
+
+    def force_close_window(self):
+        """Legacy entry-point – delegates to the unified shutdown path."""
+        self.shutdown_application()
         
     def set_sort_order(self, order):
         try:
@@ -3342,8 +3406,11 @@ def background_init():
                         f"Stash manager data loaded in {time.time() - start_time:.2f} seconds"
                     )
 
-                if api.window:
-                    api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
+                if api.window and not getattr(api, '_shutting_down', False):
+                    try:
+                        api.window.evaluate_js('window.dispatchEvent(new Event("dataLoadingDone"));')
+                    except Exception:
+                        pass
                 
                 # Clean up any lingering tshark instances after data is loaded
                 protected_pids = ()
@@ -3362,11 +3429,14 @@ def background_init():
                 )
             except Exception as e:
                 logger.error(f"Background data loading failed: {e}")
-                if api.window:
+                if api.window and not getattr(api, '_shutting_down', False):
                     error_str = str(e).replace('"', '\\"')
-                    api.window.evaluate_js(
-                        f'window.dispatchEvent(new CustomEvent("dataLoadingFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
-                    )
+                    try:
+                        api.window.evaluate_js(
+                            f'window.dispatchEvent(new CustomEvent("dataLoadingFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
+                        )
+                    except Exception:
+                        pass
             finally:
                 load_data_async.is_loading = False
 
@@ -3384,11 +3454,14 @@ def background_init():
                 else:
                     logger.warning("Capture auto-start was requested but failed to activate")
 
-            if api.window:
+            if api.window and not getattr(api, '_shutting_down', False):
                 state_payload = json.dumps(state)
-                api.window.evaluate_js(
-                    f"window.applyCaptureState && window.applyCaptureState({state_payload});"
-                )
+                try:
+                    api.window.evaluate_js(
+                        f"window.applyCaptureState && window.applyCaptureState({state_payload});"
+                    )
+                except Exception:
+                    pass
 
             if state.get("running"):
                 api._initial_restart_done = True
@@ -3402,16 +3475,22 @@ def background_init():
         except Exception as exc:
             logger.error(f"Failed to start asset updater: {exc}")
 
-        if api.window:
-            api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
+        if api.window and not getattr(api, '_shutting_down', False):
+            try:
+                api.window.evaluate_js('window.dispatchEvent(new Event("backgroundInitDone"));')
+            except Exception:
+                pass
         logger.info("Background initialization complete.")
     except Exception as e:
         logger.error(f"Background initialization failed: {e}")
         error_str = str(e).replace('"', '\\"')
-        if api.window:
-            api.window.evaluate_js(
-                f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
-            )
+        if api.window and not getattr(api, '_shutting_down', False):
+            try:
+                api.window.evaluate_js(
+                    f'window.dispatchEvent(new CustomEvent("backgroundInitFailed", {{ detail: {{ "error": "{error_str}" }} }}));'
+                )
+            except Exception:
+                pass
 def main():
     multiprocessing.freeze_support()
     # --- Updater logic ---
@@ -3441,16 +3520,9 @@ def main():
     logger.info("Starting DnDTools application")
 
     # Initialize API context (prevents side effects in multiprocessing workers)
-    _init_api()
-    
-    # Preload only essential settings for faster startup
+    # Migrate legacy settings first so Api.__init__ picks up the correct values.
     SettingsManager.migrate_from_legacy(logger=logger, defer_heavy_operations=True)
-
-    if api.hotkey_manager:
-        try:
-            api._setup_global_hotkeys()
-        except HotkeyError as hotkey_err:
-            logger.error("Failed to refresh global hotkeys after settings reload: %s", hotkey_err)
+    _init_api()
     
     # Create window with minimal startup time
     # Capture migration & restore are handled in background_init() so
@@ -3462,7 +3534,8 @@ def main():
         height=800,
         min_size=(800, 600),
         frameless=True,
-        easy_drag=False  # Use custom drag region to limit draggable area
+        easy_drag=False,  # Use custom drag region to limit draggable area
+        background_color='#0b0b0b'
     )
     
     # Expose API methods in parallel

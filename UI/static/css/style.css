@@ -59,7 +59,7 @@ body {
     color: #a89a6c;
     text-decoration: none;
     border-radius: 4px;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .nav-link .material-icons {
@@ -112,7 +112,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -326,7 +326,7 @@ body {
     color: var(--text-primary);
     cursor: pointer;
     border-radius: 4px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stash-tab:hover {
@@ -338,17 +338,6 @@ body {
     background-color: var(--hover-color);
     border-color: var(--accent-gold);
     color: var(--accent-gold);
-    animation: tabActivate 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes tabActivate {
-    from {
-        background-color: var(--bg-secondary);
-    }
-
-    to {
-        background-color: var(--hover-color);
-    }
 }
 
 .character-header {
@@ -440,7 +429,7 @@ body {
     padding: 0.8rem;
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
-    color: var (--text-primary);
+    color: var(--text-primary);
     border-radius: 4px;
     margin-top: 0.5rem;
     margin-bottom: 1.5rem;
@@ -508,7 +497,7 @@ label {
 
 .instructions-panel ol {
     padding-left: 1.5rem;
-    color: var (--text-primary);
+    color: var(--text-primary);
 }
 
 .instructions-panel li {
@@ -543,122 +532,7 @@ label {
     color: #dc3545;
 }
 
-/* Notification Styles */
-.notification {
-    position: fixed;
-    top: 60px;
-    right: 24px;
-    max-width: 360px;
-    padding: 14px 18px;
-    border-radius: 8px;
-    border: 1px solid rgba(228, 200, 105, 0.35);
-    background: rgba(26, 20, 18, 0.92);
-    color: var(--text-primary, #e4c869);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(228, 200, 105, 0.18);
-    display: flex;
-    gap: 12px;
-    align-items: flex-start;
-    line-height: 1.45;
-    font-size: 0.95rem;
-    font-weight: 500;
-    letter-spacing: 0.01em;
-    animation: notificationSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards,
-        notificationFadeOut 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards 2.8s;
-    z-index: 10000;
-}
-
-.notification::before {
-    font-family: 'Material Icons';
-    font-feature-settings: 'liga';
-    font-size: 1.4rem;
-    line-height: 1;
-    margin-top: 2px;
-    color: inherit;
-}
-
-.notification .notification-text {
-    flex: 1;
-}
-
-.notification.success {
-    background: linear-gradient(135deg, rgba(41, 150, 95, 0.16), rgba(26, 20, 18, 0.95));
-    color: #9be7a0;
-    border-color: rgba(41, 150, 95, 0.5);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(41, 150, 95, 0.2);
-}
-
-.notification.success::before {
-    content: 'check_circle';
-    color: #9be7a0;
-}
-
-.notification.error {
-    background: linear-gradient(135deg, rgba(220, 53, 69, 0.18), rgba(26, 20, 18, 0.95));
-    color: #ffb5b5;
-    border-color: rgba(220, 53, 69, 0.55);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(220, 53, 69, 0.22);
-}
-
-.notification.error::before {
-    content: 'error';
-    color: #ff8a8a;
-}
-
-.notification.info {
-    background: linear-gradient(135deg, rgba(58, 136, 209, 0.18), rgba(26, 20, 18, 0.95));
-    color: #a1d4ff;
-    border-color: rgba(58, 136, 209, 0.48);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(58, 136, 209, 0.2);
-}
-
-.notification.info::before {
-    content: 'info';
-    color: #8ecbff;
-}
-
-.notification.warning {
-    background: linear-gradient(135deg, rgba(228, 200, 105, 0.24), rgba(26, 20, 18, 0.95));
-    color: var(--accent-gold, #e4c869);
-    border-color: rgba(228, 200, 105, 0.55);
-    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(228, 200, 105, 0.28);
-}
-
-.notification.warning::before {
-    content: 'warning';
-    color: var(--accent-gold, #e4c869);
-}
-
-.notification.persistent {
-    animation: notificationSlideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-.notification.fade-out {
-    animation: notificationFadeOut 0.22s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-@keyframes notificationSlideIn {
-    from {
-        transform: translate3d(18px, -12px, 0);
-        opacity: 0;
-    }
-
-    to {
-        transform: translate3d(0, 0, 0);
-        opacity: 1;
-    }
-}
-
-@keyframes notificationFadeOut {
-    from {
-        opacity: 1;
-        transform: translate3d(0, 0, 0);
-    }
-
-    to {
-        opacity: 0;
-        transform: translate3d(0, -12px, 0);
-    }
-}
+/* Notification styles are now unified in utils.css */
 
 .character-select {
     margin-top: 2rem;
@@ -699,16 +573,6 @@ label {
     border-radius: 50%;
     animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
     margin: auto;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
 }
 
 img {
@@ -871,34 +735,6 @@ img:not([src]) {
 }
 
 /* Button styles if not already defined */
-.btn-primary {
-    background-color: var(--color-primary, #c4a564);
-    color: #000;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.btn-secondary {
-    background-color: #444;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.btn {
-    background-color: transparent;
-    color: var(--color-text, #a89a6c);
-    border: 1px solid var(--color-border, #392e24);
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
 .btn-primary:hover {
     background-color: var(--color-primary-hover, #d5b675);
 }
