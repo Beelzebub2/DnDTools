@@ -59,7 +59,7 @@ body {
     color: #a89a6c;
     text-decoration: none;
     border-radius: 4px;
-    transition: all 0.3s ease;
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .nav-link .material-icons {
@@ -112,7 +112,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -326,7 +326,7 @@ body {
     color: var(--text-primary);
     cursor: pointer;
     border-radius: 4px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stash-tab:hover {
@@ -338,17 +338,6 @@ body {
     background-color: var(--hover-color);
     border-color: var(--accent-gold);
     color: var(--accent-gold);
-    animation: tabActivate 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes tabActivate {
-    from {
-        background-color: var(--bg-secondary);
-    }
-
-    to {
-        background-color: var(--hover-color);
-    }
 }
 
 .character-header {
@@ -440,7 +429,7 @@ body {
     padding: 0.8rem;
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
-    color: var (--text-primary);
+    color: var(--text-primary);
     border-radius: 4px;
     margin-top: 0.5rem;
     margin-bottom: 1.5rem;
@@ -508,7 +497,7 @@ label {
 
 .instructions-panel ol {
     padding-left: 1.5rem;
-    color: var (--text-primary);
+    color: var(--text-primary);
 }
 
 .instructions-panel li {
@@ -584,16 +573,6 @@ label {
     border-radius: 50%;
     animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
     margin: auto;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
 }
 
 img {
@@ -756,34 +735,6 @@ img:not([src]) {
 }
 
 /* Button styles if not already defined */
-.btn-primary {
-    background-color: var(--color-primary, #c4a564);
-    color: #000;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.btn-secondary {
-    background-color: #444;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.btn {
-    background-color: transparent;
-    color: var(--color-text, #a89a6c);
-    border: 1px solid var(--color-border, #392e24);
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
 .btn-primary:hover {
     background-color: var(--color-primary-hover, #d5b675);
 }

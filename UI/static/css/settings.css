@@ -151,7 +151,7 @@
     cursor: pointer;
     font-weight: 600;
     letter-spacing: 0.02em;
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
     outline: none;
 }
 
@@ -326,7 +326,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 18px;
     overflow: hidden;
-    transition: transform 0.25s ease, border-color 0.25s ease;
+    transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .settings-section:hover {
@@ -398,7 +398,7 @@
     border-radius: 8px;
     color: var(--text-primary);
     font-size: 0.95rem;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
     box-sizing: border-box;
 }
 

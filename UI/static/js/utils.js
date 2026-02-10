@@ -140,9 +140,13 @@ function isValidJSON(str) {
  * @returns {string} HTML-escaped string
  */
 function escapeHtml(unsafe) {
-    const div = document.createElement('div');
-    div.textContent = unsafe;
-    return div.innerHTML;
+    if (typeof unsafe !== 'string') return '';
+    return unsafe
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
 }
 
 /**

@@ -437,10 +437,8 @@ function scheduleViewportScroll(target, options) {
     if (!target) {
         return;
     }
-    console.log('[SCROLL DEBUG] scheduleViewportScroll called for:', target, options);
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-            console.log('[SCROLL DEBUG] Executing scrollViewportToElement');
             scrollViewportToElement(target, options);
         });
     });
@@ -471,19 +469,15 @@ function resolveFocusContainer(element) {
 }
 
 function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', scrollContainer: explicitContainer } = {}) {
-    console.log('[SCROLL DEBUG] scrollViewportToElement called for:', element, 'margin:', margin);
     if (typeof window === 'undefined' || !element || typeof element.getBoundingClientRect !== 'function') {
-        console.log('[SCROLL DEBUG] Early return - window or element invalid');
         return;
     }
 
     const docRef = typeof document !== 'undefined' ? document : null;
     const scrollContainer = explicitContainer || getPrimaryScrollContainer();
     const isElementContainer = !!(scrollContainer && scrollContainer.nodeType === 1 && scrollContainer !== docRef?.documentElement && scrollContainer !== docRef?.body && scrollContainer !== docRef?.scrollingElement);
-    console.log('[SCROLL DEBUG] Using scroll container:', scrollContainer, 'isElementContainer:', isElementContainer);
 
     const rect = element.getBoundingClientRect();
-    console.log('[SCROLL DEBUG] Element rect:', rect);
 
     let viewportHeight = window.innerHeight;
     let currentScroll = window.pageYOffset;
@@ -522,12 +516,10 @@ function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', s
     }
 
     const scrollOptions = { top: targetTop, behavior };
-    console.log('[SCROLL DEBUG] Calculated targetTop:', targetTop, 'scrollOptions:', scrollOptions);
 
     let scrolled = false;
 
     if (isElementContainer && scrollContainer) {
-        console.log('[SCROLL DEBUG] Attempting scroll on element container');
         try {
             if (typeof scrollContainer.scrollTo === 'function') {
                 scrollContainer.scrollTo(scrollOptions);
@@ -535,32 +527,26 @@ function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', s
                 scrollContainer.scrollTop = targetTop;
             }
             scrolled = true;
-            console.log('[SCROLL DEBUG] Element container scroll succeeded');
         } catch (err) {
-            console.log('[SCROLL DEBUG] Element container scroll failed:', err);
+            // scroll failed on element container
         }
     }
 
     if (!scrolled && typeof window.scrollTo === 'function') {
-        console.log('[SCROLL DEBUG] Attempting window.scrollTo');
         try {
             window.scrollTo(scrollOptions);
             scrolled = true;
-            console.log('[SCROLL DEBUG] window.scrollTo succeeded');
         } catch (err) {
-            console.log('[SCROLL DEBUG] window.scrollTo failed, trying legacy:', err);
             try {
                 window.scrollTo(0, targetTop);
                 scrolled = true;
-                console.log('[SCROLL DEBUG] Legacy window.scrollTo succeeded');
             } catch (fallbackError) {
-                console.log('[SCROLL DEBUG] Legacy window.scrollTo also failed:', fallbackError);
+                // legacy scroll also failed
             }
         }
     }
 
     if (!scrolled && scrollContainer && !isElementContainer) {
-        console.log('[SCROLL DEBUG] Attempting scroll on fallback container:', scrollContainer);
         try {
             if (typeof scrollContainer.scrollTo === 'function') {
                 scrollContainer.scrollTo(scrollOptions);
@@ -568,18 +554,14 @@ function scrollViewportToElement(element, { margin = 160, behavior = 'smooth', s
                 scrollContainer.scrollTop = targetTop;
             }
             scrolled = true;
-            console.log('[SCROLL DEBUG] Fallback container scroll succeeded');
         } catch (err) {
-            console.log('[SCROLL DEBUG] Fallback container scroll failed:', err);
+            // fallback container scroll failed
         }
     }
 
     if (!scrolled && docRef && docRef.body) {
-        console.log('[SCROLL DEBUG] Final fallback: setting body.scrollTop');
         docRef.body.scrollTop = targetTop;
     }
-
-    console.log('[SCROLL DEBUG] scrollViewportToElement completed, scrolled:', scrolled);
 }
 
 function ensureHighlightedItemsVisible(highlightedElements) {
@@ -651,21 +633,16 @@ function ensureHighlightedItemsVisible(highlightedElements) {
 }
 
 function focusStashIfRequested(sourceElement, highlightedElements = []) {
-    console.log('[SCROLL DEBUG] focusStashIfRequested called, sourceElement:', sourceElement, 'containerFocus:', pendingContainerFocus, 'itemFocus:', pendingItemFocus, 'highlightedElements:', highlightedElements.length);
     if (!sourceElement || (!pendingContainerFocus && !pendingItemFocus)) {
-        console.log('[SCROLL DEBUG] Early return - no source or no pending focus');
         return;
     }
 
     const hasHighlights = Array.isArray(highlightedElements) && highlightedElements.length;
     const primaryHighlight = hasHighlights ? highlightedElements.find(el => el && el.isConnected) : null;
-    console.log('[SCROLL DEBUG] hasHighlights:', hasHighlights, 'primaryHighlight:', primaryHighlight);
 
     const containerTarget = resolveFocusContainer(primaryHighlight || sourceElement);
-    console.log('[SCROLL DEBUG] containerTarget:', containerTarget);
 
     if (pendingItemFocus && primaryHighlight) {
-        console.log('[SCROLL DEBUG] Item focus path - scrolling to highlighted item only');
         ensureHighlightedItemsVisible(highlightedElements);
         scheduleViewportScroll(primaryHighlight, { margin: 160 });
         pendingItemFocus = false;
@@ -674,11 +651,9 @@ function focusStashIfRequested(sourceElement, highlightedElements = []) {
     }
 
     if (pendingContainerFocus && containerTarget) {
-        console.log('[SCROLL DEBUG] Container focus path - calling scheduleViewportScroll');
         scheduleViewportScroll(containerTarget, { margin: 220 });
         pendingContainerFocus = false;
     }
-    console.log('[SCROLL DEBUG] focusStashIfRequested completed');
 }
 
 let pendingHighlightRequest = null;

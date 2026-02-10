@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dark and Darker Stash Organizer</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar-indicator.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/utils.css') }}">
@@ -45,15 +46,12 @@
 
         /* Animation and transition styles */
         body {
-            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body.animating {
-            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            filter: blur(8px) brightness(0.7);
-            opacity: 0.9;
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.7;
         }
 
         /* Add smooth page transitions */
@@ -299,7 +297,7 @@
             border-radius: 8px;
             margin: 0 0.5rem 0.25rem 0.5rem;
             position: relative;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
         }
 
@@ -688,25 +686,6 @@
                     link.classList.add('active');
                 }
             });
-
-            // Add smooth hover animations
-            navLinks.forEach(link => {
-                if (!link.classList.contains('disabled')) {
-                    link.addEventListener('mouseenter', function () {
-                        this.style.transform = 'translateX(6px)';
-                    });
-
-                    link.addEventListener('mouseleave', function () {
-                        this.style.transform = this.classList.contains('active') ? 'translateX(2px)' : 'translateX(0)';
-                    });
-                }
-            });
-
-            // Set active link position
-            const activeLink = document.querySelector('.nav-link.active');
-            if (activeLink) {
-                activeLink.style.transform = 'translateX(2px)';
-            }
         });
 
         // Create modal for unsaved changes prompt
@@ -1065,9 +1044,9 @@
             }
         }
 
-        // Check developer mode on load and every 2 seconds
+        // Check developer mode on load and periodically
         document.addEventListener('DOMContentLoaded', updateDeveloperModeLink);
-        setInterval(updateDeveloperModeLink, 2000);
+        setInterval(updateDeveloperModeLink, 30000);
     </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
