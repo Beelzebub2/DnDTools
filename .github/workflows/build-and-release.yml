@@ -50,7 +50,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r UI/requirements.txt
-          pip install pyinstaller==6.18.0
+          pip install pyinstaller
 
       - name: Install Inno Setup
         shell: powershell

@@ -26,8 +26,22 @@ DisableProgramGroupPage=yes
 LicenseFile=..\LICENSE
 Compression=lzma2
 SolidCompression=yes
-WizardStyle=modern
-SetupIconFile=..\UI\assets\logo.ico
+; Use the modern style and follow system light/dark mode. Avoid modifiers
+; that require newer Inno Setup versions (e.g. includetitlebar/hidebevels)
+WizardStyle=modern dynamic
+
+; Dark-ish background used for the wizard pages (works for both modes)
+WizardBackColor=#0b0b0b
+
+; Main left-side image (welcome/finish)
+WizardImageFile=..\\UI\\assets\\banner.bmp
+WizardImageBackColor=#0e0e0e
+
+; Small logo (used in titlebars and dialogs)
+WizardSmallImageFile=..\\UI\\assets\\logo.png
+WizardSmallImageBackColor=#111111
+
+SetupIconFile=..\\UI\\assets\\logo.ico
 UninstallDisplayIcon={app}\{#MyAppExeName}
 OutputBaseFilename={#MyAppName}-Setup-{#MyAppVersion}
 OutputDir=..\dist
