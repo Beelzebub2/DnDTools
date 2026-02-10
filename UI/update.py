@@ -893,8 +893,8 @@ class UpdaterUI:
         # ── Smooth animation state ────────────────────────────────────
         self._progress_current: float = 0.0   # what the bar shows right now
         self._progress_target: float = 0.0    # where it should go
-        self._TICK_MS = 16                     # ~60 fps
-        self._LERP_SPEED = 0.12               # 0→1 how fast to approach target
+        self._TICK_MS = 6                      # ~165 fps
+        self._LERP_SPEED = 0.08               # lower to compensate for higher tick rate
 
     # ------------------------------------------------------------------
     # Icon path resolution
