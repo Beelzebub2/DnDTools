@@ -127,7 +127,20 @@ def main(argv: list[str] | None = None) -> int:
             existing_items = {}
 
     if do_full and not args.icons_only:
-        merged = items_dict
+        # Sanity check: if API returned far fewer items than we already have,
+        # something went wrong (partial fetch).  Merge instead of replacing.
+        if len(items_dict) >= len(existing_items) * 0.5 or not existing_items:
+            merged = items_dict
+            logger.info(
+                "Full replace: %d API items replacing %d local items",
+                len(items_dict), len(existing_items),
+            )
+        else:
+            merged = {**existing_items, **items_dict}
+            logger.warning(
+                "Partial fetch detected (%d API vs %d local) — merging instead of replacing",
+                len(items_dict), len(existing_items),
+            )
     else:
         merged = {**existing_items, **items_dict}
 

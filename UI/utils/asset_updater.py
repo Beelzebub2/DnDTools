@@ -149,6 +149,14 @@ class AssetUpdater:
         self.logger = logger or logging.getLogger(__name__)
         self.window_getter = window_getter
         self.session = session or requests.Session()
+        # Size the connection pool to match our max worker count so
+        # urllib3 doesn't discard and re-create connections constantly.
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=MAX_ICON_WORKERS,
+            pool_maxsize=MAX_ICON_WORKERS,
+        )
+        self.session.mount("https://", adapter)
+        self.session.mount("http://", adapter)
         self.session.headers.setdefault("User-Agent", "DnDTools-AssetUpdater/2.0")
         self._hooks: Tuple[Callable[[dict], None], ...] = tuple(on_assets_applied or [])
         self._pre_replace_hooks: Dict[str, Tuple[Callable[[], None], ...]] = {
@@ -234,8 +242,22 @@ class AssetUpdater:
                     existing_items = {}
 
             if patch_changed:
-                # Full replace — start fresh from API
-                merged = items_dict
+                # Full replace — but only if we fetched a reasonable amount.
+                # If the API returned far fewer items than we already have,
+                # something went wrong (partial fetch / timeout).  In that
+                # case merge instead of replacing so we don't lose data.
+                if len(items_dict) >= len(existing_items) * 0.5 or not existing_items:
+                    merged = items_dict
+                    self.logger.info(
+                        "Full replace: %d API items replacing %d local items",
+                        len(items_dict), len(existing_items),
+                    )
+                else:
+                    merged = {**existing_items, **items_dict}
+                    self.logger.warning(
+                        "Partial fetch detected (%d API vs %d local) — merging instead of replacing",
+                        len(items_dict), len(existing_items),
+                    )
             else:
                 merged = {**existing_items, **items_dict}
 
@@ -345,8 +367,10 @@ class AssetUpdater:
         while page < MAX_PAGES:
             page += 1
             params: Dict[str, Any] = {**_api_params(), "limit": str(PAGE_LIMIT)}
-            if cursor:
-                params["cursor"] = str(cursor)
+            # Always pass cursor to force cursor-based pagination.
+            # Without it the API defaults to page-based and the 'next'
+            # URL won't contain a cursor value, breaking our loop.
+            params["cursor"] = str(cursor)
 
             try:
                 r = self.session.get(DARKERDB_ITEMS_URL, params=params, timeout=ITEM_TIMEOUT)
