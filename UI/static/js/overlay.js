@@ -1393,15 +1393,15 @@
                     </div>
                     <div class="overlay-item-locations">
                         ${group.locations.map(loc => {
-                            const charLabel = loc.nickname || loc.characterClass || '??';
-                            const lvl = loc.level ? ` Lv${loc.level}` : '';
-                            return `<div class="overlay-search-location">
+                        const charLabel = loc.nickname || loc.characterClass || '??';
+                        const lvl = loc.level ? ` Lv${loc.level}` : '';
+                        return `<div class="overlay-search-location">
                                 <span class="material-icons">inventory_2</span>
                                 <span class="overlay-loc-char">${escapeHtml(charLabel)}${escapeHtml(lvl)}</span>
                                 <span class="overlay-loc-stash">${escapeHtml(loc.stashLabel)}</span>
                                 ${loc.count > 1 ? `<span class="overlay-loc-qty">×${loc.count}</span>` : ''}
                             </div>`;
-                        }).join('')}
+                    }).join('')}
                     </div>
                 </div>
             `;
