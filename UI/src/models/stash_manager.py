@@ -909,6 +909,21 @@ class StashManager:
             logger.error(f"Error loading inventory items: {str(e)}")
             inv_items = []
             session.add_log("Unable to read latest inventory snapshot; continuing with empty inventory.")
+
+        # Filter out Supplied (loot state 1) items from inventory — the game
+        # prevents moving them into the stash.
+        if include_inventory and inv_items:
+            original_count = len(inv_items)
+            inv_items = [
+                it for it in inv_items
+                if not (isinstance(it, dict) and it.get("data", {}).get("lootState") == 1)
+            ]
+            supplied_skipped = original_count - len(inv_items)
+            if supplied_skipped:
+                session.add_log(
+                    f"Excluded {supplied_skipped} Supplied item(s) from transfer (cannot be stashed)."
+                )
+
         stash = Storage(StashType.STORAGE.value, stash_items)
         inventory = Storage(StashType.BAG.value, inv_items)
         session.update_status("Locating Dark and Darker window...", status="info")
@@ -1097,7 +1112,30 @@ class StashManager:
         else:
             selected_raw = list(source_items_raw)
 
+        # Filter out Supplied (loot state 1) items — the game prevents
+        # moving them into the stash so they must be excluded from transfer.
+        supplied_count = 0
+        filtered_raw = []
+        for raw in selected_raw:
+            loot_val = raw.get("data", {}).get("lootState")
+            try:
+                loot_val = int(loot_val) if loot_val is not None else None
+            except (TypeError, ValueError):
+                loot_val = None
+            if loot_val == 1:
+                supplied_count += 1
+            else:
+                filtered_raw.append(raw)
+        selected_raw = filtered_raw
+
         if not selected_raw:
+            if supplied_count > 0:
+                return {"feasible": True,
+                        "message": f"No transferable items ({supplied_count} Supplied item(s) excluded).",
+                        "placeable": 0, "unplaceable": 0, "total": 0,
+                        "skipped_supplied": supplied_count,
+                        "target_free_cells": free_cells, "target_total_cells": total_cells,
+                        "items": []}
             return {"feasible": True, "message": "No items to transfer",
                     "placeable": 0, "unplaceable": 0, "total": 0,
                     "target_free_cells": free_cells, "target_total_cells": total_cells,
@@ -1177,14 +1215,15 @@ class StashManager:
 
         total = placeable + unplaceable
         feasible = unplaceable == 0 and total > 0
+        supplied_note = f" ({supplied_count} Supplied item(s) excluded)" if supplied_count else ""
         if feasible:
-            msg = f"All {total} item(s) can be transferred."
+            msg = f"All {total} item(s) can be transferred.{supplied_note}"
         elif placeable > 0:
-            msg = f"{placeable} of {total} item(s) can be placed. {unplaceable} won't fit."
+            msg = f"{placeable} of {total} item(s) can be placed. {unplaceable} won't fit.{supplied_note}"
         else:
-            msg = "No items can fit in the target stash."
+            msg = f"No items can fit in the target stash.{supplied_note}"
 
-        return {
+        result = {
             "feasible": feasible,
             "placeable": placeable,
             "unplaceable": unplaceable,
@@ -1194,6 +1233,9 @@ class StashManager:
             "items": item_results,
             "message": msg,
         }
+        if supplied_count:
+            result["skipped_supplied"] = supplied_count
+        return result
 
     @staticmethod
     def _merge_stackable_for_transfer(

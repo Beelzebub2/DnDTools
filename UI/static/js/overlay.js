@@ -88,6 +88,10 @@
         5: { label: 'Not Accepted', icon: 'radio_button_unchecked', cls: 'status-not-accepted' },
     };
 
+    const LOOT_STATE_VALUE_TO_LABEL = {
+        0: 'None', 1: 'Supplied', 2: 'Looted', 3: 'Handled', 4: 'Crafted', 5: 'Ally',
+    };
+
     const OBJECTIVE_ICONS = {
         'Fetch': 'inventory_2', 'Kill': 'gavel', 'Props': 'build',
         'Explore': 'travel_explore', 'Survive': 'health_and_safety'
@@ -236,6 +240,20 @@
         }, delay);
     }
 
+    function getOverlayLootStateLabel(item) {
+        if (!item) return null;
+        // Prefer the pre-resolved label from the server
+        const explicit = item.lootStateLabel || item.loot_state_label;
+        if (explicit && typeof explicit === 'string' && explicit.trim()) return explicit.trim();
+        // Fallback to numeric lookup
+        const raw = item.lootState ?? item.loot_state;
+        if (raw === null || raw === undefined) return null;
+        const num = Number(raw);
+        return Number.isFinite(num) && LOOT_STATE_VALUE_TO_LABEL.hasOwnProperty(num)
+            ? LOOT_STATE_VALUE_TO_LABEL[num]
+            : null;
+    }
+
     function buildItemTooltipHtml(item) {
         const color = getRarityColor(item.rarity);
         const rarityStr = getRarityName(item.rarity);
@@ -258,6 +276,15 @@
             <div class="ov-tooltip-body">
                 <div class="ov-tooltip-section ov-primary-props">
                     <div>Count: ${item.itemCount}</div>
+                </div>
+            </div>`;
+        }
+        const lootLabel = getOverlayLootStateLabel(item);
+        if (lootLabel) {
+            html += `
+            <div class="ov-tooltip-body">
+                <div class="ov-tooltip-section ov-primary-props">
+                    <strong>Loot state:</strong> ${escapeHtml(lootLabel)}
                 </div>
             </div>`;
         }
