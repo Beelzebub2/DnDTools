@@ -88,6 +88,10 @@
         5: { label: 'Not Accepted', icon: 'radio_button_unchecked', cls: 'status-not-accepted' },
     };
 
+    const LOOT_STATE_VALUE_TO_LABEL = {
+        0: 'None', 1: 'Supplied', 2: 'Looted', 3: 'Handled', 4: 'Crafted', 5: 'Ally',
+    };
+
     const OBJECTIVE_ICONS = {
         'Fetch': 'inventory_2', 'Kill': 'gavel', 'Props': 'build',
         'Explore': 'travel_explore', 'Survive': 'health_and_safety'
@@ -123,6 +127,18 @@
 
     // Deposit state
     let depositFeasibility = null;
+    // Sort feedback state
+    let pendingSortSessionId = null;
+    let sortFeedbackBusy = false;
+    const answeredSortSessions = new Set();
+    const SORT_SUCCESS_MSG = "Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+    const SORT_CANCEL_MSG = "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+    const DEPOSIT_SUCCESS_MSG = "Deposit completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+
+    // Data polling state (auto-refresh overlay when new data is captured)
+    let lastUpdateMap = {};  // { charId: lastUpdate } for detecting new captures
+    let dataPollTimer = null;
+    const DATA_POLL_INTERVAL = 4000; // ms
 
     // Equipment slot config (loaded lazily from equipment_slots.json)
     let equipmentSlotConfig = null;
@@ -236,6 +252,20 @@
         }, delay);
     }
 
+    function getOverlayLootStateLabel(item) {
+        if (!item) return null;
+        // Prefer the pre-resolved label from the server
+        const explicit = item.lootStateLabel || item.loot_state_label;
+        if (explicit && typeof explicit === 'string' && explicit.trim()) return explicit.trim();
+        // Fallback to numeric lookup
+        const raw = item.lootState ?? item.loot_state;
+        if (raw === null || raw === undefined) return null;
+        const num = Number(raw);
+        return Number.isFinite(num) && LOOT_STATE_VALUE_TO_LABEL.hasOwnProperty(num)
+            ? LOOT_STATE_VALUE_TO_LABEL[num]
+            : null;
+    }
+
     function buildItemTooltipHtml(item) {
         const color = getRarityColor(item.rarity);
         const rarityStr = getRarityName(item.rarity);
@@ -258,6 +288,15 @@
             <div class="ov-tooltip-body">
                 <div class="ov-tooltip-section ov-primary-props">
                     <div>Count: ${item.itemCount}</div>
+                </div>
+            </div>`;
+        }
+        const lootLabel = getOverlayLootStateLabel(item);
+        if (lootLabel) {
+            html += `
+            <div class="ov-tooltip-body">
+                <div class="ov-tooltip-section ov-primary-props">
+                    <strong>Loot state:</strong> ${escapeHtml(lootLabel)}
                 </div>
             </div>`;
         }
@@ -373,12 +412,118 @@
         area.appendChild(toast);
     }
 
+    // ── Persistent notification (info type, stays until dismissed) ──
+    function notifyPersistent(msg, type = 'info') {
+        const area = $('#overlay-notifications');
+        if (!area) return;
+        const toast = document.createElement('div');
+        toast.className = `overlay-toast overlay-toast-${type}`;
+        const iconMap = { success: 'check_circle', error: 'error', warning: 'warning', info: 'info' };
+        toast.innerHTML = `
+            <span class="material-icons overlay-toast-icon">${iconMap[type] || 'info'}</span>
+            <span class="overlay-toast-msg">${msg}</span>
+            <button class="overlay-toast-close"><span class="material-icons">close</span></button>
+        `;
+        const remove = () => { toast.classList.add('exiting'); setTimeout(() => toast.remove(), 200); };
+        toast.querySelector('.overlay-toast-close').onclick = remove;
+        area.appendChild(toast);
+    }
+
+    // ── Dismiss all persistent notifications ─────────────────
+    function dismissAllPersistentNotifications() {
+        const area = $('#overlay-notifications');
+        if (!area) return;
+        area.querySelectorAll('.overlay-toast').forEach(toast => {
+            toast.classList.add('exiting');
+            setTimeout(() => toast.remove(), 200);
+        });
+    }
+
+    // ── Sort Feedback Popup ──────────────────────────────────
+    function showSortFeedbackPopup(summary) {
+        const el = $('#overlaySortFeedback');
+        if (!el) return;
+        const noteEl = $('#overlaySortFeedbackNote');
+        if (noteEl) noteEl.value = '';
+        const riskEl = $('#overlaySortFeedbackRisk');
+        if (riskEl) {
+            if (summary && summary.cancelled) {
+                riskEl.textContent = 'Sort cancelled. Was the plan bad?';
+            } else if (summary && typeof summary.predictedRisk === 'number') {
+                riskEl.textContent = `${Math.round(summary.predictedRisk * 100)}% predicted failure risk`;
+            } else {
+                riskEl.textContent = 'Tell us how the run went so we can improve reliability.';
+            }
+        }
+        el.classList.remove('hidden');
+    }
+
+    function hideSortFeedbackPopup(clearSession = true) {
+        const el = $('#overlaySortFeedback');
+        if (el) el.classList.add('hidden');
+        sortFeedbackBusy = false;
+        if (clearSession && pendingSortSessionId) {
+            answeredSortSessions.add(pendingSortSessionId);
+            pendingSortSessionId = null;
+        }
+        const noteEl = $('#overlaySortFeedbackNote');
+        if (noteEl) noteEl.value = '';
+        // Keep the set from growing unbounded
+        if (answeredSortSessions.size > 50) {
+            const iter = answeredSortSessions.values();
+            for (let i = 0; i < answeredSortSessions.size - 50; i++) {
+                answeredSortSessions.delete(iter.next().value);
+            }
+        }
+    }
+
+    function handleSortSessionSummary(summary) {
+        if (!summary || !summary.sessionId) return;
+        if (answeredSortSessions.has(summary.sessionId)) return;
+        if (pendingSortSessionId === summary.sessionId) return;
+        pendingSortSessionId = summary.sessionId;
+        showSortFeedbackPopup(summary);
+    }
+
+    async function submitSortFeedback(isSuccess) {
+        if (!pendingSortSessionId || sortFeedbackBusy) return;
+        sortFeedbackBusy = true;
+        const btns = ['overlaySortFeedbackSuccess', 'overlaySortFeedbackFailure'];
+        btns.forEach(id => { const b = $('#' + id); if (b) b.disabled = true; });
+        const noteEl = $('#overlaySortFeedbackNote');
+        const note = noteEl ? noteEl.value.trim() : '';
+        try {
+            const res = await fetch('/api/sort-feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: pendingSortSessionId, success: Boolean(isSuccess), note })
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok || payload.success === false) {
+                throw new Error(payload.error || 'Failed to submit feedback');
+            }
+            notify('Thanks! Your feedback helps train the sorter.', 'success');
+            answeredSortSessions.add(pendingSortSessionId);
+            hideSortFeedbackPopup();
+        } catch (err) {
+            console.error('Feedback submit failed:', err);
+            notify('Unable to record feedback. Please try again.', 'error');
+        } finally {
+            sortFeedbackBusy = false;
+            btns.forEach(id => { const b = $('#' + id); if (b) b.disabled = false; });
+        }
+    }
+
     // ══════════════════════════════════════════════════════════
     //  CHARACTER LIST
     // ══════════════════════════════════════════════════════════
     async function loadCharacters() {
         try {
             characters = await apiFetch('/api/characters');
+            // Build lastUpdate map for data-change polling
+            characters.forEach(c => {
+                if (c.lastUpdate) lastUpdateMap[c.id] = c.lastUpdate;
+            });
             renderCharacterList();
         } catch (e) {
             console.error('Failed to load characters:', e);
@@ -420,6 +565,53 @@
         });
         list.innerHTML = '';
         list.appendChild(frag);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  DATA POLLING  (auto-refresh when new capture arrives)
+    // ══════════════════════════════════════════════════════════
+    function startDataPolling() {
+        if (dataPollTimer) return;
+        dataPollTimer = setInterval(checkForDataUpdates, DATA_POLL_INTERVAL);
+    }
+
+    async function checkForDataUpdates() {
+        // Don't poll while a sort or deposit is in progress
+        if (isSorting) return;
+        try {
+            const freshChars = await apiFetch('/api/characters');
+            let anyChanged = false;
+            let selectedChanged = false;
+
+            for (const c of freshChars) {
+                const prev = lastUpdateMap[c.id];
+                if (c.lastUpdate && c.lastUpdate !== prev) {
+                    anyChanged = true;
+                    if (c.id === selectedCharId) selectedChanged = true;
+                }
+            }
+
+            if (!anyChanged) return;
+
+            // Something changed — update state
+            characters = freshChars;
+            characters.forEach(c => {
+                if (c.lastUpdate) lastUpdateMap[c.id] = c.lastUpdate;
+            });
+            renderCharacterList();
+
+            // Dismiss persistent "refresh your data" notifications
+            dismissAllPersistentNotifications();
+
+            // If the currently-viewed character was updated, reload its stash data
+            if (selectedChanged) {
+                await reloadStashData();
+                notify('Character data updated automatically.', 'success', 3000);
+            }
+        } catch (e) {
+            // Silently ignore poll errors (network hiccup, overlay hidden, etc.)
+            console.debug('Data poll error:', e);
+        }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1138,6 +1330,9 @@
 
         setSortingState(true);
 
+        // Hide the overlay so it doesn't interfere with game input during sorting
+        try { await fetch('/api/overlay/hide', { method: 'POST' }); } catch (_) { /* best-effort */ }
+
         try {
             const result = await apiPost(`/api/character/${selectedCharId}/stash/${stashIdToSort}/sort`, {
                 pack: isPackMode,
@@ -1146,6 +1341,7 @@
 
             if (result.success) {
                 notify('Sort completed! Refreshing…', 'success');
+                notifyPersistent(SORT_SUCCESS_MSG, 'info');
                 // Turn off preview
                 if (isPreviewMode) {
                     isPreviewMode = false;
@@ -1157,9 +1353,14 @@
                 const msg = result.error || 'Sort failed';
                 if (msg.toLowerCase().includes('cancel')) {
                     notify('Sort cancelled', 'warning');
+                    notifyPersistent(SORT_CANCEL_MSG, 'warning');
                 } else {
                     notify(msg, 'error');
                 }
+            }
+            // Show feedback popup if session data is available
+            if (result.session) {
+                handleSortSessionSummary(result.session);
             }
         } catch (e) {
             if (e.name === 'AbortError') {
@@ -1170,6 +1371,8 @@
             }
         } finally {
             setSortingState(false);
+            // Restore the overlay now that sorting is done
+            try { await fetch('/api/overlay/show', { method: 'POST' }); } catch (_) { /* best-effort */ }
         }
     }
 
@@ -1186,6 +1389,7 @@
 
     function setSortingState(sorting) {
         isSorting = sorting;
+        if (sorting) hideSortFeedbackPopup();
         const overlay = $('#overlaySortOverlay');
         if (overlay) overlay.style.display = sorting ? 'flex' : 'none';
         const msg = $('#overlaySortMessage');
@@ -1271,6 +1475,9 @@
         const execBtn = $('#overlayDepositExecute');
         if (execBtn) { execBtn.disabled = true; execBtn.textContent = 'Depositing…'; }
         setSortingState(true);
+        // Hide the overlay so it doesn't interfere with game input during deposit
+        try { await fetch('/api/overlay/hide', { method: 'POST' }); } catch (_) { /* best-effort */ }
+
 
         try {
             const result = await apiPost(`/api/character/${selectedCharId}/stash/transfer/execute`, {
@@ -1282,6 +1489,7 @@
 
             if (result.success) {
                 notify('Deposit completed!', 'success');
+                notifyPersistent(DEPOSIT_SUCCESS_MSG, 'info');
                 closeAllDropdowns();
                 await reloadStashData();
             } else {
@@ -1293,6 +1501,8 @@
         } finally {
             setSortingState(false);
             if (execBtn) { execBtn.disabled = false; execBtn.innerHTML = '<span class="material-icons">check</span> Execute Deposit'; }
+            // Restore the overlay now that deposit is done
+            try { await fetch('/api/overlay/show', { method: 'POST' }); } catch (_) { /* best-effort */ }
         }
     }
 
@@ -2343,6 +2553,15 @@
             cancelSortBtn.addEventListener('click', cancelSort);
         }
 
+        // Sort feedback popup
+        const feedbackSuccess = $('#overlaySortFeedbackSuccess');
+        const feedbackFailure = $('#overlaySortFeedbackFailure');
+        const feedbackDismiss = $('#overlaySortFeedbackDismiss');
+        if (feedbackSuccess) feedbackSuccess.addEventListener('click', () => submitSortFeedback(true));
+        if (feedbackFailure) feedbackFailure.addEventListener('click', () => submitSortFeedback(false));
+        if (feedbackDismiss) feedbackDismiss.addEventListener('click', () => hideSortFeedbackPopup());
+
+
         // Deposit dropdown
         const depositDropdown = $('#overlayDepositDropdown');
         const depositBtn = $('#overlayDepositBtn');
@@ -2431,6 +2650,8 @@
         renderOrderingList();
         loadCharacters();
         loadQuests();
+        // Start polling for new data captures
+        startDataPolling();
     }
 
     // Boot
