@@ -25,7 +25,9 @@
 .feedback-banner::after {
     content: '';
     position: absolute;
-    top: 0; left: 0; right: 0;
+    top: 0;
+    left: 0;
+    right: 0;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--accent-gold, #cfa346), transparent);
     opacity: 0.45;
@@ -50,7 +52,9 @@
     line-height: 1;
 }
 
-.feedback-banner-icon .material-icons { font-size: 1.75rem; }
+.feedback-banner-icon .material-icons {
+    font-size: 1.75rem;
+}
 
 .feedback-banner-text h1 {
     margin: 0;
@@ -84,10 +88,10 @@
     cursor: pointer;
     text-align: left;
     transition:
-        border-color 0.25s cubic-bezier(0.22,1,0.36,1),
-        background 0.25s cubic-bezier(0.22,1,0.36,1),
-        color 0.25s cubic-bezier(0.22,1,0.36,1),
-        box-shadow 0.25s cubic-bezier(0.22,1,0.36,1);
+        border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        background 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .feedback-type-btn .material-icons {
@@ -251,7 +255,7 @@
     width: 100%;
 }
 
-.feedback-success-inner > .material-icons {
+.feedback-success-inner>.material-icons {
     font-size: 3rem;
     color: #66bb6a;
 }
