@@ -392,14 +392,20 @@ def get_screen_positions():
                 base_pos = _ensure_positions(res)
                 stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
                 inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
-                return _apply_calibration_override(
+                positions = _apply_calibration_override(
                     {'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"])}, res,
                 )
+                # Keep module-level globals in sync so move_from_to_reliable
+                # (and other helpers) use the calibrated values.
+                global stash_screen_pos, inv_screen_pos, jump
+                stash_screen_pos = positions['stash']
+                inv_screen_pos = positions['inv']
+                jump = float(positions['jump'])
+                return positions
 
     positions = _apply_calibration_override(_clone_layout(_ensure_positions(res)), res)
 
     # Keep module-level globals in sync for internal drag helpers
-    global stash_screen_pos, inv_screen_pos, jump
     stash_screen_pos = positions['stash']
     inv_screen_pos = positions['inv']
     jump = float(positions['jump'])
