@@ -256,7 +256,8 @@ function normalizeSlotIdList(slotSource) {
 const HIGHLIGHT_QUERY_PARAM = 'slotIds';
 const HIGHLIGHT_FALLBACK_QUERY_PARAMS = ['slots', 'highlight'];
 const HIGHLIGHT_CLASS = 'stash-item-highlight';
-const HIGHLIGHT_DURATION_MS = 6000;
+const HIGHLIGHT_FADEOUT_CLASS = 'stash-item-highlight-fadeout';
+const HIGHLIGHT_FADEOUT_MS = 1000;
 const HIGHLIGHT_POLL_INTERVAL = 120;
 const HIGHLIGHT_MAX_ATTEMPTS = 20;
 
@@ -686,8 +687,9 @@ function clearExistingHighlights() {
     if (typeof document === 'undefined') {
         return;
     }
-    document.querySelectorAll(`.${HIGHLIGHT_CLASS}`).forEach(el => {
+    document.querySelectorAll(`.${HIGHLIGHT_CLASS}, .${HIGHLIGHT_FADEOUT_CLASS}`).forEach(el => {
         el.classList.remove(HIGHLIGHT_CLASS);
+        el.classList.remove(HIGHLIGHT_FADEOUT_CLASS);
         el.removeAttribute('data-highlight-active');
     });
 }
@@ -778,13 +780,36 @@ function applyPendingHighlight(stashId, containerElement) {
 
     focusStashIfRequested(containerElement, connectedElements);
 
-    highlightCleanupTimeout = setTimeout(() => {
+    // Dismiss highlight when the user hovers any highlighted item
+    const fadeOutHighlightedItem = (hoveredEl) => {
+        // Fade out ALL highlighted items when any one is hovered
         connectedElements.forEach(el => {
-            el.classList.remove(HIGHLIGHT_CLASS);
-            el.removeAttribute('data-highlight-active');
+            if (!el.classList.contains(HIGHLIGHT_CLASS)) {
+                return;
+            }
+            el.classList.add(HIGHLIGHT_FADEOUT_CLASS);
         });
-        highlightCleanupTimeout = null;
-    }, HIGHLIGHT_DURATION_MS);
+        // After CSS transition completes, fully remove classes
+        if (highlightCleanupTimeout) {
+            clearTimeout(highlightCleanupTimeout);
+        }
+        highlightCleanupTimeout = setTimeout(() => {
+            connectedElements.forEach(el => {
+                el.classList.remove(HIGHLIGHT_CLASS);
+                el.classList.remove(HIGHLIGHT_FADEOUT_CLASS);
+                el.removeAttribute('data-highlight-active');
+            });
+            highlightCleanupTimeout = null;
+        }, HIGHLIGHT_FADEOUT_MS);
+    };
+
+    connectedElements.forEach(el => {
+        const handler = () => {
+            el.removeEventListener('mouseenter', handler);
+            fadeOutHighlightedItem(el);
+        };
+        el.addEventListener('mouseenter', handler);
+    });
 
     clearPendingHighlight();
     clearHighlightQueryFromUrl();
@@ -4314,13 +4339,62 @@ async function refreshQuestNeededItems() {
         window.questNeededBy = Object.create(null);
         window.questNeededLootStates = Object.create(null);
     } finally {
-        // Re-render current stash view so badges show up
+        // Overlay quest badges in-place instead of a full re-render.
+        // A full refreshCurrentStashView() would call gridContainer.innerHTML = ''
+        // which destroys DOM elements that may have active highlight animations
+        // and mouseenter listeners. This in-place approach preserves them.
         try {
-            refreshCurrentStashView();
+            overlayQuestBadgesInPlace();
         } catch (e) {
             // ignore
         }
     }
+}
+
+/**
+ * Add or remove quest-needed badges on existing stash-item elements
+ * WITHOUT rebuilding the grid.  This preserves any active highlight
+ * classes, CSS animations, and mouseenter event listeners.
+ */
+function overlayQuestBadgesInPlace() {
+    const gridContainer = document.getElementById('interactiveStashGrid');
+    if (!gridContainer) return;
+
+    const questSet = window.questNeededItems;
+    if (!questSet || typeof questSet.has !== 'function') return;
+
+    const allItems = gridContainer.querySelectorAll('.stash-item');
+    allItems.forEach(itemEl => {
+        const data = _gridItemDataMap.get(itemEl);
+        if (!data || !data.item) return;
+
+        const item = data.item;
+        const itemId = String(item.item_id || item.itemId || item.id || item.name || '');
+        if (!itemId) return;
+
+        const existingBadge = itemEl.querySelector('.item-quest-badge');
+        const isNeeded = questSet.has(itemId);
+
+        if (isNeeded) {
+            const lootState = item.lootState ?? item.loot_state;
+            const meetsLootState = doesItemMeetQuestLootState(itemId, lootState);
+
+            if (meetsLootState && !existingBadge) {
+                // Add quest badge
+                const questBadge = document.createElement('div');
+                questBadge.className = 'item-quest-badge';
+                questBadge.setAttribute('title', 'Needed for active quests');
+                questBadge.textContent = '!';
+                itemEl.appendChild(questBadge);
+            } else if (!meetsLootState && existingBadge) {
+                // Remove badge — no longer meets loot state
+                existingBadge.remove();
+            }
+        } else if (existingBadge) {
+            // Item is no longer needed — remove badge
+            existingBadge.remove();
+        }
+    });
 }
 
 // Refresh needed items on relevant events
