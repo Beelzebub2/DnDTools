@@ -647,6 +647,16 @@ class UpdaterUI:
         self._temp_dir = Path(tempfile.mkdtemp(prefix="dndtools-update-"))
         self._installer_proc: Optional[subprocess.Popen[Any]] = None
 
+        # ── Persistent log file ───────────────────────────────────────
+        self._log_dir = Path(tempfile.gettempdir()) / "DnDToolsUpdate" / "logs"
+        self._log_dir.mkdir(parents=True, exist_ok=True)
+        self._log_file = self._log_dir / f"updater-{int(time.time())}.log"
+        self._file_handler = logging.FileHandler(str(self._log_file), encoding="utf-8")
+        self._file_handler.setLevel(logging.DEBUG)
+        self._file_handler.setFormatter(logging.Formatter("[%(asctime)s] %(levelname)s %(message)s"))
+        self.logger.addHandler(self._file_handler)
+        self.logger.info("Updater session started — logging to %s", self._log_file)
+
         import tkinter as tk
         from tkinter import ttk
 
@@ -1105,24 +1115,27 @@ class UpdaterUI:
         self.root.after(3000, self.root.destroy)
 
     def _open_logs_directory(self) -> None:
-        log_dir = self.options.get("log_directory") or self.app_info.get("log_directory")
-        if not log_dir:
-            log_dir = str(self._temp_dir)
-        path = Path(log_dir).expanduser()
+        # Flush the file handler so all messages are written before opening.
+        if self._file_handler:
+            self._file_handler.flush()
+
+        # Prefer opening the log file directly; fall back to the directory.
+        target: Path = self._log_file if self._log_file.exists() else self._log_dir
         try:
             if sys.platform.startswith("win"):
-                os.startfile(str(path))  # type: ignore[attr-defined]
+                os.startfile(str(target))  # type: ignore[attr-defined]
             elif sys.platform == "darwin":
-                subprocess.Popen(["open", str(path)])
+                subprocess.Popen(["open", str(target)])
             else:
-                subprocess.Popen(["xdg-open", str(path)])
+                subprocess.Popen(["xdg-open", str(target)])
         except Exception as exc:
-            self.logger.error("Failed to open logs directory: %s", exc)
+            self.logger.error("Failed to open log file: %s", exc)
 
     # ==================================================================
     # Workflow
     # ==================================================================
     def _workflow(self) -> None:
+        _had_error = False
         try:
             if self.options.get("demo"):
                 self._run_demo_flow()
@@ -1173,8 +1186,9 @@ class UpdaterUI:
             self.logger.error("Update workflow failed: %s", exc, exc_info=True)
             self._enqueue("status", ("Update failed", str(exc)))
             self._enqueue("error", str(exc))
+            _had_error = True
         finally:
-            self._cleanup_temp()
+            self._cleanup_temp(keep_on_error=_had_error)
 
     def _run_demo_flow(self) -> None:
         steps = [
@@ -1361,10 +1375,18 @@ class UpdaterUI:
             if return_code != 0:
                 raise UpdateError(f"Installer exited with code {return_code}")
 
-    def _cleanup_temp(self) -> None:
+    def _cleanup_temp(self, *, keep_on_error: bool = False) -> None:
         """Best-effort cleanup of temp files after install finishes."""
-        # At this point the installer has already exited (we waited), so
-        # it is safe to remove the downloaded .exe.
+        if keep_on_error:
+            # Only remove the downloaded installer, keep the temp dir
+            # so that any diagnostic files remain accessible.
+            try:
+                if self._download_path and self._download_path.exists():
+                    self._download_path.unlink(missing_ok=True)
+            except Exception:
+                pass
+            return
+
         try:
             if self._download_path and self._download_path.exists():
                 self._download_path.unlink(missing_ok=True)
