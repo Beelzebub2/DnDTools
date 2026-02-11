@@ -416,7 +416,12 @@ class CalibrationOverlay:
 
             jump_w = raw_w / cols if cols else self._jump
             jump_h = raw_h / rows if rows else self._jump
-            new_jump = max(15.0, min(120.0, (jump_w + jump_h) / 2.0))
+            # Weight by cell count: the axis with more cells provides a
+            # more precise estimate (mouse imprecision is smaller relative
+            # to the longer span).  Round to nearest 0.5 to avoid tiny
+            # drift that accumulates across 20 rows during sorting.
+            weighted = (jump_w * cols + jump_h * rows) / (cols + rows)
+            new_jump = max(15.0, min(120.0, round(weighted * 2.0) / 2.0))
 
             self._jump = new_jump
             actual_w = int(cols * new_jump)

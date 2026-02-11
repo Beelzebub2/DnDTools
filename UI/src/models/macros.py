@@ -75,7 +75,7 @@ STANDARD_ASPECT = 16.0 / 9.0  # ~1.7778 – the aspect ratio the calibration tar
 BASE_LAYOUT = {
     'stash': Point(1378, 199),
     'inv': Point(690, 626),
-    'jump': 40,
+    'jump': 40.5,
 }
 
 # Resolutions that benefit from hand-tuned offsets can live here
