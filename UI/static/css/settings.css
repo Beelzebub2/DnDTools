@@ -1627,3 +1627,22 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     position: relative;
     width: auto;
 }
+
+
+/* ══════════════════════════════════
+   Calibration Button
+   ══════════════════════════════════ */
+.btn-action.calibrate {
+    color: var(--accent-gold);
+    background: var(--accent-gold-dim);
+    border-color: var(--accent-gold-border);
+}
+
+.btn-action.calibrate:hover {
+    background: rgba(207, 163, 70, 0.22);
+    border-color: rgba(207, 163, 70, 0.50);
+}
+
+.card-full-width {
+    grid-column: 1 / -1;
+}
