@@ -36,6 +36,7 @@ from src.models.icon_pak import icon_store, canonical_icon_path
 from src.models.character import save_packet_data
 from src.models.item import Item
 from src.models.game_overlay import overlay_manager, register_overlay_logging
+from src.models.app_overlay import AppOverlayManager
 from src.models.hotkeys import GlobalHotkeyManager, HotkeyError, format_hotkey_display
 from src.models.loot import (
     extract_loot_state_filter,
@@ -608,6 +609,7 @@ class Api:
         self.original_size = None
         self.original_position = None
         self.current_sort_event = None
+        self._app_overlay = AppOverlayManager()
         self._current_char_id = None
         self._current_stash_id = None
         self._is_combined_view = False
@@ -1629,6 +1631,15 @@ class Api:
                 except Exception as exc:
                     logger.debug("Unable to propagate feedback sync settings: %s", exc, exc_info=True)
 
+            # ── Propagate overlay settings ──
+            try:
+                self._app_overlay.update_settings(
+                    enabled=bool(updated_settings.get('overlayEnabled', False)),
+                    opacity=float(updated_settings.get('overlayOpacity', 0.92)),
+                )
+            except Exception as exc:
+                logger.debug("Unable to propagate overlay settings: %s", exc, exc_info=True)
+
             result['settings'] = self.settings_manager.data
             result['success'] = success and not result['errors']
 
@@ -1657,11 +1668,18 @@ class Api:
             'cancel': (cancel_hotkey, self._trigger_cancel_sort),
         }
 
+        # Register overlay hotkey if overlay is enabled
+        overlay_enabled = self.settings_manager.get('overlayEnabled', False)
+        overlay_hotkey = self.settings_manager.get('overlayHotkey', 'ctrl+shift+o') or ''
+        if overlay_enabled and overlay_hotkey:
+            bindings['overlay'] = (overlay_hotkey, self._toggle_app_overlay)
+
         canonical = self.hotkey_manager.apply_bindings(bindings)
         logger.info(
-            "Registered hotkeys -> sort: %s | cancel: %s",
+            "Registered hotkeys -> sort: %s | cancel: %s | overlay: %s",
             canonical.get('sort', '<none>'),
             canonical.get('cancel', '<none>'),
+            canonical.get('overlay', '<none>'),
         )
         return canonical
         
@@ -1788,6 +1806,18 @@ class Api:
                 self._closing_subscription_attached = True
             except Exception as exc:
                 logger.debug("Unable to bind window closing event: %s", exc)
+
+        # Configure the in-game overlay manager with the Flask server
+        try:
+            settings = self.settings_manager.data
+            self._app_overlay.configure(
+                server=server,
+                main_window=window,
+                enabled=bool(settings.get('overlayEnabled', False)),
+                opacity=float(settings.get('overlayOpacity', 0.92)),
+            )
+        except Exception as exc:
+            logger.debug("Failed to configure app overlay manager: %s", exc)
 
     def set_initial_window_state(self):
         # Called after window is loaded and GUI is ready
@@ -2046,6 +2076,14 @@ class Api:
                     )
                 except Exception:
                     logger.debug("Unable to surface idle cancel notification to UI", exc_info=True)
+
+    def _toggle_app_overlay(self):
+        """Triggered by global hotkey to toggle the in-game overlay."""
+        logger.info("Overlay toggle hotkey activated")
+        try:
+            self._app_overlay.toggle()
+        except Exception as exc:
+            logger.error("Failed to toggle app overlay: %s", exc, exc_info=True)
 
     def get_characters(self):
         return self.stash_manager.get_characters()
@@ -2348,6 +2386,13 @@ class Api:
                 pass
 
         self._stop_game_monitor()
+
+        # Destroy the in-game overlay window
+        try:
+            if getattr(self, '_app_overlay', None):
+                self._app_overlay.destroy()
+        except Exception:
+            pass
 
         try:
             if getattr(self, 'hotkey_manager', None):
@@ -3519,6 +3564,27 @@ def index():
 @server.route('/settings')
 def settings():
     return render_template('settings.html', app_version=APP_VERSION)
+
+@server.route('/overlay')
+def overlay_page():
+    sort_hotkey = format_hotkey_display(settings_manager.get('sortHotkey', 'ctrl+f11'), 'ctrl+f11')
+    cancel_hotkey = format_hotkey_display(settings_manager.get('cancelHotkey', 'ctrl+f12'), 'ctrl+f12')
+    return render_template(
+        'overlay.html',
+        app_version=APP_VERSION,
+        sort_hotkey_display=sort_hotkey,
+        cancel_hotkey_display=cancel_hotkey,
+    )
+
+@server.route('/api/overlay/hide', methods=['POST'])
+def overlay_hide():
+    """Hide the overlay window (called from the overlay JS as a fallback)."""
+    try:
+        api._app_overlay.hide()
+        return jsonify({'success': True})
+    except Exception as exc:
+        logger.error("Failed to hide overlay: %s", exc)
+        return jsonify({'success': False, 'error': str(exc)}), 500
 
 @server.route('/record')
 def record():
