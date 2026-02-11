@@ -21,15 +21,28 @@
 
     <!-- Search bar — hero-level prominence -->
     <div class="search-bar-card">
-        <div class="search-input-wrapper">
-            <div class="search-icon">
-                <span class="material-icons">search</span>
+        <div class="search-row">
+            <div class="search-input-wrapper">
+                <input type="text" class="search-input" placeholder="Search items by name, enchantment…"
+                    id="searchInput">
+                <div class="search-icon">
+                    <span class="material-icons">search</span>
+                </div>
+                <button class="clear-search" id="clearSearch" style="display: none;">
+                    <span class="material-icons">clear</span>
+                </button>
             </div>
-            <input type="text" class="search-input" placeholder="Search items by name, rarity, enchantment…"
-                id="searchInput">
-            <button class="clear-search" id="clearSearch" style="display: none;">
-                <span class="material-icons">clear</span>
-            </button>
+            <select class="rarity-filter" id="filterRarity">
+                <option value="">All Rarities</option>
+                <option value="Poor">Poor</option>
+                <option value="Common">Common</option>
+                <option value="Uncommon">Uncommon</option>
+                <option value="Rare">Rare</option>
+                <option value="Epic">Epic</option>
+                <option value="Legend">Legendary</option>
+                <option value="Unique">Unique</option>
+                <option value="Artifact">Artifact</option>
+            </select>
         </div>
         <div class="search-meta" id="searchMeta"></div>
 
@@ -37,7 +50,6 @@
         <div class="search-tips-row">
             <span class="search-tip-label">Try:</span>
             <code>barbuta helm</code>
-            <code>rare, epic</code>
             <code>agility, strength</code>
             <code>sword, rare, strength</code>
         </div>

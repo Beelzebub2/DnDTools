@@ -329,6 +329,7 @@ window.addEventListener('load', () => {
     const clearSearch = document.getElementById('clearSearch');
     const searchMeta = document.getElementById('searchMeta');
     const resultsCount = document.getElementById('resultsCount');
+    const filterRarity = document.getElementById('filterRarity');
 
     // Show initial loading if data hasn't been loaded yet
     let isInitialLoad = true;
@@ -337,10 +338,8 @@ window.addEventListener('load', () => {
     const preloadData = async () => {
         try {
             if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.get_characters === 'function') {
-                // Pre-load character data by calling get_characters
                 await window.pywebview.api.get_characters();
             } else {
-                // Pre-load via API
                 const response = await fetch('/api/characters');
                 await response.json();
             }
@@ -354,12 +353,48 @@ window.addEventListener('load', () => {
     // Start preloading in the background
     preloadData();
 
-    // Clear search functionality
+    // ── Filter helpers ─────────────────────────────────────────────
+
+    /** Build the final API query string from text input + rarity dropdown. */
+    function buildCompositeQuery() {
+        const parts = [];
+        const textValue = searchInput.value.trim();
+        if (textValue) parts.push(textValue);
+
+        if (filterRarity && filterRarity.value) {
+            parts.push(filterRarity.value);
+        }
+
+        return parts.join(', ');
+    }
+
+    /** Update the visual state of the rarity dropdown. */
+    function updateFilterUI() {
+        if (filterRarity) {
+            filterRarity.classList.toggle('filter-active', !!filterRarity.value);
+        }
+    }
+
+    /** Trigger a search using the composite query (text + rarity filter). */
+    function triggerFilteredSearch() {
+        updateFilterUI();
+        const compositeQuery = buildCompositeQuery();
+        if (compositeQuery) {
+            performSearch(compositeQuery);
+        } else {
+            showEmptyState();
+            updateResultsCount(0, '');
+        }
+    }
+
+    // ── Clear search ────────────────────────────────────────────────
     clearSearch.addEventListener('click', () => {
         searchInput.value = '';
+        if (filterRarity) filterRarity.value = '';
         clearSearch.style.display = 'none';
         searchMeta.textContent = '';
         resultsCount.textContent = '';
+        updateFilterUI();
         showEmptyState();
         searchInput.focus();
     });
@@ -369,11 +404,16 @@ window.addEventListener('load', () => {
         const value = e.target.value.trim();
         clearSearch.style.display = value ? 'flex' : 'none';
 
-        if (!value) {
+        if (!value && !(filterRarity && filterRarity.value)) {
             searchMeta.textContent = '';
             resultsCount.textContent = '';
         }
     });
+
+    // ── Filter event handler ────────────────────────────────────────
+    if (filterRarity) {
+        filterRarity.addEventListener('change', () => triggerFilteredSearch());
+    }
 
     const showEmptyState = () => {
         searchResults.innerHTML = `
@@ -420,7 +460,7 @@ window.addEventListener('load', () => {
                 <div class="empty-search-state">
                     <span class="material-icons">search_off</span>
                     <h3>No items found</h3>
-                    <p>Try different search terms or check if you have captured character data</p>
+                    <p>Try different search terms, adjust your filters, or check if you have captured character data</p>
                 </div>
             `;
             return;
@@ -698,9 +738,12 @@ window.addEventListener('load', () => {
             `;
             updateResultsCount(0, trimmedQuery);
         }
-    };    // Debounced search with improved timing
-    const debouncedSearch = debounce((e) => performSearch(e.target.value), 200); // Reduced from 300ms
+    };    // Debounced search with improved timing — uses composite query (text + filters)
+    const debouncedSearch = debounce(() => triggerFilteredSearch(), 200);
     searchInput.addEventListener('input', debouncedSearch);
+
+    // Initial filter UI state
+    updateFilterUI();
 
     // Initial state
     showEmptyState();

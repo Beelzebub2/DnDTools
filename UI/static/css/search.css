@@ -136,20 +136,28 @@
 .search-icon {
     position: absolute;
     left: 0.85rem;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 0;
+    bottom: 0;
+    width: 20px;
     color: var(--text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
     pointer-events: none;
+    transition: color 0.25s ease;
 }
 
-.search-icon .material-icons {
-    font-size: 1.15rem;
+.search-icon>.material-icons {
+    font-size: 20px;
+    width: 20px;
+    height: 20px;
+    line-height: 20px;
+    text-align: center;
+    display: block;
+    overflow: hidden;
 }
 
-.search-input:focus~.search-icon {
+.search-input:focus+.search-icon {
     color: var(--accent-gold);
 }
 
@@ -210,6 +218,60 @@
 
 .search-tips-row code:hover {
     background: rgba(207, 163, 70, 0.15);
+}
+
+/* ── Inline Rarity Filter ─────────────────────────────────────────── */
+.search-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0.65rem;
+}
+
+.search-row .search-input-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.rarity-filter {
+    height: 48px;
+    min-width: 145px;
+    padding: 0 2rem 0 0.75rem;
+    background: var(--bg-dark);
+    border: 2px solid var(--border-color);
+    border-radius: 10px;
+    color: var(--text-primary);
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888888' d='M2 4l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.7rem center;
+    background-size: 12px;
+    flex-shrink: 0;
+}
+
+.rarity-filter:hover {
+    border-color: rgba(207, 163, 70, 0.4);
+}
+
+.rarity-filter:focus {
+    outline: none;
+    border-color: var(--accent-gold);
+    box-shadow: 0 0 0 3px rgba(228, 200, 105, 0.1);
+}
+
+.rarity-filter.filter-active {
+    border-color: var(--accent-gold);
+    background-color: rgba(207, 163, 70, 0.06);
+    color: var(--accent-gold);
+}
+
+.rarity-filter option {
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    padding: 0.4rem;
 }
 
 /* ── Results Panel ───────────────────────────────────────────────── */
@@ -651,6 +713,15 @@
         justify-content: center;
     }
 
+    .search-row {
+        flex-direction: column;
+    }
+
+    .rarity-filter {
+        min-width: 0;
+        width: 100%;
+    }
+
     .results-panel-body {
         padding: 1rem;
     }
@@ -712,10 +783,6 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-}
-
-.search-input-wrapper .material-icons {
-    font-size: 20px;
 }
 
 .clear-search .material-icons {
