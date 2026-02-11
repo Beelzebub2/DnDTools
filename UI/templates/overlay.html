@@ -11,7 +11,7 @@
 </head>
 
 <body>
-    <!-- ─── Overlay Drag Bar ─── -->
+    <!-- ─── Overlay Title Bar ─── -->
     <div class="overlay-titlebar pywebview-drag-region">
         <div class="overlay-titlebar-left">
             <img src="{{ url_for('serve_file', filename='logo.png') }}" class="overlay-logo" alt="">
@@ -19,141 +19,199 @@
             <span class="overlay-version">v{{ app_version }}</span>
         </div>
         <div class="overlay-titlebar-right">
-            <button class="overlay-btn-icon" id="overlayMinBtn" title="Minimize overlay">
-                <span class="material-icons">remove</span>
-            </button>
-            <button class="overlay-btn-icon overlay-close" id="overlayCloseBtn" title="Hide overlay">
+            <div class="overlay-hotkeys">
+                <kbd>{{ sort_hotkey_display }}</kbd> Sort
+                <span class="overlay-hint-sep">·</span>
+                <kbd>{{ cancel_hotkey_display }}</kbd> Cancel
+            </div>
+            <button class="overlay-btn-icon overlay-close" id="overlayCloseBtn" title="Hide overlay (Esc)">
                 <span class="material-icons">close</span>
             </button>
         </div>
     </div>
 
-    <!-- ─── Tab Navigation ─── -->
-    <nav class="overlay-nav" role="tablist">
-        <button class="overlay-tab active" data-tab="characters" role="tab" aria-selected="true">
-            <span class="material-icons">inventory_2</span>
-            <span>Characters</span>
-        </button>
-        <button class="overlay-tab" data-tab="search" role="tab" aria-selected="false">
-            <span class="material-icons">search</span>
-            <span>Search</span>
-        </button>
-        <button class="overlay-tab" data-tab="quests" role="tab" aria-selected="false">
-            <span class="material-icons">assignment</span>
-            <span>Quests</span>
-        </button>
-        <button class="overlay-tab" data-tab="sort" role="tab" aria-selected="false">
-            <span class="material-icons">sort</span>
-            <span>Sort</span>
-        </button>
-    </nav>
+    <!-- ─── Main Layout: Sidebar + Content ─── -->
+    <div class="overlay-main">
 
-    <!-- ─── Panel Container ─── -->
-    <div class="overlay-panels">
-
-        <!-- Characters Panel -->
-        <section class="overlay-panel active" data-panel="characters">
-            <div class="overlay-panel-header">
-                <h2><span class="material-icons">inventory_2</span> Characters</h2>
-                <button class="overlay-action-btn" id="overlayRefreshChars" title="Refresh">
+        <!-- Sidebar: Character List -->
+        <aside class="overlay-sidebar">
+            <div class="overlay-sidebar-header">
+                <span class="overlay-sidebar-title">Characters</span>
+                <button class="overlay-btn-icon overlay-btn-sm" id="overlayRefreshChars" title="Refresh characters">
                     <span class="material-icons">refresh</span>
                 </button>
             </div>
-            <div class="overlay-scroll-area" id="overlayCharList">
-                <div class="overlay-empty-state">
+            <div class="overlay-char-list" id="overlayCharList">
+                <div class="overlay-empty-state small">
                     <span class="material-icons">hourglass_empty</span>
-                    <p>Loading characters…</p>
+                    <p>Loading…</p>
                 </div>
             </div>
-        </section>
+        </aside>
 
-        <!-- Search Panel -->
-        <section class="overlay-panel" data-panel="search">
-            <div class="overlay-panel-header">
-                <h2><span class="material-icons">search</span> Item Search</h2>
-            </div>
-            <div class="overlay-search-bar">
-                <span class="material-icons overlay-search-icon">search</span>
-                <input type="text" id="overlaySearchInput" class="overlay-input" placeholder="Search items by name…"
-                    autocomplete="off">
-                <button class="overlay-action-btn overlay-search-clear" id="overlaySearchClear" title="Clear search"
-                    style="display:none;">
-                    <span class="material-icons">close</span>
+        <!-- Content Area -->
+        <div class="overlay-content">
+
+            <!-- Tab Navigation -->
+            <nav class="overlay-nav" role="tablist">
+                <button class="overlay-tab active" data-tab="sort" role="tab" aria-selected="true">
+                    <span class="material-icons">sort</span>
+                    <span>Sort</span>
                 </button>
-            </div>
-            <div class="overlay-scroll-area" id="overlaySearchResults">
-                <div class="overlay-empty-state">
-                    <span class="material-icons">manage_search</span>
-                    <p>Type to search items</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Quests Panel -->
-        <section class="overlay-panel" data-panel="quests">
-            <div class="overlay-panel-header">
-                <h2><span class="material-icons">assignment</span> Quests</h2>
-                <button class="overlay-action-btn" id="overlayRefreshQuests" title="Refresh">
-                    <span class="material-icons">refresh</span>
+                <button class="overlay-tab" data-tab="search" role="tab" aria-selected="false">
+                    <span class="material-icons">search</span>
+                    <span>Search</span>
                 </button>
-            </div>
-            <div class="overlay-scroll-area" id="overlayQuestList">
-                <div class="overlay-empty-state">
-                    <span class="material-icons">hourglass_empty</span>
-                    <p>Loading quests…</p>
-                </div>
-            </div>
-        </section>
+                <button class="overlay-tab" data-tab="quests" role="tab" aria-selected="false">
+                    <span class="material-icons">assignment</span>
+                    <span>Quests</span>
+                </button>
+            </nav>
 
-        <!-- Sort Panel -->
-        <section class="overlay-panel" data-panel="sort">
-            <div class="overlay-panel-header">
-                <h2><span class="material-icons">sort</span> Stash Sort</h2>
-            </div>
-            <div class="overlay-scroll-area">
-                <div class="overlay-sort-controls">
-                    <!-- Character Selector -->
-                    <div class="overlay-field">
-                        <label class="overlay-field-label">Character</label>
-                        <select id="overlaySortCharacter" class="overlay-select">
-                            <option value="">Select a character…</option>
-                        </select>
-                    </div>
-
-                    <!-- Stash Selector -->
-                    <div class="overlay-field">
-                        <label class="overlay-field-label">Stash</label>
-                        <select id="overlaySortStash" class="overlay-select">
-                            <option value="2">Bag (Stash 2)</option>
-                            <option value="1">Stash 1</option>
-                        </select>
-                    </div>
-
-                    <!-- Sort Hotkey Reminder -->
-                    <div class="overlay-hotkey-hint">
-                        <span class="material-icons">keyboard</span>
-                        <span>Sort: <kbd>{{ sort_hotkey_display }}</kbd></span>
-                        <span class="overlay-hint-divider">|</span>
-                        <span>Cancel: <kbd>{{ cancel_hotkey_display }}</kbd></span>
-                    </div>
-
-                    <!-- Sort Button -->
-                    <button class="overlay-sort-btn" id="overlayTriggerSort">
-                        <span class="material-icons">sort</span>
-                        Sort Stash
-                    </button>
-
-                    <!-- Sort Status -->
-                    <div class="overlay-sort-status" id="overlaySortStatus" style="display:none;">
-                        <div class="overlay-sort-progress">
-                            <div class="overlay-sort-progress-bar" id="overlaySortProgressBar"></div>
+            <!-- ═══ Sort Panel ═══ -->
+            <section class="overlay-panel active" data-panel="sort">
+                <!-- Sort Toolbar -->
+                <div class="overlay-sort-toolbar">
+                    <div class="overlay-sort-toolbar-left">
+                        <!-- Stash Tabs -->
+                        <div class="overlay-stash-tabs" id="overlayStashTabs">
+                            <span class="overlay-stash-placeholder">Select a character</span>
                         </div>
-                        <p class="overlay-sort-message" id="overlaySortMessage"></p>
+                    </div>
+                    <div class="overlay-sort-toolbar-right">
+                        <!-- Sort Order Dropdown -->
+                        <div class="overlay-dropdown" id="overlayOrderingDropdown">
+                            <button class="overlay-toolbar-btn" id="overlayOrderingBtn" title="Sort Order">
+                                <span class="material-icons">swap_vert</span>
+                                <span>Order</span>
+                            </button>
+                            <div class="overlay-dropdown-menu" id="overlayOrderingMenu">
+                                <div class="overlay-dropdown-title">Sort Order (drag to reorder)</div>
+                                <div class="overlay-ordering-list" id="overlayOrderingList"></div>
+                                <button class="overlay-dropdown-action" id="overlayResetOrdering">
+                                    <span class="material-icons">restart_alt</span> Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Pack Toggle -->
+                        <label class="overlay-toggle" title="Pack items tightly together">
+                            <input type="checkbox" id="overlayPackToggle">
+                            <span class="overlay-toggle-label">Pack</span>
+                        </label>
+
+                        <!-- Stack Toggle -->
+                        <label class="overlay-toggle" title="Merge stackable items before sorting">
+                            <input type="checkbox" id="overlayStackToggle">
+                            <span class="overlay-toggle-label">Stack</span>
+                        </label>
+
+                        <div class="overlay-toolbar-sep"></div>
+
+                        <!-- Preview Button -->
+                        <button class="overlay-toolbar-btn" id="overlayPreviewBtn" title="Toggle local preview">
+                            <span class="material-icons">visibility</span>
+                            <span>Preview</span>
+                        </button>
+
+                        <!-- Sort Button -->
+                        <button class="overlay-sort-btn" id="overlayTriggerSort" disabled>
+                            <span class="material-icons">sort</span>
+                            Sort
+                        </button>
+
+                        <!-- Deposit Dropdown -->
+                        <div class="overlay-dropdown overlay-dropdown-right" id="overlayDepositDropdown">
+                            <button class="overlay-deposit-btn" id="overlayDepositBtn" disabled
+                                title="Deposit bag items into this stash">
+                                <span class="material-icons">move_to_inbox</span>
+                                <span id="overlayDepositLabel">Deposit</span>
+                                <span class="overlay-deposit-badge" id="overlayDepositBadge"></span>
+                            </button>
+                            <div class="overlay-dropdown-menu overlay-deposit-menu" id="overlayDepositMenu">
+                                <div class="overlay-deposit-info" id="overlayDepositInfo">
+                                    Checking feasibility…
+                                </div>
+                                <button class="overlay-deposit-execute" id="overlayDepositExecute" disabled>
+                                    <span class="material-icons">check</span> Execute Deposit
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
 
+                <!-- Stash Grid Area -->
+                <div class="overlay-stash-area" id="overlayStashArea">
+                    <div class="overlay-empty-state">
+                        <span class="material-icons">inventory_2</span>
+                        <p>Select a character to view their stash</p>
+                    </div>
+                </div>
+
+                <!-- Sort Progress Overlay -->
+                <div class="overlay-sort-overlay" id="overlaySortOverlay" style="display:none;">
+                    <div class="overlay-sort-overlay-content">
+                        <div class="overlay-spinner-large"></div>
+                        <p id="overlaySortMessage">Sorting…</p>
+                        <div class="overlay-progress-bar-track">
+                            <div class="overlay-progress-bar-fill" id="overlaySortProgressBar"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Search Panel ═══ -->
+            <section class="overlay-panel" data-panel="search">
+                <div class="overlay-search-bar">
+                    <span class="material-icons overlay-search-icon">search</span>
+                    <input type="text" id="overlaySearchInput" class="overlay-input"
+                        placeholder="Search items by name…" autocomplete="off">
+                    <button class="overlay-btn-icon overlay-btn-sm" id="overlaySearchClear" title="Clear"
+                        style="display:none;">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="overlay-scroll-area" id="overlaySearchResults">
+                    <div class="overlay-empty-state">
+                        <span class="material-icons">manage_search</span>
+                        <p>Type to search items across all characters</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Quests Panel ═══ -->
+            <section class="overlay-panel" data-panel="quests">
+                <div class="overlay-quest-toolbar">
+                    <div class="overlay-quest-toolbar-left">
+                        <button class="overlay-btn-icon overlay-btn-sm" id="overlayQuestBack"
+                            style="display:none;" title="Back to merchants">
+                            <span class="material-icons">arrow_back</span>
+                        </button>
+                        <span class="overlay-quest-toolbar-title" id="overlayQuestTitle">Merchants</span>
+                    </div>
+                    <div class="overlay-quest-toolbar-right">
+                        <label class="overlay-toggle" title="Hide quests with unmet prerequisites">
+                            <input type="checkbox" id="overlayPrereqFilter">
+                            <span class="overlay-toggle-label">Prerequisites</span>
+                        </label>
+                        <button class="overlay-btn-icon overlay-btn-sm" id="overlayRefreshQuests" title="Refresh">
+                            <span class="material-icons">refresh</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="overlay-scroll-area" id="overlayQuestContent">
+                    <div class="overlay-merchant-gallery" id="overlayMerchantGallery">
+                        <div class="overlay-empty-state">
+                            <span class="material-icons">hourglass_empty</span>
+                            <p>Loading quests…</p>
+                        </div>
+                    </div>
+                    <div class="overlay-merchant-quests" id="overlayMerchantQuests" style="display:none;">
+                    </div>
+                </div>
+            </section>
+
+        </div>
     </div>
 
     <!-- ─── Notification Area ─── -->

@@ -47,11 +47,11 @@ class AppOverlayManager:
     * The manager stores minimal state and delegates rendering to the web layer.
     """
 
-    # Default window geometry (centered, 80 % of primary monitor)
-    DEFAULT_WIDTH = 1100
-    DEFAULT_HEIGHT = 700
-    MIN_WIDTH = 800
-    MIN_HEIGHT = 520
+    # Default window geometry — prefer fullscreen to fit stash grids
+    DEFAULT_WIDTH = 1920
+    DEFAULT_HEIGHT = 1080
+    MIN_WIDTH = 960
+    MIN_HEIGHT = 600
 
     def __init__(self) -> None:
         self._lock = threading.RLock()
@@ -210,6 +210,7 @@ class AppOverlayManager:
                 min_size=(self.MIN_WIDTH, self.MIN_HEIGHT),
                 frameless=True,
                 easy_drag=False,
+                maximized=True,
                 on_top=True,
                 transparent=True,
                 background_color="#000000",
