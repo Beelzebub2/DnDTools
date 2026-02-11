@@ -1574,6 +1574,42 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
+    // ═══════════════════════════════════════════════════════════
+    //  Stash Calibration  (native Win32 overlay via pywebview API)
+    // ═══════════════════════════════════════════════════════════
+    const calibrateBtn = document.getElementById('calibrateStash');
+
+    async function runCalibrationOverlay() {
+        if (!calibrateBtn) return;
+
+        if (!window.pywebview?.api?.open_calibration) {
+            showNotification('Calibration requires the desktop app.', 'warning');
+            return;
+        }
+
+        calibrateBtn.disabled = true;
+        calibrateBtn.classList.add('loading');
+
+        try {
+            const result = await window.pywebview.api.open_calibration();
+
+            if (result && result.saved) {
+                const submitMsg = result.submitted
+                    ? ' Data submitted for improvement — thank you!'
+                    : '';
+                showNotification('Calibration saved.' + submitMsg, 'success');
+            }
+        } catch (err) {
+            console.error('Calibration error:', err);
+            showNotification('Calibration failed — see console for details.', 'error');
+        } finally {
+            calibrateBtn.disabled = false;
+            calibrateBtn.classList.remove('loading');
+        }
+    }
+
+    calibrateBtn?.addEventListener('click', runCalibrationOverlay);
+
     setupUnsavedChangesGuard();
 
     // Save immediately when the user switches browser tabs or minimizes the window

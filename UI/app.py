@@ -2519,6 +2519,72 @@ class Api:
             logger.debug("Unable to persist sort feedback: %s", exc, exc_info=True)
             return False
 
+    def open_calibration(self):
+        """Open the native calibration overlay over the game window.
+
+        Blocks until the user saves or cancels.  On save, persists the
+        adjusted positions locally and submits them to the website.
+        """
+        from src.models.calibration_overlay import run_calibration_overlay
+        import requests as http_requests
+
+        result = run_calibration_overlay()
+
+        if not result.get('saved'):
+            return {'success': True, 'saved': False}
+
+        # Persist locally as deltas (robust for windowed-mode window moves)
+        try:
+            orig_stash = result.get('originalStash', result['stash'])
+            orig_inv = result.get('originalInv', result['inv'])
+            self.settings_manager.update({
+                'calibrationOverride': {
+                    'resolution': result['resolution'],
+                    'stashDelta': {
+                        'dx': result['stash']['x'] - orig_stash['x'],
+                        'dy': result['stash']['y'] - orig_stash['y'],
+                    },
+                    'invDelta': {
+                        'dx': result['inv']['x'] - orig_inv['x'],
+                        'dy': result['inv']['y'] - orig_inv['y'],
+                    },
+                    'jump': result.get('jump'),
+                }
+            })
+        except Exception as exc:
+            logger.error("Failed to persist calibration locally: %s", exc, exc_info=True)
+
+        # Submit to website (best-effort)
+        submitted = False
+        try:
+            payload = {
+                'resolution': result['resolution'],
+                'stash': result['stash'],
+                'inv': result['inv'],
+                'jump': result.get('jump'),
+                'originalStash': result.get('originalStash'),
+                'originalInv': result.get('originalInv'),
+                'originalJump': result.get('originalJump'),
+                'appVersion': APP_VERSION,
+            }
+            resp = http_requests.post(
+                'https://dndtools.rrmtools.uk/api/calibration',
+                json=payload,
+                headers={'User-Agent': 'DnDTools-Calibration', 'Content-Type': 'application/json'},
+                timeout=10,
+            )
+            submitted = resp.status_code in (200, 201, 202)
+        except Exception as exc:
+            logger.debug("Calibration submission failed (non-critical): %s", exc)
+
+        return {
+            'success': True,
+            'saved': True,
+            'submitted': submitted,
+            'stash': result['stash'],
+            'inv': result['inv'],
+        }
+
 @server.route('/api/download_update')
 def download_update():
     """Redirect to the latest release page, reusing cached version info."""
@@ -3580,6 +3646,27 @@ def api_auto_resolution():
     from src.models.macros import get_game_resolution
     return jsonify({"resolution": get_game_resolution() or "Not detected"})
 
+@server.route('/api/calibration', methods=['GET'])
+def api_calibration_data():
+    """Return current detected grid positions (informational)."""
+    from src.models.macros import get_screen_positions, get_current_resolution
+    try:
+        positions = get_screen_positions()
+        resolution = get_current_resolution()
+        jump = float(positions.get('jump', 40))
+        stash = positions.get('stash')
+        inv = positions.get('inv')
+        return jsonify({
+            'success': True,
+            'resolution': {'width': resolution[0], 'height': resolution[1]},
+            'jump': jump,
+            'stash': {'x': int(stash.x), 'y': int(stash.y)},
+            'inv': {'x': int(inv.x), 'y': int(inv.y)},
+        })
+    except Exception as exc:
+        logger.error("Failed to gather calibration data: %s", exc, exc_info=True)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
 @server.route('/api/restart', methods=['POST'])
 def api_restart():
     import sys, os, subprocess
@@ -3875,7 +3962,8 @@ def main():
         'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_characters_summary', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path'
+        'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path',
+        'open_calibration'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))
