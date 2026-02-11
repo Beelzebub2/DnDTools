@@ -3631,6 +3631,14 @@ def search():
 def quests():
     return render_template('quest.html')
 
+@server.route('/faq')
+def faq():
+    return render_template('faq.html')
+
+@server.route('/feedback')
+def feedback():
+    return render_template('feedback.html')
+
 # Add these routes after the other API routes
 @server.route('/api/settings', methods=['GET', 'POST'])
 def api_settings():

@@ -683,6 +683,13 @@
                             <div class="nav-indicator"></div>
                         </a>
                     </li>
+                    <li>
+                        <a href="{{ url_for('feedback') }}" class="nav-link" data-page="feedback">
+                            <span class="material-icons">rate_review</span>
+                            <span class="nav-text">Feedback</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
                     <li id="packet-viewer-link" style="{% if not developer_mode_enabled %}display: none;{% endif %}">
                         <a href="{{ url_for('packet_viewer') }}" class="nav-link" data-page="packet_viewer">
                             <span class="material-icons">bug_report</span>
@@ -699,6 +706,13 @@
                     <span class="section-title">System</span>
                 </div>
                 <ul class="nav-links">
+                    <li>
+                        <a href="{{ url_for('faq') }}" class="nav-link" data-page="faq">
+                            <span class="material-icons">help_outline</span>
+                            <span class="nav-text">Q&amp;A</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
                     <li>
                         <a href="{{ url_for('settings') }}" class="nav-link" data-page="settings">
                             <span class="material-icons">tune</span>

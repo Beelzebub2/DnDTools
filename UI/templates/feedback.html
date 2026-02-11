@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/feedback.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="feedback-page">
+
+    <!-- Header -->
+    <div class="feedback-banner">
+        <div class="feedback-banner-inner">
+            <div class="feedback-banner-icon">
+                <span class="material-icons">rate_review</span>
+            </div>
+            <div class="feedback-banner-text">
+                <h1>Quick Feedback</h1>
+                <p class="feedback-banner-subtitle">Got an idea or found a bug? Let us know — it only takes a moment</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Type selector -->
+    <div class="feedback-type-row">
+        <button class="feedback-type-btn active" data-type="idea" type="button">
+            <span class="material-icons">lightbulb</span>
+            <div class="feedback-type-info">
+                <strong>Idea / Suggestion</strong>
+                <span>Feature requests, improvements, things you'd like to see</span>
+            </div>
+        </button>
+        <button class="feedback-type-btn" data-type="bug" type="button">
+            <span class="material-icons">bug_report</span>
+            <div class="feedback-type-info">
+                <strong>Bug Report</strong>
+                <span>Something broken, not working right, or behaving unexpectedly</span>
+            </div>
+        </button>
+    </div>
+
+    <!-- Form -->
+    <div class="feedback-form-card">
+        <div class="feedback-field">
+            <label for="feedback-message">
+                <span class="material-icons">edit_note</span>
+                <span id="feedback-label-text">Describe your idea</span>
+            </label>
+            <textarea id="feedback-message" rows="5" maxlength="2000"
+                placeholder="Tell us what you'd like to see or what could be improved…"></textarea>
+            <div class="feedback-char-count">
+                <span id="feedback-chars">0</span> / 2000
+            </div>
+        </div>
+
+        <div class="feedback-field">
+            <label for="feedback-contact">
+                <span class="material-icons">alternate_email</span>
+                <span>Contact <span class="feedback-optional">(optional)</span></span>
+            </label>
+            <input type="text" id="feedback-contact" maxlength="200"
+                placeholder="Discord username, email, or leave blank">
+        </div>
+
+        <button id="feedback-submit" class="feedback-submit-btn" type="button">
+            <span class="material-icons">send</span>
+            <span>Submit Feedback</span>
+        </button>
+    </div>
+
+    <!-- Success state (hidden by default) -->
+    <div class="feedback-success" id="feedback-success" style="display:none;">
+        <div class="feedback-success-inner">
+            <span class="material-icons">check_circle</span>
+            <h2>Thank you!</h2>
+            <p>Your feedback has been submitted. We appreciate you helping improve DnD Tools.</p>
+            <button class="feedback-reset-btn" id="feedback-reset" type="button">
+                <span class="material-icons">add</span>
+                Submit another
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/feedback.js') }}"></script>
+{% endblock %}
