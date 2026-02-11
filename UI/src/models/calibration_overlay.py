@@ -135,9 +135,19 @@ class CalibrationOverlay:
         self._stash_y = int(stash.y)
         self._inv_x = int(inv.x)
         self._inv_y = int(inv.y)
-        self._orig_stash = (self._stash_x, self._stash_y)
-        self._orig_inv = (self._inv_x, self._inv_y)
-        self._orig_jump = self._jump
+
+        # Use uncalibrated base positions for the "R" reset so that
+        # pressing R truly returns to the auto-detected defaults rather
+        # than the previously saved calibration.
+        try:
+            base = macros.get_base_screen_positions()
+            self._orig_stash = (int(base["stash"].x), int(base["stash"].y))
+            self._orig_inv = (int(base["inv"].x), int(base["inv"].y))
+            self._orig_jump = float(base.get("jump", jump))
+        except Exception:
+            self._orig_stash = (self._stash_x, self._stash_y)
+            self._orig_inv = (self._inv_x, self._inv_y)
+            self._orig_jump = self._jump
         self._dragging = None
         self._resizing = None
         self._resize_corner = None

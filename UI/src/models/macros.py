@@ -381,6 +381,28 @@ def _apply_calibration_override(positions, res):
     return positions
 
 
+def get_base_screen_positions():
+    """Return the *uncalibrated* base screen positions for the current resolution.
+
+    This is the same logic as :func:`get_screen_positions` but deliberately
+    skips :func:`_apply_calibration_override` so callers get the true
+    default positions (useful for the calibration overlay reset).
+    """
+    res = get_current_resolution()
+
+    if get_game_window_mode() == WINDOW_MODE:
+        window_area = get_window_area_pos()
+        if window_area:
+            window_left, window_top, width, height = window_area
+            if width == res[0] and height == res[1]:
+                base_pos = _ensure_positions(res)
+                stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
+                inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
+                return {'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"])}
+
+    return _clone_layout(_ensure_positions(res))
+
+
 def get_screen_positions():
     res = get_current_resolution()
 
