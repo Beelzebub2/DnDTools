@@ -3604,6 +3604,16 @@ def overlay_hide():
         logger.error("Failed to hide overlay: %s", exc)
         return jsonify({'success': False, 'error': str(exc)}), 500
 
+@server.route('/api/overlay/show', methods=['POST'])
+def overlay_show():
+    """Show the overlay window (called from overlay JS after sort completes)."""
+    try:
+        api._app_overlay.show()
+        return jsonify({'success': True})
+    except Exception as exc:
+        logger.error("Failed to show overlay: %s", exc)
+        return jsonify({'success': False, 'error': str(exc)}), 500
+
 @server.route('/record')
 def record():
     return render_template('record.html')

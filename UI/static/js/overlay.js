@@ -1136,6 +1136,9 @@
 
         setSortingState(true);
 
+        // Hide the overlay so it doesn't interfere with game input during sorting
+        try { await fetch('/api/overlay/hide', { method: 'POST' }); } catch (_) { /* best-effort */ }
+
         try {
             const result = await apiPost(`/api/character/${selectedCharId}/stash/${stashIdToSort}/sort`, {
                 pack: isPackMode,
@@ -1168,6 +1171,8 @@
             }
         } finally {
             setSortingState(false);
+            // Restore the overlay now that sorting is done
+            try { await fetch('/api/overlay/show', { method: 'POST' }); } catch (_) { /* best-effort */ }
         }
     }
 
@@ -1270,6 +1275,9 @@
         if (execBtn) { execBtn.disabled = true; execBtn.textContent = 'Depositing…'; }
         setSortingState(true);
 
+        // Hide the overlay so it doesn't interfere with game input during deposit
+        try { await fetch('/api/overlay/hide', { method: 'POST' }); } catch (_) { /* best-effort */ }
+
         try {
             const result = await apiPost(`/api/character/${selectedCharId}/stash/transfer/execute`, {
                 sourceStashId: '2',
@@ -1291,6 +1299,8 @@
         } finally {
             setSortingState(false);
             if (execBtn) { execBtn.disabled = false; execBtn.innerHTML = '<span class="material-icons">check</span> Execute Deposit'; }
+            // Restore the overlay now that deposit is done
+            try { await fetch('/api/overlay/show', { method: 'POST' }); } catch (_) { /* best-effort */ }
         }
     }
 
