@@ -1579,7 +1579,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ═══════════════════════════════════════════════════════════
     const calibrateBtn = document.getElementById('calibrateStash');
 
-    async function openCalibration() {
+    async function runCalibrationOverlay() {
         if (!calibrateBtn) return;
 
         if (!window.pywebview?.api?.open_calibration) {
@@ -1608,7 +1608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    calibrateBtn?.addEventListener('click', openCalibration);
+    calibrateBtn?.addEventListener('click', runCalibrationOverlay);
 
     setupUnsavedChangesGuard();
 

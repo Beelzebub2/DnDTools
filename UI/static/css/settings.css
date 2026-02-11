@@ -1643,6 +1643,33 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     border-color: rgba(207, 163, 70, 0.50);
 }
 
+.calibration-controls {
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 10px 14px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 24px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.calibration-controls li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.55);
+    line-height: 1.4;
+}
+
+.calibration-controls li .material-icons {
+    font-size: 16px;
+    color: var(--accent-gold, #cfa346);
+    flex-shrink: 0;
+}
+
 .card-full-width {
     grid-column: 1 / -1;
 }

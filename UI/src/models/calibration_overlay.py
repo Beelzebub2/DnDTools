@@ -2,7 +2,7 @@
 grid boxes to match their actual game layout.
 
 The overlay is a full-screen topmost Win32 window (like the sort
-:class:`GridDebugOverlay`) but **interactive** — it receives mouse and
+:class:`GridDebugOverlay`) but **interactive** -- it receives mouse and
 keyboard input so the user can reposition the grids.
 
 Usage:
@@ -18,7 +18,7 @@ Usage:
     #     'originalStash': {'x': 1378, 'y': 199},
     #     'originalInv': {'x': 690, 'y': 626},
     # }
-    # — or {'saved': False} when cancelled
+    # -- or {'saved': False} when cancelled
 """
 
 from __future__ import annotations
@@ -54,18 +54,19 @@ _INV_COLS, _INV_ROWS = 10, 5
 
 
 class CalibrationOverlay:
-    """Full-screen interactive overlay for manual grid calibration."""
+    """Full-screen interactive overlay for manual grid calibration.
 
-    # ── Colours ──
+    Modelled closely after :class:`GridDebugOverlay` -- same window creation,
+    font handling, and GDI drawing patterns -- but interactive (no
+    ``WS_EX_TRANSPARENT``) so that mouse / keyboard events are delivered.
+    """
+
+    # -- Colours --
     BG_COLOR: Tuple[int, int, int] = (10, 8, 6)
     STASH_COLOR: Tuple[int, int, int] = (0, 230, 120)
     STASH_FILL: Tuple[int, int, int] = (0, 50, 25)
     INV_COLOR: Tuple[int, int, int] = (255, 200, 50)
     INV_FILL: Tuple[int, int, int] = (60, 48, 10)
-    HUD_BG: Tuple[int, int, int] = (38, 34, 28)
-    HUD_BORDER: Tuple[int, int, int] = (90, 80, 58)
-    TEXT_ACCENT: Tuple[int, int, int] = (230, 185, 80)
-    TEXT_DIM: Tuple[int, int, int] = (170, 170, 170)
     HIGHLIGHT: Tuple[int, int, int] = (255, 255, 255)
     BORDER_WIDTH = 3
     OVERLAY_ALPHA = 210
@@ -103,9 +104,7 @@ class CalibrationOverlay:
         self.RESIZE_HANDLE = 18  # px from a corner that triggers resize
 
         # Fonts (created per session, cleaned up after)
-        self._title_font: Optional[int] = None
         self._label_font: Optional[int] = None
-        self._hint_font: Optional[int] = None
         self._small_font: Optional[int] = None
 
         # Window class
@@ -161,20 +160,30 @@ class CalibrationOverlay:
         try:
             cls_name = "DnDToolsCalibration"
 
-            if not self._class_registered:
-                wc = win32gui.WNDCLASS()
-                wc.hInstance = win32api.GetModuleHandle(None)
-                wc.lpszClassName = cls_name
-                wc.lpfnWndProc = self._wnd_proc
-                wc.hCursor = win32gui.LoadCursor(0, win32con.IDC_ARROW)
-                wc.hbrBackground = win32gui.CreateSolidBrush(
-                    win32api.RGB(*self.BG_COLOR)
-                )
+            # Always unregister the old class so we get a fresh registration.
+            # This avoids the stale-class-atom problem when the module-level
+            # singleton is reused across calls.
+            if self._class_registered:
                 try:
-                    self._class_atom = win32gui.RegisterClass(wc)
+                    win32gui.UnregisterClass(cls_name, win32api.GetModuleHandle(None))
                 except Exception:
-                    self._class_atom = cls_name
-                self._class_registered = True
+                    pass
+                self._class_registered = False
+                self._class_atom = None
+
+            wc = win32gui.WNDCLASS()
+            wc.hInstance = win32api.GetModuleHandle(None)
+            wc.lpszClassName = cls_name
+            wc.lpfnWndProc = self._wnd_proc
+            wc.hCursor = win32gui.LoadCursor(0, win32con.IDC_ARROW)
+            wc.hbrBackground = win32gui.CreateSolidBrush(
+                win32api.RGB(*self.BG_COLOR)
+            )
+            try:
+                self._class_atom = win32gui.RegisterClass(wc)
+            except Exception:
+                self._class_atom = cls_name
+            self._class_registered = True
 
             screen_w = win32api.GetSystemMetrics(0)
             screen_h = win32api.GetSystemMetrics(1)
@@ -202,15 +211,13 @@ class CalibrationOverlay:
             self._hwnd = hwnd
 
             # Semi-transparent overlay.  No colour-key so the entire
-            # surface captures mouse input (the background is dimmed,
-            # not invisible).
+            # surface captures mouse input.
             win32gui.SetLayeredWindowAttributes(
                 hwnd, 0, self.OVERLAY_ALPHA, win32con.LWA_ALPHA,
             )
 
-            self._title_font = self._create_font(-20, win32con.FW_BOLD)
+            # Fonts -- same pattern as the working GridDebugOverlay
             self._label_font = self._create_font(-16, win32con.FW_BOLD)
-            self._hint_font = self._create_font(-14, win32con.FW_NORMAL)
             self._small_font = self._create_font(-12, win32con.FW_NORMAL)
 
             win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
@@ -233,6 +240,7 @@ class CalibrationOverlay:
     # ------------------------------------------------------------- helpers
 
     def _create_font(self, height: int, weight: int) -> Optional[int]:
+        """Create a GDI font handle -- same approach as GridDebugOverlay."""
         if not win32gui:
             return None
         try:
@@ -250,7 +258,7 @@ class CalibrationOverlay:
             return None
 
     def _cleanup_fonts(self) -> None:
-        for attr in ("_title_font", "_label_font", "_hint_font", "_small_font"):
+        for attr in ("_label_font", "_small_font"):
             handle = getattr(self, attr, None)
             if handle and win32gui:
                 try:
@@ -259,7 +267,7 @@ class CalibrationOverlay:
                     pass
             setattr(self, attr, None)
 
-    # ── geometry ──
+    # -- geometry --
 
     def _stash_rect(self) -> Tuple[int, int, int, int]:
         w = int(_STASH_COLS * self._jump)
@@ -300,7 +308,7 @@ class CalibrationOverlay:
             y -= 0x10000
         return x, y
 
-    # ── result builder ──
+    # -- result builder --
 
     def _save_result(self) -> None:
         self._result = {
@@ -314,7 +322,7 @@ class CalibrationOverlay:
             "originalJump": self._orig_jump,
         }
 
-    # ── Win32 message handler ──────────────────────────────────────────
+    # -- Win32 message handler --
 
     def _wnd_proc(self, hwnd, msg, wp, lp):  # pragma: no cover
         if msg == win32con.WM_PAINT:
@@ -323,7 +331,8 @@ class CalibrationOverlay:
         if msg == win32con.WM_ERASEBKGND:
             return 1
         if msg == win32con.WM_SETCURSOR:
-            return 1  # let WM_MOUSEMOVE set the cursor
+            # Let the OS set the default cursor; we override in WM_MOUSEMOVE.
+            return win32gui.DefWindowProc(hwnd, msg, wp, lp)
         if msg == win32con.WM_LBUTTONDOWN:
             self._on_mouse_down(hwnd, lp)
             return 0
@@ -344,14 +353,14 @@ class CalibrationOverlay:
             return 0
         return win32gui.DefWindowProc(hwnd, msg, wp, lp)
 
-    # ── mouse ──
+    # -- mouse --
 
     def _on_mouse_down(self, hwnd, lp) -> None:
         px, py = self._unpack_lparam(lp)
         stash_r = self._stash_rect()
         inv_r = self._inv_rect()
 
-        # Check corners first — resize takes priority over drag
+        # Check corners first -- resize takes priority over drag
         for which, rect in [("stash", stash_r), ("inv", inv_r)]:
             corner = self._corner_at_point(px, py, rect)
             if corner:
@@ -365,7 +374,7 @@ class CalibrationOverlay:
                 win32gui.InvalidateRect(hwnd, None, False)
                 return
 
-        # Full-box hit → drag
+        # Full-box hit -> drag
         if self._point_in_rect(px, py, stash_r):
             self._dragging = "stash"
             self._selected = "stash"
@@ -386,7 +395,7 @@ class CalibrationOverlay:
     def _on_mouse_move(self, hwnd, lp) -> None:
         px, py = self._unpack_lparam(lp)
 
-        # ── active resize ──
+        # -- active resize --
         if self._resizing is not None:
             ax, ay = self._resize_anchor
             raw_w = abs(px - ax)
@@ -420,7 +429,7 @@ class CalibrationOverlay:
             win32gui.InvalidateRect(hwnd, None, False)
             return
 
-        # ── active drag ──
+        # -- active drag --
         if self._dragging is not None:
             new_x = px - self._drag_offset_x
             new_y = py - self._drag_offset_y
@@ -435,7 +444,7 @@ class CalibrationOverlay:
             win32gui.InvalidateRect(hwnd, None, False)
             return
 
-        # ── hover: update cursor based on what's under the pointer ──
+        # -- hover: update cursor based on what's under the pointer --
         stash_r = self._stash_rect()
         inv_r = self._inv_rect()
         cursor = win32con.IDC_ARROW
@@ -467,22 +476,22 @@ class CalibrationOverlay:
             win32gui.ReleaseCapture()
             win32gui.InvalidateRect(hwnd, None, False)
 
-    # ── keyboard ──
+    # -- keyboard --
 
     def _on_key_down(self, hwnd, vk) -> None:
-        # Escape → cancel
+        # Escape -> cancel
         if vk == win32con.VK_ESCAPE:
             self._result = {"saved": False}
             win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
             return
 
-        # Enter → save
+        # Enter -> save
         if vk == win32con.VK_RETURN:
             self._save_result()
             win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
             return
 
-        # R → reset to auto-detected positions AND cell size
+        # R -> reset to auto-detected positions AND cell size
         if vk == ord("R"):
             self._stash_x, self._stash_y = self._orig_stash
             self._inv_x, self._inv_y = self._orig_inv
@@ -490,19 +499,20 @@ class CalibrationOverlay:
             win32gui.InvalidateRect(hwnd, None, False)
             return
 
-        # +/= → increase cell size,  –/_ → decrease cell size
-        if vk in (win32con.VK_OEM_PLUS, win32con.VK_ADD):
+        # +/= -> increase cell size,  -/_ -> decrease cell size
+        # VK_OEM_PLUS=0xBB  VK_OEM_MINUS=0xBD  (not in win32con)
+        if vk in (0xBB, win32con.VK_ADD):
             shift_held = win32api.GetKeyState(win32con.VK_SHIFT) < 0
             self._jump = min(120.0, self._jump + (5.0 if shift_held else 1.0))
             win32gui.InvalidateRect(hwnd, None, False)
             return
-        if vk in (win32con.VK_OEM_MINUS, win32con.VK_SUBTRACT):
+        if vk in (0xBD, win32con.VK_SUBTRACT):
             shift_held = win32api.GetKeyState(win32con.VK_SHIFT) < 0
             self._jump = max(15.0, self._jump - (5.0 if shift_held else 1.0))
             win32gui.InvalidateRect(hwnd, None, False)
             return
 
-        # Arrow keys → nudge selected box (Shift = 10 px)
+        # Arrow keys -> nudge selected box (Shift = 10 px)
         if self._selected and vk in (
             win32con.VK_LEFT, win32con.VK_RIGHT,
             win32con.VK_UP, win32con.VK_DOWN,
@@ -528,41 +538,27 @@ class CalibrationOverlay:
 
             win32gui.InvalidateRect(hwnd, None, False)
 
-    # ── drawing ────────────────────────────────────────────────────────
+    # -- drawing --
+    #
+    #  Paint DIRECTLY to hdc (no double-buffer) -- exactly like the
+    #  working GridDebugOverlay.  This ensures that if a later drawing
+    #  step fails, earlier ones (background, grids) are still visible.
+    #
 
     def _paint(self, hwnd) -> None:  # pragma: no cover
         hdc, ps = win32gui.BeginPaint(hwnd)
         try:
             client = win32gui.GetClientRect(hwnd)
             screen_w = client[2]
-            screen_h = client[3]
 
-            # Double-buffer to avoid flicker during drag
-            mem_dc = win32gui.CreateCompatibleDC(hdc)
-            bmp = win32gui.CreateCompatibleBitmap(hdc, screen_w, screen_h)
-            old_bmp = win32gui.SelectObject(mem_dc, bmp)
-
-            # Background (dark tint — not a colour-key, so it receives input)
+            # Background
             bg_brush = win32gui.CreateSolidBrush(win32api.RGB(*self.BG_COLOR))
-            win32gui.FillRect(mem_dc, client, bg_brush)
+            win32gui.FillRect(hdc, client, bg_brush)
             win32gui.DeleteObject(bg_brush)
 
             # Grids
-            self._draw_grid(mem_dc, "stash")
-            self._draw_grid(mem_dc, "inv")
-
-            # HUD bar
-            self._draw_hud(mem_dc, screen_w)
-
-            # Blit
-            ctypes.windll.gdi32.BitBlt(
-                hdc, 0, 0, screen_w, screen_h,
-                mem_dc, 0, 0, 0x00CC0020,  # SRCCOPY
-            )
-
-            win32gui.SelectObject(mem_dc, old_bmp)
-            win32gui.DeleteObject(bmp)
-            win32gui.DeleteDC(mem_dc)
+            self._draw_grid(hdc, "stash")
+            self._draw_grid(hdc, "inv")
         except Exception:
             logger.debug("Calibration paint error", exc_info=True)
         finally:
@@ -588,12 +584,12 @@ class CalibrationOverlay:
         w = int(cols * jump)
         h = int(rows * jump)
 
-        # ── fill ──
+        # -- fill --
         fill_brush = win32gui.CreateSolidBrush(win32api.RGB(*fill))
         win32gui.FillRect(hdc, (x, y, x + w, y + h), fill_brush)
         win32gui.DeleteObject(fill_brush)
 
-        # ── inner grid lines (dimmed) ──
+        # -- inner grid lines (dimmed) --
         dim = tuple(max(2, c // 2) for c in color)
         grid_pen = win32gui.CreatePen(win32con.PS_SOLID, 1, win32api.RGB(*dim))
         old_pen = win32gui.SelectObject(hdc, grid_pen)
@@ -610,7 +606,7 @@ class CalibrationOverlay:
         win32gui.SelectObject(hdc, old_pen)
         win32gui.DeleteObject(grid_pen)
 
-        # ── outer border (highlight if selected) ──
+        # -- outer border (highlight if selected) --
         border_color = self.HIGHLIGHT if is_sel else color
         border_w = self.BORDER_WIDTH + (1 if is_sel else 0)
         border_pen = win32gui.CreatePen(
@@ -625,7 +621,7 @@ class CalibrationOverlay:
         win32gui.SelectObject(hdc, old_pen)
         win32gui.DeleteObject(border_pen)
 
-        # ── corner resize handles ──
+        # -- corner resize handles --
         handle = max(14, int(jump * 0.5))
         corners = [
             (x, y),                              # tl
@@ -647,135 +643,37 @@ class CalibrationOverlay:
             win32gui.FillRect(hdc, (nx, ny, nx + notch, ny + notch), notch_brush)
         win32gui.DeleteObject(notch_brush)
 
-        # ── label above the grid ──
+        # -- label above the grid (DrawText, same as GridDebugOverlay) --
         win32gui.SetBkMode(hdc, win32con.TRANSPARENT)
+        label_text = f"{label}  ({x}, {y})"
+
         if self._label_font:
             old_font = win32gui.SelectObject(hdc, self._label_font)
-
-            label_text = f"{label}  ({x}, {y})"
-
             # shadow
             win32gui.SetTextColor(hdc, win32api.RGB(0, 0, 0))
             win32gui.DrawText(
                 hdc, label_text, -1,
-                (x + 3, y - 26, x + w + 3, y - 2),
+                (x + 3, y - 28, x + w + 200, y - 2),
                 win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
             )
             # main
             win32gui.SetTextColor(hdc, win32api.RGB(*color))
             win32gui.DrawText(
                 hdc, label_text, -1,
-                (x + 2, y - 27, x + w + 2, y - 3),
+                (x + 2, y - 29, x + w + 200, y - 3),
                 win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
             )
             win32gui.SelectObject(hdc, old_font)
 
-    def _draw_hud(self, hdc, screen_w: int) -> None:
-        hud_h = 152
-        hud_margin = 16
-        hud_w = min(860, screen_w - 40)
-        hud_x = (screen_w - hud_w) // 2
-        hud_y = hud_margin
-
-        # ── background ──
-        bg_brush = win32gui.CreateSolidBrush(win32api.RGB(*self.HUD_BG))
-        win32gui.FillRect(hdc, (hud_x, hud_y, hud_x + hud_w, hud_y + hud_h), bg_brush)
-        win32gui.DeleteObject(bg_brush)
-
-        # ── border ──
-        border_pen = win32gui.CreatePen(
-            win32con.PS_SOLID, 1, win32api.RGB(*self.HUD_BORDER),
-        )
-        old_pen = win32gui.SelectObject(hdc, border_pen)
-        old_brush = win32gui.SelectObject(
-            hdc, win32gui.GetStockObject(win32con.NULL_BRUSH),
-        )
-        win32gui.Rectangle(hdc, hud_x, hud_y, hud_x + hud_w, hud_y + hud_h)
-        win32gui.SelectObject(hdc, old_brush)
-        win32gui.SelectObject(hdc, old_pen)
-        win32gui.DeleteObject(border_pen)
-
-        # ── gold accent line ──
-        accent_pen = win32gui.CreatePen(
-            win32con.PS_SOLID, 2, win32api.RGB(*self.TEXT_ACCENT),
-        )
-        old_pen = win32gui.SelectObject(hdc, accent_pen)
-        win32gui.MoveToEx(hdc, hud_x + 1, hud_y + 1)
-        win32gui.LineTo(hdc, hud_x + hud_w - 1, hud_y + 1)
-        win32gui.SelectObject(hdc, old_pen)
-        win32gui.DeleteObject(accent_pen)
-
-        win32gui.SetBkMode(hdc, win32con.TRANSPARENT)
-        pad = hud_x + 20
-        right = hud_x + hud_w - 20
-
-        # ── title ──
-        row_y = hud_y + 10
-        if self._title_font:
-            old_font = win32gui.SelectObject(hdc, self._title_font)
-            win32gui.SetTextColor(hdc, win32api.RGB(*self.TEXT_ACCENT))
-            win32gui.DrawText(
-                hdc, "STASH CALIBRATION", -1,
-                (pad, row_y, right, row_y + 24),
-                win32con.DT_LEFT | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
-            )
-            win32gui.SelectObject(hdc, old_font)
-
-        # ── description ──
-        row_y += 28
-        if self._hint_font:
-            old_font = win32gui.SelectObject(hdc, self._hint_font)
-            win32gui.SetTextColor(hdc, win32api.RGB(210, 210, 210))
-            win32gui.DrawText(
-                hdc,
-                "Drag the green (Stash) and gold (Inventory) boxes so they line up "
-                "with your in-game grid.  Drag a corner handle to resize if the cell "
-                "size is wrong.",
-                -1,
-                (pad, row_y, right, row_y + 36),
-                win32con.DT_LEFT | win32con.DT_WORDBREAK | win32con.DT_NOPREFIX,
-            )
-            win32gui.SelectObject(hdc, old_font)
-
-        # ── controls ──
-        row_y += 40
-        if self._hint_font:
-            old_font = win32gui.SelectObject(hdc, self._hint_font)
-            win32gui.SetTextColor(hdc, win32api.RGB(*self.TEXT_DIM))
-            controls = (
-                "Arrow Keys = Nudge  \u00b7  Shift+Arrow = 10 px  \u00b7  "
-                "+/\u2013 = Cell size  \u00b7  R = Reset  \u00b7  "
-                "Enter = Save & Submit  \u00b7  Esc = Cancel"
-            )
-            win32gui.DrawText(
-                hdc, controls, -1,
-                (pad, row_y, right, row_y + 20),
-                (
-                    win32con.DT_LEFT | win32con.DT_SINGLELINE
-                    | win32con.DT_NOPREFIX | win32con.DT_END_ELLIPSIS
-                ),
-            )
-            win32gui.SelectObject(hdc, old_font)
-
-        # ── status badges ──
-        row_y += 24
+        # -- detail line below the grid (cell size) --
+        detail = f"cell {self._jump:.1f}px   {self._resolution[0]}\u00d7{self._resolution[1]}"
         if self._small_font:
             old_font = win32gui.SelectObject(hdc, self._small_font)
-            res_w, res_h = self._resolution
-            badge = (
-                f"Resolution: {res_w}\u00d7{res_h}    "
-                f"Cell size: {self._jump:.1f} px    "
-                f"Stash: ({self._stash_x}, {self._stash_y})    "
-                f"Inventory: ({self._inv_x}, {self._inv_y})"
-            )
-            win32gui.SetTextColor(hdc, win32api.RGB(100, 100, 100))
+            win32gui.SetTextColor(hdc, win32api.RGB(200, 200, 200))
+            detail_rect = (x + 2, y + h + 4, x + w + 2, y + h + 24)
             win32gui.DrawText(
-                hdc, badge, -1,
-                (pad, row_y, right, row_y + 16),
-                (
-                    win32con.DT_LEFT | win32con.DT_SINGLELINE
-                    | win32con.DT_NOPREFIX | win32con.DT_END_ELLIPSIS
-                ),
+                hdc, detail, -1, detail_rect,
+                win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
             )
             win32gui.SelectObject(hdc, old_font)
 

@@ -207,8 +207,8 @@
                         <div class="field-row">
                             <div class="field-row-info">
                                 <label class="field-label">Manual grid calibration</label>
-                                <p class="field-hint">Drag the stash and inventory overlays to match your game layout,
-                                    then save to improve detection accuracy.</p>
+                                <p class="field-hint">A full-screen overlay shows the detected grid positions.
+                                    Drag them to match your actual game layout, then press Enter to save.</p>
                             </div>
                             <button id="calibrateStash" type="button" class="btn-action calibrate"
                                 title="Stash detection not working correctly? Manually adjust the grid positions to match your screen.">
@@ -216,6 +216,14 @@
                                 Calibrate
                             </button>
                         </div>
+                        <ul class="calibration-controls">
+                            <li><span class="material-icons" aria-hidden="true">open_with</span> Click &amp; drag a grid box to reposition it</li>
+                            <li><span class="material-icons" aria-hidden="true">aspect_ratio</span> Drag any corner handle to resize grid cells</li>
+                            <li><span class="material-icons" aria-hidden="true">keyboard</span> Arrow keys nudge the selected grid (Shift = 10 px)</li>
+                            <li><span class="material-icons" aria-hidden="true">add_circle</span> +/&minus; keys adjust cell size (Shift = 5 px)</li>
+                            <li><span class="material-icons" aria-hidden="true">restart_alt</span> R &mdash; reset to auto-detected positions</li>
+                            <li><span class="material-icons" aria-hidden="true">check_circle</span> Enter = Save &amp; Submit &bull; Esc = Cancel</li>
+                        </ul>
                     </div>
                 </div>
 
