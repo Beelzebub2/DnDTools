@@ -1,0 +1,295 @@
+/* ═══════════════════════════════════════════════════════════
+   DnDTools — Feedback Page
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Container ── */
+.feedback-page {
+    max-width: 700px;
+    margin: 0 auto;
+    padding: 2rem 2rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* ── Banner ── */
+.feedback-banner {
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-card, #161616);
+    border: 1px solid var(--border-color, #232323);
+    border-radius: var(--radius-lg, 16px);
+    position: relative;
+    overflow: hidden;
+}
+
+.feedback-banner::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-gold, #cfa346), transparent);
+    opacity: 0.45;
+}
+
+.feedback-banner-inner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.feedback-banner-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    color: var(--accent-gold);
+    background: rgba(207, 163, 70, 0.12);
+    border: 1px solid rgba(207, 163, 70, 0.25);
+    border-radius: 8px;
+    padding: 0.5rem;
+    line-height: 1;
+}
+
+.feedback-banner-icon .material-icons { font-size: 1.75rem; }
+
+.feedback-banner-text h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary, #e8e8e8);
+}
+
+.feedback-banner-subtitle {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #8a8a8a);
+}
+
+/* ── Type selector row ── */
+.feedback-type-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.feedback-type-btn {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 1.1rem 1.15rem;
+    background: var(--bg-card, #161616);
+    border: 1px solid var(--border-color, #232323);
+    border-radius: var(--radius-md, 12px);
+    color: var(--text-secondary, #8a8a8a);
+    cursor: pointer;
+    text-align: left;
+    transition:
+        border-color 0.25s cubic-bezier(0.22,1,0.36,1),
+        background 0.25s cubic-bezier(0.22,1,0.36,1),
+        color 0.25s cubic-bezier(0.22,1,0.36,1),
+        box-shadow 0.25s cubic-bezier(0.22,1,0.36,1);
+}
+
+.feedback-type-btn .material-icons {
+    font-size: 1.6rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+    transition: color 0.25s;
+}
+
+.feedback-type-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.feedback-type-info strong {
+    font-size: 0.9rem;
+    color: var(--text-primary, #e8e8e8);
+}
+
+.feedback-type-info span {
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.feedback-type-btn:hover {
+    border-color: rgba(207, 163, 70, 0.2);
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.feedback-type-btn.active {
+    border-color: rgba(207, 163, 70, 0.35);
+    background: rgba(207, 163, 70, 0.08);
+    box-shadow: 0 2px 12px rgba(207, 163, 70, 0.1);
+}
+
+.feedback-type-btn.active .material-icons {
+    color: var(--accent-gold, #cfa346);
+}
+
+.feedback-type-btn.active .feedback-type-info strong {
+    color: var(--accent-gold, #cfa346);
+}
+
+/* ── Form card ── */
+.feedback-form-card {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1.5rem;
+    background: var(--bg-card, #161616);
+    border: 1px solid var(--border-color, #232323);
+    border-radius: var(--radius-md, 12px);
+}
+
+.feedback-field label {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary, #8a8a8a);
+    margin-bottom: 0.4rem;
+}
+
+.feedback-field label .material-icons {
+    font-size: 1rem;
+    color: var(--accent-gold, #cfa346);
+}
+
+.feedback-optional {
+    font-weight: 400;
+    color: var(--text-muted, #5a5a5a);
+}
+
+.feedback-field textarea,
+.feedback-field input {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    background: var(--bg-elevated, #1a1a1a);
+    border: 1px solid var(--border-color, #232323);
+    border-radius: 8px;
+    color: var(--text-primary, #e8e8e8);
+    font-family: inherit;
+    font-size: 0.88rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+}
+
+.feedback-field textarea:focus,
+.feedback-field input:focus {
+    outline: none;
+    border-color: rgba(207, 163, 70, 0.4);
+}
+
+.feedback-field textarea {
+    min-height: 120px;
+}
+
+.feedback-char-count {
+    text-align: right;
+    font-size: 0.72rem;
+    color: var(--text-muted, #5a5a5a);
+    margin-top: 0.15rem;
+}
+
+/* ── Submit button ── */
+.feedback-submit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(135deg, var(--accent-gold, #cfa346), #b8882e);
+    border: none;
+    border-radius: 8px;
+    color: #0b0b0b;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    align-self: flex-end;
+}
+
+.feedback-submit-btn:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.feedback-submit-btn:active {
+    transform: translateY(0);
+}
+
+.feedback-submit-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.feedback-submit-btn .material-icons {
+    font-size: 1.1rem;
+}
+
+/* ── Success state ── */
+.feedback-success {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.feedback-success-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 3rem 2rem;
+    background: var(--bg-card, #161616);
+    border: 1px solid rgba(207, 163, 70, 0.25);
+    border-radius: var(--radius-lg, 16px);
+    text-align: center;
+    width: 100%;
+}
+
+.feedback-success-inner > .material-icons {
+    font-size: 3rem;
+    color: #66bb6a;
+}
+
+.feedback-success-inner h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary, #e8e8e8);
+}
+
+.feedback-success-inner p {
+    font-size: 0.88rem;
+    color: var(--text-secondary, #8a8a8a);
+    max-width: 360px;
+    line-height: 1.6;
+}
+
+.feedback-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.55rem 1.1rem;
+    background: rgba(207, 163, 70, 0.12);
+    border: 1px solid rgba(207, 163, 70, 0.25);
+    border-radius: 8px;
+    color: var(--accent-gold, #cfa346);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 0.5rem;
+}
+
+.feedback-reset-btn:hover {
+    background: rgba(207, 163, 70, 0.2);
+}
+
+.feedback-reset-btn .material-icons {
+    font-size: 1rem;
+}
