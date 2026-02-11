@@ -20,6 +20,7 @@ from src.models.stash_preview import parse_stashes
 from src.models.storage import Storage, StashType
 from src.models.sort_feedback import get_sort_feedback_manager
 from src.models.sort_learning import get_sort_learning_manager
+from src.models.sort_safety import SortSafetyMonitor
 
 if TYPE_CHECKING:
     from src.models.sort_learning import SortLearningManager
@@ -355,6 +356,7 @@ class StashSorter:
         self._current_plan_index = -1
         self._failure_reason: Optional[str] = None
         self._session_summary: Optional[Dict[str, Any]] = None
+        self._safety_monitor: Optional[SortSafetyMonitor] = None
         self._workspace_min_free_cells = 6
         self.learning_manager = get_sort_learning_manager()
         self._learning_session_id: Optional[str] = None
@@ -616,6 +618,10 @@ class StashSorter:
             macros.push_cancel_event(cancel_event)
 
         try:
+            # ── Safety monitor: abort sort on focus loss or mouse interference
+            self._safety_monitor = SortSafetyMonitor(cancel_event)
+            self._safety_monitor.start()
+
             if self._stack_instructions:
                 self._overlay_update("Merging stackable items before sorting...", status="info")
                 if not self._perform_stacking_phase():
@@ -625,6 +631,7 @@ class StashSorter:
 
             self._overlay_update("Preparing workspace...", status="info")
             self._ensure_initial_workspace(self._workspace_min_free_cells)
+            self._safety_snapshot()
             self._overlay_update("Analyzing stash contents...", status="info")
 
             unique_items: Dict[int, Item] = {}
@@ -690,17 +697,47 @@ class StashSorter:
                 failure_reason = self._failure_reason or "execution_failed"
             return success
         except macros.MacroCancelled:
-            failure_reason = failure_reason or "macro_cancelled"
-            logger.info("Sort operation cancelled during macro execution")
-            self._overlay_update(
-                "Sort cancelled. Refresh your character data to resynchronize.",
-                status="warning",
-            )
-            self._overlay_log(
-                "Sort cancelled. Macro actions stopped immediately. Refresh your character data to resynchronize."
-            )
+            safety_reason = self._safety_monitor.reason if self._safety_monitor else None
+            if safety_reason == "game_window_unfocused":
+                failure_reason = failure_reason or "safety_focus_lost"
+                logger.info("Sort operation stopped by safety monitor: game window lost focus")
+                self._overlay_update(
+                    "Sort stopped — game window lost focus.",
+                    status="warning",
+                )
+                self._overlay_log(
+                    "Sort stopped because the game window lost focus. "
+                    "Keep the game in the foreground during sorting. "
+                    "Refresh your character data to resynchronize."
+                )
+            elif safety_reason == "mouse_interference":
+                failure_reason = failure_reason or "safety_mouse_interference"
+                logger.info("Sort operation stopped by safety monitor: mouse interference detected")
+                self._overlay_update(
+                    "Sort stopped — mouse movement detected.",
+                    status="warning",
+                )
+                self._overlay_log(
+                    "Sort stopped because manual mouse movement was detected. "
+                    "Avoid moving the mouse while sorting is in progress. "
+                    "Refresh your character data to resynchronize."
+                )
+            else:
+                failure_reason = failure_reason or "macro_cancelled"
+                logger.info("Sort operation cancelled during macro execution")
+                self._overlay_update(
+                    "Sort cancelled. Refresh your character data to resynchronize.",
+                    status="warning",
+                )
+                self._overlay_log(
+                    "Sort cancelled. Macro actions stopped immediately. "
+                    "Refresh your character data to resynchronize."
+                )
             return False
         finally:
+            if self._safety_monitor:
+                self._safety_monitor.stop()
+                self._safety_monitor = None
             cancelled_flag = bool(cancel_event and cancel_event.is_set()) or failure_reason == "macro_cancelled"
             self._finalize_feedback(success, failure_reason, cancelled_flag)
             if cancel_event:
@@ -722,6 +759,47 @@ class StashSorter:
             self.overlay_session.add_log(message)
         except Exception:
             pass
+
+    # --------------------------------------------------------- safety helpers
+    def _safety_check(self) -> bool:
+        """Check cancel_event and (if active) the safety monitor.
+
+        Returns ``True`` when the sort should continue.  When it returns
+        ``False`` an appropriate log/overlay message has already been
+        emitted and the caller should abort the current phase.
+        """
+        if self.cancel_event and self.cancel_event.is_set():
+            safety_reason = self._safety_monitor.reason if self._safety_monitor else None
+            if safety_reason == "game_window_unfocused":
+                self._record_failure_reason("safety_focus_lost")
+                self._overlay_log("Sort stopped — the game window lost focus.")
+            elif safety_reason == "mouse_interference":
+                self._record_failure_reason("safety_mouse_interference")
+                self._overlay_log("Sort stopped — mouse interference detected.")
+            else:
+                self._record_failure_reason("cancelled")
+                self._overlay_log("Sort cancelled by user.")
+            logger.info("Sort safety check failed (reason=%s)", safety_reason or "user_cancel")
+            return False
+
+        if self._safety_monitor and not self._safety_monitor.checkpoint():
+            # checkpoint() already set the cancel_event
+            safety_reason = self._safety_monitor.reason
+            if safety_reason == "mouse_interference":
+                self._record_failure_reason("safety_mouse_interference")
+                self._overlay_log("Sort stopped — mouse interference detected.")
+            else:
+                self._record_failure_reason("safety_unknown")
+                self._overlay_log("Sort stopped by safety monitor.")
+            logger.info("Sort safety checkpoint triggered cancellation (reason=%s)", safety_reason)
+            return False
+
+        return True
+
+    def _safety_snapshot(self) -> None:
+        """Record the current cursor position as the expected baseline."""
+        if self._safety_monitor:
+            self._safety_monitor.snapshot_position()
 
     def _reset_move_tracking(self) -> None:
         self._plan_required_moves = 0
@@ -956,9 +1034,9 @@ class StashSorter:
     def _execute_plan(self, plan: LayoutPlan, _total_items: int) -> bool:
         for index, entry in enumerate(plan.order):
             self._current_plan_index = index
-            if self.cancel_event and self.cancel_event.is_set():
-                logger.info("Sort operation cancelled by user input")
-                self._overlay_log("Sort cancelled by user.")
+
+            # ── Safety & cancellation gate ──────────────────────────
+            if not self._safety_check():
                 return False
 
             if entry.item.position == entry.target and entry.item.stash is self.stash:
@@ -971,6 +1049,8 @@ class StashSorter:
                 self._overlay_log("Unable to place an item in its planned slot; aborting sort.")
                 self._log_learning_outcome(entry.item, False, "move_failed")
                 return False
+
+            self._safety_snapshot()
 
         self._overlay_update("Sorting complete.", status="success")
         return True
@@ -1199,12 +1279,12 @@ class StashSorter:
             return True
 
         for item, target in self._stack_instructions:
-            if self.cancel_event and self.cancel_event.is_set():
-                logger.info("Sort operation cancelled during stacking phase")
+            if not self._safety_check():
                 return False
             if not self._stack_item(item, target):
                 logger.error("Failed to stack items; aborting sort")
                 return False
+            self._safety_snapshot()
         return True
 
     def _stack_item(self, item: Item, target: Item) -> bool:
