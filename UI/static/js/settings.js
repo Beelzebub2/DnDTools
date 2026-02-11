@@ -17,6 +17,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const closeToTrayCheckbox = document.getElementById('closeToTrayEnabled');
     const developerModeCheckbox = document.getElementById('developerMode');
     const feedbackSyncCheckbox = document.getElementById('sortFeedbackSyncEnabled');
+    const overlayEnabledCheckbox = document.getElementById('overlayEnabled');
+    const overlayHotkeyInput = document.getElementById('overlayHotkey');
+    const overlayOpacitySlider = document.getElementById('overlayOpacity');
+    const overlayOpacityValue = document.getElementById('overlayOpacityValue');
     const saveButton = document.getElementById('saveSettings');
     const resetButton = document.getElementById('resetSettings');
     const tabButtons = Array.from(document.querySelectorAll('.nav-pill'));
@@ -43,7 +47,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         includeDevReleases: 'Development Builds Opt-In',
         closeToTrayEnabled: 'Close to Tray',
         developerMode: 'Developer Mode',
-        sortFeedbackSyncEnabled: 'Global Sort Learning'
+        sortFeedbackSyncEnabled: 'Global Sort Learning',
+        overlayEnabled: 'Game Overlay',
+        overlayHotkey: 'Overlay Toggle Hotkey',
+        overlayOpacity: 'Overlay Opacity'
     };
 
     function updateSaveButtonState() {
@@ -172,7 +179,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 settings.closeToTrayEnabled === undefined ? true : settings.closeToTrayEnabled
             ),
             developerMode: normalizeBoolean(settings.developerMode),
-            sortFeedbackSyncEnabled: normalizeBoolean(settings.sortFeedbackSyncEnabled)
+            sortFeedbackSyncEnabled: normalizeBoolean(settings.sortFeedbackSyncEnabled),
+            overlayEnabled: normalizeBoolean(settings.overlayEnabled),
+            overlayHotkey: (settings.overlayHotkey || '').trim().toLowerCase(),
+            overlayOpacity: toNumber(settings.overlayOpacity)
         };
     }
 
@@ -187,7 +197,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             includeDevReleases: Boolean(settings.includeDevReleases),
             closeToTrayEnabled: settings.closeToTrayEnabled !== false,
             developerMode: Boolean(settings.developerMode),
-            sortFeedbackSyncEnabled: Boolean(settings.sortFeedbackSyncEnabled)
+            sortFeedbackSyncEnabled: Boolean(settings.sortFeedbackSyncEnabled),
+            overlayEnabled: Boolean(settings.overlayEnabled),
+            overlayHotkey: settings.overlayHotkey || 'ctrl+shift+o',
+            overlayOpacity: parseFloat(settings.overlayOpacity) || 0.92
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -206,7 +219,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
             closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
             developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false,
-            sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false
+            sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false,
+            overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
+            overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
+            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92
         };
     }
 
@@ -506,6 +522,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (feedbackSyncCheckbox) {
                 feedbackSyncCheckbox.checked = Boolean(currentSettings.sortFeedbackSyncEnabled);
             }
+
+            if (overlayEnabledCheckbox) {
+                overlayEnabledCheckbox.checked = Boolean(currentSettings.overlayEnabled);
+            }
+
+            if (overlayHotkeyInput) {
+                overlayHotkeyInput.value = currentSettings.overlayHotkey || 'ctrl+shift+o';
+            }
+
+            if (overlayOpacitySlider) {
+                const opacityPercent = Math.round((currentSettings.overlayOpacity || 0.92) * 100);
+                overlayOpacitySlider.value = opacityPercent;
+                if (overlayOpacityValue) {
+                    overlayOpacityValue.textContent = opacityPercent + '%';
+                }
+            }
+
+            applyOverlayDependentState();
         });
 
         runWithApplyingFlag(() => {
@@ -790,12 +824,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
+    function applyOverlayDependentState() {
+        const isEnabled = overlayEnabledCheckbox && overlayEnabledCheckbox.checked;
+        document.querySelectorAll('.overlay-dependent-setting').forEach((el) => {
+            el.style.opacity = isEnabled ? '1' : '0.45';
+            el.style.pointerEvents = isEnabled ? 'auto' : 'none';
+        });
+    }
+
+    if (overlayEnabledCheckbox) {
+        overlayEnabledCheckbox.addEventListener('change', () => {
+            applyOverlayDependentState();
+        });
+    }
+
+    if (overlayOpacitySlider && overlayOpacityValue) {
+        overlayOpacitySlider.addEventListener('input', () => {
+            overlayOpacityValue.textContent = overlayOpacitySlider.value + '%';
+        });
+    }
+
     // Enhanced hotkey recording functionality
     function setupHotkeyRecording(input) {
         let pressedKeys = new Set();
         let isRecording = false;
         let recordingTimeout = null;
         let feedbackElement = null;
+        let previousValue = '';  // Stores the value before recording starts
 
         // Create feedback element
         function createFeedbackElement() {
@@ -865,6 +920,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         function startRecording() {
             isRecording = true;
+            previousValue = input.value || '';
             pressedKeys.clear();
             input.style.backgroundColor = 'rgba(207, 163, 70, 0.1)';
             input.style.borderColor = 'var(--accent-gold)';
@@ -933,6 +989,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         input.addEventListener('blur', (e) => {
             // Only stop recording if we're not in the middle of a key combination
             if (!isRecording || pressedKeys.size === 0) {
+                // Restore previous value if nothing was recorded
+                if (isRecording && (!input.value || input.value === '')) {
+                    input.value = previousValue;
+                }
                 stopRecording();
             }
         });
@@ -968,7 +1028,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     'arrowdown': 'down',
                     'arrowleft': 'left',
                     'arrowright': 'right',
-                    'escape': 'esc'
+                    'escape': 'esc',
+                    '+': 'plus',
+                    '-': 'minus',
+                    '=': 'plus'
                 };
 
                 keyName = keyMappings[keyName] || keyName;
@@ -1022,8 +1085,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.key === 'Escape' && isRecording) {
                 e.preventDefault();
                 pressedKeys.clear();
-                input.value = '';
-                updateFeedback('Cancelled');
+                input.value = previousValue;
+                updateFeedback('Cancelled — restored previous hotkey');
                 setTimeout(() => {
                     stopRecording();
                     input.blur();
@@ -1097,7 +1160,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
             closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
             developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false,
-            sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false
+            sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false,
+            overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
+            overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
+            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92
         };
 
         if (!newSettings.interface) {
@@ -1176,6 +1242,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 );
 
                 if (mismatchedKeys.length > 0) {
+                    // Apply server response to form anyway to prevent infinite save loops
+                    // (the server's normalized values are authoritative)
+                    applySettingsToForm(confirmationPayload);
+
                     await showErrorFeedback();
 
                     const mismatchSummary = mismatchedKeys
@@ -1190,7 +1260,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         onError({ ...result, mismatchedKeys });
                     }
 
-                    setUnsavedChanges(true);
                     return false;
                 }
 
@@ -1505,6 +1574,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Setup hotkey recording
     setupHotkeyRecording(sortHotkeyInput);
     setupHotkeyRecording(cancelHotkeyInput);
+    setupHotkeyRecording(overlayHotkeyInput);
 
     // Form validation
     noDelayCheckbox?.addEventListener('change', () => {
@@ -1557,7 +1627,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: wiresharkPathInput, events: ['input', 'change'] },
         { element: includeDevCheckbox, events: ['change'] },
         { element: closeToTrayCheckbox, events: ['change'] },
-        { element: developerModeCheckbox, events: ['change'] }
+        { element: developerModeCheckbox, events: ['change'] },
+        { element: overlayEnabledCheckbox, events: ['change'] },
+        { element: overlayHotkeyInput, events: ['change', 'blur'] },
+        { element: overlayOpacitySlider, events: ['change'] }
     ];
 
     trackableElements

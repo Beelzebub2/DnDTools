@@ -1673,3 +1673,96 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
 .card-full-width {
     grid-column: 1 / -1;
 }
+
+/* ─── Overlay Settings ──────────────────────────────────────────────── */
+
+.overlay-dependent-setting {
+    transition: opacity 0.3s var(--ease-out, ease), filter 0.3s var(--ease-out, ease);
+}
+
+.overlay-dependent-setting.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+    filter: grayscale(30%);
+}
+
+/* Opacity slider — custom track & thumb */
+.overlay-opacity-control {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 200px;
+}
+
+.overlay-opacity-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right,
+            rgba(207, 163, 70, 0.35),
+            rgba(207, 163, 70, 0.65));
+    outline: none;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.overlay-opacity-slider:hover {
+    background: linear-gradient(to right,
+            rgba(207, 163, 70, 0.45),
+            rgba(207, 163, 70, 0.80));
+}
+
+.overlay-opacity-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-gold, #cfa346);
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4),
+        0 0 0 3px rgba(207, 163, 70, 0.15);
+    cursor: grab;
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.overlay-opacity-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.5),
+        0 0 0 5px rgba(207, 163, 70, 0.25);
+    transform: scale(1.1);
+}
+
+.overlay-opacity-slider::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    transform: scale(0.95);
+}
+
+/* Firefox track + thumb */
+.overlay-opacity-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right,
+            rgba(207, 163, 70, 0.35),
+            rgba(207, 163, 70, 0.65));
+}
+
+.overlay-opacity-slider::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--accent-gold, #cfa346);
+    border: 2px solid rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    cursor: grab;
+}
+
+.overlay-opacity-value {
+    min-width: 40px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 500;
+    color: var(--accent-gold, #cfa346);
+    font-size: 0.85rem;
+}

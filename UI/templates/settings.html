@@ -39,6 +39,10 @@
             <span class="material-icons" aria-hidden="true">more_horiz</span>
             <span class="nav-pill-label">Misc</span>
         </button>
+        <button class="nav-pill" type="button" id="overlay-tab" data-tab="overlay" role="tab" aria-selected="false">
+            <span class="material-icons" aria-hidden="true">picture_in_picture_alt</span>
+            <span class="nav-pill-label">Game Overlay</span>
+        </button>
     </nav>
 
     <!-- ═══════════════ Panels ═══════════════ -->
@@ -360,6 +364,90 @@
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ── Game Overlay ── -->
+        <section class="settings-panel" data-panel="overlay" aria-labelledby="overlay-tab" aria-hidden="true">
+            <div class="panel-grid two-col">
+
+                <!-- Overlay Enable Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">picture_in_picture_alt</span>
+                        <h2 class="card-head-title">In-Game Overlay</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="overlayEnabled">Enable game overlay</label>
+                                <p class="field-hint">Show a floating overlay window on top of the game with
+                                    full access to Characters, Search, Quests, and Sorting.</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="overlayEnabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <hr class="field-divider">
+
+                        <div class="field-row overlay-dependent-setting">
+                            <div class="field-row-info">
+                                <label class="field-label" for="overlayHotkey">Toggle hotkey</label>
+                                <p class="field-hint">Press this key combination to show / hide the overlay
+                                    while in-game.</p>
+                            </div>
+                            <input type="text" id="overlayHotkey" class="hotkey-input-modern" placeholder="Record…"
+                                readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overlay Appearance Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">palette</span>
+                        <h2 class="card-head-title">Appearance</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="field-row overlay-dependent-setting">
+                            <div class="field-row-info">
+                                <label class="field-label" for="overlayOpacity">Overlay opacity</label>
+                                <p class="field-hint">Adjust the window transparency.
+                                    Lower values let more of the game show through.</p>
+                            </div>
+                            <div class="field-row-control overlay-opacity-control">
+                                <input type="range" id="overlayOpacity" class="overlay-opacity-slider" min="30"
+                                    max="100" step="1" value="92">
+                                <span class="field-unit overlay-opacity-value" id="overlayOpacityValue">92%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Overlay Info Card -->
+                <div class="card card-full-width">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">info</span>
+                        <h2 class="card-head-title">How It Works</h2>
+                    </div>
+                    <div class="card-body">
+                        <ul class="calibration-controls">
+                            <li><span class="material-icons" aria-hidden="true">keyboard</span> Press the toggle
+                                hotkey while in-game to open the overlay</li>
+                            <li><span class="material-icons" aria-hidden="true">picture_in_picture_alt</span> The
+                                overlay floats on top of the game — no need to Alt-Tab</li>
+                            <li><span class="material-icons" aria-hidden="true">inventory_2</span> Browse
+                                characters, search items, track quests &amp; trigger sorts</li>
+                            <li><span class="material-icons" aria-hidden="true">mouse</span> Click through the
+                                overlay to interact — click outside to return to the game</li>
+                            <li><span class="material-icons" aria-hidden="true">tune</span> Adjust opacity to
+                                find the perfect balance between visibility and gameplay</li>
+                        </ul>
                     </div>
                 </div>
 

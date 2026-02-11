@@ -102,6 +102,9 @@ class SettingsManager:
             "closeToTrayEnabled": True,
             "developerMode": False,
             "sortFeedbackSyncEnabled": True,
+            "overlayEnabled": False,
+            "overlayHotkey": "ctrl+shift+o",
+            "overlayOpacity": 0.92,
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -266,6 +269,32 @@ class SettingsManager:
             }
         else:
             normalized["sortFeedbackSyncEnabled"] = bool(sync_value)
+
+        # ── Overlay settings ──
+        overlay_enabled_value = normalized.get("overlayEnabled")
+        if isinstance(overlay_enabled_value, str):
+            normalized["overlayEnabled"] = overlay_enabled_value.strip().lower() in {
+                "1", "true", "yes", "on",
+            }
+        else:
+            normalized["overlayEnabled"] = bool(overlay_enabled_value)
+
+        overlay_hotkey = normalized.get("overlayHotkey")
+        if overlay_hotkey:
+            try:
+                normalized["overlayHotkey"] = canonicalize_hotkey(overlay_hotkey)
+            except HotkeyParseError as exc:
+                self._logger.warning("Invalid overlayHotkey '%s': %s", overlay_hotkey, exc)
+                normalized["overlayHotkey"] = canonicalize_hotkey(self._defaults["overlayHotkey"])
+        else:
+            normalized["overlayHotkey"] = canonicalize_hotkey(self._defaults["overlayHotkey"])
+
+        overlay_opacity = normalized.get("overlayOpacity", self._defaults["overlayOpacity"])
+        try:
+            opacity_val = float(overlay_opacity)
+            normalized["overlayOpacity"] = max(0.3, min(1.0, opacity_val))
+        except (TypeError, ValueError):
+            normalized["overlayOpacity"] = self._defaults["overlayOpacity"]
 
         return normalized
 
