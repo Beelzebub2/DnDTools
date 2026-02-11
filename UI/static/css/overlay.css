@@ -1873,7 +1873,7 @@ body {
 /* ═══ Notifications ═══ */
 #overlay-notifications {
     position: fixed;
-    bottom: 10px;
+    top: 38px;
     right: 10px;
     display: flex;
     flex-direction: column;
@@ -2239,6 +2239,159 @@ body {
 .ov-item-highlight-fadeout::after {
     opacity: 0;
     transition: opacity .6s ease;
+}
+
+/* ═══ Sort Feedback Popup ═══ */
+.ov-feedback {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    max-width: 320px;
+    width: calc(100% - 24px);
+    z-index: 60;
+    pointer-events: none;
+    animation: ovFeedbackIn .25s var(--ov-ease);
+}
+
+.ov-feedback.hidden {
+    display: none;
+}
+
+.ov-feedback-card {
+    background: var(--ov-surface);
+    border: 1px solid var(--ov-border);
+    border-radius: 10px;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5);
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    pointer-events: auto;
+}
+
+.ov-feedback-header {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: flex-start;
+}
+
+.ov-feedback-title-wrap {
+    display: flex;
+    flex-direction: column;
+}
+
+.ov-feedback-title {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--ov-text);
+}
+
+.ov-feedback-risk {
+    margin: 2px 0 0 0;
+    font-size: 10px;
+    color: var(--ov-text-muted);
+}
+
+.ov-feedback-dismiss {
+    background: transparent;
+    border: none;
+    color: var(--ov-text-muted);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 50%;
+    transition: color .2s ease;
+}
+
+.ov-feedback-dismiss:hover {
+    color: var(--ov-gold);
+}
+
+.ov-feedback-dismiss .material-icons {
+    font-size: 16px;
+}
+
+.ov-feedback-desc {
+    margin: 0;
+    color: var(--ov-text-muted);
+    font-size: 10px;
+}
+
+.ov-feedback-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.ov-feedback-btn {
+    flex: 1;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--ov-text);
+    transition: background .2s ease, border-color .2s ease;
+}
+
+.ov-feedback-btn .material-icons {
+    font-size: 15px;
+}
+
+.ov-feedback-btn.success {
+    border-color: rgba(0, 150, 136, 0.4);
+}
+
+.ov-feedback-btn.failure {
+    border-color: rgba(255, 82, 82, 0.4);
+}
+
+.ov-feedback-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.ov-feedback-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--ov-gold);
+}
+
+.ov-feedback-note {
+    width: 100%;
+    min-height: 48px;
+    border-radius: 6px;
+    border: 1px solid var(--ov-border);
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--ov-text);
+    resize: vertical;
+    padding: 6px 8px;
+    font-family: inherit;
+    font-size: 10px;
+    box-sizing: border-box;
+}
+
+.ov-feedback-note::placeholder {
+    color: var(--ov-text-muted);
+}
+
+/* Persistent info notification (stays until dismissed) */
+.overlay-toast-info {
+    border-color: rgba(100, 180, 255, 0.3);
+}
+
+.overlay-toast-info .overlay-toast-icon {
+    color: #64b4ff;
+}
+
+@keyframes ovFeedbackIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ═══ Responsive ═══ */

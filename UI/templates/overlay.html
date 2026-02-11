@@ -161,6 +161,35 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Sort Feedback Prompt -->
+                <div id="overlaySortFeedback" class="ov-feedback hidden">
+                    <div class="ov-feedback-card">
+                        <div class="ov-feedback-header">
+                            <div class="ov-feedback-title-wrap">
+                                <p class="ov-feedback-title">Did this sort finish correctly?</p>
+                                <p class="ov-feedback-risk" id="overlaySortFeedbackRisk"></p>
+                            </div>
+                            <button type="button" class="ov-feedback-dismiss" id="overlaySortFeedbackDismiss"
+                                aria-label="Dismiss">
+                                <span class="material-icons">close</span>
+                            </button>
+                        </div>
+                        <p class="ov-feedback-desc">Quick thumbs up or down helps us retrain the sorter.</p>
+                        <div class="ov-feedback-actions">
+                            <button type="button" class="ov-feedback-btn success" id="overlaySortFeedbackSuccess">
+                                <span class="material-icons">thumb_up</span>
+                                Worked great
+                            </button>
+                            <button type="button" class="ov-feedback-btn failure" id="overlaySortFeedbackFailure">
+                                <span class="material-icons">bug_report</span>
+                                It had issues
+                            </button>
+                        </div>
+                        <textarea id="overlaySortFeedbackNote" class="ov-feedback-note"
+                            placeholder="Optional details (e.g., failed to place last shield)"></textarea>
+                    </div>
+                </div>
             </section>
 
             <!-- ═══ Search Panel ═══ -->

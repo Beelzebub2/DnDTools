@@ -128,6 +128,14 @@
     // Deposit state
     let depositFeasibility = null;
 
+    // Sort feedback state
+    let pendingSortSessionId = null;
+    let sortFeedbackBusy = false;
+    const answeredSortSessions = new Set();
+    const SORT_SUCCESS_MSG = "Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+    const SORT_CANCEL_MSG = "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+    const DEPOSIT_SUCCESS_MSG = "Deposit completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+
     // Equipment slot config (loaded lazily from equipment_slots.json)
     let equipmentSlotConfig = null;
 
@@ -398,6 +406,98 @@
         toast.querySelector('.overlay-toast-close').onclick = remove;
         setTimeout(remove, duration);
         area.appendChild(toast);
+    }
+
+    // ── Persistent notification (info type, stays until dismissed) ──
+    function notifyPersistent(msg, type = 'info') {
+        const area = $('#overlay-notifications');
+        if (!area) return;
+        const toast = document.createElement('div');
+        toast.className = `overlay-toast overlay-toast-${type}`;
+        const iconMap = { success: 'check_circle', error: 'error', warning: 'warning', info: 'info' };
+        toast.innerHTML = `
+            <span class="material-icons overlay-toast-icon">${iconMap[type] || 'info'}</span>
+            <span class="overlay-toast-msg">${msg}</span>
+            <button class="overlay-toast-close"><span class="material-icons">close</span></button>
+        `;
+        const remove = () => { toast.classList.add('exiting'); setTimeout(() => toast.remove(), 200); };
+        toast.querySelector('.overlay-toast-close').onclick = remove;
+        area.appendChild(toast);
+    }
+
+    // ── Sort Feedback Popup ──────────────────────────────────
+    function showSortFeedbackPopup(summary) {
+        const el = $('#overlaySortFeedback');
+        if (!el) return;
+        const noteEl = $('#overlaySortFeedbackNote');
+        if (noteEl) noteEl.value = '';
+        const riskEl = $('#overlaySortFeedbackRisk');
+        if (riskEl) {
+            if (summary && summary.cancelled) {
+                riskEl.textContent = 'Sort cancelled. Was the plan bad?';
+            } else if (summary && typeof summary.predictedRisk === 'number') {
+                riskEl.textContent = `${Math.round(summary.predictedRisk * 100)}% predicted failure risk`;
+            } else {
+                riskEl.textContent = 'Tell us how the run went so we can improve reliability.';
+            }
+        }
+        el.classList.remove('hidden');
+    }
+
+    function hideSortFeedbackPopup(clearSession = true) {
+        const el = $('#overlaySortFeedback');
+        if (el) el.classList.add('hidden');
+        sortFeedbackBusy = false;
+        if (clearSession && pendingSortSessionId) {
+            answeredSortSessions.add(pendingSortSessionId);
+            pendingSortSessionId = null;
+        }
+        const noteEl = $('#overlaySortFeedbackNote');
+        if (noteEl) noteEl.value = '';
+        // Keep the set from growing unbounded
+        if (answeredSortSessions.size > 50) {
+            const iter = answeredSortSessions.values();
+            for (let i = 0; i < answeredSortSessions.size - 50; i++) {
+                answeredSortSessions.delete(iter.next().value);
+            }
+        }
+    }
+
+    function handleSortSessionSummary(summary) {
+        if (!summary || !summary.sessionId) return;
+        if (answeredSortSessions.has(summary.sessionId)) return;
+        if (pendingSortSessionId === summary.sessionId) return;
+        pendingSortSessionId = summary.sessionId;
+        showSortFeedbackPopup(summary);
+    }
+
+    async function submitSortFeedback(isSuccess) {
+        if (!pendingSortSessionId || sortFeedbackBusy) return;
+        sortFeedbackBusy = true;
+        const btns = ['overlaySortFeedbackSuccess', 'overlaySortFeedbackFailure'];
+        btns.forEach(id => { const b = $('#' + id); if (b) b.disabled = true; });
+        const noteEl = $('#overlaySortFeedbackNote');
+        const note = noteEl ? noteEl.value.trim() : '';
+        try {
+            const res = await fetch('/api/sort-feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sessionId: pendingSortSessionId, success: Boolean(isSuccess), note })
+            });
+            const payload = await res.json().catch(() => ({}));
+            if (!res.ok || payload.success === false) {
+                throw new Error(payload.error || 'Failed to submit feedback');
+            }
+            notify('Thanks! Your feedback helps train the sorter.', 'success');
+            answeredSortSessions.add(pendingSortSessionId);
+            hideSortFeedbackPopup();
+        } catch (err) {
+            console.error('Feedback submit failed:', err);
+            notify('Unable to record feedback. Please try again.', 'error');
+        } finally {
+            sortFeedbackBusy = false;
+            btns.forEach(id => { const b = $('#' + id); if (b) b.disabled = false; });
+        }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1174,6 +1274,7 @@
 
             if (result.success) {
                 notify('Sort completed! Refreshing…', 'success');
+                notifyPersistent(SORT_SUCCESS_MSG, 'info');
                 // Turn off preview
                 if (isPreviewMode) {
                     isPreviewMode = false;
@@ -1185,9 +1286,14 @@
                 const msg = result.error || 'Sort failed';
                 if (msg.toLowerCase().includes('cancel')) {
                     notify('Sort cancelled', 'warning');
+                    notifyPersistent(SORT_CANCEL_MSG, 'warning');
                 } else {
                     notify(msg, 'error');
                 }
+            }
+            // Show feedback popup if session data is available
+            if (result.session) {
+                handleSortSessionSummary(result.session);
             }
         } catch (e) {
             if (e.name === 'AbortError') {
@@ -1216,6 +1322,7 @@
 
     function setSortingState(sorting) {
         isSorting = sorting;
+        if (sorting) hideSortFeedbackPopup();
         const overlay = $('#overlaySortOverlay');
         if (overlay) overlay.style.display = sorting ? 'flex' : 'none';
         const msg = $('#overlaySortMessage');
@@ -1315,6 +1422,7 @@
 
             if (result.success) {
                 notify('Deposit completed!', 'success');
+                notifyPersistent(DEPOSIT_SUCCESS_MSG, 'info');
                 closeAllDropdowns();
                 await reloadStashData();
             } else {
@@ -2377,6 +2485,14 @@
         if (cancelSortBtn) {
             cancelSortBtn.addEventListener('click', cancelSort);
         }
+
+        // Sort feedback popup
+        const feedbackSuccess = $('#overlaySortFeedbackSuccess');
+        const feedbackFailure = $('#overlaySortFeedbackFailure');
+        const feedbackDismiss = $('#overlaySortFeedbackDismiss');
+        if (feedbackSuccess) feedbackSuccess.addEventListener('click', () => submitSortFeedback(true));
+        if (feedbackFailure) feedbackFailure.addEventListener('click', () => submitSortFeedback(false));
+        if (feedbackDismiss) feedbackDismiss.addEventListener('click', () => hideSortFeedbackPopup());
 
         // Deposit dropdown
         const depositDropdown = $('#overlayDepositDropdown');
