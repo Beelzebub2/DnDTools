@@ -1420,8 +1420,14 @@ class Api:
 
         if capture_controller:
             try:
-                success, state = capture_controller.stop()
-                if not success:
+                # Persist capture running=True so the post-update restart
+                # auto-resumes capture via should_auto_start().  The plain
+                # stop() would persist running=False and the restarted app
+                # would not know capture was active before the update.
+                capture_should_resume = context.get('capture_should_resume', False)
+                capture_controller.shutdown(persist_running_state=capture_should_resume)
+                state = capture_controller.state()
+                if state.get('running'):
                     logger.warning(
                         "Packet capture reported still running during update preparation: %s",
                         state.get('lastError'),
