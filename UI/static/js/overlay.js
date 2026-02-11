@@ -15,6 +15,12 @@
         'Artifact': '#FF0000'
     };
 
+    // Numeric rarity IDs → string names (backend may send either)
+    const RARITY_NAMES = {
+        0: 'None', 1: 'Poor', 2: 'Common', 3: 'Uncommon',
+        4: 'Rare', 5: 'Epic', 6: 'Legendary', 7: 'Unique', 8: 'Artifact'
+    };
+
     const RARITY_RANK = {
         'none': 0, 'poor': 1, 'common': 2, 'uncommon': 3,
         'rare': 4, 'epic': 5, 'legend': 6, 'legendary': 6,
@@ -118,6 +124,9 @@
     // Deposit state
     let depositFeasibility = null;
 
+    // Equipment slot config (loaded lazily from equipment_slots.json)
+    let equipmentSlotConfig = null;
+
     // ── Helpers ──────────────────────────────────────────────
     const $ = (sel, ctx) => (ctx || document).querySelector(sel);
     const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
@@ -140,8 +149,15 @@
         return `/assets/classes/${img}`;
     }
 
+    function getRarityName(rarity) {
+        if (typeof rarity === 'number') return RARITY_NAMES[rarity] || 'Common';
+        if (typeof rarity === 'string' && rarity) return rarity;
+        return 'Common';
+    }
+
     function getRarityColor(rarity) {
-        return RARITY_COLORS[rarity] || RARITY_COLORS['Common'];
+        const name = getRarityName(rarity);
+        return RARITY_COLORS[name] || RARITY_COLORS['Common'];
     }
 
     function getRarityRank(rarity) {
@@ -306,18 +322,17 @@
 
             charDetailsCache[charId] = data.details || {};
 
-            // Store stash data
-            if (data.stashes) {
-                stashDataCache[charId] = {};
-                for (const [sid, stashInfo] of Object.entries(data.stashes)) {
-                    if (stashInfo && typeof stashInfo === 'object' && stashInfo.stashData) {
-                        stashDataCache[charId][sid] = (stashInfo.stashData[sid] || []).map(item => normalizeItem(item, sid));
-                    } else if (Array.isArray(stashInfo)) {
-                        stashDataCache[charId][sid] = stashInfo.map(item => normalizeItem(item, sid));
-                    } else {
-                        stashDataCache[charId][sid] = [];
-                    }
-                }
+            // Store stash data — data.stashes is { previewImages, stashData, stashStats }
+            // The actual item arrays live inside data.stashes.stashData keyed by stash ID
+            stashDataCache[charId] = {};
+            const stashPayload = data.stashes || {};
+            const stashItems = stashPayload.stashData || stashPayload;
+
+            // Handle both formats: { stashData: { "2": [...] } } and flat { "2": [...] }
+            for (const [sid, items] of Object.entries(stashItems)) {
+                // Skip non-stash keys (previewImages, stashStats, etc.)
+                if (!Array.isArray(items)) continue;
+                stashDataCache[charId][sid] = items.map(item => normalizeItem(item, sid)).filter(Boolean);
             }
 
             // Apply settings
@@ -333,12 +348,15 @@
                 applySortOrder(data.sortOrder);
             }
 
-            // Build stash tabs
-            renderStashTabs(stashIds);
+            // Build stash tabs — use stash IDs from the actual loaded data, merged with character stash IDs
+            const loadedStashIds = Object.keys(stashDataCache[charId] || {});
+            const allStashIds = [...new Set([...stashIds, ...loadedStashIds])];
+
+            renderStashTabs(allStashIds);
 
             // Select first stash or character combined view
-            const defaultStash = stashIds.includes('2') || stashIds.includes('3') ? 'character' : stashIds[0];
-            selectStash(defaultStash || stashIds[0]);
+            const defaultStash = allStashIds.includes('2') || allStashIds.includes('3') ? 'character' : allStashIds[0];
+            selectStash(defaultStash || allStashIds[0]);
         } catch (e) {
             console.error('Failed to load character:', e);
             area.innerHTML = '<div class="overlay-empty-state"><span class="material-icons">error</span><p>Failed to load character data</p></div>';
@@ -360,9 +378,11 @@
         return {
             ...item,
             slotId, width, height,
-            rarity: item.rarity || 'Common',
+            rarity: getRarityName(item.rarity),
             itemCount: item.itemCount || 1,
             maxStackSize: maxStack,
+            pp: item.pp || [],
+            sp: item.sp || [],
         };
     }
 
@@ -429,12 +449,12 @@
     // ══════════════════════════════════════════════════════════
     //  STASH GRID RENDERING — CSS Grid matching main app
     // ══════════════════════════════════════════════════════════
-    function renderCurrentStash() {
+    async function renderCurrentStash() {
         const area = $('#overlayStashArea');
         if (!area || !selectedCharId) return;
 
         if (selectedStashId === 'character') {
-            renderCombinedCharacterView(area);
+            await renderCombinedCharacterView(area);
             return;
         }
 
@@ -458,28 +478,30 @@
         area.appendChild(wrap);
     }
 
-    function renderCombinedCharacterView(area) {
+    async function renderCombinedCharacterView(area) {
         area.innerHTML = '';
         const wrap = document.createElement('div');
         wrap.className = 'overlay-combined-grid';
 
-        // Equipment Grid (8×7)
+        // Equipment Grid (8×8) — using equipment slot positions from JSON
         const equipItems = getStashItems('3') || [];
-        if (equipItems.length) {
+        {
             const section = document.createElement('div');
+            section.className = 'overlay-equipment-section';
             const label = document.createElement('div');
             label.className = 'overlay-section-title';
             label.textContent = 'Equipment';
             section.appendChild(label);
-            section.appendChild(buildStashGrid('3', equipItems));
+            section.appendChild(await buildEquipmentGrid(equipItems));
             wrap.appendChild(section);
         }
 
-        // Bag Grid (10×5)
+        // Bag Grid (10×5) — below equipment
         const bagItems = getStashItems('2') || [];
         const bagItemsToRender = isPreviewMode ? computePreviewLayout('2', bagItems) : bagItems;
         {
             const section = document.createElement('div');
+            section.className = 'overlay-bag-section';
             const label = document.createElement('div');
             label.className = 'overlay-section-title';
             label.textContent = 'Bag';
@@ -489,6 +511,125 @@
         }
 
         area.appendChild(wrap);
+    }
+
+    // ── Equipment Grid — slot-based like main app ────────────
+    async function fetchEquipmentSlotConfig() {
+        try {
+            const resp = await fetch('/assets/equipment_slots.json');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            return data.equipment_slots || {};
+        } catch (e) {
+            console.error('Failed to load equipment slot config:', e);
+            return {};
+        }
+    }
+
+    async function buildEquipmentGrid(items) {
+        // Load slot config lazily
+        if (!equipmentSlotConfig) {
+            equipmentSlotConfig = await fetchEquipmentSlotConfig();
+        }
+
+        // Equipment grid is 8 cols × 8 rows (slots go up to y=7 + h=1 = row 8)
+        const gridWidth = 8;
+        const gridHeight = 8;
+
+        const grid = document.createElement('div');
+        grid.className = 'overlay-stash-grid overlay-equipment-grid';
+        grid.style.gridTemplateColumns = `repeat(${gridWidth}, ${CELL_SIZE}px)`;
+        grid.style.gridTemplateRows = `repeat(${gridHeight}, ${CELL_SIZE}px)`;
+        grid.style.gridAutoRows = '0px';
+        grid.style.gridAutoColumns = '0px';
+
+        const hGaps = Math.max(gridWidth - 1, 0) * CELL_GAP;
+        const vGaps = Math.max(gridHeight - 1, 0) * CELL_GAP;
+        const totalW = (gridWidth * CELL_SIZE) + hGaps + 8;
+        const totalH = (gridHeight * CELL_SIZE) + vGaps + 8;
+        grid.style.width = `${totalW}px`;
+        grid.style.height = `${totalH}px`;
+        grid.style.maxWidth = `${totalW}px`;
+        grid.style.maxHeight = `${totalH}px`;
+        grid.style.overflow = 'hidden';
+
+        // Build item lookup by raw slotId (matches equipment slot config keys)
+        const itemBySlot = {};
+        if (Array.isArray(items)) {
+            items.forEach(item => {
+                if (item && item.slotId != null) {
+                    itemBySlot[item.slotId.toString()] = item;
+                }
+            });
+        }
+
+        // Iterate equipment slot definitions — position from JSON, not slotId math
+        for (const [slotId, slotData] of Object.entries(equipmentSlotConfig)) {
+            const el = document.createElement('div');
+            el.className = 'overlay-equipment-slot';
+            el.style.gridColumn = `${slotData.x + 1} / span ${slotData.w}`;
+            el.style.gridRow = `${slotData.y + 1} / span ${slotData.h}`;
+            el.dataset.slotId = slotId;
+            el.title = slotData.name;
+
+            const item = itemBySlot[slotId];
+            if (item) {
+                el.appendChild(createEquipmentItemElement(item, false));
+            } else {
+                // Ghost weapon: show primary weapon faded in secondary slot
+                if (slotId === '11' && !itemBySlot['11'] && itemBySlot['10']) {
+                    el.appendChild(createEquipmentItemElement(itemBySlot['10'], true));
+                } else if (slotId === '13' && !itemBySlot['13'] && itemBySlot['12']) {
+                    el.appendChild(createEquipmentItemElement(itemBySlot['12'], true));
+                } else {
+                    // Empty slot label
+                    const lbl = document.createElement('span');
+                    lbl.className = 'overlay-equip-slot-label';
+                    lbl.textContent = slotData.name;
+                    el.appendChild(lbl);
+                }
+            }
+            grid.appendChild(el);
+        }
+
+        return grid;
+    }
+
+    function createEquipmentItemElement(item, isGhost) {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'overlay-equip-item' + (isGhost ? ' ghost' : '');
+
+        const color = getRarityColor(item.rarity);
+        wrapper.style.borderColor = color;
+        wrapper.style.boxShadow = `0 0 5px ${color}40`;
+        wrapper.style.backgroundColor = `${color}12`;
+
+        if (item.imagePath) {
+            const img = document.createElement('img');
+            img.src = item.imagePath;
+            img.alt = item.name || 'Item';
+            img.className = 'item-image';
+            img.loading = 'lazy';
+            img.draggable = false;
+            wrapper.appendChild(img);
+        } else {
+            const txt = document.createElement('span');
+            txt.className = 'item-text-content';
+            txt.textContent = item.name || '';
+            wrapper.appendChild(txt);
+        }
+
+        if (item.itemCount > 1) {
+            const badge = document.createElement('div');
+            badge.className = 'item-count-badge';
+            badge.textContent = item.itemCount;
+            wrapper.appendChild(badge);
+        }
+
+        wrapper.title = `${item.name || 'Unknown'} [${item.rarity || 'Common'}]` +
+            (item.itemCount > 1 ? ` x${item.itemCount}` : '');
+
+        return wrapper;
     }
 
     function getStashItems(stashId) {
@@ -544,10 +685,9 @@
 
                 // Rarity styling — exactly like main app
                 const color = getRarityColor(item.rarity);
-                el.style.borderColor = color;
-                el.style.boxShadow = `inset 0 0 0 1px rgba(0,0,0,0.3), 0 0 0 1px ${color}30, inset 0 0 5px ${color}40`;
+                el.style.border = `2px solid ${color}`;
+                el.style.boxShadow = `0 0 0 1px rgba(0,0,0,0.3), 0 0 5px ${color}40`;
                 el.style.backgroundColor = `${color}15`;
-                el.style.border = `1px solid ${color}`;
 
                 // Item image — uses imagePath just like main app
                 if (item.imagePath) {
@@ -907,15 +1047,14 @@
             const stashIds = char && char.stashes ? Object.keys(char.stashes) : ['2', '3'];
             const data = await apiFetch(`/api/character/${selectedCharId}/stashes?stashIds=${stashIds.join(',')}`);
 
+            // Response is { previewImages, stashData, stashStats }
+            // The actual item arrays live inside data.stashData keyed by stash ID
             stashDataCache[selectedCharId] = {};
-            for (const [sid, stashInfo] of Object.entries(data)) {
-                if (stashInfo && typeof stashInfo === 'object' && stashInfo.stashData) {
-                    stashDataCache[selectedCharId][sid] = (stashInfo.stashData[sid] || []).map(item => normalizeItem(item, sid));
-                } else if (Array.isArray(stashInfo)) {
-                    stashDataCache[selectedCharId][sid] = stashInfo.map(item => normalizeItem(item, sid));
-                } else {
-                    stashDataCache[selectedCharId][sid] = [];
-                }
+            const stashItems = data.stashData || data;
+
+            for (const [sid, items] of Object.entries(stashItems)) {
+                if (!Array.isArray(items)) continue;
+                stashDataCache[selectedCharId][sid] = items.map(item => normalizeItem(item, sid)).filter(Boolean);
             }
             renderCurrentStash();
         } catch (e) {
@@ -1093,13 +1232,17 @@
             allMerchants = data.merchants || [];
             questsLoaded = true;
 
-            // Load progress from localStorage
+            // 1. Load progress from localStorage
             loadQuestProgress();
-            // Load captured flags from localStorage
+            // 2. Sync progress from server (merging with localStorage data)
+            await syncProgressFromServer();
+            // 3. Load captured flags from localStorage
             loadCapturedFlags();
-            // Load active merchants from server
+            // 4. Reconcile captured flags → mark completed objectives
+            reconcileCapturedFlags();
+            // 5. Load active merchants from server
             await loadActiveMerchants();
-            // Resolve prerequisites
+            // 6. Resolve prerequisites
             resolvePrerequisites();
 
             renderMerchantGallery();
@@ -1123,6 +1266,42 @@
         } catch { /* ignore */ }
     }
 
+    async function syncProgressFromServer() {
+        try {
+            const data = await apiFetch('/api/quests/progress');
+            const serverProgress = data && data.progress ? data.progress : null;
+            if (!serverProgress) return;
+
+            const serverObjs = serverProgress.objectives || {};
+            const serverItems = serverProgress.items || {};
+
+            // Merge: take the max submitted and OR completed for each objective
+            const merged = { ...questProgress.objectives };
+            for (const [key, serverEntry] of Object.entries(serverObjs)) {
+                const local = merged[key];
+                if (!local) {
+                    merged[key] = { ...serverEntry };
+                } else {
+                    merged[key] = {
+                        ...local,
+                        submitted: Math.max(Number(local.submitted) || 0, Number(serverEntry.submitted) || 0),
+                        completed: Boolean(local.completed) || Boolean(serverEntry.completed),
+                    };
+                }
+            }
+            questProgress.objectives = merged;
+
+            // Merge items: take the max count
+            const mergedItems = { ...questProgress.items };
+            for (const [key, count] of Object.entries(serverItems)) {
+                mergedItems[key] = Math.max(Number(mergedItems[key]) || 0, Number(count) || 0);
+            }
+            questProgress.items = mergedItems;
+        } catch (e) {
+            console.warn('Failed to sync quest progress from server:', e);
+        }
+    }
+
     function loadCapturedFlags() {
         try {
             const raw = localStorage.getItem(CAPTURED_FLAGS_KEY);
@@ -1137,6 +1316,26 @@
                 });
             }
         } catch { /* ignore */ }
+    }
+
+    function reconcileCapturedFlags() {
+        // If a captured flag says a quest is completed (flag 3) or ready to turn in (flag 2),
+        // mark ALL its objectives as completed — this is what the main app's autoTracker does
+        allQuests.forEach(quest => {
+            const flag = quest.__capturedFlag;
+            // 2 = ready to turn in, 3 = completed
+            if (flag === 2 || flag === 3) {
+                const objs = quest.objectives || [];
+                objs.forEach((obj, i) => {
+                    const key = makeObjectiveKey(quest, i, obj);
+                    if (!questProgress.objectives[key]) {
+                        questProgress.objectives[key] = {};
+                    }
+                    questProgress.objectives[key].completed = true;
+                    questProgress.objectives[key].submitted = obj.count || questProgress.objectives[key].submitted || 0;
+                });
+            }
+        });
     }
 
     async function loadActiveMerchants() {
@@ -1302,22 +1501,35 @@
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'overlay-merchant-card' + (allDone ? ' all-done' : '');
+            card.style.setProperty('--merchant-accent', meta.color || '#cfa346');
             card.addEventListener('click', () => navigateToMerchant(merchant));
 
+            const portraitHtml = meta.image
+                ? `<img class="overlay-merchant-portrait" src="/assets/merchants/${meta.image}" alt="${merchant}" onerror="this.outerHTML='<span class=\\'material-icons\\'>${meta.icon}</span>'">`
+                : `<span class="material-icons">${meta.icon}</span>`;
+
+            const trackedHtml = (s.active > 0 && !allDone)
+                ? `<div class="overlay-merchant-tracked"><span class="material-icons">visibility</span></div>`
+                : '';
+
             card.innerHTML = `
-                <div class="overlay-merchant-card-top">
-                    <div class="overlay-merchant-portrait">
-                        ${meta.image
-                    ? `<img src="/assets/merchants/${meta.image}" alt="${merchant}" onerror="this.parentElement.innerHTML='<span class=\\'overlay-merchant-fallback material-icons\\'>${meta.icon}</span>'">`
-                    : `<span class="overlay-merchant-fallback material-icons">${meta.icon}</span>`}
-                    </div>
-                    <div class="overlay-merchant-meta">
-                        <div class="overlay-merchant-name">${merchant}</div>
-                        <div class="overlay-merchant-count">${s.active} active · ${s.completed}/${s.total} done</div>
-                    </div>
+                <div class="overlay-merchant-banner"></div>
+                ${trackedHtml}
+                <div class="overlay-merchant-icon">
+                    ${portraitHtml}
                 </div>
-                <div class="overlay-merchant-card-bar">
-                    <div class="overlay-merchant-card-bar-fill" style="width:${pct}%"></div>
+                <div class="overlay-merchant-body">
+                    <h3 class="overlay-merchant-name">${merchant}</h3>
+                    <span class="overlay-merchant-role">${meta.role || 'Merchant'}</span>
+                </div>
+                <div class="overlay-merchant-footer">
+                    <div class="overlay-merchant-progress">
+                        <div class="overlay-merchant-progress-fill" style="width:${pct}%"></div>
+                    </div>
+                    <div class="overlay-merchant-stats">
+                        <span class="overlay-merchant-stat-active">${s.active} active</span>
+                        <span class="overlay-merchant-stat-done"><span class="material-icons">check_circle</span>${s.completed}/${s.total}</span>
+                    </div>
                 </div>
             `;
             gallery.appendChild(card);
