@@ -1192,6 +1192,9 @@ class Api:
         if self._allow_window_close or self._shutting_down:
             return True
         if not self.is_close_to_tray_enabled():
+            # Close-to-tray is disabled → perform a full shutdown so the
+            # process (and tray icon) don't linger after the window closes.
+            threading.Thread(target=self.shutdown_application, daemon=True, name="TaskbarCloseShutdown").start()
             return True
 
         # Verify the native window handle is still valid before attempting
@@ -3410,6 +3413,21 @@ def api_sort_stash(character_id, stash_id):
     except Exception as e:
         logger.error(f"Error sorting stash: {e}")
         return jsonify({'success': False, 'error': 'Failed to sort stash'}), 500
+
+
+@server.route('/api/cancel_sort', methods=['POST'])
+def api_cancel_sort():
+    """Cancel the current sort operation (called from overlay UI)."""
+    try:
+        if api.current_sort_event and not api.current_sort_event.is_set():
+            api.current_sort_event.set()
+            logger.info("Sort operation cancelled via API")
+            return jsonify({'success': True, 'message': 'Sort cancelled'})
+        else:
+            return jsonify({'success': True, 'message': 'No active sort to cancel'})
+    except Exception as e:
+        logger.error(f"Error cancelling sort: {e}")
+        return jsonify({'success': False, 'error': 'Failed to cancel sort'}), 500
 
 
 @server.route('/api/character/<character_id>/stash/transfer/check', methods=['POST'])

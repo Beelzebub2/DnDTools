@@ -815,6 +815,7 @@
                 const el = document.createElement('div');
                 el.className = 'overlay-stash-item';
                 if (item.displaySlotId != null) el.classList.add('preview-moved');
+                el.dataset.slotId = String(slotId);
 
                 // CSS Grid placement — exactly like main app
                 el.style.gridColumn = `${x + 1} / span ${w}`;
@@ -1170,6 +1171,17 @@
         }
     }
 
+    function cancelSort() {
+        // 1. Abort the fetch request
+        if (abortController) {
+            abortController.abort();
+            abortController = null;
+        }
+        // 2. Tell the backend to cancel the sort operation
+        apiPost('/api/cancel_sort', {}).catch(e => console.warn('Cancel sort request failed:', e));
+        notify('Cancelling sort…', 'warning');
+    }
+
     function setSortingState(sorting) {
         isSorting = sorting;
         const overlay = $('#overlaySortOverlay');
@@ -1296,6 +1308,12 @@
         return parts.join(', ');
     }
 
+    /** Check whether a stash ID refers to a shared (account-wide) stash */
+    function isSharedStash(stashId) {
+        const n = String(stashId ?? '').trim();
+        return n === '20' || n === '30';
+    }
+
     /** Proper item grouping — deduplicates by name+rarity+pp+sp (like main app's search.js) */
     function groupSearchItems(results) {
         const groups = new Map();
@@ -1323,15 +1341,51 @@
             }
 
             const stashId = String(raw.stash_id ?? raw.stashId ?? '');
+            const charId = raw.id || raw.characterId || '';
             groups.get(key).locations.push({
                 nickname: raw.nickname || raw.characterNickname || '',
                 characterClass: raw.class || raw.characterClass || '',
                 level: raw.level ?? '',
+                characterId: charId,
                 stashId,
                 stashLabel: getStashName(stashId),
+                slotId: raw.slotId ?? null,
                 count
             });
         });
+
+        // Shared stashes (20, 30) are account-wide — every character reports
+        // the same items.  Keep only the most-recently-updated character per
+        // shared stash to avoid clogging the location list.
+        const charUpdateMap = {};
+        characters.forEach(c => { if (c && c.id) charUpdateMap[c.id] = c.lastUpdate || 0; });
+
+        for (const group of groups.values()) {
+            const shared = [];
+            const personal = [];
+            group.locations.forEach(loc => {
+                if (isSharedStash(loc.stashId)) shared.push(loc);
+                else personal.push(loc);
+            });
+
+            if (shared.length > 1) {
+                // Per shared-stash type, keep only the character with the most
+                // recent lastUpdate timestamp.
+                const byStash = new Map();
+                shared.forEach(loc => {
+                    const existing = byStash.get(loc.stashId);
+                    if (!existing) {
+                        byStash.set(loc.stashId, loc);
+                    } else {
+                        const existingTs = charUpdateMap[existing.characterId] || 0;
+                        const newTs = charUpdateMap[loc.characterId] || 0;
+                        if (newTs > existingTs) byStash.set(loc.stashId, loc);
+                    }
+                });
+                group.locations = [...personal, ...byStash.values()];
+            }
+        }
+
         return Array.from(groups.values());
     }
 
@@ -1392,14 +1446,15 @@
                         ${group.itemCount > 1 ? `<span class="overlay-item-qty">×${group.itemCount}</span>` : ''}
                     </div>
                     <div class="overlay-item-locations">
-                        ${group.locations.map(loc => {
+                        ${group.locations.map((loc, locIdx) => {
                         const charLabel = loc.nickname || loc.characterClass || '??';
                         const lvl = loc.level ? ` Lv${loc.level}` : '';
-                        return `<div class="overlay-search-location">
+                        return `<div class="overlay-search-location overlay-search-loc-clickable" data-char-id="${escapeHtml(loc.characterId)}" data-stash-id="${escapeHtml(loc.stashId)}" data-slot-id="${loc.slotId != null ? loc.slotId : ''}">
                                 <span class="material-icons">inventory_2</span>
                                 <span class="overlay-loc-char">${escapeHtml(charLabel)}${escapeHtml(lvl)}</span>
                                 <span class="overlay-loc-stash">${escapeHtml(loc.stashLabel)}</span>
                                 ${loc.count > 1 ? `<span class="overlay-loc-qty">×${loc.count}</span>` : ''}
+                                <span class="material-icons overlay-loc-goto">arrow_forward</span>
                             </div>`;
                     }).join('')}
                     </div>
@@ -1418,7 +1473,134 @@
             });
             card.addEventListener('mouseleave', () => hideOverlayTooltip());
 
+            // Click on location rows → navigate to that character's stash & highlight
+            card.querySelectorAll('.overlay-search-loc-clickable').forEach(locEl => {
+                locEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const charId = locEl.dataset.charId;
+                    const stashId = locEl.dataset.stashId;
+                    const slotId = locEl.dataset.slotId;
+                    if (charId && stashId) {
+                        navigateToItem(charId, stashId, slotId ? [slotId] : []);
+                    }
+                });
+            });
+
             container.appendChild(card);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  SEARCH → STASH NAVIGATION + ITEM HIGHLIGHT
+    // ══════════════════════════════════════════════════════════
+    let pendingHighlight = null;
+    let highlightCleanupTimer = null;
+
+    async function navigateToItem(charId, stashId, slotIds) {
+        // 1. Select the character if needed (loads stash data)
+        if (charId !== selectedCharId) {
+            await selectCharacter(charId);
+        }
+
+        // 2. Determine which stash tab to pick
+        //    Equipment (3) and Bag (2) are under 'character' combined view
+        const normalizedStash = String(stashId);
+        let tabStashId;
+        if (normalizedStash === '2' || normalizedStash === '3') {
+            tabStashId = 'character';
+        } else {
+            tabStashId = normalizedStash;
+        }
+
+        // 3. Switch to Sort tab to see the stash grid
+        switchTab('sort');
+
+        // 4. Select the stash tab
+        if (selectedStashId !== tabStashId) {
+            selectStash(tabStashId);
+        }
+
+        // 5. Schedule highlight after render
+        if (slotIds && slotIds.length) {
+            pendingHighlight = {
+                stashId: normalizedStash,
+                slotIds: slotIds.map(String),
+                attempts: 15
+            };
+            // Small delay to let renderCurrentStash finish
+            setTimeout(() => applyHighlight(), 120);
+        }
+    }
+
+    function applyHighlight() {
+        if (!pendingHighlight) return;
+        const { stashId, slotIds, attempts } = pendingHighlight;
+
+        // Find stash grid items by data-slot-id
+        const area = $('#overlayStashArea');
+        if (!area) return;
+
+        const matched = [];
+        slotIds.forEach(sid => {
+            // Look in regular stash items
+            const el = area.querySelector(`.overlay-stash-item[data-slot-id="${sid}"]`);
+            if (el) { matched.push(el); return; }
+            // Look in equipment slots
+            const eq = area.querySelector(`.overlay-equipment-slot[data-slot-id="${sid}"]`);
+            if (eq) matched.push(eq);
+        });
+
+        if (!matched.length) {
+            if (attempts > 0) {
+                pendingHighlight.attempts--;
+                setTimeout(() => applyHighlight(), 100);
+            } else {
+                pendingHighlight = null;
+            }
+            return;
+        }
+
+        // Clear previous highlights
+        clearItemHighlights();
+
+        // Apply golden highlight
+        matched.forEach(el => {
+            el.classList.add('ov-item-highlight');
+            el.setAttribute('data-highlight-active', 'true');
+        });
+
+        // Scroll first matched item into view
+        const first = matched[0];
+        if (first && first.scrollIntoView) {
+            first.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+        }
+
+        pendingHighlight = null;
+
+        // Fade out on hover (like main app)
+        matched.forEach(el => {
+            const handler = () => {
+                el.removeEventListener('mouseenter', handler);
+                matched.forEach(m => m.classList.add('ov-item-highlight-fadeout'));
+                if (highlightCleanupTimer) clearTimeout(highlightCleanupTimer);
+                highlightCleanupTimer = setTimeout(() => clearItemHighlights(), 1000);
+            };
+            el.addEventListener('mouseenter', handler);
+        });
+
+        // Auto-dismiss after 8 seconds
+        if (highlightCleanupTimer) clearTimeout(highlightCleanupTimer);
+        highlightCleanupTimer = setTimeout(() => clearItemHighlights(), 8000);
+    }
+
+    function clearItemHighlights() {
+        $$('.ov-item-highlight, .ov-item-highlight-fadeout').forEach(el => {
+            el.classList.remove('ov-item-highlight', 'ov-item-highlight-fadeout');
+            el.removeAttribute('data-highlight-active');
+        });
+        if (highlightCleanupTimer) {
+            clearTimeout(highlightCleanupTimer);
+            highlightCleanupTimer = null;
         }
     }
 
@@ -1650,6 +1832,51 @@
         return completion;
     }
 
+    /** Topological sort of all quests by prerequisite chains (like main app) */
+    function buildQuestDisplayOrder() {
+        const nodes = new Set();
+        allQuests.forEach(q => {
+            const k = questKey(q);
+            if (k) nodes.add(k);
+        });
+
+        const indegree = new Map();
+        const adj = new Map();
+        nodes.forEach(n => { indegree.set(n, 0); adj.set(n, []); });
+
+        allQuests.forEach(q => {
+            const k = questKey(q);
+            if (!k) return;
+            const deps = Array.isArray(q.__resolvedPrerequisites) ? q.__resolvedPrerequisites : [];
+            deps.forEach(dep => {
+                if (!dep || !nodes.has(dep)) return;
+                adj.get(dep).push(k);
+                indegree.set(k, (indegree.get(k) || 0) + 1);
+            });
+        });
+
+        const queue = [];
+        indegree.forEach((d, node) => { if (!d) queue.push(node); });
+
+        const order = [];
+        while (queue.length) {
+            const node = queue.shift();
+            order.push(node);
+            (adj.get(node) || []).forEach(nbr => {
+                indegree.set(nbr, (indegree.get(nbr) || 0) - 1);
+                if (indegree.get(nbr) === 0) queue.push(nbr);
+            });
+        }
+
+        // Append any remaining (cycles / disconnected) in title order
+        const remaining = Array.from(nodes).filter(n => !order.includes(n));
+        remaining.sort((a, b) => a.toLowerCase() < b.toLowerCase() ? -1 : 1);
+
+        const displayOrder = new Map();
+        order.concat(remaining).forEach((k, i) => displayOrder.set(k, i));
+        return displayOrder;
+    }
+
     function getVisibleMerchants() {
         if (activeMerchantIds.size === 0) return allMerchants;
         const normSet = new Set();
@@ -1790,6 +2017,25 @@
 
             if (allDone) completed.push(quest);
             else active.push(quest);
+        });
+
+        // Sort active quests: unlocked (completable) first, locked last.
+        // Within each group, use topological prerequisite order then title.
+        const questDisplayOrder = buildQuestDisplayOrder();
+        active.sort((a, b) => {
+            const aLocked = a.__isLocked ? 1 : 0;
+            const bLocked = b.__isLocked ? 1 : 0;
+            if (aLocked !== bLocked) return aLocked - bLocked;
+
+            const ak = questKey(a);
+            const bk = questKey(b);
+            const ai = questDisplayOrder.has(ak) ? questDisplayOrder.get(ak) : Number.MAX_SAFE_INTEGER;
+            const bi = questDisplayOrder.has(bk) ? questDisplayOrder.get(bk) : Number.MAX_SAFE_INTEGER;
+            if (ai !== bi) return ai - bi;
+
+            const at = (a.title || ak).toLowerCase();
+            const bt = (b.title || bk).toLowerCase();
+            if (at < bt) return -1; if (at > bt) return 1; return 0;
         });
 
         // Filter by view mode
@@ -2087,6 +2333,12 @@
         const sortBtn = $('#overlayTriggerSort');
         if (sortBtn) {
             sortBtn.addEventListener('click', triggerSort);
+        }
+
+        // Cancel sort button
+        const cancelSortBtn = $('#overlaySortCancel');
+        if (cancelSortBtn) {
+            cancelSortBtn.addEventListener('click', cancelSort);
         }
 
         // Deposit dropdown
