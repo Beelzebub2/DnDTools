@@ -136,6 +136,11 @@
     const SORT_CANCEL_MSG = "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
     const DEPOSIT_SUCCESS_MSG = "Deposit completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
 
+    // Data polling state (auto-refresh overlay when new data is captured)
+    let lastUpdateMap = {};  // { charId: lastUpdate } for detecting new captures
+    let dataPollTimer = null;
+    const DATA_POLL_INTERVAL = 4000; // ms
+
     // Equipment slot config (loaded lazily from equipment_slots.json)
     let equipmentSlotConfig = null;
 
@@ -425,6 +430,16 @@
         area.appendChild(toast);
     }
 
+    // ── Dismiss all persistent notifications ─────────────────
+    function dismissAllPersistentNotifications() {
+        const area = $('#overlay-notifications');
+        if (!area) return;
+        area.querySelectorAll('.overlay-toast').forEach(toast => {
+            toast.classList.add('exiting');
+            setTimeout(() => toast.remove(), 200);
+        });
+    }
+
     // ── Sort Feedback Popup ──────────────────────────────────
     function showSortFeedbackPopup(summary) {
         const el = $('#overlaySortFeedback');
@@ -506,6 +521,10 @@
     async function loadCharacters() {
         try {
             characters = await apiFetch('/api/characters');
+            // Build lastUpdate map for data-change polling
+            characters.forEach(c => {
+                if (c.lastUpdate) lastUpdateMap[c.id] = c.lastUpdate;
+            });
             renderCharacterList();
         } catch (e) {
             console.error('Failed to load characters:', e);
@@ -547,6 +566,53 @@
         });
         list.innerHTML = '';
         list.appendChild(frag);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  DATA POLLING  (auto-refresh when new capture arrives)
+    // ══════════════════════════════════════════════════════════
+    function startDataPolling() {
+        if (dataPollTimer) return;
+        dataPollTimer = setInterval(checkForDataUpdates, DATA_POLL_INTERVAL);
+    }
+
+    async function checkForDataUpdates() {
+        // Don't poll while a sort or deposit is in progress
+        if (isSorting) return;
+        try {
+            const freshChars = await apiFetch('/api/characters');
+            let anyChanged = false;
+            let selectedChanged = false;
+
+            for (const c of freshChars) {
+                const prev = lastUpdateMap[c.id];
+                if (c.lastUpdate && c.lastUpdate !== prev) {
+                    anyChanged = true;
+                    if (c.id === selectedCharId) selectedChanged = true;
+                }
+            }
+
+            if (!anyChanged) return;
+
+            // Something changed — update state
+            characters = freshChars;
+            characters.forEach(c => {
+                if (c.lastUpdate) lastUpdateMap[c.id] = c.lastUpdate;
+            });
+            renderCharacterList();
+
+            // Dismiss persistent "refresh your data" notifications
+            dismissAllPersistentNotifications();
+
+            // If the currently-viewed character was updated, reload its stash data
+            if (selectedChanged) {
+                await reloadStashData();
+                notify('Character data updated automatically.', 'success', 3000);
+            }
+        } catch (e) {
+            // Silently ignore poll errors (network hiccup, overlay hidden, etc.)
+            console.debug('Data poll error:', e);
+        }
     }
 
     // ══════════════════════════════════════════════════════════
@@ -2577,6 +2643,9 @@
         renderOrderingList();
         loadCharacters();
         loadQuests();
+
+        // Start polling for new data captures
+        startDataPolling();
     }
 
     // Boot
