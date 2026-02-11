@@ -164,8 +164,19 @@
             <section class="overlay-panel" data-panel="search">
                 <div class="overlay-search-bar">
                     <span class="material-icons overlay-search-icon">search</span>
-                    <input type="text" id="overlaySearchInput" class="overlay-input" placeholder="Search items by name…"
+                    <input type="text" id="overlaySearchInput" class="overlay-input" placeholder="Search items… e.g. sword, rare"
                         autocomplete="off">
+                    <select id="overlayRarityFilter" class="overlay-select" title="Filter by rarity">
+                        <option value="">All Rarities</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Common">Common</option>
+                        <option value="Uncommon">Uncommon</option>
+                        <option value="Rare">Rare</option>
+                        <option value="Epic">Epic</option>
+                        <option value="Legendary">Legendary</option>
+                        <option value="Unique">Unique</option>
+                        <option value="Artifact">Artifact</option>
+                    </select>
                     <button class="overlay-btn-icon overlay-btn-sm" id="overlaySearchClear" title="Clear"
                         style="display:none;">
                         <span class="material-icons">close</span>

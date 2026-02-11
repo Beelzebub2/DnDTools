@@ -127,6 +127,13 @@
     // Equipment slot config (loaded lazily from equipment_slots.json)
     let equipmentSlotConfig = null;
 
+    // Tooltip state
+    let overlayTooltip = null;
+    let tooltipHideTimeout = null;
+    const _tooltipDataMap = new WeakMap();
+    const _tooltipContainers = new WeakSet();
+    let _currentHoveredItem = null;
+
     // ── Helpers ──────────────────────────────────────────────
     const $ = (sel, ctx) => (ctx || document).querySelector(sel);
     const $$ = (sel, ctx) => [...(ctx || document).querySelectorAll(sel)];
@@ -164,6 +171,130 @@
         if (typeof rarity === 'number') return rarity;
         if (!rarity) return 0;
         return RARITY_RANK[rarity.toString().toLowerCase()] || 0;
+    }
+
+    // ── Tooltip System (matching main app) ──────────────────
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function formatPrimaryProps(ppArray) {
+        if (!Array.isArray(ppArray) || !ppArray.length) return '';
+        return ppArray.map(([name, value]) => `<div>${name ?? ''} ${value ?? ''}</div>`).join('');
+    }
+
+    function formatSecondaryProps(spArray) {
+        if (!Array.isArray(spArray) || !spArray.length) return '';
+        return spArray.map(([name, value]) => {
+            const n = Number(value);
+            const sign = Number.isFinite(n) && n >= 0 ? '+' : '';
+            const v = Number.isFinite(n) ? n : (value ?? '');
+            return `<div>${sign}${v} ${name ?? ''}</div>`;
+        }).join('');
+    }
+
+    function getOrCreateOverlayTooltip() {
+        if (!overlayTooltip) {
+            overlayTooltip = document.createElement('div');
+            overlayTooltip.className = 'ov-item-tooltip';
+            document.body.appendChild(overlayTooltip);
+        }
+        return overlayTooltip;
+    }
+
+    function showOverlayTooltip(html, x, y) {
+        const tt = getOrCreateOverlayTooltip();
+        tt.innerHTML = html;
+        tt.style.display = 'block';
+        tt.classList.add('visible');
+
+        const w = tt.offsetWidth || 240;
+        const h = tt.offsetHeight || 150;
+        let left = x + 15;
+        let top = y + 15;
+        if (left + w > window.innerWidth) left = x - w - 15;
+        if (top + h > window.innerHeight) top = y - h - 15;
+        if (left < 0) left = 4;
+        if (top < 0) top = 4;
+        tt.style.left = `${left}px`;
+        tt.style.top = `${top}px`;
+    }
+
+    function hideOverlayTooltip(delay = 80) {
+        if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+        tooltipHideTimeout = setTimeout(() => {
+            if (overlayTooltip) {
+                overlayTooltip.classList.remove('visible');
+                setTimeout(() => {
+                    if (overlayTooltip) overlayTooltip.style.display = 'none';
+                }, 180);
+            }
+        }, delay);
+    }
+
+    function buildItemTooltipHtml(item) {
+        const color = getRarityColor(item.rarity);
+        const rarityStr = getRarityName(item.rarity);
+        let html = `
+            <div class="ov-tooltip-header" style="background-color: ${color}44;">
+                <div class="ov-tooltip-name">${escapeHtml(item.name) || 'Unknown'}</div>
+                <div class="ov-tooltip-rarity">${escapeHtml(rarityStr)}</div>
+            </div>
+            <div class="ov-tooltip-body">
+                <div class="ov-tooltip-section ov-primary-props">${formatPrimaryProps(item.pp)}</div>
+                <div class="ov-tooltip-section ov-secondary-props">${formatSecondaryProps(item.sp)}</div>
+            </div>
+            <div class="ov-tooltip-body">
+                <div class="ov-tooltip-section ov-primary-props">
+                    <div>Vendor Price: ${item.vendor_price || 0} coins</div>
+                </div>
+            </div>`;
+        if (item.itemCount > 1) {
+            html += `
+            <div class="ov-tooltip-body">
+                <div class="ov-tooltip-section ov-primary-props">
+                    <div>Count: ${item.itemCount}</div>
+                </div>
+            </div>`;
+        }
+        return html;
+    }
+
+    /** Wire up mouseover/mouseout/mousemove event delegation on a grid container */
+    function ensureGridTooltipDelegation(container) {
+        if (!container || _tooltipContainers.has(container)) return;
+        _tooltipContainers.add(container);
+
+        container.addEventListener('mouseover', (e) => {
+            const itemEl = e.target.closest('.overlay-stash-item, .overlay-equip-item, .overlay-equipment-slot');
+            if (!itemEl || itemEl === _currentHoveredItem) return;
+            _currentHoveredItem = itemEl;
+            if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+            const data = _tooltipDataMap.get(itemEl);
+            if (!data) return;
+            showOverlayTooltip(buildItemTooltipHtml(data), e.clientX, e.clientY);
+        }, false);
+
+        container.addEventListener('mouseout', (e) => {
+            const itemEl = e.target.closest('.overlay-stash-item, .overlay-equip-item, .overlay-equipment-slot');
+            if (!itemEl) return;
+            const related = e.relatedTarget;
+            if (related && itemEl.contains(related)) return;
+            if (_currentHoveredItem === itemEl) {
+                _currentHoveredItem = null;
+                hideOverlayTooltip();
+            }
+        }, false);
+
+        container.addEventListener('mousemove', (e) => {
+            if (_currentHoveredItem && overlayTooltip && overlayTooltip.style.display === 'block') {
+                showOverlayTooltip(overlayTooltip.innerHTML, e.clientX, e.clientY);
+            }
+        }, false);
     }
 
     function getMerchantMeta(name) {
@@ -575,12 +706,15 @@
             const item = itemBySlot[slotId];
             if (item) {
                 el.appendChild(createEquipmentItemElement(item, false));
+                _tooltipDataMap.set(el, item);
             } else {
                 // Ghost weapon: show primary weapon faded in secondary slot
                 if (slotId === '11' && !itemBySlot['11'] && itemBySlot['10']) {
                     el.appendChild(createEquipmentItemElement(itemBySlot['10'], true));
+                    _tooltipDataMap.set(el, itemBySlot['10']);
                 } else if (slotId === '13' && !itemBySlot['13'] && itemBySlot['12']) {
                     el.appendChild(createEquipmentItemElement(itemBySlot['12'], true));
+                    _tooltipDataMap.set(el, itemBySlot['12']);
                 } else {
                     // Empty slot label
                     const lbl = document.createElement('span');
@@ -591,6 +725,9 @@
             }
             grid.appendChild(el);
         }
+
+        // Wire up tooltip delegation for the equipment grid
+        ensureGridTooltipDelegation(grid);
 
         return grid;
     }
@@ -626,8 +763,8 @@
             wrapper.appendChild(badge);
         }
 
-        wrapper.title = `${item.name || 'Unknown'} [${item.rarity || 'Common'}]` +
-            (item.itemCount > 1 ? ` x${item.itemCount}` : '');
+        // Store item data for rich tooltip
+        _tooltipDataMap.set(wrapper, item);
 
         return wrapper;
     }
@@ -713,13 +850,15 @@
                     el.appendChild(badge);
                 }
 
-                // Tooltip title
-                el.title = `${item.name || 'Unknown'} [${item.rarity || 'Common'}]` +
-                    (item.itemCount > 1 ? ` x${item.itemCount}` : '');
+                // Store item data for rich tooltip
+                _tooltipDataMap.set(el, item);
 
                 grid.appendChild(el);
             });
         }
+
+        // Wire up event-delegated tooltips
+        ensureGridTooltipDelegation(grid);
 
         return grid;
     }
@@ -1146,11 +1285,61 @@
     // ══════════════════════════════════════════════════════════
     //  SEARCH
     // ══════════════════════════════════════════════════════════
+    /** Build a composite search query from text + rarity filter (like main app) */
+    function buildOverlaySearchQuery() {
+        const parts = [];
+        const input = $('#overlaySearchInput');
+        const filter = $('#overlayRarityFilter');
+        const textVal = input ? input.value.trim() : '';
+        if (textVal) parts.push(textVal);
+        if (filter && filter.value) parts.push(filter.value);
+        return parts.join(', ');
+    }
+
+    /** Proper item grouping — deduplicates by name+rarity+pp+sp (like main app's search.js) */
+    function groupSearchItems(results) {
+        const groups = new Map();
+        results.forEach(raw => {
+            if (!raw) return;
+            const item = raw.item || raw; // API may return flat or nested
+            const name = item.name || 'Unknown';
+            const rarity = getRarityName(item.rarity || raw.rarity);
+            const pp = Array.isArray(item.pp) ? item.pp : [];
+            const sp = Array.isArray(item.sp) ? item.sp : [];
+            const key = `${name}|${rarity}|${JSON.stringify(pp)}|${JSON.stringify(sp)}`;
+            const count = Math.max(1, Number(raw.itemCount ?? item.itemCount ?? 1));
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    name, rarity, pp, sp,
+                    imagePath: item.imagePath || raw.imagePath || null,
+                    iconPath: item.iconPath || raw.iconPath || null,
+                    vendor_price: item.vendor_price || raw.vendor_price || 0,
+                    itemCount: count,
+                    locations: []
+                });
+            } else {
+                groups.get(key).itemCount += count;
+            }
+
+            const stashId = String(raw.stash_id ?? raw.stashId ?? '');
+            groups.get(key).locations.push({
+                nickname: raw.nickname || raw.characterNickname || '',
+                characterClass: raw.class || raw.characterClass || '',
+                level: raw.level ?? '',
+                stashId,
+                stashLabel: getStashName(stashId),
+                count
+            });
+        });
+        return Array.from(groups.values());
+    }
+
     const doSearch = debounce(async (query) => {
         const results = $('#overlaySearchResults');
         const clearBtn = $('#overlaySearchClear');
-        if (!query || query.length < 2) {
-            results.innerHTML = '<div class="overlay-empty-state"><span class="material-icons">manage_search</span><p>Type to search items across all characters</p></div>';
+        if (!query) {
+            results.innerHTML = `<div class="overlay-empty-state"><span class="material-icons">manage_search</span><p>Search items across all characters</p><p class="overlay-search-tip">Try: <em>barbuta helm</em> · <em>sword, rare</em> · <em>strength, epic</em></p></div>`;
             if (clearBtn) clearBtn.style.display = 'none';
             return;
         }
@@ -1164,57 +1353,71 @@
                 results.innerHTML = '<div class="overlay-empty-state"><span class="material-icons">search_off</span><p>No items found</p></div>';
                 return;
             }
-            renderSearchResults(data, results);
+            renderSearchResults(data, results, query);
         } catch (e) {
             console.error('Search error:', e);
             results.innerHTML = '<div class="overlay-empty-state"><span class="material-icons">error</span><p>Search failed</p></div>';
         }
-    }, 300);
+    }, 200);
 
-    function renderSearchResults(items, container) {
+    function renderSearchResults(items, container, query) {
         container.innerHTML = '';
-        // Group by item name + rarity
-        const groups = new Map();
-        items.forEach(item => {
-            const key = `${item.name}|${item.rarity}`;
-            if (!groups.has(key)) {
-                groups.set(key, { ...item, locations: [] });
-            }
-            groups.get(key).locations.push(item);
-        });
 
-        for (const [, group] of groups) {
+        const grouped = groupSearchItems(items);
+
+        // Results count header
+        const countBar = document.createElement('div');
+        countBar.className = 'overlay-search-count';
+        countBar.textContent = `${grouped.length} ${grouped.length === 1 ? 'result' : 'results'}${query ? ` for "${query}"` : ''}`;
+        container.appendChild(countBar);
+
+        for (const group of grouped) {
             const card = document.createElement('div');
             card.className = 'overlay-item-card';
             const color = getRarityColor(group.rarity);
             card.style.setProperty('--rarity-color', color);
 
-            const totalQty = group.locations.reduce((s, l) => s + (l.itemCount || 1), 0);
+            const imgSrc = group.imagePath || (group.iconPath ? `/assets/${group.iconPath.replace(/\\/g, '/')}` : null);
 
             card.innerHTML = `
                 <div class="overlay-item-icon">
-                    ${group.imagePath
-                    ? `<img src="${group.imagePath}" alt="${group.name}" onerror="this.parentElement.innerHTML='<span class=\\'material-icons overlay-item-fallback\\'>category</span>'">`
+                    ${imgSrc
+                    ? `<img src="${escapeHtml(imgSrc)}" alt="${escapeHtml(group.name)}" onerror="this.parentElement.innerHTML='<span class=\\'material-icons overlay-item-fallback\\'>category</span>'">`
                     : '<span class="material-icons overlay-item-fallback">category</span>'}
                 </div>
                 <div class="overlay-item-body">
                     <div class="overlay-item-header">
-                        <span class="overlay-item-name">${group.name || 'Unknown'}</span>
-                        <span class="overlay-item-rarity" style="background:${color}22;color:${color}">${group.rarity || 'Common'}</span>
-                        ${totalQty > 1 ? `<span class="overlay-item-qty">×${totalQty}</span>` : ''}
+                        <span class="overlay-item-name">${escapeHtml(group.name)}</span>
+                        <span class="overlay-item-rarity" style="background:${color}22;color:${color}">${escapeHtml(group.rarity)}</span>
+                        ${group.itemCount > 1 ? `<span class="overlay-item-qty">×${group.itemCount}</span>` : ''}
                     </div>
                     <div class="overlay-item-locations">
-                        ${group.locations.map(loc =>
-                        `<div class="overlay-search-location">
+                        ${group.locations.map(loc => {
+                            const charLabel = loc.nickname || loc.characterClass || '??';
+                            const lvl = loc.level ? ` Lv${loc.level}` : '';
+                            return `<div class="overlay-search-location">
                                 <span class="material-icons">inventory_2</span>
-                                <span class="overlay-loc-char">${loc.characterNickname || loc.characterClass || '??'}</span>
-                                <span class="overlay-loc-stash">${getStashName(loc.stashId)}</span>
-                                ${(loc.itemCount || 1) > 1 ? `<span class="overlay-loc-qty">×${loc.itemCount}</span>` : ''}
-                            </div>`
-                    ).join('')}
+                                <span class="overlay-loc-char">${escapeHtml(charLabel)}${escapeHtml(lvl)}</span>
+                                <span class="overlay-loc-stash">${escapeHtml(loc.stashLabel)}</span>
+                                ${loc.count > 1 ? `<span class="overlay-loc-qty">×${loc.count}</span>` : ''}
+                            </div>`;
+                        }).join('')}
                     </div>
                 </div>
             `;
+
+            // Rich tooltip on hover (matching main app search)
+            card.addEventListener('mouseenter', (e) => {
+                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+                showOverlayTooltip(buildItemTooltipHtml(group), e.clientX, e.clientY);
+            });
+            card.addEventListener('mousemove', (e) => {
+                if (overlayTooltip && overlayTooltip.style.display === 'block') {
+                    showOverlayTooltip(overlayTooltip.innerHTML, e.clientX, e.clientY);
+                }
+            });
+            card.addEventListener('mouseleave', () => hideOverlayTooltip());
+
             container.appendChild(card);
         }
     }
@@ -1900,15 +2103,21 @@
             depositExec.addEventListener('click', executeDeposit);
         }
 
-        // Search
+        // Search — composite query (text + rarity filter) like main app
         const searchInput = $('#overlaySearchInput');
+        const rarityFilter = $('#overlayRarityFilter');
+        const triggerSearch = () => doSearch(buildOverlaySearchQuery());
         if (searchInput) {
-            searchInput.addEventListener('input', () => doSearch(searchInput.value.trim()));
+            searchInput.addEventListener('input', triggerSearch);
+        }
+        if (rarityFilter) {
+            rarityFilter.addEventListener('change', triggerSearch);
         }
         const searchClear = $('#overlaySearchClear');
         if (searchClear) {
             searchClear.addEventListener('click', () => {
-                searchInput.value = '';
+                if (searchInput) searchInput.value = '';
+                if (rarityFilter) rarityFilter.value = '';
                 doSearch('');
             });
         }

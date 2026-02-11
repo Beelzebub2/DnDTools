@@ -1947,6 +1947,167 @@ body {
     }
 }
 
+/* ═══ Item Tooltip (matching main app) ═══ */
+.ov-item-tooltip {
+    display: none;
+    position: fixed;
+    z-index: 99999;
+    width: 240px;
+    background: linear-gradient(to bottom, rgba(40, 30, 20, 0.97), rgba(20, 15, 10, 0.98));
+    border: 1px solid var(--ov-gold);
+    border-radius: 6px;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6), 0 0 20px rgba(207, 163, 70, 0.2);
+    font-size: 12px;
+    padding: 0;
+    transform: translateZ(0);
+    transition: opacity 0.18s ease;
+    opacity: 0;
+    overflow: hidden;
+}
+
+.ov-item-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--ov-gold), transparent);
+    opacity: 0.5;
+}
+
+.ov-item-tooltip.visible {
+    opacity: 1;
+}
+
+.ov-tooltip-header {
+    padding: 8px 10px;
+    border-radius: 5px 5px 0 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.ov-tooltip-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), transparent);
+    mix-blend-mode: overlay;
+    pointer-events: none;
+}
+
+.ov-tooltip-name {
+    font-weight: bold;
+    text-align: center;
+    font-size: 14px;
+    letter-spacing: 0.4px;
+    line-height: 1.3;
+    color: #fff;
+}
+
+.ov-tooltip-rarity {
+    font-size: 10px;
+    text-align: center;
+    opacity: 0.9;
+    margin-top: 2px;
+    font-style: italic;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.ov-tooltip-body {
+    padding: 8px 10px;
+    position: relative;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.ov-tooltip-section {
+    margin-bottom: 6px;
+    position: relative;
+    padding-left: 3px;
+}
+
+.ov-tooltip-section:last-child {
+    margin-bottom: 0;
+}
+
+.ov-tooltip-section:empty {
+    display: none;
+}
+
+.ov-primary-props {
+    color: #ffffff;
+    font-weight: 500;
+}
+
+.ov-primary-props div {
+    margin-bottom: 3px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+}
+
+.ov-secondary-props {
+    color: #4db8ff;
+    font-weight: 400;
+    padding-top: 5px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ov-secondary-props div {
+    margin-bottom: 2px;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7);
+}
+
+.ov-secondary-props div::before {
+    content: '• ';
+    opacity: 0.7;
+}
+
+/* ═══ Search Extras ═══ */
+.overlay-select {
+    background: var(--ov-surface);
+    border: 1px solid var(--ov-border);
+    border-radius: var(--ov-radius-xs);
+    color: var(--ov-text);
+    font-size: 11px;
+    padding: 4px 6px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color .2s ease;
+    min-width: 80px;
+}
+
+.overlay-select:focus {
+    border-color: var(--ov-border-accent);
+}
+
+.overlay-select option {
+    background: var(--ov-surface);
+    color: var(--ov-text);
+}
+
+.overlay-search-count {
+    font-size: 10px;
+    color: var(--ov-text-dim);
+    padding: 4px 8px;
+    border-bottom: 1px solid var(--ov-border);
+}
+
+.overlay-search-tip {
+    font-size: 10px;
+    color: var(--ov-text-muted);
+    margin-top: 6px !important;
+}
+
+.overlay-search-tip em {
+    color: var(--ov-gold);
+    font-style: normal;
+    background: rgba(207, 163, 70, 0.08);
+    padding: 0 3px;
+    border-radius: 2px;
+}
+
 /* ═══ Responsive ═══ */
 @media (max-width: 900px) {
     .overlay-sidebar {
