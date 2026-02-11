@@ -2533,13 +2533,21 @@ class Api:
         if not result.get('saved'):
             return {'success': True, 'saved': False}
 
-        # Persist locally
+        # Persist locally as deltas (robust for windowed-mode window moves)
         try:
+            orig_stash = result.get('originalStash', result['stash'])
+            orig_inv = result.get('originalInv', result['inv'])
             self.settings_manager.update({
                 'calibrationOverride': {
-                    'stash': result['stash'],
-                    'inv': result['inv'],
                     'resolution': result['resolution'],
+                    'stashDelta': {
+                        'dx': result['stash']['x'] - orig_stash['x'],
+                        'dy': result['stash']['y'] - orig_stash['y'],
+                    },
+                    'invDelta': {
+                        'dx': result['inv']['x'] - orig_inv['x'],
+                        'dy': result['inv']['y'] - orig_inv['y'],
+                    },
                     'jump': result.get('jump'),
                 }
             })

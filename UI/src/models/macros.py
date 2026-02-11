@@ -352,6 +352,35 @@ def get_window_area_pos(window_title="Dark and Darker  "):
     return (left, top, width, height)
 
 
+def _apply_calibration_override(positions, res):
+    """If the user has a saved calibration for *res*, apply the deltas."""
+    try:
+        cal = settings_manager.get('calibrationOverride')
+        if not cal:
+            return positions
+        cal_res = cal.get('resolution', {})
+        if cal_res.get('width') != res[0] or cal_res.get('height') != res[1]:
+            return positions
+        sd = cal.get('stashDelta', {})
+        ivd = cal.get('invDelta', {})
+        dx_s, dy_s = sd.get('dx', 0), sd.get('dy', 0)
+        dx_i, dy_i = ivd.get('dx', 0), ivd.get('dy', 0)
+        if dx_s or dy_s or dx_i or dy_i or cal.get('jump') is not None:
+            positions['stash'] = Point(
+                positions['stash'].x + dx_s,
+                positions['stash'].y + dy_s,
+            )
+            positions['inv'] = Point(
+                positions['inv'].x + dx_i,
+                positions['inv'].y + dy_i,
+            )
+            if cal.get('jump') is not None:
+                positions['jump'] = float(cal['jump'])
+    except Exception:
+        pass  # fall through to uncalibrated positions
+    return positions
+
+
 def get_screen_positions():
     res = get_current_resolution()
 
@@ -363,9 +392,18 @@ def get_screen_positions():
                 base_pos = _ensure_positions(res)
                 stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
                 inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
-                return {'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"]) }
+                return _apply_calibration_override(
+                    {'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"])}, res,
+                )
 
-    return _clone_layout(_ensure_positions(res))
+    positions = _apply_calibration_override(_clone_layout(_ensure_positions(res)), res)
+
+    # Keep module-level globals in sync for internal drag helpers
+    global stash_screen_pos, inv_screen_pos, jump
+    stash_screen_pos = positions['stash']
+    inv_screen_pos = positions['inv']
+    jump = float(positions['jump'])
+    return positions
 
 
 _initial_positions = get_screen_positions()

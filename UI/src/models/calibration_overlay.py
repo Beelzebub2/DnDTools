@@ -62,13 +62,13 @@ class CalibrationOverlay:
     STASH_FILL: Tuple[int, int, int] = (0, 50, 25)
     INV_COLOR: Tuple[int, int, int] = (255, 200, 50)
     INV_FILL: Tuple[int, int, int] = (60, 48, 10)
-    HUD_BG: Tuple[int, int, int] = (20, 18, 14)
-    HUD_BORDER: Tuple[int, int, int] = (50, 45, 35)
-    TEXT_ACCENT: Tuple[int, int, int] = (207, 163, 70)
-    TEXT_DIM: Tuple[int, int, int] = (140, 140, 140)
+    HUD_BG: Tuple[int, int, int] = (38, 34, 28)
+    HUD_BORDER: Tuple[int, int, int] = (90, 80, 58)
+    TEXT_ACCENT: Tuple[int, int, int] = (230, 185, 80)
+    TEXT_DIM: Tuple[int, int, int] = (170, 170, 170)
     HIGHLIGHT: Tuple[int, int, int] = (255, 255, 255)
     BORDER_WIDTH = 3
-    OVERLAY_ALPHA = 140
+    OVERLAY_ALPHA = 210
 
     def __init__(self) -> None:
         self._enabled = sys.platform.startswith("win") and win32gui is not None
