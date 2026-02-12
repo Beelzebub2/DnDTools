@@ -358,8 +358,7 @@ def parse_stashes(packet_data):
                     "data": item,
                     "vendor_price": vendor_price
                 })
-        if stash_items:
-            stashes[inventory_id] = stash_items
+        stashes[inventory_id] = stash_items
     # inventory
     item_list = packet_data.get("characterDataBase", {}).get("CharacterItemList", [])
     for item in item_list:
