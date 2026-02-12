@@ -12,7 +12,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         'tkinter', '_tkinter',
-        'test', 'unittest',
+        'test',
         'xmlrpc',
         'pydoc', 'pydoc_data',
         'lib2to3', 'ensurepip', 'venv',

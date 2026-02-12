@@ -19,7 +19,7 @@ a = Analysis(
     excludes=[
         # --- unused stdlib modules ---
         'tkinter', '_tkinter',
-        'test', 'unittest',
+        'test',
         'xmlrpc',
         'pydoc', 'pydoc_data',
         'lib2to3', 'ensurepip', 'venv',
