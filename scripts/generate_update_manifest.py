@@ -13,7 +13,6 @@ from typing import Optional, Tuple
 
 ROOT_DEFAULT = Path(__file__).resolve().parents[1]
 APP_RELATIVE_PATH = Path("UI") / "app.py"
-VERSION_JSON = Path("DnDversion.json")
 DIST_DIR_NAME = "dist"
 MANIFEST_FILENAME = "update-manifest.json"
 ENV_VERSION_KEYS = (
@@ -45,22 +44,6 @@ def _read_app_version(root: Path) -> str:
     return match.group(1)
 
 
-def _read_json_version(root: Path) -> Optional[str]:
-    json_path = root / VERSION_JSON
-    if not json_path.exists():
-        return None
-
-    try:
-        payload = json.loads(json_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
-
-    version = payload.get("version")
-    if isinstance(version, str) and version.strip():
-        return version.strip()
-    return None
-
-
 def _normalize_version_tag(value: str) -> str:
     cleaned = (value or "").strip()
     if not cleaned:
@@ -77,10 +60,6 @@ def _resolve_version(root: Path, cli_version: Optional[str]) -> Tuple[str, str]:
         env_value = os.environ.get(key)
         if env_value and env_value.strip():
             return _normalize_version_tag(env_value), f"env:{key}"
-
-    json_version = _read_json_version(root)
-    if json_version:
-        return json_version, "json"
 
     return _read_app_version(root), "app"
 

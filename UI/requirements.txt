@@ -12,5 +12,4 @@ pywin32
 requests
 Pillow
 numpy
-scipy
 scikit-learn
