@@ -11,5 +11,4 @@ pystray
 requests
 Pillow
 numpy
-scipy
 scikit-learn

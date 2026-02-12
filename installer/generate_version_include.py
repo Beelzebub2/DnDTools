@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import re
 from pathlib import Path
@@ -10,7 +9,6 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parents[1]
 APP_FILE = ROOT_DIR / "UI" / "app.py"
 VERSION_INCLUDE = Path(__file__).resolve().parent / "version.iss"
-VERSION_JSON = ROOT_DIR / "DnDversion.json"
 ENV_VERSION_KEYS = ("DNDTOOLS_RELEASE_VERSION", "RELEASE_VERSION", "GITHUB_RELEASE_VERSION")
 
 
@@ -54,13 +52,6 @@ def write_version_include(version: str) -> None:
     VERSION_INCLUDE.write_text(f"#define MyAppVersion \"{version}\"\n", encoding="utf-8")
 
 
-def write_json_manifest(version: str) -> None:
-    VERSION_JSON.write_text(
-        json.dumps({"version": version}, indent=2) + "\n",
-        encoding="utf-8",
-    )
-
-
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Generate installer version metadata for DnDTools",
@@ -78,7 +69,6 @@ def main() -> None:
     args = build_arg_parser().parse_args()
     version, source = resolve_requested_version(args.version_override)
     write_version_include(version)
-    write_json_manifest(version)
     print(f"Synced installer metadata with version {version} (source: {source})")
 
 
