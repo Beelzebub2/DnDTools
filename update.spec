@@ -13,9 +13,8 @@ a = Analysis(
     excludes=[
         'tkinter', '_tkinter',
         'test', 'unittest',
-        'email', 'xml', 'xmlrpc',
+        'xmlrpc',
         'pydoc', 'pydoc_data',
-        'doctest', 'difflib',
         'lib2to3', 'ensurepip', 'venv',
         'idlelib', 'turtledemo', 'turtle',
         'curses',
