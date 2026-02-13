@@ -131,14 +131,14 @@
     let pendingSortSessionId = null;
     let sortFeedbackBusy = false;
     const answeredSortSessions = new Set();
-    const SORT_SUCCESS_MSG = "Sort completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
-    const SORT_CANCEL_MSG = "Sort canceled. Refresh your character data. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
-    const DEPOSIT_SUCCESS_MSG = "Deposit completed! Refresh your character data to see the updated layout. If switching tabs doesn't update, move any item in the stash and switch tabs again.";
+    const SORT_SUCCESS_MSG = "Sort completed! Your stash data will update automatically when you switch tabs in-game.";
+    const SORT_CANCEL_MSG = "Sort canceled. Your stash data will update automatically when you switch tabs in-game.";
+    const DEPOSIT_SUCCESS_MSG = "Deposit completed! Your stash data will update automatically when you switch tabs in-game.";
 
     // Data polling state (auto-refresh overlay when new data is captured)
     let lastUpdateMap = {};  // { charId: lastUpdate } for detecting new captures
     let dataPollTimer = null;
-    const DATA_POLL_INTERVAL = 4000; // ms
+    const DATA_POLL_INTERVAL = 1500; // ms — fast polling for near-instant updates
 
     // Equipment slot config (loaded lazily from equipment_slots.json)
     let equipmentSlotConfig = null;
@@ -582,11 +582,13 @@
             const freshChars = await apiFetch('/api/characters');
             let anyChanged = false;
             let selectedChanged = false;
+            const changedCharIds = [];
 
             for (const c of freshChars) {
                 const prev = lastUpdateMap[c.id];
                 if (c.lastUpdate && c.lastUpdate !== prev) {
                     anyChanged = true;
+                    changedCharIds.push(c.id);
                     if (c.id === selectedCharId) selectedChanged = true;
                 }
             }
@@ -603,10 +605,11 @@
             // Dismiss persistent "refresh your data" notifications
             dismissAllPersistentNotifications();
 
-            // If the currently-viewed character was updated, reload its stash data
+            // If the currently-viewed character was updated, reload its stash data immediately
             if (selectedChanged) {
                 await reloadStashData();
-                notify('Character data updated automatically.', 'success', 3000);
+                // Brief unobtrusive notification
+                notify('Data updated', 'success', 1500);
             }
         } catch (e) {
             // Silently ignore poll errors (network hiccup, overlay hidden, etc.)
@@ -2644,6 +2647,18 @@
         // Hide overlay when the window loses focus (user tabbed out / alt-tabbed)
         window.addEventListener('blur', () => {
             fetch('/api/overlay/hide', { method: 'POST' }).catch(() => { });
+        });
+
+        // Immediately check for data updates when overlay regains focus
+        window.addEventListener('focus', () => {
+            checkForDataUpdates();
+        });
+
+        // Also check for updates on visibility change (tab switch etc.)
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                checkForDataUpdates();
+            }
         });
 
         // Initial render
