@@ -47,9 +47,6 @@ class AppOverlayManager:
     * The manager stores minimal state and delegates rendering to the web layer.
     """
 
-    # Default window geometry — prefer fullscreen to fit stash grids
-    DEFAULT_WIDTH = 1920
-    DEFAULT_HEIGHT = 1080
     MIN_WIDTH = 960
     MIN_HEIGHT = 600
 
@@ -64,6 +61,33 @@ class AppOverlayManager:
         self._creating = False
         self._ready_event = threading.Event()
         self._hwnd: Optional[int] = None
+
+    # ----------------------------------------------------------------- helpers
+
+    @staticmethod
+    def _get_display_resolution() -> tuple:
+        """Detect the primary display resolution on Windows.
+
+        Falls back to 1920×1080 when detection is unavailable.
+        """
+        try:
+            if ctypes is not None and sys.platform.startswith("win"):
+                user32 = ctypes.windll.user32
+                # Try DPI-aware resolution first (Windows 8.1+)
+                try:
+                    ctypes.windll.shcore.SetProcessDpiAwareness(2)  # PROCESS_PER_MONITOR_DPI_AWARE
+                except Exception:
+                    try:
+                        user32.SetProcessDPIAware()
+                    except Exception:
+                        pass
+                width = user32.GetSystemMetrics(0)   # SM_CXSCREEN
+                height = user32.GetSystemMetrics(1)  # SM_CYSCREEN
+                if width > 0 and height > 0:
+                    return (width, height)
+        except Exception as exc:
+            logger.debug("Failed to detect display resolution: %s", exc)
+        return (1920, 1080)
 
     # ------------------------------------------------------------------ config
 
@@ -201,12 +225,17 @@ class AppOverlayManager:
                 logger.error("Cannot determine overlay URL — main window not ready")
                 return
 
-            logger.info("Creating overlay window at %s", overlay_url)
+            # Detect actual display resolution for true fullscreen matching
+            screen_w, screen_h = self._get_display_resolution()
+            logger.info(
+                "Creating overlay window at %s (display: %dx%d)",
+                overlay_url, screen_w, screen_h
+            )
             window = webview.create_window(
                 "DnDTools Overlay",
                 overlay_url,
-                width=self.DEFAULT_WIDTH,
-                height=self.DEFAULT_HEIGHT,
+                width=screen_w,
+                height=screen_h,
                 min_size=(self.MIN_WIDTH, self.MIN_HEIGHT),
                 frameless=True,
                 easy_drag=False,

@@ -3,37 +3,37 @@
     {
       "content_type": "application/octet-stream",
       "path": "changelog.json",
-      "sha256": "84e7ea2ce04038f072bae410eb5dfe2d3dada284f20c4644070ca7d1eeec9564",
-      "size": 127741,
-      "updated_at": "2026-02-10T22:02:00Z",
+      "sha256": "fa8a52f40d8a02dea87e831a5734f293f6af947b9408e5ca2991ddf0a068e2e5",
+      "size": 126876,
+      "updated_at": "2026-02-13T13:07:00Z",
       "url": "https://dndtools.rrmtools.uk/assets/changelog.json"
     },
     {
       "content_type": "application/octet-stream",
       "path": "darkerdb_health.json",
-      "sha256": "165219ca3bcfda06d6d0bfd3cc3a3ced67e6543e146b8cc08de758fe08e802d0",
+      "sha256": "2a3c6418983a3a40a53a533ec99a1ea065c5b852a58563a167d467fc82c14b91",
       "size": 46,
-      "updated_at": "2026-02-10T22:02:02Z",
+      "updated_at": "2026-02-13T13:07:01Z",
       "url": "https://dndtools.rrmtools.uk/assets/darkerdb_health.json"
     },
     {
       "content_type": "application/octet-stream",
       "path": "icons.pak",
-      "sha256": "97cad622e9a3d5f12052e932575b0691f6df0680eea906afc1e69824a26648fe",
-      "size": 15199971,
-      "updated_at": "2026-02-10T22:01:57Z",
+      "sha256": "d73927e9a598526b8ff9afe95eb747fae831d438b1034114d1dbced639be73be",
+      "size": 17667203,
+      "updated_at": "2026-02-13T13:06:58Z",
       "url": "https://dndtools.rrmtools.uk/assets/icons.pak"
     },
     {
       "content_type": "application/octet-stream",
       "path": "items.json",
-      "sha256": "591eaf42fe6595bcc8104167d6584ba2a854dfdfbc8b5f6655b0e49e3e411744",
-      "size": 10681735,
-      "updated_at": "2026-02-10T22:01:59Z",
+      "sha256": "e7395c0f78f93d0943f0ac1af5cc1d8d9d83bd1e867be0301a35f5b672b78c50",
+      "size": 10879915,
+      "updated_at": "2026-02-13T13:06:59Z",
       "url": "https://dndtools.rrmtools.uk/assets/items.json"
     }
   ],
-  "generated_at": "2026-02-11T09:48:27.951Z",
+  "generated_at": "2026-02-13T14:10:22.481Z",
   "release_tag": "assets-latest",
   "release_url": "https://github.com/Beelzebub2/DnDTools/releases/tag/assets-latest",
   "version": "assets-latest"

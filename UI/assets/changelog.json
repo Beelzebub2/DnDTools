@@ -1,241 +1,16 @@
 {
-  "generated_at": "2026-02-10T22:01:43.799460Z",
-  "display_date": "10/02/2026",
+  "generated_at": "2026-02-13T13:06:48.481214Z",
+  "display_date": "13/02/2026",
   "total_items": 2366,
-  "previous_total": 50,
-  "added_count": 2316,
+  "previous_total": 2366,
+  "added_count": 0,
   "removed_count": 0,
-  "has_added": true,
+  "has_added": false,
   "has_removed": false,
-  "added_items": [
-    {
-      "id": "ArcaneGarb_6001",
-      "name": "Arcane Garb"
-    },
-    {
-      "id": "ArcaneGarb_7001",
-      "name": "Arcane Garb"
-    },
-    {
-      "id": "ArcaneGloves_1001",
-      "name": "Arcane Gloves"
-    },
-    {
-      "id": "ArcaneGloves_2001",
-      "name": "Arcane Gloves"
-    },
-    {
-      "id": "ArcaneGloves_3001",
-      "name": "Arcane Gloves"
-    },
-    {
-      "id": "ArcaneGloves_4001",
-      "name": "Arcane Gloves"
-    },
-    {
-      "id": "ArcaneGloves_5001",
-      "name": "Arcane Gloves"
-    },
-    {
-      "id": "ArcaneGloves_6001",
-      "name": "Arcane Gloves"
-    },
-    {
-      "id": "ArcaneGloves_7001",
-      "name": "Arcane Gloves"
-    },
-    {
-      "id": "ArcaneHood_1001",
-      "name": "Arcane Hood"
-    },
-    {
-      "id": "ArcaneHood_2001",
-      "name": "Arcane Hood"
-    },
-    {
-      "id": "ArcaneHood_3001",
-      "name": "Arcane Hood"
-    },
-    {
-      "id": "ArcaneHood_4001",
-      "name": "Arcane Hood"
-    },
-    {
-      "id": "ArcaneHood_5001",
-      "name": "Arcane Hood"
-    },
-    {
-      "id": "ArcaneHood_6001",
-      "name": "Arcane Hood"
-    },
-    {
-      "id": "ArcaneHood_7001",
-      "name": "Arcane Hood"
-    },
-    {
-      "id": "Armet_1001",
-      "name": "Armet"
-    },
-    {
-      "id": "Armet_2001",
-      "name": "Armet"
-    },
-    {
-      "id": "Armet_3001",
-      "name": "Armet"
-    },
-    {
-      "id": "Armet_4001",
-      "name": "Armet"
-    },
-    {
-      "id": "Armet_5001",
-      "name": "Armet"
-    },
-    {
-      "id": "Armet_6001",
-      "name": "Armet"
-    },
-    {
-      "id": "Armet_7001",
-      "name": "Armet"
-    },
-    {
-      "id": "ArmillarySphere",
-      "name": "Armillary Sphere"
-    },
-    {
-      "id": "ArmingSword_1001",
-      "name": "Arming Sword"
-    },
-    {
-      "id": "ArmingSword_2001",
-      "name": "Arming Sword"
-    },
-    {
-      "id": "ArmingSword_3001",
-      "name": "Arming Sword"
-    },
-    {
-      "id": "ArmingSword_4001",
-      "name": "Arming Sword"
-    },
-    {
-      "id": "ArmingSword_5001",
-      "name": "Arming Sword"
-    },
-    {
-      "id": "ArmingSword_6001",
-      "name": "Arming Sword"
-    },
-    {
-      "id": "ArmingSword_7001",
-      "name": "Arming Sword"
-    },
-    {
-      "id": "ArmingSword_8001",
-      "name": "Kuma’s Claw"
-    },
-    {
-      "id": "ArmorScrap",
-      "name": "Armor Scrap"
-    },
-    {
-      "id": "Arrow_2001",
-      "name": "Arrow"
-    },
-    {
-      "id": "Awl",
-      "name": "Awl"
-    },
-    {
-      "id": "AxeOfRighteousness_3001",
-      "name": "Axe of Righteousness"
-    },
-    {
-      "id": "BadgerPendant_3001",
-      "name": "Badger Pendant"
-    },
-    {
-      "id": "BadgerPendant_4001",
-      "name": "Badger Pendant"
-    },
-    {
-      "id": "BadgerPendant_5001",
-      "name": "Badger Pendant"
-    },
-    {
-      "id": "BadgerPendant_6001",
-      "name": "Badger Pendant"
-    },
-    {
-      "id": "BadgerPendant_7001",
-      "name": "Badger Pendant"
-    },
-    {
-      "id": "Ball_2001",
-      "name": "Ball"
-    },
-    {
-      "id": "Bandage_1001",
-      "name": "Bandage"
-    },
-    {
-      "id": "Bandage_2001",
-      "name": "Bandage"
-    },
-    {
-      "id": "Bandage_3001",
-      "name": "Bandage"
-    },
-    {
-      "id": "Bandage_4001",
-      "name": "Bandage"
-    },
-    {
-      "id": "Bandage_5001",
-      "name": "Bandage"
-    },
-    {
-      "id": "Bandage_6001",
-      "name": "Bandage"
-    },
-    {
-      "id": "Bandage_7001",
-      "name": "Bandage"
-    },
-    {
-      "id": "BansheeSonnet",
-      "name": "Banshee Sonnet"
-    }
-  ],
+  "added_items": [],
   "removed_items": [],
   "icon_changes": {
-    "added": [
-      "UI/assets/icons/Misc/KrampusCoin.webp",
-      "UI/assets/icons/Misc/KrampusGoldenBell.webp",
-      "UI/assets/icons/Misc/KrampusSilverBell.webp",
-      "UI/assets/icons/Misc/LavaMushroom_1001.webp",
-      "UI/assets/icons/Misc/LavaMushroom_2001.webp",
-      "UI/assets/icons/Misc/LavaMushroom_3001.webp",
-      "UI/assets/icons/Misc/LavaMushroom_4001.webp",
-      "UI/assets/icons/Misc/LavaMushroom_5001.webp",
-      "UI/assets/icons/Misc/LavaMushroom_6001.webp",
-      "UI/assets/icons/Misc/LavaMushroom_7001.webp",
-      "UI/assets/icons/Misc/ObsidianIngots_5001.webp",
-      "UI/assets/icons/Misc/ObsidianOres_5001.webp",
-      "UI/assets/icons/Misc/ObsidianPowder_5001.webp",
-      "UI/assets/icons/Misc/Quiver_2001.webp",
-      "UI/assets/icons/Misc/SlingStone_2001.webp",
-      "UI/assets/icons/Utility/EmberGem.webp",
-      "UI/assets/icons/Weapon/Sling_1001.webp",
-      "UI/assets/icons/Weapon/Sling_2001.webp",
-      "UI/assets/icons/Weapon/Sling_3001.webp",
-      "UI/assets/icons/Weapon/Sling_4001.webp",
-      "UI/assets/icons/Weapon/Sling_5001.webp",
-      "UI/assets/icons/Weapon/Sling_6001.webp",
-      "UI/assets/icons/Weapon/Sling_7001.webp"
-    ],
+    "added": [],
     "modified": [
       "UI/assets/icons/Accessory/BadgerPendant_3001.webp",
       "UI/assets/icons/Accessory/BadgerPendant_4001.webp",
@@ -337,6 +112,32 @@
       "UI/assets/icons/Accessory/WindLocket_5001.webp",
       "UI/assets/icons/Accessory/WindLocket_6001.webp",
       "UI/assets/icons/Accessory/WindLocket_7001.webp",
+      "UI/assets/icons/Armor/AdventurerBoots_1001.webp",
+      "UI/assets/icons/Armor/AdventurerBoots_2001.webp",
+      "UI/assets/icons/Armor/AdventurerBoots_3001.webp",
+      "UI/assets/icons/Armor/AdventurerBoots_4001.webp",
+      "UI/assets/icons/Armor/AdventurerBoots_5001.webp",
+      "UI/assets/icons/Armor/AdventurerBoots_6001.webp",
+      "UI/assets/icons/Armor/AdventurerBoots_7001.webp",
+      "UI/assets/icons/Armor/AdventurerCloak_1001.webp",
+      "UI/assets/icons/Armor/AdventurerCloak_2001.webp",
+      "UI/assets/icons/Armor/AdventurerCloak_3001.webp",
+      "UI/assets/icons/Armor/AdventurerCloak_4001.webp",
+      "UI/assets/icons/Armor/AdventurerCloak_5001.webp",
+      "UI/assets/icons/Armor/AdventurerCloak_6001.webp",
+      "UI/assets/icons/Armor/AdventurerCloak_7001.webp",
+      "UI/assets/icons/Armor/AdventurerTunic_1001.webp",
+      "UI/assets/icons/Armor/AdventurerTunic_2001.webp",
+      "UI/assets/icons/Armor/AdventurerTunic_3001.webp",
+      "UI/assets/icons/Armor/AdventurerTunic_4001.webp",
+      "UI/assets/icons/Armor/AdventurerTunic_5001.webp",
+      "UI/assets/icons/Armor/AdventurerTunic_6001.webp",
+      "UI/assets/icons/Armor/AdventurerTunic_7001.webp",
+      "UI/assets/icons/Armor/ArcaneGarb_1001.webp",
+      "UI/assets/icons/Armor/ArcaneGarb_2001.webp",
+      "UI/assets/icons/Armor/ArcaneGarb_3001.webp",
+      "UI/assets/icons/Armor/ArcaneGarb_4001.webp",
+      "UI/assets/icons/Armor/ArcaneGarb_5001.webp",
       "UI/assets/icons/Armor/ArcaneGarb_6001.webp",
       "UI/assets/icons/Armor/ArcaneGarb_7001.webp",
       "UI/assets/icons/Armor/ArcaneGloves_1001.webp",
@@ -1444,6 +1245,16 @@
       "UI/assets/icons/Armor/WoolenCap_6001.webp",
       "UI/assets/icons/Armor/WoolenCap_7001.webp",
       "UI/assets/icons/Armor/YellowSash_1001.webp",
+      "UI/assets/icons/Misc/Anchor.webp",
+      "UI/assets/icons/Misc/AncientStingrayEgg.webp",
+      "UI/assets/icons/Misc/AntiquatedCoin.webp",
+      "UI/assets/icons/Misc/ArcaneEssence_1001.webp",
+      "UI/assets/icons/Misc/ArcaneEssence_2001.webp",
+      "UI/assets/icons/Misc/ArcaneEssence_3001.webp",
+      "UI/assets/icons/Misc/ArcaneEssence_4001.webp",
+      "UI/assets/icons/Misc/ArcaneEssence_5001.webp",
+      "UI/assets/icons/Misc/ArcaneEssence_6001.webp",
+      "UI/assets/icons/Misc/ArcaneEssence_7001.webp",
       "UI/assets/icons/Misc/ArmillarySphere.webp",
       "UI/assets/icons/Misc/ArmorScrap.webp",
       "UI/assets/icons/Misc/Arrow_2001.webp",
@@ -1759,6 +1570,9 @@
       "UI/assets/icons/Misc/JellyfishGlowEssence.webp",
       "UI/assets/icons/Misc/KneadBloodBag.webp",
       "UI/assets/icons/Misc/KoboldEar.webp",
+      "UI/assets/icons/Misc/KrampusCoin.webp",
+      "UI/assets/icons/Misc/KrampusGoldenBell.webp",
+      "UI/assets/icons/Misc/KrampusSilverBell.webp",
       "UI/assets/icons/Misc/LargeScroll_1001.webp",
       "UI/assets/icons/Misc/LargeScroll_2001.webp",
       "UI/assets/icons/Misc/LargeScroll_3001.webp",
@@ -1766,6 +1580,13 @@
       "UI/assets/icons/Misc/LargeScroll_5001.webp",
       "UI/assets/icons/Misc/LargeScroll_6001.webp",
       "UI/assets/icons/Misc/LargeScroll_7001.webp",
+      "UI/assets/icons/Misc/LavaMushroom_1001.webp",
+      "UI/assets/icons/Misc/LavaMushroom_2001.webp",
+      "UI/assets/icons/Misc/LavaMushroom_3001.webp",
+      "UI/assets/icons/Misc/LavaMushroom_4001.webp",
+      "UI/assets/icons/Misc/LavaMushroom_5001.webp",
+      "UI/assets/icons/Misc/LavaMushroom_6001.webp",
+      "UI/assets/icons/Misc/LavaMushroom_7001.webp",
       "UI/assets/icons/Misc/LeatherBoot.webp",
       "UI/assets/icons/Misc/Lifeleaf_1001.webp",
       "UI/assets/icons/Misc/Lifeleaf_2001.webp",
@@ -1794,6 +1615,9 @@
       "UI/assets/icons/Misc/MoldyBread.webp",
       "UI/assets/icons/Misc/MysteriousPotion.webp",
       "UI/assets/icons/Misc/NavigationalCompass.webp",
+      "UI/assets/icons/Misc/ObsidianIngots_5001.webp",
+      "UI/assets/icons/Misc/ObsidianOres_5001.webp",
+      "UI/assets/icons/Misc/ObsidianPowder_5001.webp",
       "UI/assets/icons/Misc/OldBloodyBandage.webp",
       "UI/assets/icons/Misc/OldCloth.webp",
       "UI/assets/icons/Misc/OldNauticalChartFragment.webp",
@@ -1817,6 +1641,7 @@
       "UI/assets/icons/Misc/Pincushion.webp",
       "UI/assets/icons/Misc/PocketWatch.webp",
       "UI/assets/icons/Misc/PrimitiveBracelet.webp",
+      "UI/assets/icons/Misc/Quiver_2001.webp",
       "UI/assets/icons/Misc/RedApple.webp",
       "UI/assets/icons/Misc/Reins.webp",
       "UI/assets/icons/Misc/RottenFluids.webp",
@@ -1867,6 +1692,7 @@
       "UI/assets/icons/Misc/SilverPowder_5001.webp",
       "UI/assets/icons/Misc/SilverSkulltoken.webp",
       "UI/assets/icons/Misc/SkinnyFinger.webp",
+      "UI/assets/icons/Misc/SlingStone_2001.webp",
       "UI/assets/icons/Misc/SmellyVomit.webp",
       "UI/assets/icons/Misc/SmokyPoisonPowder.webp",
       "UI/assets/icons/Misc/Soap.webp",
@@ -1934,7 +1760,20 @@
       "UI/assets/icons/Misc/WovenRattanBottle.webp",
       "UI/assets/icons/Misc/YellowThreadSpool.webp",
       "UI/assets/icons/Misc/YetisTeeth.webp",
+      "UI/assets/icons/Utility/Ale_1001.webp",
+      "UI/assets/icons/Utility/Ale_2001.webp",
+      "UI/assets/icons/Utility/Ale_3001.webp",
+      "UI/assets/icons/Utility/Ale_4001.webp",
+      "UI/assets/icons/Utility/Ale_5001.webp",
+      "UI/assets/icons/Utility/Ale_6001.webp",
+      "UI/assets/icons/Utility/Ale_7001.webp",
+      "UI/assets/icons/Utility/AquaglowLantern_1001.webp",
       "UI/assets/icons/Utility/AquaglowLantern_2001.webp",
+      "UI/assets/icons/Utility/AquaglowLantern_3001.webp",
+      "UI/assets/icons/Utility/AquaglowLantern_4001.webp",
+      "UI/assets/icons/Utility/AquaglowLantern_5001.webp",
+      "UI/assets/icons/Utility/AquaglowLantern_6001.webp",
+      "UI/assets/icons/Utility/AquaglowLantern_7001.webp",
       "UI/assets/icons/Utility/Bandage_1001.webp",
       "UI/assets/icons/Utility/Bandage_2001.webp",
       "UI/assets/icons/Utility/Bandage_3001.webp",
@@ -1974,6 +1813,7 @@
       "UI/assets/icons/Utility/Drum_5001.webp",
       "UI/assets/icons/Utility/Drum_6001.webp",
       "UI/assets/icons/Utility/Drum_7001.webp",
+      "UI/assets/icons/Utility/EmberGem.webp",
       "UI/assets/icons/Utility/ExplosiveBottle_1001.webp",
       "UI/assets/icons/Utility/ExplosiveBottle_2001.webp",
       "UI/assets/icons/Utility/ExplosiveBottle_3001.webp",
@@ -2431,6 +2271,13 @@
       "UI/assets/icons/Weapon/ShortSword_5001.webp",
       "UI/assets/icons/Weapon/ShortSword_6001.webp",
       "UI/assets/icons/Weapon/ShortSword_7001.webp",
+      "UI/assets/icons/Weapon/Sling_1001.webp",
+      "UI/assets/icons/Weapon/Sling_2001.webp",
+      "UI/assets/icons/Weapon/Sling_3001.webp",
+      "UI/assets/icons/Weapon/Sling_4001.webp",
+      "UI/assets/icons/Weapon/Sling_5001.webp",
+      "UI/assets/icons/Weapon/Sling_6001.webp",
+      "UI/assets/icons/Weapon/Sling_7001.webp",
       "UI/assets/icons/Weapon/SovereignsGhostblade_5001.webp",
       "UI/assets/icons/Weapon/Spear_1001.webp",
       "UI/assets/icons/Weapon/Spear_2001.webp",
