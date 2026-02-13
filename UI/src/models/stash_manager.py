@@ -611,7 +611,7 @@ class StashManager:
                         except Exception:
                             item_meta = {}
 
-                        name = item_meta.get("name") or design_str or "Unknown Item"
+                        name = item_meta.get("name") or item_data_manager.format_design_id_as_name(item_id) or item_id or "Unknown Item"
                         rarity = item_meta.get("rarity") or "Unknown"
                         raw_icon_path = item_meta.get("iconPath")
                         icon_path = canonical_icon_path(raw_icon_path) if raw_icon_path else None
@@ -694,7 +694,7 @@ class StashManager:
                     item_id = item_data_manager.get_item_id_from_design_str(design_str)
                     # Single lookup instead of 5 separate calls
                     item_meta = item_data_manager.get_item_data(item_id)
-                    name = item_meta.get("name", "")
+                    name = item_meta.get("name", "") or item_data_manager.format_design_id_as_name(item_id) or item_id
                     rarity = item_meta.get("rarity", 0)
                     width = item_meta.get("inventory_width", 1)
                     height = item_meta.get("inventory_height", 1)
@@ -753,9 +753,12 @@ class StashManager:
                     enhanced_items.append(enhanced_item)
                 except Exception as e:
                     logger.error(f"Error enhancing item data: {str(e)}")
+                    fallback_design = item.get("itemId", "")
+                    fallback_id = item_data_manager.get_item_id_from_design_str(fallback_design) if fallback_design else ""
+                    fallback_name = item_data_manager.format_design_id_as_name(fallback_id) or fallback_id or 'Unknown Item'
                     enhanced_items.append({
-                        'name': 'Unknown Item',
-                        'itemId': item.get("itemId", "unknown"),
+                        'name': fallback_name,
+                        'itemId': fallback_id or item.get("itemId", "unknown"),
                         'slotId': item.get("slotId", 0),
                         'itemCount': item.get("itemCount", 1),
                         'rarity': 'Common',
@@ -1152,7 +1155,9 @@ class StashManager:
                 w = meta.get("inventory_width", 1) or 1
                 h = meta.get("inventory_height", 1) or 1
                 rarity = item_data_manager.rarity_to_id(meta.get("rarity", "Common"))
-                name = meta.get("name", "Unknown")
+                if rarity is None:
+                    rarity = 2  # Default to Common for items not in asset database
+                name = meta.get("name") or item_data_manager.format_design_id_as_name(iid) or iid or "Unknown"
                 quantity = raw.get("itemCount", 1)
                 max_stack = meta.get("max_stack_size", 1) or 1
                 itm = Item(iid, name, rarity, Point(0, 0), w, h, None,

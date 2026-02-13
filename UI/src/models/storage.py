@@ -167,9 +167,17 @@ class Storage:
 
                 rarity_id = item_data_manager.rarity_to_id(rarity)
 
-                if (rarity_id == None):
-                    logger.error("Invalid rarity data for item %s (rarity=%s, rarity_id=%s)", item_id, rarity, rarity_id)
-                    exit()
+                if rarity_id is None:
+                    # Item not in assets database (e.g. assets not yet updated).
+                    # Fall back to Common (2) so the sort can still include it.
+                    logger.warning(
+                        "Unknown rarity for item %s (rarity=%r) – defaulting to Common",
+                        item_id, rarity,
+                    )
+                    rarity_id = 2
+
+                if not name:
+                    name = item_data_manager.format_design_id_as_name(item_id) or item_id
 
                 vendor_price = item_data_manager.get_item_vendor_price(item_id)
                 quantity = obj.get("itemCount", 1)
