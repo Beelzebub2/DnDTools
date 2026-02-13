@@ -503,6 +503,11 @@ body {
     border-bottom: 1px solid var(--ov-border);
     flex-wrap: wrap;
     backdrop-filter: blur(8px);
+    /* backdrop-filter creates a stacking context; without an explicit
+       z-index the toolbar's context sits *below* the stash-area that
+       follows in DOM order, so dropdown menus are unreachable by clicks. */
+    position: relative;
+    z-index: 10;
 }
 
 .overlay-sort-toolbar-left {
