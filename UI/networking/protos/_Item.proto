@@ -11,7 +11,8 @@ message SItemMeta {
   string SoulHeart_PartyId = 2;
   string SoulHeart_NickName_origin = 3;
   string SoulHeart_NickName_streaming = 4;
-  uint32 AvailableValue = 5;
+  string SoulHeart_ItemSkinId = 5;
+  uint32 AvailableValue = 6;
 }
 
 message SItem {

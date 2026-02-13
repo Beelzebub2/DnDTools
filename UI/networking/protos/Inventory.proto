@@ -8,6 +8,18 @@ option java_multiple_files = false;
 
 import "_Item.proto";
 
+message SINVENTORY_REQUEST_INFO {
+  uint64 itemUniqueId = 1;
+  uint32 itemCount = 2;
+  uint32 itemContentsCount = 3;
+}
+
+message SINVENTORY_RESULT_INFO {
+  repeated .DC.Packet.SItem insertItems = 1;
+  repeated .DC.Packet.SItem updateItems = 2;
+  repeated int64 deleteUniqueIds = 3;
+}
+
 message SC2S_INVENTORY_INFO_REQ {
 }
 

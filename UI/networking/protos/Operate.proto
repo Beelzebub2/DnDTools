@@ -106,9 +106,10 @@ message Operate_character_info {
   uint64 characterId = 2;
   string nickname = 3;
   string characterClass = 4;
-  string gebder = 5;
-  string registerDate = 6;
-  string lastLoginDate = 7;
+  string gender = 5;
+  uint32 fame = 6;
+  string registerDate = 7;
+  string lastLoginDate = 8;
 }
 
 message Operate_character_info_list {

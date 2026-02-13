@@ -149,8 +149,9 @@ message SMERCHANT_STOCK_SELL_BACK_INFO {
 }
 
 message SC2S_MERCHANT_STOCK_SELL_BACK_REQ {
-  repeated .DC.Packet.SMERCHANT_STOCK_SELL_BACK_INFO sellBackInfos = 1;
-  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO receivedInfos = 2;
+  string merchantId = 1;
+  repeated .DC.Packet.SMERCHANT_STOCK_SELL_BACK_INFO sellBackInfos = 2;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO receivedInfos = 3;
 }
 
 message SS2C_MERCHANT_STOCK_SELL_BACK_RES {
@@ -558,5 +559,40 @@ message SC2S_MERCHANT_DELIVERY_PARCEL_EXPIRED_REMOVE_REQ {
 
 message SS2C_MERCHANT_DELIVERY_PARCEL_EXPIRED_REMOVE_RES {
   int32 result = 1;
+}
+
+message SMERCHANT_BUY_BACK_ITEM_PRICE {
+  string itemId = 1;
+  uint32 amount = 2;
+}
+
+message SMERCHANT_BUY_BACK_ITEM_PRICES {
+  repeated .DC.Packet.SMERCHANT_BUY_BACK_ITEM_PRICE priceList = 1;
+}
+
+message SMERCHANT_BUY_BACK_INFO {
+  .DC.Packet.SItem itemInfo = 1;
+  repeated .DC.Packet.SMERCHANT_BUY_BACK_ITEM_PRICE priceList = 2;
+  uint64 remainExpiredTimeMS = 3;
+}
+
+message SC2S_MERCHANT_BUY_BACK_LIST_REQ {
+}
+
+message SS2C_MERCHANT_BUY_BACK_LIST_RES {
+  int32 result = 1;
+  repeated .DC.Packet.SMERCHANT_BUY_BACK_INFO buyBackInfos = 2;
+  uint32 loopMessageFlag = 3;
+}
+
+message SC2S_MERCHANT_BUY_BACK_ITEM_BUY_REQ {
+  repeated uint64 buyBackItemUniqueIds = 2;
+  repeated .DC.Packet.MERCHANT_TRADE_ITEM_INFO dealItemList = 3;
+  repeated .DC.Packet.SMERCHANT_TRADE_SLOT_INFO merchantSlotInfo = 4;
+}
+
+message SS2C_MERCHANT_BUY_BACK_ITEM_BUY_RES {
+  int32 result = 1;
+  .DC.Packet.SMERCHANT_RESULT_INFO merchantResult = 2;
 }
 

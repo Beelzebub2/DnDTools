@@ -1,0 +1,112 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.workshop";
+option java_outer_classname = "workshop";
+option java_multiple_files = false;
+
+import "Inventory.proto";
+
+message SWORKSHOP_UPGRADE_REQUIREMENT_INFO {
+  int32 targetLevel = 1;
+  string requirementId = 2;
+  int32 progress = 3;
+  int32 maxProgress = 4;
+}
+
+message SWORKSHOP_INFO {
+  string workshopId = 1;
+  int32 workshopLevel = 2;
+  int32 needUnlock = 3;
+  repeated .DC.Packet.SWORKSHOP_UPGRADE_REQUIREMENT_INFO requirementInfos = 4;
+}
+
+message SWORKSHOP_UPGRADE_STACK_REQUEST_INFO {
+  string requirementId = 1;
+  repeated .DC.Packet.SINVENTORY_REQUEST_INFO itemInfos = 2;
+}
+
+message SS2C_WORKSHOP_INFO_NOT {
+  repeated .DC.Packet.SWORKSHOP_INFO workshops = 1;
+}
+
+message SC2S_WORKSHOP_UNLOCK_REQ {
+  string workshopId = 1;
+}
+
+message SS2C_WORKSHOP_UNLOCK_RES {
+  int32 result = 1;
+  .DC.Packet.SWORKSHOP_INFO workshopInfo = 2;
+  .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 3;
+}
+
+message SC2S_WORKSHOP_UPGRADE_REQ {
+  string workshopId = 1;
+}
+
+message SS2C_WORKSHOP_UPGRADE_RES {
+  int32 result = 1;
+  .DC.Packet.SWORKSHOP_INFO workshopInfo = 2;
+}
+
+message SC2S_WORKSHOP_UPGRADE_REQUIREMENT_STACK_REQ {
+  string workshopId = 1;
+  repeated .DC.Packet.SWORKSHOP_UPGRADE_STACK_REQUEST_INFO requestInfos = 2;
+}
+
+message SS2C_WORKSHOP_UPGRADE_REQUIREMENT_STACK_RES {
+  int32 result = 1;
+  .DC.Packet.SWORKSHOP_INFO workshopInfo = 2;
+  .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 3;
+}
+
+message SS2C_WORKSHOP_UPGRADE_REQUIREMENT_VALUE_NOT {
+  string workshopId = 1;
+  .DC.Packet.SWORKSHOP_UPGRADE_REQUIREMENT_INFO changeInfo = 2;
+}
+
+message SC2S_WORKSHOP_ENHANCE_SERVICE_REQ {
+  string workshopId = 1;
+  int64 targetItemUniqueId = 2;
+  repeated .DC.Packet.SINVENTORY_REQUEST_INFO materialInfos = 3;
+}
+
+message SS2C_WORKSHOP_ENHANCE_SERVICE_RES {
+  int32 result = 1;
+  .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 2;
+}
+
+message SC2S_WORKSHOP_REBUILD_SERVICE_REQ {
+  string workshopId = 1;
+  int64 targetItemUniqueId = 2;
+  repeated .DC.Packet.SINVENTORY_REQUEST_INFO materialInfos = 3;
+}
+
+message SS2C_WORKSHOP_REBUILD_SERVICE_RES {
+  int32 result = 1;
+  .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 2;
+}
+
+message SC2S_WORKSHOP_SCRAP_SERVICE_REQ {
+  string workshopId = 1;
+  repeated .DC.Packet.SINVENTORY_REQUEST_INFO targetInfos = 2;
+  repeated .DC.Packet.SINVENTORY_REQUEST_INFO materialInfos = 3;
+}
+
+message SS2C_WORKSHOP_SCRAP_SERVICE_RES {
+  int32 result = 1;
+  .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 2;
+}
+
+message SC2S_WORKSHOP_CRAFT_SERVICE_REQ {
+  string workshopId = 1;
+  string craftId = 2;
+  repeated .DC.Packet.SINVENTORY_REQUEST_INFO materialInfos = 3;
+}
+
+message SS2C_WORKSHOP_CRAFT_SERVICE_RES {
+  int32 result = 1;
+  .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 2;
+}
+

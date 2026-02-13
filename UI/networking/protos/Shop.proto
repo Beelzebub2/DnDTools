@@ -11,6 +11,13 @@ message SSHOP_ITEM_BASE_INFO {
   string shopItemId = 2;
   uint32 isHave = 3;
   uint64 remainDiscountTimeMS = 4;
+  .DC.Packet.SSHOP_BUNDLE_INFO bundleInfo = 5;
+}
+
+message SSHOP_BUNDLE_INFO {
+  repeated string ownedList = 1;
+  uint32 originalPrice = 2;
+  uint32 discountedPrice = 3;
 }
 
 message SC2S_SHOP_ITEM_LIST_REQ {
