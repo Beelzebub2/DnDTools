@@ -1766,3 +1766,11 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
     color: var(--accent-gold, #cfa346);
     font-size: 0.85rem;
 }
+
+
+/* ══════════════════════════════════
+   Spin animation for icon buttons
+   ══════════════════════════════════ */
+.spin-icon {
+    animation: spin 0.8s linear infinite;
+}

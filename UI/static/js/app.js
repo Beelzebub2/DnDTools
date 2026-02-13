@@ -524,6 +524,21 @@ function maybeShowUpdatePopup(data, { fromCache = false } = {}) {
 }
 
 async function checkForUpdates(force = false) {
+    // When not forced (i.e. automatic check), respect the autoUpdateEnabled setting
+    if (!force) {
+        try {
+            const settingsResp = await fetch('/api/settings');
+            if (settingsResp.ok) {
+                const settings = await settingsResp.json();
+                if (settings.autoUpdateEnabled === false) {
+                    return;
+                }
+            }
+        } catch (_) {
+            // If we can't read settings, proceed with the check anyway
+        }
+    }
+
     const now = Date.now();
     const sessionChecked = safeStorageGet(window.sessionStorage, UPDATE_SESSION_CHECKED_KEY) === '1';
     const lastCheck = Number(safeStorageGet(window.localStorage, UPDATE_LAST_CHECK_KEY) || '0');

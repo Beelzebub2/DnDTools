@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const clearQuestDataButton = document.getElementById('clearQuestData');
     const clearCharacterDataButton = document.getElementById('clearCharacterData');
     const includeDevCheckbox = document.getElementById('includeDevReleases');
+    const autoUpdateCheckbox = document.getElementById('autoUpdateEnabled');
+    const checkForUpdatesButton = document.getElementById('checkForUpdatesBtn');
     const closeToTrayCheckbox = document.getElementById('closeToTrayEnabled');
     const developerModeCheckbox = document.getElementById('developerMode');
     const feedbackSyncCheckbox = document.getElementById('sortFeedbackSyncEnabled');
@@ -45,6 +47,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         resolution: 'Game Resolution',
         wiresharkPath: 'Wireshark Path',
         includeDevReleases: 'Development Builds Opt-In',
+        autoUpdateEnabled: 'Auto Update Check',
         closeToTrayEnabled: 'Close to Tray',
         developerMode: 'Developer Mode',
         sortFeedbackSyncEnabled: 'Global Sort Learning',
@@ -175,6 +178,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: (settings.resolution || 'Auto').trim(),
             wiresharkPath: (settings.wiresharkPath || '').trim(),
             includeDevReleases: normalizeBoolean(settings.includeDevReleases),
+            autoUpdateEnabled: normalizeBoolean(
+                settings.autoUpdateEnabled === undefined ? true : settings.autoUpdateEnabled
+            ),
             closeToTrayEnabled: normalizeBoolean(
                 settings.closeToTrayEnabled === undefined ? true : settings.closeToTrayEnabled
             ),
@@ -195,6 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: settings.resolution || 'Auto',
             wiresharkPath: settings.wiresharkPath || '',
             includeDevReleases: Boolean(settings.includeDevReleases),
+            autoUpdateEnabled: settings.autoUpdateEnabled !== false,
             closeToTrayEnabled: settings.closeToTrayEnabled !== false,
             developerMode: Boolean(settings.developerMode),
             sortFeedbackSyncEnabled: Boolean(settings.sortFeedbackSyncEnabled),
@@ -217,6 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
+            autoUpdateEnabled: autoUpdateCheckbox ? autoUpdateCheckbox.checked : true,
             closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
             developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false,
             sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false,
@@ -511,6 +519,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 includeDevCheckbox.checked = Boolean(currentSettings.includeDevReleases);
             }
 
+            if (autoUpdateCheckbox) {
+                autoUpdateCheckbox.checked = currentSettings.autoUpdateEnabled !== false;
+            }
+
             if (closeToTrayCheckbox) {
                 closeToTrayCheckbox.checked = currentSettings.closeToTrayEnabled !== false;
             }
@@ -674,9 +686,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             discardLabel: 'Keep Data',
             cancelLabel: 'Cancel',
             onSave: async () => {
-                if (typeof setLoading === 'function') {
-                    setLoading(clearQuestDataButton, true);
-                }
                 try {
                     const response = await fetch('/api/quests/cache', {
                         method: 'DELETE',
@@ -714,10 +723,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error('Failed to clear quest cache', error);
                     showNotification(error.message || 'Failed to clear quest data', 'error');
                     return false;
-                } finally {
-                    if (typeof setLoading === 'function') {
-                        setLoading(clearQuestDataButton, false);
-                    }
                 }
             }
         });
@@ -740,10 +745,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             discardLabel: 'Keep Data',
             cancelLabel: 'Cancel',
             onSave: async () => {
-                if (typeof setLoading === 'function') {
-                    setLoading(clearCharacterDataButton, true);
-                }
-
                 try {
                     const response = await fetch('/api/characters/data', {
                         method: 'DELETE',
@@ -776,10 +777,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.error('Failed to delete character data', error);
                     showNotification(error.message || 'Failed to delete character data', 'error');
                     return false;
-                } finally {
-                    if (typeof setLoading === 'function') {
-                        setLoading(clearCharacterDataButton, false);
-                    }
                 }
             }
         });
@@ -1158,6 +1155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: resolutionSelect.value,
             wiresharkPath: wiresharkPathInput ? wiresharkPathInput.value : '',
             includeDevReleases: includeDevCheckbox ? includeDevCheckbox.checked : false,
+            autoUpdateEnabled: autoUpdateCheckbox ? autoUpdateCheckbox.checked : true,
             closeToTrayEnabled: closeToTrayCheckbox ? closeToTrayCheckbox.checked : true,
             developerMode: developerModeCheckbox ? developerModeCheckbox.checked : false,
             sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false,
@@ -1463,6 +1461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             resolution: 'Auto',
             wiresharkPath: wiresharkPathInput ? (wiresharkPathInput.dataset.defaultValue || '') : '',
             includeDevReleases: false,
+            autoUpdateEnabled: true,
             closeToTrayEnabled: true,
             noDelay: false,
             developerMode: false,
@@ -1485,6 +1484,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (includeDevCheckbox) {
                 includeDevCheckbox.checked = Boolean(defaults.includeDevReleases);
+            }
+            if (autoUpdateCheckbox) {
+                autoUpdateCheckbox.checked = defaults.autoUpdateEnabled !== false;
             }
             if (closeToTrayCheckbox) {
                 closeToTrayCheckbox.checked = defaults.closeToTrayEnabled !== false;
@@ -1571,6 +1573,38 @@ document.addEventListener('DOMContentLoaded', async () => {
     clearQuestDataButton?.addEventListener('click', handleClearQuestData);
     clearCharacterDataButton?.addEventListener('click', handleClearCharacterData);
 
+    // Check for Updates button
+    if (checkForUpdatesButton) {
+        checkForUpdatesButton.addEventListener('click', async () => {
+            checkForUpdatesButton.disabled = true;
+            const icon = checkForUpdatesButton.querySelector('.material-icons');
+            if (icon) icon.classList.add('spin-icon');
+
+            try {
+                if (typeof checkForUpdates === 'function') {
+                    await checkForUpdates(true);
+                } else {
+                    const response = await fetch('/api/update/check', { cache: 'no-store' });
+                    const data = await response.json();
+                    if (data && data.updateAvailable) {
+                        showNotification(`Update available: v${data.latestVersion}`, 'info');
+                        if (typeof maybeShowUpdatePopup === 'function') {
+                            maybeShowUpdatePopup(data);
+                        }
+                    } else {
+                        showNotification('You are on the latest version.', 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('Manual update check failed:', error);
+                showNotification('Update check failed. Try again later.', 'error');
+            } finally {
+                checkForUpdatesButton.disabled = false;
+                if (icon) icon.classList.remove('spin-icon');
+            }
+        });
+    }
+
     // Setup hotkey recording
     setupHotkeyRecording(sortHotkeyInput);
     setupHotkeyRecording(cancelHotkeyInput);
@@ -1626,8 +1660,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: resolutionSelect, events: ['change'] },
         { element: wiresharkPathInput, events: ['input', 'change'] },
         { element: includeDevCheckbox, events: ['change'] },
+        { element: autoUpdateCheckbox, events: ['change'] },
         { element: closeToTrayCheckbox, events: ['change'] },
         { element: developerModeCheckbox, events: ['change'] },
+        { element: feedbackSyncCheckbox, events: ['change'] },
         { element: overlayEnabledCheckbox, events: ['change'] },
         { element: overlayHotkeyInput, events: ['change', 'blur'] },
         { element: overlayOpacitySlider, events: ['change'] }

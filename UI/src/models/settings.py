@@ -99,6 +99,7 @@ class SettingsManager:
             "stashSortOrder": Item.copy_sort_order(),
             "wiresharkPath": detect_wireshark_installation(),
             "includeDevReleases": False,
+            "autoUpdateEnabled": True,
             "closeToTrayEnabled": True,
             "developerMode": False,
             "sortFeedbackSyncEnabled": True,
@@ -234,6 +235,19 @@ class SettingsManager:
             }
         else:
             normalized["includeDevReleases"] = bool(include_dev_value)
+
+        auto_update_value = normalized.get("autoUpdateEnabled")
+        if isinstance(auto_update_value, str):
+            normalized["autoUpdateEnabled"] = auto_update_value.strip().lower() not in {
+                "0",
+                "false",
+                "no",
+                "off",
+            }
+        else:
+            normalized["autoUpdateEnabled"] = bool(
+                self._defaults.get("autoUpdateEnabled", True) if auto_update_value is None else auto_update_value
+            )
 
         close_to_tray_value = normalized.get("closeToTrayEnabled")
         if isinstance(close_to_tray_value, str):

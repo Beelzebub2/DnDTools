@@ -31,17 +31,21 @@
             <span class="material-icons" aria-hidden="true">speed</span>
             <span class="nav-pill-label">Performance</span>
         </button>
+        <button class="nav-pill" type="button" id="general-tab" data-tab="general" role="tab" aria-selected="false">
+            <span class="material-icons" aria-hidden="true">settings_suggest</span>
+            <span class="nav-pill-label">General</span>
+        </button>
         <button class="nav-pill" type="button" id="data-tab" data-tab="data" role="tab" aria-selected="false">
             <span class="material-icons" aria-hidden="true">inventory_2</span>
-            <span class="nav-pill-label">Data &amp; Maintenance</span>
-        </button>
-        <button class="nav-pill" type="button" id="misc-tab" data-tab="misc" role="tab" aria-selected="false">
-            <span class="material-icons" aria-hidden="true">more_horiz</span>
-            <span class="nav-pill-label">Misc</span>
+            <span class="nav-pill-label">Data &amp; Privacy</span>
         </button>
         <button class="nav-pill" type="button" id="overlay-tab" data-tab="overlay" role="tab" aria-selected="false">
             <span class="material-icons" aria-hidden="true">picture_in_picture_alt</span>
             <span class="nav-pill-label">Game Overlay</span>
+        </button>
+        <button class="nav-pill" type="button" id="advanced-tab" data-tab="advanced" role="tab" aria-selected="false">
+            <span class="material-icons" aria-hidden="true">code</span>
+            <span class="nav-pill-label">Advanced</span>
         </button>
     </nav>
 
@@ -240,7 +244,84 @@
             </div>
         </section>
 
-        <!-- ── Data & Maintenance ── -->
+        <!-- ── General ── -->
+        <section class="settings-panel" data-panel="general" aria-labelledby="general-tab" aria-hidden="true">
+            <div class="panel-grid single-col">
+
+                <!-- Window Behavior Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">desktop_windows</span>
+                        <h2 class="card-head-title">Window Behavior</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="closeToTrayEnabled">Close to system tray</label>
+                                <p class="field-hint">Keep DnDTools running in the background when you close the
+                                    window.</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="closeToTrayEnabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Updates Card -->
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">system_update</span>
+                        <h2 class="card-head-title">Updates</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="autoUpdateEnabled">Check for updates automatically</label>
+                                <p class="field-hint">Periodically check for new versions on startup.</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="autoUpdateEnabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <hr class="field-divider">
+
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label">Manual update check</label>
+                                <p class="field-hint">Check for a new version right now.</p>
+                            </div>
+                            <button id="checkForUpdatesBtn" type="button" class="btn-action">
+                                <span class="material-icons" aria-hidden="true">refresh</span>
+                                Check Now
+                            </button>
+                        </div>
+
+                        <hr class="field-divider">
+
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="includeDevReleases">Development builds</label>
+                                <p class="field-hint warning-hint">
+                                    <span class="material-icons">warning_amber</span>
+                                    Fetches GitHub dev releases — may be unstable.
+                                </p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="includeDevReleases">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ── Data & Privacy ── -->
         <section class="settings-panel" data-panel="data" aria-labelledby="data-tab" aria-hidden="true">
             <div class="panel-grid single-col">
 
@@ -296,74 +377,6 @@
                         </div>
                         <p class="field-footnote">Background sync runs slowly over HTTPS. You can turn it off
                             anytime.</p>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ── Misc ── -->
-        <section class="settings-panel" data-panel="misc" aria-labelledby="misc-tab" aria-hidden="true">
-            <div class="panel-grid single-col">
-
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">science</span>
-                        <h2 class="card-head-title">Development Builds</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="includeDevReleases">Opt into test builds</label>
-                                <p class="field-hint warning-hint">
-                                    <span class="material-icons">warning_amber</span>
-                                    Fetches GitHub dev releases — may be unstable.
-                                </p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="includeDevReleases">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">desktop_windows</span>
-                        <h2 class="card-head-title">Window Behavior</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="closeToTrayEnabled">Close to system tray</label>
-                                <p class="field-hint">Keep DnDTools running in the background when you close the
-                                    window.</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="closeToTrayEnabled" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">bug_report</span>
-                        <h2 class="card-head-title">Developer Mode</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="developerMode">Show diagnostics in tooltips</label>
-                                <p class="field-hint">Adds stash-slot numbers and internal IDs to tooltips.</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="developerMode">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
                     </div>
                 </div>
 
@@ -448,6 +461,32 @@
                             <li><span class="material-icons" aria-hidden="true">tune</span> Adjust opacity to
                                 find the perfect balance between visibility and gameplay</li>
                         </ul>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ── Advanced ── -->
+        <section class="settings-panel" data-panel="advanced" aria-labelledby="advanced-tab" aria-hidden="true">
+            <div class="panel-grid single-col">
+
+                <div class="card">
+                    <div class="card-head">
+                        <span class="material-icons card-head-icon">bug_report</span>
+                        <h2 class="card-head-title">Developer Mode</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="field-row">
+                            <div class="field-row-info">
+                                <label class="field-label" for="developerMode">Show diagnostics in tooltips</label>
+                                <p class="field-hint">Adds stash-slot numbers and internal IDs to tooltips.</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="developerMode">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                 </div>
 
