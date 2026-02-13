@@ -65,6 +65,20 @@ class ItemDataManager:
         design_str = "DesignDataItem:Id_Item_"
         return item_id.replace(design_str, "")
 
+    @staticmethod
+    def format_design_id_as_name(item_id):
+        """Convert a stripped design ID into a human-readable item name.
+
+        Example: 'Armor_Leather_ChestArmor_0001' → 'Armor Leather ChestArmor'
+        """
+        if not item_id:
+            return ""
+        import re
+        # Strip trailing numeric-only segments (e.g. _0001, _6001)
+        cleaned = re.sub(r'(?:_\d+)+$', '', item_id)
+        # Replace underscores with spaces
+        return cleaned.replace('_', ' ').strip()
+
     def get_item_vendor_price(self, item_id):
         """Get vendor price for an item"""
         self._ensure_loaded()

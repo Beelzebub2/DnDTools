@@ -156,14 +156,14 @@ class StashPreviewGenerator:
             img_path = resource_path(str(img_path))
         w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
         name = item_data_manager.get_item_name_from_id(item.itemId)
+        has_image = img_path and os.path.exists(img_path)
 
-        if not img_path or not os.path.exists(img_path):
-            logging.warning(f"Item not found or missing image: {item.itemId}")
-            return
+        if not has_image:
+            if not name:
+                name = item_data_manager.format_design_id_as_name(item.itemId) or item.itemId
+            logging.info(f"Equipment item missing image (assets not updated): {item.itemId} – displaying as '{name}'")
         
         try:
-            item_img = Image.open(img_path).convert("RGBA")
-            
             # Get slot position from configuration
             slot_id_str = str(item.slotId)
             equipment_slots = self.slot_config.get("equipment_slots", {})
@@ -172,12 +172,28 @@ class StashPreviewGenerator:
                 slot_data = equipment_slots[slot_id_str]
                 x, y = slot_data.get("x", 0), slot_data.get("y", 0)
                 expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
-                
-                if item_img.size != expected_size:
-                    item_img = item_img.resize(expected_size, Image.LANCZOS)
-                
-                # Paste the item
-                preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+
+                if has_image:
+                    item_img = Image.open(img_path).convert("RGBA")
+                    if item_img.size != expected_size:
+                        item_img = item_img.resize(expected_size, Image.LANCZOS)
+                    preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+                else:
+                    # Draw text fallback for missing icon
+                    draw = ImageDraw.Draw(preview)
+                    display_name = name or item.itemId or '?'
+                    cell_w, cell_h = expected_size
+                    try:
+                        small_font = ImageFont.truetype("arial.ttf", max(9, min(12, cell_w // max(len(display_name), 1) + 2)))
+                    except Exception:
+                        small_font = ImageFont.load_default()
+                    bbox = draw.textbbox((0, 0), display_name, font=small_font)
+                    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    tx = x * self.CELL_SIZE + (cell_w - tw) // 2
+                    ty = y * self.CELL_SIZE + (cell_h - th) // 2
+                    draw.text((tx + 1, ty + 1), display_name, fill=(0, 0, 0, 200), font=small_font)
+                    draw.text((tx, ty), display_name, fill=(255, 255, 255, 220), font=small_font)
+
                 logging.debug(f"Placed equipment '{name}' at slot {item.slotId} ({x},{y})")
                 
                 # Draw item count if greater than 1
@@ -272,9 +288,11 @@ class StashPreviewGenerator:
         if rarity is None:
             rarity = 0
 
-        if not img_path or not os.path.exists(img_path):
-            logging.warning(f"Item not found or missing image: {item.itemId}")
-            return
+        has_image = img_path and os.path.exists(img_path)
+        if not has_image:
+            if not name:
+                name = item_data_manager.format_design_id_as_name(item.itemId) or item.itemId
+            logging.info(f"Item missing image (assets not updated): {item.itemId} – displaying as '{name}'")
 
         try:
             # Calculate item position
@@ -288,13 +306,31 @@ class StashPreviewGenerator:
             bg_rect = Image.new('RGBA', ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE), bg_color)
             preview.paste(bg_rect, (x * self.CELL_SIZE, y * self.CELL_SIZE), bg_rect)
             
-            # Place the item image
-            item_img = Image.open(img_path).convert("RGBA")
-            expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
-            if item_img.size != expected_size:
-                item_img = item_img.resize(expected_size, Image.LANCZOS)
+            if has_image:
+                # Place the item image
+                item_img = Image.open(img_path).convert("RGBA")
+                expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
+                if item_img.size != expected_size:
+                    item_img = item_img.resize(expected_size, Image.LANCZOS)
+                preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+            else:
+                # Draw item name as text fallback when icon is missing
+                draw = ImageDraw.Draw(preview)
+                display_name = name or item.itemId or '?'
+                cell_w = (w or 1) * self.CELL_SIZE
+                cell_h = (h or 1) * self.CELL_SIZE
+                # Use a smaller font for the name text
+                try:
+                    small_font = ImageFont.truetype("arial.ttf", max(9, min(12, cell_w // max(len(display_name), 1) + 2)))
+                except Exception:
+                    small_font = ImageFont.load_default()
+                bbox = draw.textbbox((0, 0), display_name, font=small_font)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                tx = x * self.CELL_SIZE + (cell_w - tw) // 2
+                ty = y * self.CELL_SIZE + (cell_h - th) // 2
+                draw.text((tx + 1, ty + 1), display_name, fill=(0, 0, 0, 200), font=small_font)
+                draw.text((tx, ty), display_name, fill=(255, 255, 255, 220), font=small_font)
             
-            preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
             logging.debug(f"Placed '{name}' (rarity {rarity}) at ({x},{y})")
             
             # Draw item count if greater than 1
