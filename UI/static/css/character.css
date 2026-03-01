@@ -1457,18 +1457,16 @@
 .ordering-menu {
     position: absolute;
     top: calc(100% + 4px);
-    /* Position below the button */
     right: 0;
-    /* Align with right edge of button */
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     z-index: 1000;
-    width: 160px;
-    padding: 0.4rem;
+    width: 200px;
+    padding: 6px;
     transform: translateY(0);
-    transition: opacity 0.3s ease, transform 0.3s ease;
+    transition: opacity 0.2s ease, transform 0.2s ease;
     min-height: min-content;
     will-change: opacity, transform;
 }
@@ -1477,40 +1475,57 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.35rem;
+    padding: 4px 6px;
     cursor: grab;
     color: var(--text-primary);
-    border-radius: 3px;
-    margin-bottom: 0.25rem;
+    border-radius: 4px;
+    margin-bottom: 2px;
     user-select: none;
     background: var(--bg-primary);
     border: 1px solid transparent;
     position: relative;
-    transition: transform 0.3s ease, background-color 0.2s ease, border-color 0.2s ease;
+    transition: transform 0.2s ease, background-color 0.15s ease, border-color 0.15s ease;
     will-change: transform;
+    font-size: 0.75rem;
+    line-height: 1.3;
 }
 
 .ordering-label {
-    font-weight: 500;
+    font-weight: 600;
+    font-size: 0.7rem;
     flex: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .ordering-controls {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 4px;
+    flex-shrink: 0;
 }
 
 .direction-toggle {
     border: 1px solid var(--border-color);
     background: var(--bg-secondary);
     color: var(--text-secondary);
-    padding: 0.15rem 0.45rem;
-    font-size: 0.65rem;
+    padding: 1px 6px;
+    font-size: 0.6rem;
+    font-weight: 600;
     text-transform: uppercase;
-    border-radius: 4px;
+    letter-spacing: 0.04em;
+    border-radius: 3px;
     cursor: pointer;
-    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    line-height: 1.4;
+}
+
+.direction-toggle:hover {
+    background: var(--hover-color);
+    border-color: var(--accent-gold);
+    color: var(--text-primary);
 }
 
 .direction-toggle[aria-pressed="true"] {
@@ -1532,16 +1547,16 @@
 
 .ordering-menu-footer {
     border-top: 1px solid var(--border-color);
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
+    margin-top: 4px;
+    padding-top: 4px;
 }
 
 .ordering-reset-button {
     width: 100%;
     justify-content: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
-    padding: 0.4rem 0.6rem;
+    gap: 0.35rem;
+    font-size: 0.65rem;
+    padding: 4px 8px;
 }
 
 /* Style for when an item is moving up */
@@ -1569,7 +1584,8 @@
 
 .ordering-arrows {
     display: flex;
-    gap: 4px;
+    flex-direction: column;
+    gap: 0;
 }
 
 .ordering-arrows button {
@@ -1577,11 +1593,15 @@
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    padding: 2px 4px;
-    font-size: 12px;
+    padding: 0 3px;
+    font-size: 8px;
     line-height: 1;
     border-radius: 2px;
-    transition: color 0.2s ease;
+    transition: color 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 12px;
 }
 
 .ordering-arrows button:hover {

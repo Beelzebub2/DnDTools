@@ -784,38 +784,50 @@ body {
 .overlay-ordering-item {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 6px;
+    gap: 4px;
+    padding: 3px 6px;
     border-radius: var(--ov-radius-xs);
     cursor: grab;
-    transition: background .12s ease;
+    font-size: 0.72rem;
+    line-height: 1.3;
+    border: 1px solid transparent;
+    transition: background .12s ease, border-color .12s ease;
+    user-select: none;
 }
 
 .overlay-ordering-item:hover {
     background: rgba(255, 255, 255, 0.05);
+    border-color: var(--ov-border-accent);
 }
 
 .overlay-ordering-item.dragging {
     opacity: .5;
+    border: 1px dashed var(--ov-gold);
 }
 
 .overlay-ordering-field {
     flex: 1;
-    font-size: 11px;
+    font-size: 0.68rem;
     font-weight: 600;
     color: var(--ov-text);
-    text-transform: capitalize;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .overlay-ordering-dir {
-    font-size: 9px;
+    font-size: 0.58rem;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
     padding: 1px 5px;
     background: rgba(255, 255, 255, 0.06);
     border: 1px solid var(--ov-border);
     border-radius: 3px;
     color: var(--ov-text-dim);
     cursor: pointer;
+    line-height: 1.4;
     transition: all .12s ease;
 }
 
@@ -828,11 +840,13 @@ body {
 .overlay-ordering-arrows {
     display: flex;
     flex-direction: column;
+    gap: 0;
+    flex-shrink: 0;
 }
 
 .overlay-ordering-arrows button {
-    width: 16px;
-    height: 12px;
+    width: 14px;
+    height: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -840,17 +854,24 @@ body {
     border: none;
     color: var(--ov-text-muted);
     cursor: pointer;
-    font-size: 10px;
+    font-size: 8px;
     line-height: 1;
     padding: 0;
+    border-radius: 2px;
+    transition: color .12s ease;
 }
 
 .overlay-ordering-arrows button:hover {
     color: var(--ov-gold);
 }
 
+.overlay-ordering-arrows button:disabled {
+    opacity: 0.3;
+    cursor: default;
+}
+
 .overlay-ordering-arrows .material-icons {
-    font-size: 12px;
+    font-size: 11px;
 }
 
 .overlay-dropdown-action {

@@ -1258,6 +1258,15 @@
         renderOrderingList();
     }
 
+    const SORT_FIELD_LABELS = {
+        'slot_type': 'Slot Type',
+        'armor_type': 'Armor Type',
+        'height': 'Height',
+        'width': 'Width',
+        'name': 'Name',
+        'rarity': 'Rarity',
+    };
+
     function renderOrderingList() {
         const list = $('#overlayOrderingList');
         if (!list) return;
@@ -1267,12 +1276,13 @@
             row.className = 'overlay-ordering-item';
             row.draggable = true;
             row.dataset.index = idx;
+            const label = SORT_FIELD_LABELS[d.field] || d.field;
             row.innerHTML = `
                 <div class="overlay-ordering-arrows">
                     <button data-dir="up" ${idx === 0 ? 'disabled' : ''}><span class="material-icons">arrow_drop_up</span></button>
                     <button data-dir="down" ${idx === currentSortOrder.length - 1 ? 'disabled' : ''}><span class="material-icons">arrow_drop_down</span></button>
                 </div>
-                <span class="overlay-ordering-field">${d.field}</span>
+                <span class="overlay-ordering-field">${label}</span>
                 <button class="overlay-ordering-dir">${d.direction.toUpperCase()}</button>
             `;
             // Toggle direction
