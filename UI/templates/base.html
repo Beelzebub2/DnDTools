@@ -18,6 +18,11 @@
         }
     </script>
     <style>
+        /* ── Sidebar layout tokens ── */
+        :root {
+            --sidebar-width-expanded: 240px;
+        }
+
         /* Skip loading overlay when navigating between tabs */
         html.app-loaded .app-loading-overlay {
             display: none !important;
@@ -165,10 +170,10 @@
         .sidebar {
             position: fixed;
             top: 0;
-            width: 240px;
-            /* Increased from 220px for better spacing */
+            width: var(--sidebar-width-expanded);
             height: 100vh;
             overflow-y: hidden;
+            overflow-x: hidden;
             background: linear-gradient(180deg, #141414 0%, #0b0b0b 100%);
             border-right: 1px solid #2a2a2a;
             display: flex;
@@ -212,7 +217,7 @@
         }
 
         .nav-section {
-            margin: 0.5rem 0;
+            margin: 0.75rem 0;
         }
 
         .nav-section-bottom {
@@ -221,8 +226,8 @@
         }
 
         .section-divider {
-            padding: 0.5rem 1rem;
-            margin-bottom: 0.5rem;
+            padding: 0.6rem 1rem;
+            margin-bottom: 0.6rem;
             position: relative;
         }
 
@@ -369,9 +374,8 @@
         .content {
             flex: 1;
             overflow-y: auto;
-            margin-left: 240px;
-            /* Match new sidebar width */
-            padding: 20px;
+            margin-left: var(--sidebar-width-expanded);
+            padding: 24px 28px;
             box-sizing: border-box;
             height: 100%;
             background: #0b0b0b;
@@ -602,6 +606,7 @@
                     </li>
                 </ul>
             </div>
+
         </nav>
         <main class="content">
             <div class="content-header">
