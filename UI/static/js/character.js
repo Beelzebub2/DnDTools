@@ -73,6 +73,8 @@ const rarityColors = {
 };
 
 const DEFAULT_SORT_ORDER = Object.freeze([
+    { field: 'slot_type', direction: 'desc' },
+    { field: 'armor_type', direction: 'desc' },
     { field: 'height', direction: 'desc' },
     { field: 'width', direction: 'desc' },
     { field: 'name', direction: 'desc' },
@@ -1294,11 +1296,13 @@ function compareItemsForPreview(itemA, itemB, sortOrder) {
                 }
                 break;
             }
-            case 'name': {
-                const aName = (itemA._normalizedName ?? itemA.name ?? '').toString().toLowerCase();
-                const bName = (itemB._normalizedName ?? itemB.name ?? '').toString().toLowerCase();
-                if (aName !== bName) {
-                    return direction === 'asc' ? aName.localeCompare(bName) : bName.localeCompare(aName);
+            case 'name':
+            case 'slot_type':
+            case 'armor_type': {
+                const aStr = (itemA[field] ?? '').toString().toLowerCase();
+                const bStr = (itemB[field] ?? '').toString().toLowerCase();
+                if (aStr !== bStr) {
+                    return direction === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
                 }
                 break;
             }

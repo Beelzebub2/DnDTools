@@ -112,10 +112,12 @@ class LayoutPlanner:
         )
         return LayoutPlan(positions=positions, order=execution_order, learning=learning_payload)
 
-    def _priority_key(self, item: Item) -> Tuple[int, int, int, int, str]:
+    def _priority_key(self, item: Item) -> Tuple:
         area = item.width * item.height
         rarity = getattr(item, "rarity", 0) or 0
-        return (-area, -max(item.width, item.height), -rarity, -item.height, item.name or "")
+        slot_type = getattr(item, "slot_type", "") or ""
+        armor_type = getattr(item, "armor_type", "") or ""
+        return (slot_type, armor_type, -area, -max(item.width, item.height), -rarity, -item.height, item.name or "")
 
     def _learning_sort_key(self, item: Item) -> Tuple[Any, ...]:
         fallback = self._priority_key(item)

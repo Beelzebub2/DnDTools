@@ -744,7 +744,9 @@ class StashManager:
                         'imagePath': image_url,
                         'vendor_price': item_meta.get("vendor_price", 0),
                         'maxStackSize': max_stack,
-                        'max_stack_size': max_stack
+                        'max_stack_size': max_stack,
+                        'slot_type': item_meta.get("slot_type", ""),
+                        'armor_type': item_meta.get("armor_type", ""),
                     }
                     if loot_state_value is not None:
                         enhanced_item['lootState'] = loot_state_value
@@ -1162,7 +1164,9 @@ class StashManager:
                 max_stack = meta.get("max_stack_size", 1) or 1
                 itm = Item(iid, name, rarity, Point(0, 0), w, h, None,
                            vendor_price=meta.get("vendor_price", 0),
-                           quantity=quantity, max_stack_size=max_stack)
+                           quantity=quantity, max_stack_size=max_stack,
+                           slot_type=meta.get("slot_type", ""),
+                           armor_type=meta.get("armor_type", ""))
                 source_items.append(itm)
                 source_item_info.append({"name": name, "width": w, "height": h,
                                          "rarity": meta.get("rarity", "Common"),

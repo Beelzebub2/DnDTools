@@ -39,6 +39,8 @@
     const TILE = CELL_SIZE + CELL_GAP; // 48
 
     const DEFAULT_SORT_ORDER = [
+        { field: 'slot_type', direction: 'desc' },
+        { field: 'armor_type', direction: 'desc' },
         { field: 'height', direction: 'desc' },
         { field: 'width', direction: 'desc' },
         { field: 'name', direction: 'desc' },
@@ -1149,9 +1151,10 @@
                     if (av !== bv) return dir === 'asc' ? av - bv : bv - av;
                     break;
                 }
-                case 'name': {
-                    const an = a._normalizedName || '', bn = b._normalizedName || '';
-                    if (an !== bn) return dir === 'asc' ? an.localeCompare(bn) : bn.localeCompare(an);
+                case 'name': case 'slot_type': case 'armor_type': {
+                    const as = (a[field] ?? '').toString().toLowerCase();
+                    const bs = (b[field] ?? '').toString().toLowerCase();
+                    if (as !== bs) return dir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
                     break;
                 }
                 case 'rarity': {

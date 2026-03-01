@@ -158,6 +158,7 @@ class Storage:
                 width, height = item_data_manager.get_item_dimensions_from_id(item_id)
                 rarity = item_data_manager.get_item_rarity_from_id(item_id)
                 name = item_data_manager.get_item_name_from_id(item_id)
+                item_meta = item_data_manager.get_item_data(item_id)
 
                 slot_id = obj.get("slotId")
                 x = slot_id % self.width
@@ -183,6 +184,9 @@ class Storage:
                 quantity = obj.get("itemCount", 1)
                 max_stack = item_data_manager.get_item_max_stack_size(item_id)
 
+                slot_type = item_meta.get("slot_type", "")
+                armor_type = item_meta.get("armor_type", "")
+
                 item = Item(
                     item_id,
                     name,
@@ -194,6 +198,8 @@ class Storage:
                     vendor_price=vendor_price,
                     quantity=quantity,
                     max_stack_size=max_stack,
+                    slot_type=slot_type,
+                    armor_type=armor_type,
                 )
 
             except Exception as e:

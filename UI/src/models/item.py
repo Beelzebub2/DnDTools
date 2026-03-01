@@ -1,7 +1,7 @@
 import copy
 
 _DEFAULT_DIRECTION = "desc"
-_DEFAULT_SORTABLE_FIELDS = ("height", "width", "name", "rarity")
+_DEFAULT_SORTABLE_FIELDS = ("slot_type", "armor_type", "height", "width", "name", "rarity")
 _DEFAULT_SORT_ORDER = [{"field": key, "direction": _DEFAULT_DIRECTION} for key in _DEFAULT_SORTABLE_FIELDS]
 
 
@@ -37,6 +37,8 @@ class Item:
         vendor_price=None,
         quantity=1,
         max_stack_size=1,
+        slot_type=None,
+        armor_type=None,
     ):
         self.item_id = item_id
         self.name = name
@@ -53,6 +55,8 @@ class Item:
         if self.max_stack_size < 1:
             self.max_stack_size = 1
         self.stacked = False
+        self.slot_type = (slot_type or "").strip() if slot_type else ""
+        self.armor_type = (armor_type or "").strip() if armor_type else ""
 
     def __lt__(self, other):
         if not isinstance(other, Item):
@@ -82,6 +86,8 @@ class Item:
             "vendor_price": self.vendor_price,
             "itemCount": self.quantity,
             "maxStackSize": self.max_stack_size,
+            "slot_type": self.slot_type,
+            "armor_type": self.armor_type,
         }
 
     @classmethod
@@ -147,8 +153,8 @@ class Item:
                     cls._rarity_rank(getattr(right, "rarity", None)),
                     direction,
                 )
-            elif field == "name":
-                result = cls._compare_string(getattr(left, "name", ""), getattr(right, "name", ""), direction)
+            elif field in ("name", "slot_type", "armor_type"):
+                result = cls._compare_string(getattr(left, field, ""), getattr(right, field, ""), direction)
             else:
                 result = cls._compare_numeric(getattr(left, field, 0), getattr(right, field, 0), direction)
 
