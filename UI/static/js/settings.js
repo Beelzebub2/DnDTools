@@ -1577,12 +1577,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (checkForUpdatesButton) {
         checkForUpdatesButton.addEventListener('click', async () => {
             checkForUpdatesButton.disabled = true;
+            checkForUpdatesButton.classList.add('checking');
             const icon = checkForUpdatesButton.querySelector('.material-icons');
             if (icon) icon.classList.add('spin-icon');
 
+            let outcome = 'success';
             try {
                 if (typeof checkForUpdates === 'function') {
-                    await checkForUpdates(true);
+                    const data = await checkForUpdates(true);
+                    if (!data || !data.updateAvailable) {
+                        showNotification('You are on the latest version.', 'success');
+                    }
                 } else {
                     const response = await fetch('/api/update/check', { cache: 'no-store' });
                     const data = await response.json();
@@ -1598,9 +1603,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (error) {
                 console.error('Manual update check failed:', error);
                 showNotification('Update check failed. Try again later.', 'error');
+                outcome = 'error';
             } finally {
-                checkForUpdatesButton.disabled = false;
+                checkForUpdatesButton.classList.remove('checking');
                 if (icon) icon.classList.remove('spin-icon');
+
+                const flashClass = outcome === 'success' ? 'check-success' : 'check-error';
+                checkForUpdatesButton.classList.add(flashClass);
+                setTimeout(() => {
+                    checkForUpdatesButton.classList.remove(flashClass);
+                    checkForUpdatesButton.disabled = false;
+                }, 1200);
             }
         });
     }

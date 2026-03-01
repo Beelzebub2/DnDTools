@@ -685,6 +685,40 @@
     cursor: progress;
 }
 
+.btn-action.checking {
+    border-color: var(--accent-gold-border);
+    color: var(--accent-gold);
+    background: var(--accent-gold-dim);
+    cursor: progress;
+    animation: btn-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes btn-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
+}
+
+.btn-action.check-success {
+    border-color: #4caf50;
+    color: #4caf50;
+    background: rgba(76, 175, 80, 0.12);
+    transition: all 0.3s ease;
+}
+
+.btn-action.check-error {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: var(--danger-dim);
+    transition: all 0.3s ease;
+}
+
 /* Alias for JS compatibility */
 .btn-small {
     /* kept for JS selectors */

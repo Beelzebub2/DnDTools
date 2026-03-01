@@ -586,6 +586,8 @@ async function checkForUpdates(force = false) {
             maybeShowCachedUpdate();
         }
     }
+
+    return data;
 }
 
 // Version comparison now handled by utils.js
