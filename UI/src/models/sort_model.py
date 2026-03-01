@@ -393,6 +393,48 @@ class SortAdaptiveModel:
             return None, None, None
         return vectors, labels, weights
 
+    def _holdout_score(self, X, y, w, model_type):
+        """Weighted accuracy on a stratified 80/20 held-out test split.
+
+        Returns the score as a float, or None if the dataset is too small
+        for a meaningful split (caller should fall back).
+        """
+        import numpy as np
+
+        try:
+            from sklearn.model_selection import train_test_split
+
+            _, counts = np.unique(y, return_counts=True)
+            if min(counts) < 2 or len(y) < 10:
+                return None
+
+            X_tr, X_te, y_tr, y_te, w_tr, w_te = train_test_split(
+                X, y, w, test_size=0.2, random_state=42, stratify=y
+            )
+
+            if model_type == "hgb":
+                from sklearn.ensemble import HistGradientBoostingClassifier
+
+                ev = HistGradientBoostingClassifier(
+                    max_iter=150,
+                    max_depth=4,
+                    learning_rate=0.1,
+                    min_samples_leaf=5,
+                    l2_regularization=0.01,
+                    random_state=42,
+                )
+            else:
+                from sklearn.linear_model import LogisticRegression
+
+                ev = LogisticRegression(max_iter=300, C=1.0, solver="lbfgs")
+
+            ev.fit(X_tr, y_tr, sample_weight=w_tr)
+            preds = ev.predict(X_te)
+            w_correct = np.sum(w_te[preds == y_te])
+            return float(w_correct / np.sum(w_te))
+        except Exception:
+            return None
+
     def _fit(
         self,
         vectors: List[List[float]],
@@ -446,8 +488,10 @@ class SortAdaptiveModel:
                 logger.debug("sklearn unavailable: %s", exc)
                 return None, None
 
-        # Compute accuracy
-        score = float(estimator.score(X, y))
+        # Compute held-out weighted accuracy (falls back to weighted training accuracy)
+        score = self._holdout_score(X, y, w, model_type)
+        if score is None:
+            score = float(estimator.score(X, y, sample_weight=w))
 
         # Build serializable payload (always store linear coefficients for cross-platform portability)
         coefficients: List[float] = [0.0] * len(feature_names)
