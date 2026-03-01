@@ -142,87 +142,6 @@
             pointer-events: none !important;
         }
 
-        .titlebar {
-            -webkit-user-select: none;
-            user-select: none;
-            height: 32px;
-            background: #0b0b0b;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 9999;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-        }
-
-        .titlebar-title {
-            color: #cfa346;
-            margin-left: 12px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            flex: 1;
-            height: 100%;
-            -webkit-app-region: drag;
-            app-region: drag;
-            /* stylelint-disable-line property-no-unknown */
-        }
-
-        /* Add the pywebview drag region class directly */
-        .titlebar-title.pywebview-drag-region,
-        .pywebview-drag-region {
-            -webkit-app-region: drag;
-            app-region: drag;
-            /* stylelint-disable-line property-no-unknown */
-        }
-
-        .titlebar-logo {
-            font-size: 20px;
-            margin-right: 8px;
-            color: #cfa346;
-        }
-
-        .titlebar-logo-img {
-            height: 20px;
-            margin-right: 8px;
-        }
-
-        .titlebar-buttons {
-            -webkit-app-region: no-drag;
-            display: flex;
-            height: 100%;
-            z-index: 10000;
-        }
-
-        .titlebar-button {
-            height: 32px;
-            width: 45px;
-            border: none;
-            background: transparent;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-
-        .titlebar-button:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .titlebar-button.close:hover {
-            background: #e81123;
-        }
-
         /* Adjust body and main content layout */
         body {
             margin: 0;
@@ -234,32 +153,24 @@
             flex-direction: column;
             background: #0b0b0b !important;
             /* Ensure consistent background color */
-            border-radius: 12px;
-            -webkit-app-region: no-drag;
         }
 
-        /* Fixed top space for titlebar */
+        /* Main app container */
         .app-container {
             display: flex;
-            height: calc(100vh - 32px);
-            margin-top: 32px;
-            /* Same as titlebar height */
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
+            height: 100vh;
             overflow: hidden;
         }
 
         .sidebar {
             position: fixed;
-            top: 32px;
-            /* Start below titlebar */
+            top: 0;
             width: 240px;
             /* Increased from 220px for better spacing */
-            height: calc(100vh - 32px);
+            height: 100vh;
             overflow-y: hidden;
             background: linear-gradient(180deg, #141414 0%, #0b0b0b 100%);
             border-right: 1px solid #2a2a2a;
-            border-bottom-left-radius: 12px;
             display: flex;
             flex-direction: column;
             z-index: 100;
@@ -464,22 +375,9 @@
             box-sizing: border-box;
             height: 100%;
             background: #0b0b0b;
-            border-bottom-right-radius: 12px;
             z-index: 1;
         }
 
-        .window-border {
-            pointer-events: none;
-            border: 2px solid #cfa346;
-            border-radius: 14px;
-            box-sizing: border-box;
-            position: fixed;
-            inset: 0;
-            z-index: 19999;
-            background: none;
-            transform: translateZ(0);
-            -webkit-transform: translateZ(0);
-        }
 
         .closing-overlay {
             position: fixed;
@@ -597,24 +495,6 @@
         <div class="app-loading-spinner"></div>
         <div class="app-loading-text">Loading</div>
     </div>
-    <!-- Title bar -->
-    <div class="titlebar">
-        <div class="titlebar-title pywebview-drag-region">
-            <img src="{{ url_for('serve_file', filename='logo.png') }}" class="titlebar-logo-img" alt="Logo">
-            Dark and Darker Stash Organizer
-        </div>
-        <div class="titlebar-buttons">
-            <button class="titlebar-button minimize" onclick="pywebview.api.minimize()">
-                <span class="material-icons" style="font-size: 18px;">remove</span>
-            </button>
-            <button class="titlebar-button maximize" onclick="pywebview.api.toggle_maximize()">
-                <span class="material-icons" style="font-size: 18px;">crop_square</span>
-            </button>
-            <button class="titlebar-button close" onclick="handleWindowClose()">
-                <span class="material-icons" style="font-size: 18px;">close</span>
-            </button>
-        </div>
-    </div>
     <!-- Main app container -->
     <div class="app-container">
         <nav class="sidebar">
@@ -730,7 +610,6 @@
             {% block content %}{% endblock %}
         </main>
     </div>
-    <div class="window-border"></div>
     <div id="closing-overlay" class="closing-overlay">
         <span class="material-icons">hourglass_top</span>
         <div class="closing-overlay-message">Closing application...</div>
@@ -1051,71 +930,6 @@
             }
         };
 
-        window.handleWindowClose = function () {
-            const showClosingOverlay = () => {
-                try {
-                    const overlay = document.getElementById('closing-overlay');
-                    if (overlay && !overlay.classList.contains('active')) {
-                        overlay.classList.add('active');
-                    }
-                    window.updateClosingStatus('Stopping capture...');
-                } catch (err) {
-                    console.error('Failed to show closing overlay', err);
-                }
-            };
-
-            const invokeCloseWindow = () => {
-                try {
-                    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
-                        return window.pywebview.api.close_window();
-                    }
-                } catch (closeErr) {
-                    console.error('Failed to invoke close_window()', closeErr);
-                }
-                return null;
-            };
-
-            const proceedWithClose = () => {
-                const closeToTray = typeof window.isCloseToTrayEnabled === 'function'
-                    ? window.isCloseToTrayEnabled()
-                    : window.closeToTrayEnabled !== false;
-
-                if (!closeToTray) {
-                    showClosingOverlay();
-                    invokeCloseWindow();
-                    return;
-                }
-
-                const result = invokeCloseWindow();
-                if (result && typeof result.then === 'function') {
-                    result.then((payload) => {
-                        if (!payload || payload.hidden !== true) {
-                            showClosingOverlay();
-                        } else if (typeof window.hideClosingOverlay === 'function') {
-                            window.hideClosingOverlay();
-                        }
-                    }).catch((error) => {
-                        console.error('Close-to-tray request failed:', error);
-                        showClosingOverlay();
-                    });
-                } else if (!result || result.hidden !== true) {
-                    showClosingOverlay();
-                } else if (typeof window.hideClosingOverlay === 'function') {
-                    window.hideClosingOverlay();
-                }
-            };
-
-            const guard = window.unsavedChangesGuard;
-            const shouldPrompt = guard && typeof guard.shouldPrompt === 'function' && guard.shouldPrompt();
-
-            if (shouldPrompt && typeof guard.requestClose === 'function') {
-                guard.requestClose(proceedWithClose);
-                return;
-            }
-
-            proceedWithClose();
-        };
-
         // Developer mode link visibility
         async function updateDeveloperModeLink() {
             try {
@@ -1145,7 +959,6 @@
     </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/window_state.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>

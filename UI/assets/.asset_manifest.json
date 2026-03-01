@@ -3,17 +3,17 @@
     {
       "content_type": "application/octet-stream",
       "path": "changelog.json",
-      "sha256": "fa8a52f40d8a02dea87e831a5734f293f6af947b9408e5ca2991ddf0a068e2e5",
-      "size": 126876,
-      "updated_at": "2026-02-13T13:07:00Z",
+      "sha256": "8ec4f31d2d7731795434d0cdf75bd92e328bcfd3ebf6e38eb05d7086e54a3554",
+      "size": 344,
+      "updated_at": "2026-02-27T01:05:56Z",
       "url": "https://dndtools.rrmtools.uk/assets/changelog.json"
     },
     {
       "content_type": "application/octet-stream",
       "path": "darkerdb_health.json",
-      "sha256": "2a3c6418983a3a40a53a533ec99a1ea065c5b852a58563a167d467fc82c14b91",
+      "sha256": "3f211b6b38a83ffb7004aa9e5b3bba442cdcadfa048b997f11a64d474ee0f872",
       "size": 46,
-      "updated_at": "2026-02-13T13:07:01Z",
+      "updated_at": "2026-02-27T01:05:57Z",
       "url": "https://dndtools.rrmtools.uk/assets/darkerdb_health.json"
     },
     {
@@ -21,7 +21,7 @@
       "path": "icons.pak",
       "sha256": "d73927e9a598526b8ff9afe95eb747fae831d438b1034114d1dbced639be73be",
       "size": 17667203,
-      "updated_at": "2026-02-13T13:06:58Z",
+      "updated_at": "2026-02-27T01:05:52Z",
       "url": "https://dndtools.rrmtools.uk/assets/icons.pak"
     },
     {
@@ -29,11 +29,11 @@
       "path": "items.json",
       "sha256": "e7395c0f78f93d0943f0ac1af5cc1d8d9d83bd1e867be0301a35f5b672b78c50",
       "size": 10879915,
-      "updated_at": "2026-02-13T13:06:59Z",
+      "updated_at": "2026-02-27T01:05:54Z",
       "url": "https://dndtools.rrmtools.uk/assets/items.json"
     }
   ],
-  "generated_at": "2026-02-13T15:15:43.798Z",
+  "generated_at": "2026-03-01T07:44:08.148Z",
   "release_tag": "assets-latest",
   "release_url": "https://github.com/Beelzebub2/DnDTools/releases/tag/assets-latest",
   "version": "assets-latest"
