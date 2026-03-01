@@ -21,8 +21,6 @@
         /* ── Sidebar layout tokens ── */
         :root {
             --sidebar-width-expanded: 240px;
-            --sidebar-width-collapsed: 60px;
-            --sidebar-transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         /* Skip loading overlay when navigating between tabs */
@@ -182,125 +180,6 @@
             flex-direction: column;
             z-index: 100;
             box-shadow: 4px 0 15px rgba(0, 0, 0, 0.3);
-            transition: width var(--sidebar-transition);
-        }
-
-        /* ── Collapsed sidebar ── */
-        .sidebar.collapsed {
-            width: var(--sidebar-width-collapsed);
-        }
-
-        .sidebar.collapsed .app-title,
-        .sidebar.collapsed .section-title,
-        .sidebar.collapsed .nav-text,
-        .sidebar.collapsed .nav-indicator,
-        .sidebar.collapsed .coming-soon,
-        .sidebar.collapsed .app-subtitle {
-            opacity: 0;
-            width: 0;
-            overflow: hidden;
-            white-space: nowrap;
-            pointer-events: none;
-            transition: opacity 0.15s ease, width 0.15s ease;
-        }
-
-        .sidebar.collapsed .nav-header {
-            padding: 1rem 0.5rem;
-            display: flex;
-            justify-content: center;
-        }
-
-        .sidebar.collapsed .app-logo {
-            justify-content: center;
-        }
-
-        .sidebar.collapsed .sidebar-logo {
-            width: 28px;
-            height: 28px;
-        }
-
-        .sidebar.collapsed .nav-link {
-            justify-content: center;
-            padding: 0.75rem;
-            margin: 0 0.35rem 0.25rem 0.35rem;
-        }
-
-        .sidebar.collapsed .nav-link .material-icons {
-            margin-right: 0;
-            font-size: 1.25rem;
-        }
-
-        .sidebar.collapsed .nav-icon-container {
-            margin-right: 0;
-        }
-
-        .sidebar.collapsed .section-divider {
-            padding: 0.25rem 0.5rem;
-        }
-
-        .sidebar.collapsed .section-divider::after {
-            left: 0.5rem;
-            right: 0.5rem;
-        }
-
-        .sidebar.collapsed .nav-link:hover {
-            transform: none;
-        }
-
-        /* Tooltip on hover for collapsed nav items */
-        .sidebar.collapsed .nav-link {
-            position: relative;
-        }
-
-        .sidebar.collapsed .nav-link:hover .nav-text {
-            position: absolute;
-            left: calc(var(--sidebar-width-collapsed) - 0.35rem);
-            top: 50%;
-            transform: translateY(-50%);
-            opacity: 1;
-            width: auto;
-            pointer-events: none;
-            background: #1a1a1a;
-            color: #cfa346;
-            padding: 0.4rem 0.75rem;
-            border-radius: 6px;
-            border: 1px solid #2a2a2a;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            font-size: 0.85rem;
-            font-weight: 600;
-            z-index: 200;
-            white-space: nowrap;
-        }
-
-        /* ── Sidebar toggle button ── */
-        .sidebar-toggle {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 100%;
-            height: 36px;
-            border: none;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            background: transparent;
-            color: #888888;
-            cursor: pointer;
-            transition: color 0.2s ease, background 0.2s ease;
-            flex-shrink: 0;
-            padding: 0;
-        }
-
-        .sidebar-toggle:hover {
-            color: #cfa346;
-            background: rgba(228, 200, 105, 0.08);
-        }
-
-        .sidebar-toggle-icon {
-            font-size: 1.2rem;
-            transition: transform var(--sidebar-transition);
-        }
-
-        .sidebar.collapsed .sidebar-toggle-icon {
-            transform: rotate(180deg);
         }
 
         .nav-header {
@@ -501,11 +380,6 @@
             height: 100%;
             background: #0b0b0b;
             z-index: 1;
-            transition: margin-left var(--sidebar-transition);
-        }
-
-        .sidebar.collapsed~.content {
-            margin-left: var(--sidebar-width-collapsed);
         }
 
 
@@ -733,11 +607,6 @@
                 </ul>
             </div>
 
-            <!-- Sidebar collapse toggle -->
-            <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Toggle sidebar"
-                title="Collapse sidebar">
-                <span class="material-icons sidebar-toggle-icon">chevron_left</span>
-            </button>
         </nav>
         <main class="content">
             <div class="content-header">
@@ -797,28 +666,6 @@
                 }
             });
         });
-
-        // Sidebar collapse toggle with localStorage persistence
-        (function () {
-            var SIDEBAR_KEY = 'dndtools:sidebar:collapsed';
-            var sidebar = document.querySelector('.sidebar');
-            var toggleBtn = document.getElementById('sidebarToggle');
-            if (!sidebar || !toggleBtn) return;
-
-            // Restore saved preference
-            try {
-                if (localStorage.getItem(SIDEBAR_KEY) === '1') {
-                    sidebar.classList.add('collapsed');
-                }
-            } catch (e) { /* ignore */ }
-
-            toggleBtn.addEventListener('click', function () {
-                var isCollapsed = sidebar.classList.toggle('collapsed');
-                try {
-                    localStorage.setItem(SIDEBAR_KEY, isCollapsed ? '1' : '0');
-                } catch (e) { /* ignore */ }
-            });
-        })();
 
         // Create modal for unsaved changes prompt
         window.createUnsavedChangesModal = function (configOrOnSave, onDiscard, onCancel) {
