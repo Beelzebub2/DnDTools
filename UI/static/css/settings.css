@@ -111,17 +111,37 @@
 
 
 /* ══════════════════════════════════
-   Tab Navigation (pill strip)
+   Settings Layout (vertical tabs + content)
+   ══════════════════════════════════ */
+.settings-layout {
+    display: flex;
+    gap: 1.25rem;
+    min-height: 0;
+    flex: 1;
+}
+
+.settings-main {
+    flex: 1;
+    min-width: 0;
+}
+
+
+/* ══════════════════════════════════
+   Tab Navigation (vertical sidebar)
    ══════════════════════════════════ */
 .settings-nav {
     display: flex;
-    gap: 0.5rem;
-    padding: 0.35rem;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding: 0.5rem;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-lg);
-    overflow-x: auto;
-    scrollbar-width: none;
+    width: 200px;
+    flex-shrink: 0;
+    align-self: flex-start;
+    position: sticky;
+    top: 0;
 }
 
 .settings-nav::-webkit-scrollbar {
@@ -129,12 +149,12 @@
 }
 
 .nav-pill {
-    flex: 1 1 0;
+    flex: none;
     display: flex;
     align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.65rem 1rem;
+    justify-content: flex-start;
+    gap: 0.6rem;
+    padding: 0.65rem 0.85rem;
     border: 1px solid transparent;
     border-radius: var(--radius-md);
     background: transparent;
@@ -145,6 +165,8 @@
     white-space: nowrap;
     transition: color 0.2s ease, background 0.2s ease, border-color 0.2s ease;
     outline: none;
+    width: 100%;
+    text-align: left;
 }
 
 .nav-pill .material-icons {
@@ -213,11 +235,11 @@
 /* ── Panel grid ── */
 .panel-grid {
     display: grid;
-    gap: 1.25rem;
+    gap: 1.5rem;
 }
 
 .panel-grid.two-col {
-    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
 }
 
 .panel-grid.single-col {
@@ -269,7 +291,7 @@
 
 /* Card body */
 .card-body {
-    padding: 1.25rem;
+    padding: 1.5rem;
     display: flex;
     flex-direction: column;
     gap: 1rem;
@@ -1274,7 +1296,21 @@
         align-self: flex-start;
     }
 
+    /* Vertical tabs go horizontal on narrow screens */
+    .settings-layout {
+        flex-direction: column;
+    }
+
+    .settings-nav {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        position: static;
+        gap: 0.25rem;
+    }
+
     .nav-pill {
+        flex: 0 0 auto;
         min-width: 0;
         padding: 0.55rem 0.75rem;
         font-size: 0.8rem;

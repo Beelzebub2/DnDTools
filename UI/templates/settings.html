@@ -19,482 +19,505 @@
         <span class="header-bar-version">v{{ app_version }}</span>
     </header>
 
-    <!-- ─── Tab Navigation ─── -->
-    <nav class="settings-nav" role="tablist">
-        <button class="nav-pill active" type="button" id="capture-tab" data-tab="capture" role="tab"
-            aria-selected="true">
-            <span class="material-icons" aria-hidden="true">tune</span>
-            <span class="nav-pill-label">Capture &amp; Controls</span>
-        </button>
-        <button class="nav-pill" type="button" id="performance-tab" data-tab="performance" role="tab"
-            aria-selected="false">
-            <span class="material-icons" aria-hidden="true">speed</span>
-            <span class="nav-pill-label">Performance</span>
-        </button>
-        <button class="nav-pill" type="button" id="general-tab" data-tab="general" role="tab" aria-selected="false">
-            <span class="material-icons" aria-hidden="true">settings_suggest</span>
-            <span class="nav-pill-label">General</span>
-        </button>
-        <button class="nav-pill" type="button" id="data-tab" data-tab="data" role="tab" aria-selected="false">
-            <span class="material-icons" aria-hidden="true">inventory_2</span>
-            <span class="nav-pill-label">Data &amp; Privacy</span>
-        </button>
-        <button class="nav-pill" type="button" id="overlay-tab" data-tab="overlay" role="tab" aria-selected="false">
-            <span class="material-icons" aria-hidden="true">picture_in_picture_alt</span>
-            <span class="nav-pill-label">Game Overlay</span>
-        </button>
-        <button class="nav-pill" type="button" id="advanced-tab" data-tab="advanced" role="tab" aria-selected="false">
-            <span class="material-icons" aria-hidden="true">code</span>
-            <span class="nav-pill-label">Advanced</span>
-        </button>
-    </nav>
+    <!-- ─── Settings Layout (vertical tabs + content) ─── -->
+    <div class="settings-layout">
 
-    <!-- ═══════════════ Panels ═══════════════ -->
-    <div class="settings-panels">
+        <!-- ─── Tab Navigation ─── -->
+        <nav class="settings-nav" role="tablist">
+            <button class="nav-pill active" type="button" id="capture-tab" data-tab="capture" role="tab"
+                aria-selected="true">
+                <span class="material-icons" aria-hidden="true">tune</span>
+                <span class="nav-pill-label">Capture &amp; Controls</span>
+            </button>
+            <button class="nav-pill" type="button" id="performance-tab" data-tab="performance" role="tab"
+                aria-selected="false">
+                <span class="material-icons" aria-hidden="true">speed</span>
+                <span class="nav-pill-label">Performance</span>
+            </button>
+            <button class="nav-pill" type="button" id="general-tab" data-tab="general" role="tab" aria-selected="false">
+                <span class="material-icons" aria-hidden="true">settings_suggest</span>
+                <span class="nav-pill-label">General</span>
+            </button>
+            <button class="nav-pill" type="button" id="data-tab" data-tab="data" role="tab" aria-selected="false">
+                <span class="material-icons" aria-hidden="true">inventory_2</span>
+                <span class="nav-pill-label">Data &amp; Privacy</span>
+            </button>
+            <button class="nav-pill" type="button" id="overlay-tab" data-tab="overlay" role="tab" aria-selected="false">
+                <span class="material-icons" aria-hidden="true">picture_in_picture_alt</span>
+                <span class="nav-pill-label">Game Overlay</span>
+            </button>
+            <button class="nav-pill" type="button" id="advanced-tab" data-tab="advanced" role="tab"
+                aria-selected="false">
+                <span class="material-icons" aria-hidden="true">code</span>
+                <span class="nav-pill-label">Advanced</span>
+            </button>
+        </nav>
 
-        <!-- ── Capture & Controls ── -->
-        <section class="settings-panel active" data-panel="capture" aria-labelledby="capture-tab" aria-hidden="false">
-            <div class="panel-grid two-col">
+        <!-- ═══════════════ Panels ═══════════════ -->
+        <div class="settings-main">
+            <div class="settings-panels">
 
-                <!-- Network Interface Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">wifi</span>
-                        <h2 class="card-head-title">Network Interface</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field">
-                            <label class="field-label" for="interface">Active interface</label>
-                            <p class="field-hint">The adapter Dark and Darker is streaming through.</p>
-                            <select id="interface" class="modern-select">
-                                <option value="">Loading interfaces…</option>
-                            </select>
-                        </div>
+                <!-- ── Capture & Controls ── -->
+                <section class="settings-panel active" data-panel="capture" aria-labelledby="capture-tab"
+                    aria-hidden="false">
+                    <div class="panel-grid two-col">
 
-                        <div class="field">
-                            <label class="field-label" for="wiresharkPath">Wireshark path</label>
-                            <p class="field-hint">Folder containing <strong>tshark.exe</strong> — needed for
-                                auto-capture.</p>
-                            <div class="input-row">
-                                <input type="text" id="wiresharkPath" class="input" placeholder="Auto-detected…">
-                                <button id="detectWiresharkPath" type="button" class="icon-btn" title="Auto-detect">
-                                    <span class="material-icons">travel_explore</span>
-                                </button>
-                                <button id="browseWiresharkPath" type="button" class="icon-btn" title="Browse…">
-                                    <span class="material-icons">folder_open</span>
-                                </button>
+                        <!-- Network Interface Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">wifi</span>
+                                <h2 class="card-head-title">Network Interface</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field">
+                                    <label class="field-label" for="interface">Active interface</label>
+                                    <p class="field-hint">The adapter Dark and Darker is streaming through.</p>
+                                    <select id="interface" class="modern-select">
+                                        <option value="">Loading interfaces…</option>
+                                    </select>
+                                </div>
+
+                                <div class="field">
+                                    <label class="field-label" for="wiresharkPath">Wireshark path</label>
+                                    <p class="field-hint">Folder containing <strong>tshark.exe</strong> — needed for
+                                        auto-capture.</p>
+                                    <div class="input-row">
+                                        <input type="text" id="wiresharkPath" class="input"
+                                            placeholder="Auto-detected…">
+                                        <button id="detectWiresharkPath" type="button" class="icon-btn"
+                                            title="Auto-detect">
+                                            <span class="material-icons">travel_explore</span>
+                                        </button>
+                                        <button id="browseWiresharkPath" type="button" class="icon-btn" title="Browse…">
+                                            <span class="material-icons">folder_open</span>
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                <!-- Global Hotkeys Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">keyboard</span>
-                        <h2 class="card-head-title">Global Hotkeys</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="sortHotkey">Sort stash</label>
-                                <p class="field-hint">Trigger sorting from anywhere.</p>
+                        <!-- Global Hotkeys Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">keyboard</span>
+                                <h2 class="card-head-title">Global Hotkeys</h2>
                             </div>
-                            <input type="text" id="sortHotkey" class="hotkey-input-modern" placeholder="Record…"
-                                readonly>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="sortHotkey">Sort stash</label>
+                                        <p class="field-hint">Trigger sorting from anywhere.</p>
+                                    </div>
+                                    <input type="text" id="sortHotkey" class="hotkey-input-modern" placeholder="Record…"
+                                        readonly>
+                                </div>
+
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="cancelHotkey">Cancel sort</label>
+                                        <p class="field-hint">Safety key to stop auto-sorting.</p>
+                                    </div>
+                                    <input type="text" id="cancelHotkey" class="hotkey-input-modern"
+                                        placeholder="Record…" readonly>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="cancelHotkey">Cancel sort</label>
-                                <p class="field-hint">Safety key to stop auto-sorting.</p>
-                            </div>
-                            <input type="text" id="cancelHotkey" class="hotkey-input-modern" placeholder="Record…"
-                                readonly>
-                        </div>
                     </div>
-                </div>
+                </section>
+
+                <!-- ── Performance ── -->
+                <section class="settings-panel" data-panel="performance" aria-labelledby="performance-tab"
+                    aria-hidden="true">
+                    <div class="panel-grid two-col">
+
+                        <!-- Sort Pacing Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">timer</span>
+                                <h2 class="card-head-title">Sort Pacing</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="sortSpeed">Sort speed</label>
+                                        <p class="field-hint">Lower = faster, higher = more stable.</p>
+                                    </div>
+                                    <div class="field-row-control">
+                                        <input type="number" id="sortSpeed" class="input input-compact" min="0"
+                                            max="1.0" step="0.01" value="0.2">
+                                        <span class="field-unit">sec</span>
+                                    </div>
+                                </div>
+
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="noDelay">No delay</label>
+                                        <p class="field-hint warning-hint">
+                                            <span class="material-icons">warning_amber</span>
+                                            May miss items — precision improves with use.
+                                        </p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="noDelay">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Game Resolution Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">desktop_windows</span>
+                                <h2 class="card-head-title">Game Resolution</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field">
+                                    <div class="field-label-row">
+                                        <label class="field-label" for="resolution">Primary resolution</label>
+                                        <span class="field-badge" id="detectedResolution">Loading…</span>
+                                    </div>
+                                    <div class="field-label-row" style="margin-bottom: 0.75rem;">
+                                        <p class="field-hint" style="margin:0;">Set to match your in-game render
+                                            resolution.</p>
+                                        <button id="refreshResolution" class="link-btn" type="button">
+                                            <span class="material-icons">refresh</span> Refresh
+                                        </button>
+                                    </div>
+                                    <select id="resolution" class="modern-select">
+                                        <option value="Auto">Auto Detection</option>
+                                        <optgroup label="Standard (16:9)">
+                                            <option value="3840x2160">3840 × 2160</option>
+                                            <option value="2560x1440">2560 × 1440</option>
+                                            <option value="1920x1080">1920 × 1080</option>
+                                            <option value="1366x768">1366 × 768</option>
+                                            <option value="1360x768">1360 × 768</option>
+                                            <option value="1280x720">1280 × 720</option>
+                                        </optgroup>
+                                        <optgroup label="Standard (16:10)">
+                                            <option value="1680x1050">1680 × 1050</option>
+                                            <option value="1440x900">1440 × 900</option>
+                                            <option value="1280x800">1280 × 800</option>
+                                            <option value="1280x768">1280 × 768</option>
+                                        </optgroup>
+                                        <optgroup label="Ultrawide (21:9)">
+                                            <option value="5120x2160">5120 × 2160</option>
+                                            <option value="3440x1440">3440 × 1440</option>
+                                            <option value="2560x1080">2560 × 1080</option>
+                                        </optgroup>
+                                        <optgroup label="Super-ultrawide (32:9)">
+                                            <option value="5120x1440">5120 × 1440</option>
+                                            <option value="3840x1080">3840 × 1080</option>
+                                        </optgroup>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stash Calibration Card -->
+                        <div class="card card-full-width">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">grid_on</span>
+                                <h2 class="card-head-title">Stash Calibration</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label">Manual grid calibration</label>
+                                        <p class="field-hint">A full-screen overlay shows the detected grid positions.
+                                            Drag them to match your actual game layout, then press Enter to save.</p>
+                                    </div>
+                                    <button id="calibrateStash" type="button" class="btn-action calibrate"
+                                        title="Stash detection not working correctly? Manually adjust the grid positions to match your screen.">
+                                        <span class="material-icons" aria-hidden="true">tune</span>
+                                        Calibrate
+                                    </button>
+                                </div>
+                                <ul class="calibration-controls">
+                                    <li><span class="material-icons" aria-hidden="true">open_with</span> Click &amp;
+                                        drag a grid
+                                        box to reposition it</li>
+                                    <li><span class="material-icons" aria-hidden="true">aspect_ratio</span> Drag any
+                                        corner
+                                        handle to resize grid cells</li>
+                                    <li><span class="material-icons" aria-hidden="true">keyboard</span> Arrow keys nudge
+                                        the
+                                        selected grid (Shift = 10 px)</li>
+                                    <li><span class="material-icons" aria-hidden="true">add_circle</span> +/&minus; keys
+                                        adjust
+                                        cell size (Shift = 5 px)</li>
+                                    <li><span class="material-icons" aria-hidden="true">restart_alt</span> R &mdash;
+                                        reset to
+                                        auto-detected positions</li>
+                                    <li><span class="material-icons" aria-hidden="true">check_circle</span> Enter = Save
+                                        &amp;
+                                        Submit &bull; Esc = Cancel</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ── General ── -->
+                <section class="settings-panel" data-panel="general" aria-labelledby="general-tab" aria-hidden="true">
+                    <div class="panel-grid single-col">
+
+                        <!-- Window Behavior Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">desktop_windows</span>
+                                <h2 class="card-head-title">Window Behavior</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="closeToTrayEnabled">Close to system tray</label>
+                                        <p class="field-hint">Keep DnDTools running in the background when you close the
+                                            window.</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="closeToTrayEnabled" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Updates Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">system_update</span>
+                                <h2 class="card-head-title">Updates</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="autoUpdateEnabled">Check for updates
+                                            automatically</label>
+                                        <p class="field-hint">Periodically check for new versions on startup.</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoUpdateEnabled" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <hr class="field-divider">
+
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label">Manual update check</label>
+                                        <p class="field-hint">Check for a new version right now.</p>
+                                    </div>
+                                    <button id="checkForUpdatesBtn" type="button" class="btn-action">
+                                        <span class="material-icons" aria-hidden="true">refresh</span>
+                                        Check Now
+                                    </button>
+                                </div>
+
+                                <hr class="field-divider">
+
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="includeDevReleases">Development builds</label>
+                                        <p class="field-hint warning-hint">
+                                            <span class="material-icons">warning_amber</span>
+                                            Fetches GitHub dev releases — may be unstable.
+                                        </p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="includeDevReleases">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ── Data & Privacy ── -->
+                <section class="settings-panel" data-panel="data" aria-labelledby="data-tab" aria-hidden="true">
+                    <div class="panel-grid single-col">
+
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">storage</span>
+                                <h2 class="card-head-title">Local Data</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label">Quest cache</label>
+                                        <p class="field-hint">Stored quests keep browsing fast. Clear to force a fresh
+                                            pull.</p>
+                                    </div>
+                                    <button id="clearQuestData" type="button" class="btn-action danger">
+                                        <span class="material-icons" aria-hidden="true">delete_sweep</span>
+                                        Clear
+                                    </button>
+                                </div>
+
+                                <hr class="field-divider">
+
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label">Character snapshots</label>
+                                        <p class="field-hint">Remove captured packets &amp; snapshots to free disk
+                                            space.</p>
+                                    </div>
+                                    <button id="clearCharacterData" type="button" class="btn-action danger">
+                                        <span class="material-icons" aria-hidden="true">delete_forever</span>
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">diversity_2</span>
+                                <h2 class="card-head-title">Global Sort Learning</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="sortFeedbackSyncEnabled">Share anonymized
+                                            feedback</label>
+                                        <p class="field-hint">Upload success/failure metrics to improve reliability for
+                                            everyone. No stash layouts or character names are sent.</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="sortFeedbackSyncEnabled">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <p class="field-footnote">Background sync runs slowly over HTTPS. You can turn it off
+                                    anytime.</p>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ── Game Overlay ── -->
+                <section class="settings-panel" data-panel="overlay" aria-labelledby="overlay-tab" aria-hidden="true">
+                    <div class="panel-grid two-col">
+
+                        <!-- Overlay Enable Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">picture_in_picture_alt</span>
+                                <h2 class="card-head-title">In-Game Overlay</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="overlayEnabled">Enable game overlay</label>
+                                        <p class="field-hint">Show a floating overlay window on top of the game with
+                                            full access to Characters, Search, Quests, and Sorting.</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="overlayEnabled">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <hr class="field-divider">
+
+                                <div class="field-row overlay-dependent-setting">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="overlayHotkey">Toggle hotkey</label>
+                                        <p class="field-hint">Press this key combination to show / hide the overlay
+                                            while in-game.</p>
+                                    </div>
+                                    <input type="text" id="overlayHotkey" class="hotkey-input-modern"
+                                        placeholder="Record…" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Overlay Appearance Card -->
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">palette</span>
+                                <h2 class="card-head-title">Appearance</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row overlay-dependent-setting">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="overlayOpacity">Overlay opacity</label>
+                                        <p class="field-hint">Adjust the window transparency.
+                                            Lower values let more of the game show through.</p>
+                                    </div>
+                                    <div class="field-row-control overlay-opacity-control">
+                                        <input type="range" id="overlayOpacity" class="overlay-opacity-slider" min="30"
+                                            max="100" step="1" value="92">
+                                        <span class="field-unit overlay-opacity-value"
+                                            id="overlayOpacityValue">92%</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Overlay Info Card -->
+                        <div class="card card-full-width">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">info</span>
+                                <h2 class="card-head-title">How It Works</h2>
+                            </div>
+                            <div class="card-body">
+                                <ul class="calibration-controls">
+                                    <li><span class="material-icons" aria-hidden="true">keyboard</span> Press the toggle
+                                        hotkey while in-game to open the overlay</li>
+                                    <li><span class="material-icons" aria-hidden="true">picture_in_picture_alt</span>
+                                        The
+                                        overlay floats on top of the game — no need to Alt-Tab</li>
+                                    <li><span class="material-icons" aria-hidden="true">inventory_2</span> Browse
+                                        characters, search items, track quests &amp; trigger sorts</li>
+                                    <li><span class="material-icons" aria-hidden="true">mouse</span> Click through the
+                                        overlay to interact — click outside to return to the game</li>
+                                    <li><span class="material-icons" aria-hidden="true">tune</span> Adjust opacity to
+                                        find the perfect balance between visibility and gameplay</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
+
+                <!-- ── Advanced ── -->
+                <section class="settings-panel" data-panel="advanced" aria-labelledby="advanced-tab" aria-hidden="true">
+                    <div class="panel-grid single-col">
+
+                        <div class="card">
+                            <div class="card-head">
+                                <span class="material-icons card-head-icon">bug_report</span>
+                                <h2 class="card-head-title">Developer Mode</h2>
+                            </div>
+                            <div class="card-body">
+                                <div class="field-row">
+                                    <div class="field-row-info">
+                                        <label class="field-label" for="developerMode">Show diagnostics in
+                                            tooltips</label>
+                                        <p class="field-hint">Adds stash-slot numbers and internal IDs to tooltips.</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="developerMode">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </section>
 
             </div>
-        </section>
-
-        <!-- ── Performance ── -->
-        <section class="settings-panel" data-panel="performance" aria-labelledby="performance-tab" aria-hidden="true">
-            <div class="panel-grid two-col">
-
-                <!-- Sort Pacing Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">timer</span>
-                        <h2 class="card-head-title">Sort Pacing</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="sortSpeed">Sort speed</label>
-                                <p class="field-hint">Lower = faster, higher = more stable.</p>
-                            </div>
-                            <div class="field-row-control">
-                                <input type="number" id="sortSpeed" class="input input-compact" min="0" max="1.0"
-                                    step="0.01" value="0.2">
-                                <span class="field-unit">sec</span>
-                            </div>
-                        </div>
-
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="noDelay">No delay</label>
-                                <p class="field-hint warning-hint">
-                                    <span class="material-icons">warning_amber</span>
-                                    May miss items — precision improves with use.
-                                </p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="noDelay">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Game Resolution Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">desktop_windows</span>
-                        <h2 class="card-head-title">Game Resolution</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field">
-                            <div class="field-label-row">
-                                <label class="field-label" for="resolution">Primary resolution</label>
-                                <span class="field-badge" id="detectedResolution">Loading…</span>
-                            </div>
-                            <div class="field-label-row" style="margin-bottom: 0.75rem;">
-                                <p class="field-hint" style="margin:0;">Set to match your in-game render resolution.</p>
-                                <button id="refreshResolution" class="link-btn" type="button">
-                                    <span class="material-icons">refresh</span> Refresh
-                                </button>
-                            </div>
-                            <select id="resolution" class="modern-select">
-                                <option value="Auto">Auto Detection</option>
-                                <optgroup label="Standard (16:9)">
-                                    <option value="3840x2160">3840 × 2160</option>
-                                    <option value="2560x1440">2560 × 1440</option>
-                                    <option value="1920x1080">1920 × 1080</option>
-                                    <option value="1366x768">1366 × 768</option>
-                                    <option value="1360x768">1360 × 768</option>
-                                    <option value="1280x720">1280 × 720</option>
-                                </optgroup>
-                                <optgroup label="Standard (16:10)">
-                                    <option value="1680x1050">1680 × 1050</option>
-                                    <option value="1440x900">1440 × 900</option>
-                                    <option value="1280x800">1280 × 800</option>
-                                    <option value="1280x768">1280 × 768</option>
-                                </optgroup>
-                                <optgroup label="Ultrawide (21:9)">
-                                    <option value="5120x2160">5120 × 2160</option>
-                                    <option value="3440x1440">3440 × 1440</option>
-                                    <option value="2560x1080">2560 × 1080</option>
-                                </optgroup>
-                                <optgroup label="Super-ultrawide (32:9)">
-                                    <option value="5120x1440">5120 × 1440</option>
-                                    <option value="3840x1080">3840 × 1080</option>
-                                </optgroup>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Stash Calibration Card -->
-                <div class="card card-full-width">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">grid_on</span>
-                        <h2 class="card-head-title">Stash Calibration</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label">Manual grid calibration</label>
-                                <p class="field-hint">A full-screen overlay shows the detected grid positions.
-                                    Drag them to match your actual game layout, then press Enter to save.</p>
-                            </div>
-                            <button id="calibrateStash" type="button" class="btn-action calibrate"
-                                title="Stash detection not working correctly? Manually adjust the grid positions to match your screen.">
-                                <span class="material-icons" aria-hidden="true">tune</span>
-                                Calibrate
-                            </button>
-                        </div>
-                        <ul class="calibration-controls">
-                            <li><span class="material-icons" aria-hidden="true">open_with</span> Click &amp; drag a grid
-                                box to reposition it</li>
-                            <li><span class="material-icons" aria-hidden="true">aspect_ratio</span> Drag any corner
-                                handle to resize grid cells</li>
-                            <li><span class="material-icons" aria-hidden="true">keyboard</span> Arrow keys nudge the
-                                selected grid (Shift = 10 px)</li>
-                            <li><span class="material-icons" aria-hidden="true">add_circle</span> +/&minus; keys adjust
-                                cell size (Shift = 5 px)</li>
-                            <li><span class="material-icons" aria-hidden="true">restart_alt</span> R &mdash; reset to
-                                auto-detected positions</li>
-                            <li><span class="material-icons" aria-hidden="true">check_circle</span> Enter = Save &amp;
-                                Submit &bull; Esc = Cancel</li>
-                        </ul>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ── General ── -->
-        <section class="settings-panel" data-panel="general" aria-labelledby="general-tab" aria-hidden="true">
-            <div class="panel-grid single-col">
-
-                <!-- Window Behavior Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">desktop_windows</span>
-                        <h2 class="card-head-title">Window Behavior</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="closeToTrayEnabled">Close to system tray</label>
-                                <p class="field-hint">Keep DnDTools running in the background when you close the
-                                    window.</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="closeToTrayEnabled" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Updates Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">system_update</span>
-                        <h2 class="card-head-title">Updates</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="autoUpdateEnabled">Check for updates
-                                    automatically</label>
-                                <p class="field-hint">Periodically check for new versions on startup.</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="autoUpdateEnabled" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <hr class="field-divider">
-
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label">Manual update check</label>
-                                <p class="field-hint">Check for a new version right now.</p>
-                            </div>
-                            <button id="checkForUpdatesBtn" type="button" class="btn-action">
-                                <span class="material-icons" aria-hidden="true">refresh</span>
-                                Check Now
-                            </button>
-                        </div>
-
-                        <hr class="field-divider">
-
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="includeDevReleases">Development builds</label>
-                                <p class="field-hint warning-hint">
-                                    <span class="material-icons">warning_amber</span>
-                                    Fetches GitHub dev releases — may be unstable.
-                                </p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="includeDevReleases">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ── Data & Privacy ── -->
-        <section class="settings-panel" data-panel="data" aria-labelledby="data-tab" aria-hidden="true">
-            <div class="panel-grid single-col">
-
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">storage</span>
-                        <h2 class="card-head-title">Local Data</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label">Quest cache</label>
-                                <p class="field-hint">Stored quests keep browsing fast. Clear to force a fresh pull.</p>
-                            </div>
-                            <button id="clearQuestData" type="button" class="btn-action danger">
-                                <span class="material-icons" aria-hidden="true">delete_sweep</span>
-                                Clear
-                            </button>
-                        </div>
-
-                        <hr class="field-divider">
-
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label">Character snapshots</label>
-                                <p class="field-hint">Remove captured packets &amp; snapshots to free disk space.</p>
-                            </div>
-                            <button id="clearCharacterData" type="button" class="btn-action danger">
-                                <span class="material-icons" aria-hidden="true">delete_forever</span>
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">diversity_2</span>
-                        <h2 class="card-head-title">Global Sort Learning</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="sortFeedbackSyncEnabled">Share anonymized
-                                    feedback</label>
-                                <p class="field-hint">Upload success/failure metrics to improve reliability for
-                                    everyone. No stash layouts or character names are sent.</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="sortFeedbackSyncEnabled">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <p class="field-footnote">Background sync runs slowly over HTTPS. You can turn it off
-                            anytime.</p>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ── Game Overlay ── -->
-        <section class="settings-panel" data-panel="overlay" aria-labelledby="overlay-tab" aria-hidden="true">
-            <div class="panel-grid two-col">
-
-                <!-- Overlay Enable Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">picture_in_picture_alt</span>
-                        <h2 class="card-head-title">In-Game Overlay</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="overlayEnabled">Enable game overlay</label>
-                                <p class="field-hint">Show a floating overlay window on top of the game with
-                                    full access to Characters, Search, Quests, and Sorting.</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="overlayEnabled">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
-                        <hr class="field-divider">
-
-                        <div class="field-row overlay-dependent-setting">
-                            <div class="field-row-info">
-                                <label class="field-label" for="overlayHotkey">Toggle hotkey</label>
-                                <p class="field-hint">Press this key combination to show / hide the overlay
-                                    while in-game.</p>
-                            </div>
-                            <input type="text" id="overlayHotkey" class="hotkey-input-modern" placeholder="Record…"
-                                readonly>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Overlay Appearance Card -->
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">palette</span>
-                        <h2 class="card-head-title">Appearance</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row overlay-dependent-setting">
-                            <div class="field-row-info">
-                                <label class="field-label" for="overlayOpacity">Overlay opacity</label>
-                                <p class="field-hint">Adjust the window transparency.
-                                    Lower values let more of the game show through.</p>
-                            </div>
-                            <div class="field-row-control overlay-opacity-control">
-                                <input type="range" id="overlayOpacity" class="overlay-opacity-slider" min="30"
-                                    max="100" step="1" value="92">
-                                <span class="field-unit overlay-opacity-value" id="overlayOpacityValue">92%</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Overlay Info Card -->
-                <div class="card card-full-width">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">info</span>
-                        <h2 class="card-head-title">How It Works</h2>
-                    </div>
-                    <div class="card-body">
-                        <ul class="calibration-controls">
-                            <li><span class="material-icons" aria-hidden="true">keyboard</span> Press the toggle
-                                hotkey while in-game to open the overlay</li>
-                            <li><span class="material-icons" aria-hidden="true">picture_in_picture_alt</span> The
-                                overlay floats on top of the game — no need to Alt-Tab</li>
-                            <li><span class="material-icons" aria-hidden="true">inventory_2</span> Browse
-                                characters, search items, track quests &amp; trigger sorts</li>
-                            <li><span class="material-icons" aria-hidden="true">mouse</span> Click through the
-                                overlay to interact — click outside to return to the game</li>
-                            <li><span class="material-icons" aria-hidden="true">tune</span> Adjust opacity to
-                                find the perfect balance between visibility and gameplay</li>
-                        </ul>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-        <!-- ── Advanced ── -->
-        <section class="settings-panel" data-panel="advanced" aria-labelledby="advanced-tab" aria-hidden="true">
-            <div class="panel-grid single-col">
-
-                <div class="card">
-                    <div class="card-head">
-                        <span class="material-icons card-head-icon">bug_report</span>
-                        <h2 class="card-head-title">Developer Mode</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="field-row">
-                            <div class="field-row-info">
-                                <label class="field-label" for="developerMode">Show diagnostics in tooltips</label>
-                                <p class="field-hint">Adds stash-slot numbers and internal IDs to tooltips.</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="developerMode">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-        </section>
-
-    </div>
+        </div><!-- /.settings-main -->
+    </div><!-- /.settings-layout -->
 
     <!-- ─── Autosave Footer ─── -->
     <footer class="settings-footer-bar">
