@@ -51,7 +51,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.8.7"
+APP_VERSION = "3.8.8"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -605,7 +605,6 @@ class Api:
                 self._setup_global_hotkeys()
             except HotkeyError as hotkey_err:
                 logger.error("Failed to register initial global hotkeys: %s", hotkey_err)
-        self.is_maximized = False
         self.original_size = None
         self.original_position = None
         self.current_sort_event = None
@@ -1924,37 +1923,6 @@ class Api:
 
         return success
 
-    def begin_drag(self):
-        """Initiate a native window drag so Windows snap/maximize works."""
-        if not self.window:
-            return False
-
-        if not sys.platform.startswith('win'):
-            return False
-
-        def _drag_worker():
-            try:
-                import ctypes
-
-                user32 = ctypes.windll.user32
-                hwnd = getattr(self.window, 'hwnd', None)
-                if not hwnd:
-                    title = getattr(self.window, 'title', None) or 'Dark and Darker Stash Organizer'
-                    hwnd = user32.FindWindowW(None, title)
-                    if not hwnd:
-                        return False
-
-                WM_NCLBUTTONDOWN = 0x00A1
-                HTCAPTION = 0x0002
-                user32.ReleaseCapture()
-                user32.SendMessageW(int(hwnd), WM_NCLBUTTONDOWN, HTCAPTION, 0)
-                return True
-            except Exception as exc:
-                logger.error("Failed to initiate native drag: %s", exc)
-                return False
-
-        threading.Thread(target=_drag_worker, daemon=True).start()
-        return True
 
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
@@ -2310,25 +2278,6 @@ class Api:
             overlay_session.finish(success, error_msg)
             self.current_sort_event = None
 
-    def minimize(self):
-        self.window.minimize()
-        
-    def toggle_maximize(self):
-        if self.is_maximized:
-            self.window.restore()
-            self.is_maximized = False
-            # Notify JS of restore
-            if self.window:
-                self.window.evaluate_js(
-                    'window.dispatchEvent(new CustomEvent("windowStateChanged", { detail: { maximized: false } }));'
-                )
-        else:
-            self.window.maximize()
-            self.is_maximized = True                # Notify JS of maximize
-            if self.window:
-                self.window.evaluate_js(
-                    'window.dispatchEvent(new CustomEvent("windowStateChanged", { detail: { maximized: true } }));'
-                )
 
     def close_window(self):
         """Default close handler that minimizes the UI to the system tray."""
@@ -4059,18 +4008,16 @@ def main():
         width=1200,
         height=800,
         min_size=(800, 600),
-        frameless=True,
-        easy_drag=False,  # Use custom drag region to limit draggable area
         background_color='#0b0b0b'
     )
     
     # Expose API methods in parallel
     for method_name in [
-        'minimize', 'toggle_maximize', 'close_window', 'shutdown_application', 'sort_stash', '_save_settings',
+        'close_window', 'shutdown_application', 'sort_stash', '_save_settings',
         'start_capture_switch', 'stop_capture_switch', 'restart_capture_switch',
         'search_items', 'get_characters', 'get_characters_summary', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
-        'get_capture_state', 'set_sort_order', 'begin_drag', 'select_wireshark_path', 'detect_wireshark_path',
+        'get_capture_state', 'set_sort_order', 'select_wireshark_path', 'detect_wireshark_path',
         'open_calibration'
     ]:
         if hasattr(api, method_name):
