@@ -955,6 +955,21 @@ class StashManager:
             tab_label = macros.STASH_TAB_LABELS[macros.STASH_TYPE_TO_TAB_INDEX[stash_type_int]]
             session.add_log(f"Selected stash tab: {tab_label}")
 
+        # ── Clear inventory items to other stashes for workspace ──
+        if not include_inventory and inventory and inventory.pq:
+            cleared_slots = self._clear_inventory_to_stashes(
+                inventory, inv_items, stash_type_int, stashes,
+                cancel_event, session,
+            )
+            if cleared_slots:
+                inv_items = [
+                    it for it in inv_items
+                    if it.get("slotId") not in cleared_slots
+                ]
+
+        if cancel_event and cancel_event.is_set():
+            return False, "Sort cancelled", session_summary
+
         # ── Cross-tab overflow: move excess items to another tab ──
         keep, overflow = self._identify_overflow_items(
             stash, pack_mode, stack_mode,
@@ -974,7 +989,8 @@ class StashManager:
                 )
                 return False, "No overflow destination available", session_summary
 
-            dest_label = macros.STASH_TAB_LABELS[macros.STASH_TYPE_TO_TAB_INDEX[dest_id]]
+            tab_idx = macros.STASH_TYPE_TO_TAB_INDEX.get(dest_id)
+            dest_label = macros.STASH_TAB_LABELS[tab_idx] if tab_idx is not None else f"Stash {dest_id}"
             session.add_log(f"Overflow destination: {dest_label}")
 
             dest_items = stashes.get(dest_id)
@@ -1042,6 +1058,147 @@ class StashManager:
             logger.debug("Failed to reset modifier state via Alt tap: %s", exc)
         else:
             session.add_log("Tapped Alt to clear any stuck modifier state.")
+
+    # ── Inventory clearing helpers ─────────────────────────────────────
+
+    def _clear_inventory_to_stashes(
+        self,
+        inventory,
+        inv_items_raw,
+        source_stash_id,
+        all_stashes,
+        cancel_event,
+        session,
+    ):
+        """Deposit movable inventory items into other stashes to free workspace.
+
+        Returns the set of raw ``slotId`` values that were successfully
+        deposited so the caller can prune *inv_items_raw* for downstream
+        rebuilds.  Also mutates *all_stashes* by appending raw entries to
+        destination lists so subsequent ``Storage()`` constructions see
+        the deposited items.
+        """
+        if not inventory.pq:
+            return set()
+
+        # Map raw slot -> raw dict and identify Supplied items
+        inv_raw_by_slot = {}
+        supplied_slots = set()
+        for raw in inv_items_raw:
+            sid = raw.get("slotId")
+            if sid is None:
+                continue
+            inv_raw_by_slot[sid] = raw
+            ls = raw.get("data", {}).get("lootState")
+            try:
+                if int(ls) == 1:
+                    supplied_slots.add(sid)
+            except (TypeError, ValueError):
+                pass
+
+        # Collect movable items (not Supplied)
+        movable = []
+        for item in list(inventory.pq):
+            slot_id = item.position.y * inventory.width + item.position.x
+            if slot_id in supplied_slots:
+                continue
+            movable.append((item, slot_id))
+
+        if not movable:
+            return set()
+
+        # Find destination stashes with room (exclude the stash being sorted)
+        destinations = []
+        for stash_type_val in self._OVERFLOW_CANDIDATE_TYPES:
+            if stash_type_val == source_stash_id:
+                continue
+            if stash_type_val not in macros.STASH_TYPE_TO_TAB_INDEX:
+                continue
+            items = all_stashes.get(stash_type_val)
+            if items is None:
+                items = all_stashes.get(str(stash_type_val))
+            if items is None:
+                continue
+            try:
+                dest = Storage(stash_type_val, items if isinstance(items, list) else [])
+                free = dest.count_free_cells()
+                if free >= 4:
+                    destinations.append((stash_type_val, dest, free))
+            except Exception:
+                continue
+
+        if not destinations:
+            return set()
+
+        destinations.sort(key=lambda d: -d[2])
+
+        session.update_status("Clearing inventory to free workspace...", status="info")
+        session.add_log(
+            f"Depositing {len(movable)} inventory item(s) into other stashes."
+        )
+
+        deposited_slots = set()
+        dest_idx = 0
+        current_dest_id = None
+        switched_away = False
+
+        try:
+            for item, raw_slot_id in movable:
+                if cancel_event and cancel_event.is_set():
+                    break
+
+                placed = False
+                while dest_idx < len(destinations):
+                    dest_id, dest_storage, _ = destinations[dest_idx]
+
+                    dest_slot = dest_storage.find_empty_slot(item)
+                    if dest_slot is None:
+                        dest_idx += 1
+                        current_dest_id = None
+                        continue
+
+                    # Switch to destination tab if needed
+                    if current_dest_id != dest_id:
+                        if not macros.click_stash_tab(dest_id):
+                            session.add_log("Failed to switch tab for inventory deposit.")
+                            dest_idx += 1
+                            current_dest_id = None
+                            continue
+                        current_dest_id = dest_id
+                        switched_away = True
+
+                    inventory.move(item, dest_slot, dest_storage)
+                    deposited_slots.add(raw_slot_id)
+
+                    # Update raw stash data so downstream Storage() sees deposited items
+                    raw_dict = inv_raw_by_slot.get(raw_slot_id)
+                    if raw_dict is not None:
+                        new_slot_id = dest_slot.y * dest_storage.width + dest_slot.x
+                        raw_copy = {**raw_dict, "slotId": new_slot_id}
+                        dest_raw = all_stashes.get(dest_id)
+                        if dest_raw is None:
+                            dest_raw = all_stashes.get(str(dest_id))
+                        if isinstance(dest_raw, list):
+                            dest_raw.append(raw_copy)
+
+                    placed = True
+                    break
+
+                if not placed and dest_idx >= len(destinations):
+                    break
+        finally:
+            if switched_away:
+                try:
+                    macros.click_stash_tab(source_stash_id)
+                except Exception:
+                    session.add_log(
+                        "Warning: failed to return to source tab after inventory deposit."
+                    )
+
+        if deposited_slots:
+            session.add_log(f"Deposited {len(deposited_slots)} item(s) from inventory.")
+
+        return deposited_slots
 
     # ── Cross-tab overflow helpers ──────────────────────────────────────
 
@@ -1167,6 +1324,8 @@ class StashManager:
         for stash_type_val in self._OVERFLOW_CANDIDATE_TYPES:
             if stash_type_val == source_stash_id:
                 continue
+            if stash_type_val not in macros.STASH_TYPE_TO_TAB_INDEX:
+                continue
             items = all_stashes.get(stash_type_val)
             if items is None:
                 items = all_stashes.get(str(stash_type_val))
@@ -1191,6 +1350,8 @@ class StashManager:
 
         for stash_type_val in self._OVERFLOW_CANDIDATE_TYPES:
             if stash_type_val == source_stash_id:
+                continue
+            if stash_type_val not in macros.STASH_TYPE_TO_TAB_INDEX:
                 continue
             items = all_stashes.get(stash_type_val)
             if items is None:
