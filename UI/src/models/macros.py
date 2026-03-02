@@ -261,6 +261,13 @@ def move_mouse(x, y):
     SendInput(1, ctypes.byref(mouse_input), ctypes.sizeof(mouse_input))
 
 
+def nudge_cursor(dx=15, dy=0):
+    """Move cursor by (dx, dy) pixels from current position."""
+    pt = POINT()
+    ctypes.windll.user32.GetCursorPos(ctypes.byref(pt))
+    move_mouse(pt.x + dx, pt.y + dy)
+
+
 def mouse_down():
     mouse_input = INPUT(type=0)
     mouse_input.union.mi = MOUSEINPUT(

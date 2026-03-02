@@ -47,6 +47,8 @@ class OverlayState:
     logs: List[str] = field(default_factory=list)
     status: str = "info"
     chips: List[OverlayChip] = field(default_factory=list)
+    progress_current: int = 0
+    progress_total: int = 0
 
 
 class NullOverlaySession:
@@ -186,6 +188,34 @@ class GameOverlayManager:
                 self._state_owner = None
         self._post_update()
 
+    def temporarily_hide_for_capture(self) -> None:
+        """Hide the overlay window briefly for screen capture.
+
+        Unlike :meth:`hide`, this does NOT alter the internal overlay state,
+        so :meth:`restore_after_capture` can bring it back unchanged.
+        """
+        hwnd = self._hwnd
+        if hwnd:
+            try:
+                win32gui.ShowWindow(hwnd, win32con.SW_HIDE)
+            except Exception:
+                pass
+
+    def restore_after_capture(self) -> None:
+        """Restore the overlay after a :meth:`temporarily_hide_for_capture` call.
+
+        Only shows the window if the internal state says it should be visible.
+        """
+        hwnd = self._hwnd
+        if hwnd:
+            with self._state_lock:
+                should_show = self._state.visible
+            if should_show:
+                try:
+                    win32gui.ShowWindow(hwnd, win32con.SW_SHOWNOACTIVATE)
+                except Exception:
+                    pass
+
     def show_message(
         self,
         session: "SortOverlaySession",
@@ -197,6 +227,8 @@ class GameOverlayManager:
         chips: Optional[List[OverlayChip]] = None,
         visible: bool = True,
         reposition: bool = False,
+        progress_current: int = 0,
+        progress_total: int = 0,
     ) -> None:
         if not self.enabled:
             return
@@ -211,6 +243,8 @@ class GameOverlayManager:
                 logs=logs_copy,
                 status=status,
                 chips=list(chips or []),
+                progress_current=max(0, int(progress_current)),
+                progress_total=max(0, int(progress_total)),
             )
             self._reposition_needed = self._reposition_needed or reposition
         self._post_update()
@@ -587,6 +621,47 @@ class GameOverlayManager:
             win32gui.DeleteObject(divider_pen)
             text_top += 12
 
+            # ── Subtitle ──────────────────────────────────────────────
+            subtitle_text = (state.subtitle or "").strip()
+            if subtitle_text and self._body_font:
+                prev_font = win32gui.SelectObject(hdc, self._body_font)
+                win32gui.SetTextColor(hdc, win32api.RGB(220, 210, 195))
+                subtitle_rect = [text_left, text_top, right, text_top + 48]
+                win32gui.DrawText(
+                    hdc,
+                    subtitle_text,
+                    -1,
+                    tuple(subtitle_rect),
+                    win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_WORDBREAK | win32con.DT_NOPREFIX,
+                )
+                win32gui.SelectObject(hdc, prev_font)
+                text_top = subtitle_rect[3] + 8
+
+            # ── Progress bar ──────────────────────────────────────────
+            if state.progress_total > 0:
+                bar_height = 8
+                bar_left = text_left
+                bar_right = right
+                bar_width = max(1, bar_right - bar_left)
+                fill_ratio = min(1.0, max(0.0, state.progress_current / float(state.progress_total)))
+                filled_width = max(0, int(bar_width * fill_ratio))
+
+                # Track background
+                track_color = tuple(max(0, c - 8) for c in bg_color)
+                track_brush = win32gui.CreateSolidBrush(win32api.RGB(*track_color))
+                win32gui.FillRect(hdc, (bar_left, text_top, bar_right, text_top + bar_height), track_brush)
+                win32gui.DeleteObject(track_brush)
+
+                # Filled portion
+                if filled_width > 0:
+                    bar_accent = accent if fill_ratio < 1.0 else self.ACCENT_COLORS.get("success", accent)
+                    fill_brush = win32gui.CreateSolidBrush(win32api.RGB(*bar_accent))
+                    win32gui.FillRect(hdc, (bar_left, text_top, bar_left + filled_width, text_top + bar_height), fill_brush)
+                    win32gui.DeleteObject(fill_brush)
+
+                text_top += bar_height + 10
+
+            # ── Chips ─────────────────────────────────────────────────
             if self._body_font:
                 prev_font = win32gui.SelectObject(hdc, self._body_font)
                 text_top = self._render_chips(
@@ -597,6 +672,34 @@ class GameOverlayManager:
                     text_top,
                     bg_color,
                 )
+                win32gui.SelectObject(hdc, prev_font)
+
+            # ── Log entries ───────────────────────────────────────────
+            visible_logs = (state.logs or [])[-4:]
+            if visible_logs and self._body_font:
+                # Separator line before logs
+                log_sep_pen = win32gui.CreatePen(win32con.PS_SOLID, 1, win32api.RGB(60, 50, 35))
+                old_pen = win32gui.SelectObject(hdc, log_sep_pen)
+                win32gui.MoveToEx(hdc, text_left, text_top + 2)
+                win32gui.LineTo(hdc, right, text_top + 2)
+                win32gui.SelectObject(hdc, old_pen)
+                win32gui.DeleteObject(log_sep_pen)
+                text_top += 10
+
+                prev_font = win32gui.SelectObject(hdc, self._body_font)
+                win32gui.SetTextColor(hdc, win32api.RGB(180, 170, 155))
+                line_height = 22
+                for log_line in visible_logs:
+                    log_rect = (text_left, text_top, right, text_top + line_height)
+                    win32gui.DrawText(
+                        hdc,
+                        log_line,
+                        -1,
+                        log_rect,
+                        win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_SINGLELINE
+                        | win32con.DT_NOPREFIX | win32con.DT_END_ELLIPSIS,
+                    )
+                    text_top += line_height
                 win32gui.SelectObject(hdc, prev_font)
         finally:
             win32gui.EndPaint(hwnd, paint_struct)
@@ -706,7 +809,7 @@ class GameOverlayManager:
             left = 0
             top = 0
         overlay_width = max(480, min(int(width * 0.45), 760))
-        overlay_height = max(260, min(int(height * 0.35), 560))
+        overlay_height = max(300, min(int(height * 0.50), 720))
         x = left + (width - overlay_width) // 2
         y = top + int(height * 0.18)
         flags = (
@@ -740,6 +843,8 @@ class GameOverlayManager:
                 logs=list(self._state.logs),
                 status=self._state.status,
                 chips=[OverlayChip(chip.label, chip.value, chip.detail, chip.status) for chip in self._state.chips],
+                progress_current=self._state.progress_current,
+                progress_total=self._state.progress_total,
             )
 
     def _cancel_hide_timer(self) -> None:
@@ -766,6 +871,8 @@ class SortOverlaySession:
         self._cancel_event = threading.Event()
         self._last_log_message = None  # type: Optional[str]
         self._last_log_count = 0
+        self._progress_current = 0
+        self._progress_total = 0
 
     # ------------------------------------------------------------------ helpers
     def _build_heading(self) -> str:
@@ -795,6 +902,8 @@ class SortOverlaySession:
                 chips=self.chips,
                 visible=True,
                 reposition=reposition,
+                progress_current=self._progress_current,
+                progress_total=self._progress_total,
             )
 
     def begin(self) -> None:
@@ -861,6 +970,8 @@ class SortOverlaySession:
         difficulty_score: float,
         difficulty_reason: str,
         difficulty_status: str = "info",
+        ml_placement_active: bool = False,
+        ml_risk_score: Optional[float] = None,
     ) -> None:
         if self._finished:
             return
@@ -932,6 +1043,21 @@ class SortOverlaySession:
             status=difficulty_status,
             refresh=False,
         )
+        ml_value = "Active" if ml_placement_active else "Heuristic"
+        ml_detail = ""
+        if ml_risk_score is not None:
+            ml_detail = f"Risk {ml_risk_score * 100:.0f}%"
+        ml_status = "success" if ml_placement_active else "info"
+        if ml_risk_score is not None and ml_risk_score > 0.5:
+            ml_status = "warning"
+        self.set_chip(
+            "ml",
+            label="ML",
+            value=ml_value,
+            detail=ml_detail,
+            status=ml_status,
+            refresh=False,
+        )
         self._refresh_overlay()
 
     def update_progress(self, processed: int, total: int) -> None:
@@ -939,6 +1065,8 @@ class SortOverlaySession:
             return
         total = max(1, int(total))
         processed = max(0, min(int(processed), total))
+        self._progress_current = processed
+        self._progress_total = total
         percent = (processed / total) * 100.0
         status = "success" if processed >= total else "info"
         detail = f"{processed}/{total} moves"

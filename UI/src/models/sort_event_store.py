@@ -39,6 +39,7 @@ SORT_STARTED = "SORT_STARTED"
 SORT_COMPLETED = "SORT_COMPLETED"
 ITEM_PLACEMENT = "ITEM_PLACEMENT"
 USER_CORRECTION = "USER_CORRECTION"
+MOVE_OUTCOME = "MOVE_OUTCOME"
 
 _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS events (
@@ -241,6 +242,31 @@ class SortEventStore:
             },
         ))
         return ids
+
+    def record_move_outcome(
+        self,
+        session_id: str,
+        features: Dict[str, float],
+        *,
+        verified: bool,
+        attempts: int = 1,
+        item_id: Optional[str] = None,
+        reason: Optional[str] = None,
+    ) -> int:
+        """Record the outcome of a physical move for move-failure prediction."""
+        meta: Dict[str, Any] = {"attempts": attempts}
+        if item_id:
+            meta["item_id"] = item_id
+        if reason:
+            meta["reason"] = reason
+        return self._insert_event(
+            event_type=MOVE_OUTCOME,
+            session_id=session_id,
+            features=features,
+            label=1 if verified else 0,
+            weight=1.0 if verified else self._failure_weight(),
+            metadata=meta,
+        )
 
     # ── Public: query events ─────────────────────────────────────────
 

@@ -59,9 +59,22 @@ ITEM_FEATURE_NAMES: List[str] = [
     "pack_mode",
     "stack_mode",
     "free_ratio",
+    "distance_from_current",
+    "blockers_at_target",
+    "neighbor_rarity_match",
 ]
 
-MODEL_SCHEMA_VERSION = 2
+MOVE_FEATURE_NAMES: List[str] = [
+    "item_area",
+    "move_distance_grid",
+    "source_stash_type",
+    "dest_stash_type",
+    "current_delay",
+    "move_index",
+    "consecutive_successes",
+]
+
+MODEL_SCHEMA_VERSION = 3
 
 # ── Helpers ──────────────────────────────────────────────────────────────
 

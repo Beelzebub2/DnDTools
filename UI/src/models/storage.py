@@ -102,7 +102,7 @@ class Storage:
         for dx in range(item.width):
             for dy in range(item.height):
                 end_stash.grid[end_pos.x + dx][end_pos.y + dy] = item
-        
+
         # Update stash
         item.stash = end_stash
         try:
@@ -127,8 +127,8 @@ class Storage:
             item.stash = original_stash
             item.position = original_position
             raise
-        else:
-            item.position = end_pos
+
+        item.position = end_pos
         
     def find_empty_slot(self, item):
         for y in range(self.height - item.height, -1, -1):  # bottom to top
