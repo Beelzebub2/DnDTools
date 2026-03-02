@@ -3675,6 +3675,14 @@ function updateOrderingOptionDirectionVisual(option) {
     }
 }
 
+function updatePriorityNumbers(menu) {
+    if (!menu) return;
+    menu.querySelectorAll('.ordering-option').forEach((option, idx) => {
+        const badge = option.querySelector('.ordering-priority');
+        if (badge) badge.textContent = idx + 1;
+    });
+}
+
 function applyOrderingToMenu(menu, order) {
     const optionMap = new Map();
     menu.querySelectorAll('.ordering-option').forEach(option => {
@@ -3692,6 +3700,8 @@ function applyOrderingToMenu(menu, order) {
         updateOrderingOptionDirectionVisual(option);
         menu.appendChild(option);
     });
+
+    updatePriorityNumbers(menu);
 }
 
 let _sortOrderLoadedFromInit = false;
@@ -3812,7 +3822,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
-        const btn = e.target;
+        const btn = e.target.closest('.arrow-up, .arrow-down');
+        if (!btn) return;
         const option = btn.closest('.ordering-option');
         if (!option) return;
 
@@ -3989,6 +4000,8 @@ function onOrderChange() {
     if (!order.length) {
         return;
     }
+
+    updatePriorityNumbers(document.getElementById('orderingMenu'));
 
     if (sortOrdersEqual(order, currentSortOrder)) {
         return;

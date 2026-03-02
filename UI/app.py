@@ -2107,6 +2107,17 @@ class Api:
         state["initialRestartDone"] = self._initial_restart_done
         return state
 
+    def _run_calibration_before_sort(self):
+        """Show a brief grid-position preview so the user can verify
+        where stash / inventory grids are located before sorting begins.
+        Auto-dismisses after a few seconds -- no user interaction needed.
+        """
+        from src.models.grid_debug_overlay import show_grid_preview
+        try:
+            show_grid_preview(duration=3.0)
+        except Exception as exc:
+            logger.debug("Grid preview before sort skipped: %s", exc)
+
     def sort_stash(self, character_id, stash_id, pack_mode=None, stack_mode=None, cancel_event=None):
         """Sort a specific stash for a character"""
         if cancel_event is None:
@@ -2129,6 +2140,9 @@ class Api:
                 overlay_context["character_class"] = char_details.get("class")
         except Exception as exc:
             logger.debug(f"Unable to resolve character details for overlay: {exc}")
+
+        # Show calibration overlay so user can verify grid positions
+        self._run_calibration_before_sort()
 
         overlay_session = self.overlay_manager.begin_sort_session(
             countdown_seconds=1.0,
@@ -2231,6 +2245,9 @@ class Api:
                 overlay_context["character_class"] = char_details.get("class")
         except Exception:
             pass
+
+        # Show calibration overlay so user can verify grid positions
+        self._run_calibration_before_sort()
 
         overlay_session = self.overlay_manager.begin_sort_session(
             countdown_seconds=1.0,

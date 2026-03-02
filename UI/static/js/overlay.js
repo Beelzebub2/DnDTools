@@ -1265,12 +1265,14 @@
             row.draggable = true;
             row.dataset.index = idx;
             row.innerHTML = `
+                <span class="material-icons overlay-ordering-handle">drag_indicator</span>
+                <span class="overlay-ordering-priority">${idx + 1}</span>
+                <span class="overlay-ordering-field">${d.field}</span>
+                <button class="overlay-ordering-dir">${d.direction.toUpperCase()}</button>
                 <div class="overlay-ordering-arrows">
                     <button data-dir="up" ${idx === 0 ? 'disabled' : ''}><span class="material-icons">arrow_drop_up</span></button>
                     <button data-dir="down" ${idx === currentSortOrder.length - 1 ? 'disabled' : ''}><span class="material-icons">arrow_drop_down</span></button>
                 </div>
-                <span class="overlay-ordering-field">${d.field}</span>
-                <button class="overlay-ordering-dir">${d.direction.toUpperCase()}</button>
             `;
             // Toggle direction
             row.querySelector('.overlay-ordering-dir').addEventListener('click', (e) => {

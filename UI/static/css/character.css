@@ -1457,37 +1457,71 @@
 .ordering-menu {
     position: absolute;
     top: calc(100% + 4px);
-    /* Position below the button */
     right: 0;
-    /* Align with right edge of button */
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     z-index: 1000;
-    width: 160px;
-    padding: 0.4rem;
+    width: 230px;
+    padding: 0.5rem;
     transform: translateY(0);
     transition: opacity 0.3s ease, transform 0.3s ease;
     min-height: min-content;
     will-change: opacity, transform;
 }
 
+.ordering-menu-header {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.35rem 0.4rem;
+}
+
 .ordering-option {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.35rem;
+    gap: 0.4rem;
+    padding: 0.4rem 0.45rem;
     cursor: grab;
     color: var(--text-primary);
-    border-radius: 3px;
-    margin-bottom: 0.25rem;
+    border-radius: 4px;
+    margin-bottom: 0.2rem;
     user-select: none;
     background: var(--bg-primary);
     border: 1px solid transparent;
+    border-left: 3px solid transparent;
     position: relative;
     transition: transform 0.3s ease, background-color 0.2s ease, border-color 0.2s ease;
     will-change: transform;
+}
+
+.ordering-drag-handle {
+    font-size: 16px;
+    color: var(--text-muted);
+    cursor: grab;
+    opacity: 0.5;
+    transition: opacity 0.2s ease;
+}
+
+.ordering-option:hover .ordering-drag-handle {
+    opacity: 1;
+}
+
+.ordering-priority {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: rgba(207, 163, 70, 0.15);
+    color: var(--accent-gold);
+    font-size: 0.65rem;
+    font-weight: 700;
+    flex-shrink: 0;
 }
 
 .ordering-label {
@@ -1505,7 +1539,7 @@
     border: 1px solid var(--border-color);
     background: var(--bg-secondary);
     color: var(--text-secondary);
-    padding: 0.15rem 0.45rem;
+    padding: 0.2rem 0.5rem;
     font-size: 0.65rem;
     text-transform: uppercase;
     border-radius: 4px;
@@ -1521,27 +1555,32 @@
 
 .ordering-option:hover {
     background: var(--hover-color);
-    border-color: var(--accent-gold);
+    border-left-color: var(--accent-gold);
 }
 
 .ordering-option.dragging {
     opacity: 0.5;
     background: var(--hover-color);
     border: 1px dashed var(--accent-gold);
+    border-left: 3px dashed var(--accent-gold);
 }
 
 .ordering-menu-footer {
     border-top: 1px solid var(--border-color);
-    margin-top: 0.5rem;
-    padding-top: 0.5rem;
+    margin-top: 0.4rem;
+    padding-top: 0.4rem;
 }
 
 .ordering-reset-button {
     width: 100%;
     justify-content: center;
-    gap: 0.5rem;
-    font-size: 0.85rem;
+    gap: 0.4rem;
+    font-size: 0.8rem;
     padding: 0.4rem 0.6rem;
+}
+
+.ordering-reset-button .material-icons {
+    font-size: 16px;
 }
 
 /* Style for when an item is moving up */
@@ -1569,7 +1608,7 @@
 
 .ordering-arrows {
     display: flex;
-    gap: 4px;
+    gap: 2px;
 }
 
 .ordering-arrows button {
@@ -1577,11 +1616,18 @@
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 2px;
     font-size: 12px;
     line-height: 1;
     border-radius: 2px;
     transition: color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ordering-arrows button .material-icons {
+    font-size: 16px;
 }
 
 .ordering-arrows button:hover {

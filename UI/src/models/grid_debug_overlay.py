@@ -97,6 +97,11 @@ class GridDebugOverlay:
         # Wait briefly so the window is created before we return
         self._ready.wait(timeout=2.0)
 
+    def show_blocking(self, duration: float = 3.0) -> None:
+        """Show the grid overlay for *duration* seconds, blocking until it closes."""
+        self.show(duration=duration)
+        self._close_event.wait(timeout=duration + 2.0)
+
     def close(self) -> None:
         """Programmatically close the overlay early."""
         hwnd = self._hwnd
@@ -392,3 +397,15 @@ def close_grid_overlay() -> None:
         _overlay_instance.close()
     except Exception:
         pass
+
+
+def show_grid_preview(duration: float = 3.0) -> None:
+    """Show grid positions preview and block until it auto-closes.
+
+    Used before sort/deposit to give the user a few seconds to see where
+    the stash and inventory grids are detected, and to focus the game window.
+    """
+    try:
+        _overlay_instance.show_blocking(duration=duration)
+    except Exception:
+        logger.debug("show_grid_preview failed", exc_info=True)

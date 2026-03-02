@@ -1173,7 +1173,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         if (!newSettings.sortHotkey || !newSettings.cancelHotkey) {
             if (shouldNotify) {
-                showNotification('Please set both hotkeys', 'error');
+                showNotification('Please set the sort and cancel hotkeys', 'error');
             }
             return false;
         }

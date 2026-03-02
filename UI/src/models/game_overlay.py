@@ -810,8 +810,8 @@ class GameOverlayManager:
             top = 0
         overlay_width = max(480, min(int(width * 0.45), 760))
         overlay_height = max(300, min(int(height * 0.50), 720))
-        x = left + (width - overlay_width) // 2
-        y = top + int(height * 0.18)
+        x = left + 20
+        y = top + 20
         flags = (
             win32con.SWP_NOACTIVATE
             | win32con.SWP_NOOWNERZORDER
