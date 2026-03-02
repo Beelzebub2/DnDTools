@@ -116,7 +116,7 @@ class StashManager:
                         'nickname': nickname_data.get("originalNickName", "Unknown"),
                         'class': class_name,
                         'level': char_data.get("level", 1),
-                        'lastUpdate': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
+                        'lastUpdate': datetime.now().isoformat(),
                         'stashes': stashes,
                         'streamingModeName': nickname_data.get("streamingModeNickName", ""),
                         'rank': {
@@ -393,7 +393,7 @@ class StashManager:
                 'nickname': nickname_data.get('originalNickName', 'Unknown'),
                 'class': class_name,
                 'level': base.get('level', 1),
-                'lastUpdate': datetime.fromtimestamp(os.path.getmtime(file_path)).isoformat(),
+                'lastUpdate': datetime.now().isoformat(),
                 'stashes': stashes,
                 'streamingModeName': nickname_data.get('streamingModeNickName', ''),
                 'rank': {

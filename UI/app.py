@@ -399,6 +399,16 @@ def handle_character(message):
                     ''')
                 except Exception:
                     pass
+
+                # Notify the overlay window for instant data refresh
+                try:
+                    overlay_win = getattr(api._app_overlay, '_window', None)
+                    if overlay_win:
+                        overlay_win.evaluate_js(
+                            'if(window.onCharacterDataCaptured) window.onCharacterDataCaptured();'
+                        )
+                except Exception:
+                    pass
         except Exception as e:
             logger.error(f"Error extracting character info for animation: {e}")
     

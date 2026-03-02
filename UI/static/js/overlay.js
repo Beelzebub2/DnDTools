@@ -2669,6 +2669,12 @@
         loadQuests();
         // Start polling for new data captures
         startDataPolling();
+
+        // Expose a push handler so the backend can trigger an immediate
+        // refresh via evaluate_js when new character data is captured.
+        window.onCharacterDataCaptured = () => {
+            checkForDataUpdates();
+        };
     }
 
     // Boot
