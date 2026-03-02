@@ -1,7 +1,7 @@
 import copy
 
 _DEFAULT_DIRECTION = "desc"
-_DEFAULT_SORTABLE_FIELDS = ("slot", "height", "width", "name", "rarity")
+_DEFAULT_SORTABLE_FIELDS = ("width", "height", "slot", "rarity", "name")
 _DEFAULT_SORT_ORDER = [{"field": key, "direction": _DEFAULT_DIRECTION} for key in _DEFAULT_SORTABLE_FIELDS]
 
 

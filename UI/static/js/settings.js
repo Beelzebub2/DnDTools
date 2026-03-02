@@ -62,7 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         sortFeedbackSyncEnabled: 'Global Sort Learning',
         overlayEnabled: 'Game Overlay',
         overlayHotkey: 'Overlay Toggle Hotkey',
-        overlayOpacity: 'Overlay Opacity'
+        overlayOpacity: 'Overlay Opacity',
+        stashTabMapping: 'Stash Tab Mapping'
     };
 
     function updateSaveButtonState() {
@@ -1184,7 +1185,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false,
             overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
             overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
-            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92
+            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92,
+            stashTabMapping: [
+                4, 20,
+                ...tabMapSelects.slice(2).map(el => el ? parseInt(el.value, 10) : 0)
+            ]
         };
 
         if (!newSettings.interface) {
