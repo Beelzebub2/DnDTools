@@ -956,10 +956,13 @@ class StashManager:
             session.add_log(f"Selected stash tab: {tab_label}")
 
         # ── Cross-tab overflow: move excess items to another tab ──
-        keep, overflow = self._identify_overflow_items(stash, pack_mode, stack_mode)
+        keep, overflow = self._identify_overflow_items(
+            stash, pack_mode, stack_mode,
+            all_stashes=stashes, source_stash_id=stash_type_int,
+        )
         if overflow:
             session.add_log(
-                f"{len(overflow)} item(s) do not fit; attempting cross-tab overflow."
+                f"Relocating {len(overflow)} item(s) to free workspace for sorting."
             )
             dest_id = self._find_overflow_destination(
                 stash_type_int, overflow, stashes,
@@ -1042,6 +1045,9 @@ class StashManager:
 
     # ── Cross-tab overflow helpers ──────────────────────────────────────
 
+    _RELIEF_THRESHOLD = 0.85  # Only relieve if >85% full
+    _RELIEF_TARGET = 0.75     # Bring down to ~75% (60 free cells in 240-cell stash)
+
     _OVERFLOW_CANDIDATE_TYPES = {
         StashType.STORAGE.value,
         StashType.PURCHASED_STORAGE_0.value,
@@ -1053,11 +1059,15 @@ class StashManager:
         StashType.SHARED_STASH_SEASONAL_0.value,
     }
 
-    def _identify_overflow_items(self, stash, pack_mode, stack_mode):
+    def _identify_overflow_items(self, stash, pack_mode, stack_mode, all_stashes=None, source_stash_id=None):
         """Partition stash items into (keep, overflow).
 
         Performs trial layouts, removing the lowest-priority items one at a
-        time until the layout succeeds.  Returns ``(items_that_fit, overflow)``.
+        time until the layout succeeds.  When the stash is very full (above
+        ``_RELIEF_THRESHOLD``) and other stashes have free space, proactively
+        evacuates items to create sorting workspace.
+
+        Returns ``(items_that_fit, overflow)``.
         """
         all_items = list(stash.pq)
         if not all_items:
@@ -1069,11 +1079,63 @@ class StashManager:
         )
         try:
             planner.build(all_items)
-            return all_items, []
         except LayoutPlanError:
-            pass
+            # Items physically don't fit -- fall through to forced removal
+            return self._remove_until_fits(stash, all_items, pack_mode, stack_mode)
 
-        # Lowest-priority items removed first (smallest area, lowest rarity).
+        # ── Proactive workspace relief ──
+        total_cells = stash.width * stash.height
+        occupied = sum(itm.width * itm.height for itm in all_items)
+        fill_ratio = occupied / total_cells if total_cells else 0
+
+        if fill_ratio <= self._RELIEF_THRESHOLD:
+            return all_items, []
+
+        # Check if any destination stash has meaningful free space
+        if not self._has_overflow_destination(all_stashes, source_stash_id):
+            return all_items, []
+
+        # Target: reduce to _RELIEF_TARGET fill
+        target_occupied = int(total_cells * self._RELIEF_TARGET)
+        cells_to_free = max(0, occupied - target_occupied)
+        if cells_to_free <= 0:
+            return all_items, []
+
+        # Remove lowest-priority items first (smallest area, lowest rarity)
+        candidates = sorted(all_items, key=lambda itm: (
+            itm.width * itm.height,
+            getattr(itm, 'rarity', 0) or 0,
+            getattr(itm, 'vendor_price', 0) or 0,
+        ))
+
+        overflow: list = []
+        freed = 0
+        remaining = list(all_items)
+
+        for candidate in candidates:
+            if freed >= cells_to_free:
+                break
+            remaining.remove(candidate)
+            overflow.append(candidate)
+            freed += candidate.width * candidate.height
+
+        if not overflow:
+            return all_items, []
+
+        # Verify the reduced set still produces a valid layout
+        planner2 = LayoutPlanner(
+            stash.width, stash.height,
+            prefer_dense=pack_mode, stash=stash, stack_mode=stack_mode,
+        )
+        try:
+            planner2.build(remaining)
+            return remaining, overflow
+        except LayoutPlanError:
+            # Safety: don't overflow if reduced set somehow fails
+            return all_items, []
+
+    def _remove_until_fits(self, stash, all_items, pack_mode, stack_mode):
+        """Remove lowest-priority items one at a time until layout succeeds."""
         candidates = sorted(all_items, key=lambda itm: (
             itm.width * itm.height,
             getattr(itm, 'rarity', 0) or 0,
@@ -1097,6 +1159,26 @@ class StashManager:
                 continue
 
         return [], all_items
+
+    def _has_overflow_destination(self, all_stashes, source_stash_id):
+        """Quick check: does any other stash have significant free space?"""
+        if not all_stashes:
+            return False
+        for stash_type_val in self._OVERFLOW_CANDIDATE_TYPES:
+            if stash_type_val == source_stash_id:
+                continue
+            items = all_stashes.get(stash_type_val)
+            if items is None:
+                items = all_stashes.get(str(stash_type_val))
+            if items is None:
+                continue
+            try:
+                dest = Storage(stash_type_val, items)
+                if dest.count_free_cells() >= 20:
+                    return True
+            except Exception:
+                continue
+        return False
 
     def _find_overflow_destination(self, source_stash_id, overflow_items, all_stashes):
         """Pick the stash tab with the most free cells to receive overflow.
