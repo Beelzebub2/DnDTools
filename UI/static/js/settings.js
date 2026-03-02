@@ -23,6 +23,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     const overlayHotkeyInput = document.getElementById('overlayHotkey');
     const overlayOpacitySlider = document.getElementById('overlayOpacity');
     const overlayOpacityValue = document.getElementById('overlayOpacityValue');
+    const tabMapSelects = [
+        null, null,  // indices 0, 1 are fixed (Storage, Shared Stash)
+        document.getElementById('tabMap2'),
+        document.getElementById('tabMap3'),
+        document.getElementById('tabMap4'),
+        document.getElementById('tabMap5'),
+        document.getElementById('tabMap6'),
+        document.getElementById('tabMap7'),
+    ];
     const saveButton = document.getElementById('saveSettings');
     const resetButton = document.getElementById('resetSettings');
     const tabButtons = Array.from(document.querySelectorAll('.nav-pill'));
@@ -53,7 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         sortFeedbackSyncEnabled: 'Global Sort Learning',
         overlayEnabled: 'Game Overlay',
         overlayHotkey: 'Overlay Toggle Hotkey',
-        overlayOpacity: 'Overlay Opacity'
+        overlayOpacity: 'Overlay Opacity',
+        stashTabMapping: 'Stash Tab Mapping'
     };
 
     function updateSaveButtonState() {
@@ -188,7 +198,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortFeedbackSyncEnabled: normalizeBoolean(settings.sortFeedbackSyncEnabled),
             overlayEnabled: normalizeBoolean(settings.overlayEnabled),
             overlayHotkey: (settings.overlayHotkey || '').trim().toLowerCase(),
-            overlayOpacity: toNumber(settings.overlayOpacity)
+            overlayOpacity: toNumber(settings.overlayOpacity),
+            stashTabMapping: JSON.stringify(settings.stashTabMapping || [4,20,5,6,7,8,9,30])
         };
     }
 
@@ -207,7 +218,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortFeedbackSyncEnabled: Boolean(settings.sortFeedbackSyncEnabled),
             overlayEnabled: Boolean(settings.overlayEnabled),
             overlayHotkey: settings.overlayHotkey || 'ctrl+shift+o',
-            overlayOpacity: parseFloat(settings.overlayOpacity) || 0.92
+            overlayOpacity: parseFloat(settings.overlayOpacity) || 0.92,
+            stashTabMapping: settings.stashTabMapping || [4, 20, 5, 6, 7, 8, 9, 30]
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -230,7 +242,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false,
             overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
             overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
-            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92
+            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92,
+            stashTabMapping: [
+                4, 20,
+                ...tabMapSelects.slice(2).map(el => el ? parseInt(el.value, 10) : 0)
+            ]
         };
     }
 
@@ -552,6 +568,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             applyOverlayDependentState();
+
+            // Tab mapping dropdowns (indices 2-7 are configurable)
+            const mapping = currentSettings.stashTabMapping || [4, 20, 5, 6, 7, 8, 9, 30];
+            for (let i = 2; i < 8; i++) {
+                if (tabMapSelects[i]) {
+                    tabMapSelects[i].value = String(mapping[i] || 0);
+                }
+            }
         });
 
         runWithApplyingFlag(() => {
@@ -1161,7 +1185,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             sortFeedbackSyncEnabled: feedbackSyncCheckbox ? feedbackSyncCheckbox.checked : false,
             overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
             overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
-            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92
+            overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92,
+            stashTabMapping: [
+                4, 20,
+                ...tabMapSelects.slice(2).map(el => el ? parseInt(el.value, 10) : 0)
+            ]
         };
 
         if (!newSettings.interface) {
@@ -1679,7 +1707,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: feedbackSyncCheckbox, events: ['change'] },
         { element: overlayEnabledCheckbox, events: ['change'] },
         { element: overlayHotkeyInput, events: ['change', 'blur'] },
-        { element: overlayOpacitySlider, events: ['change'] }
+        { element: overlayOpacitySlider, events: ['change'] },
+        ...tabMapSelects.filter(Boolean).map(el => ({ element: el, events: ['change'] }))
     ];
 
     trackableElements
@@ -1713,7 +1742,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         calibrateBtn.classList.add('loading');
 
         try {
-            const result = await window.pywebview.api.open_calibration();
+            const startResult = await window.pywebview.api.open_calibration();
+
+            if (!startResult?.started) {
+                showNotification(startResult?.error || 'Could not start calibration.', 'error');
+                return;
+            }
+
+            // Poll for result — the overlay runs in a background thread
+            const result = await new Promise((resolve) => {
+                const poll = setInterval(async () => {
+                    try {
+                        const status = await window.pywebview.api.calibration_status();
+                        if (!status?.running) {
+                            clearInterval(poll);
+                            resolve(status);
+                        }
+                    } catch {
+                        clearInterval(poll);
+                        resolve({ saved: false });
+                    }
+                }, 500);
+            });
 
             if (result && result.saved) {
                 const submitMsg = result.submitted

@@ -73,11 +73,11 @@ const rarityColors = {
 };
 
 const DEFAULT_SORT_ORDER = Object.freeze([
-    { field: 'slot', direction: 'asc' },
-    { field: 'height', direction: 'desc' },
     { field: 'width', direction: 'desc' },
-    { field: 'name', direction: 'desc' },
-    { field: 'rarity', direction: 'desc' }
+    { field: 'height', direction: 'desc' },
+    { field: 'slot', direction: 'desc' },
+    { field: 'rarity', direction: 'desc' },
+    { field: 'name', direction: 'desc' }
 ]);
 
 let currentSortOrder = cloneSortOrder(DEFAULT_SORT_ORDER);
@@ -2379,6 +2379,7 @@ const triggerSort = async () => {
         const result = await response.json();
 
         if (result.success) {
+            latestStashData = null;
             await loadStashes();
             showSortSuccessNotification();
             // Turn off sort preview after successful sort
@@ -3073,6 +3074,8 @@ window.updateCharacterData = async () => {
     await updateCharacterInfo(charId);
     // Invalidate stale feasibility cache before reloading stashes
     transferFeasibilityCache = null;
+    // Clear stale stash data so loadStashes() refetches everything
+    latestStashData = null;
     await loadStashes();
     // Refresh deposit badge with fresh data
     updateDepositButtonState();

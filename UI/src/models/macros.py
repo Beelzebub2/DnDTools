@@ -76,12 +76,50 @@ BASE_LAYOUT = {
     'stash': Point(1378, 199),
     'inv': Point(690, 626),
     'jump': 40.5,
+    'stash_tab_origin': Point(1328, 211),   # centre of the first stash tab selector
+    'stash_tab_spacing': 47,                # vertical px between consecutive tab centres
 }
+
+# Number of stash tab selectors in the game UI (Storage, Purchased 0-4,
+# Shared Stash, Shared Stash Seasonal).
+STASH_TAB_COUNT = 8
+
+# Human-readable name for each StashType integer value.
+STASH_TYPE_NAMES = {
+    4: 'Storage', 5: 'Purchased 1', 6: 'Purchased 2',
+    7: 'Purchased 3', 8: 'Purchased 4', 9: 'Purchased 5',
+    20: 'Shared Stash', 30: 'Shared Seasonal',
+}
+
+# Default mapping: box index (0-7) → StashType int.
+# Box 0 = Storage, Box 1 = Shared Stash, Boxes 2-7 = Purchased 1-5 + Seasonal.
+DEFAULT_STASH_TAB_MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
+
+# These module-level globals are rebuilt by load_tab_mapping().
+STASH_TAB_LABELS: list = [STASH_TYPE_NAMES.get(v, '?') for v in DEFAULT_STASH_TAB_MAPPING]
+STASH_TYPE_TO_TAB_INDEX: dict = {v: i for i, v in enumerate(DEFAULT_STASH_TAB_MAPPING) if v}
+
+
+def load_tab_mapping():
+    """Rebuild STASH_TYPE_TO_TAB_INDEX and STASH_TAB_LABELS from settings."""
+    global STASH_TYPE_TO_TAB_INDEX, STASH_TAB_LABELS
+    mapping = None
+    try:
+        mapping = settings_manager.get('stashTabMapping')
+    except Exception:
+        pass
+    if not mapping or not isinstance(mapping, list) or len(mapping) != STASH_TAB_COUNT:
+        mapping = list(DEFAULT_STASH_TAB_MAPPING)
+    STASH_TAB_LABELS = [STASH_TYPE_NAMES.get(v, '?') for v in mapping]
+    STASH_TYPE_TO_TAB_INDEX = {v: i for i, v in enumerate(mapping) if v}
 
 # Resolutions that benefit from hand-tuned offsets can live here
 MANUAL_OVERRIDES = {
     # Keeping the empirically tested fullscreen values for 720p
-    (1280, 720): {'stash': Point(918, 132), 'inv': Point(457, 416), 'jump': 27},
+    (1280, 720): {
+        'stash': Point(918, 132), 'inv': Point(457, 416), 'jump': 27,
+        'stash_tab_origin': Point(881, 139), 'stash_tab_spacing': 31,
+    },
 }
 
 COMMON_RESOLUTIONS = [
@@ -138,7 +176,11 @@ def _scaled_layout(resolution):
                            int(round(BASE_LAYOUT['stash'].y * scale))),
             'inv': Point(int(round(BASE_LAYOUT['inv'].x * scale + pillarbox)),
                          int(round(BASE_LAYOUT['inv'].y * scale))),
-            'jump': max(BASE_LAYOUT['jump'] * scale, 1.0)
+            'jump': max(BASE_LAYOUT['jump'] * scale, 1.0),
+            'stash_tab_origin': Point(
+                int(round(BASE_LAYOUT['stash_tab_origin'].x * scale + pillarbox)),
+                int(round(BASE_LAYOUT['stash_tab_origin'].y * scale))),
+            'stash_tab_spacing': max(BASE_LAYOUT['stash_tab_spacing'] * scale, 1.0),
         }
 
     # Standard (≤16:9) aspect ratio – independent axis scaling
@@ -150,7 +192,11 @@ def _scaled_layout(resolution):
                        int(round(BASE_LAYOUT['stash'].y * scale_y))),
         'inv': Point(int(round(BASE_LAYOUT['inv'].x * scale_x)),
                      int(round(BASE_LAYOUT['inv'].y * scale_y))),
-        'jump': max(BASE_LAYOUT['jump'] * scale_y, 1.0)
+        'jump': max(BASE_LAYOUT['jump'] * scale_y, 1.0),
+        'stash_tab_origin': Point(
+            int(round(BASE_LAYOUT['stash_tab_origin'].x * scale_x)),
+            int(round(BASE_LAYOUT['stash_tab_origin'].y * scale_y))),
+        'stash_tab_spacing': max(BASE_LAYOUT['stash_tab_spacing'] * scale_y, 1.0),
     }
 
 
@@ -381,8 +427,25 @@ def _apply_calibration_override(positions, res):
                 positions['inv'].x + dx_i,
                 positions['inv'].y + dy_i,
             )
+            # Stash tab selectors are adjacent to the stash — shift by the stash delta
+            if 'stash_tab_origin' in positions:
+                positions['stash_tab_origin'] = Point(
+                    positions['stash_tab_origin'].x + dx_s,
+                    positions['stash_tab_origin'].y + dy_s,
+                )
             if cal.get('jump') is not None:
                 positions['jump'] = float(cal['jump'])
+        # Allow independent stash-tab overrides from the settings page
+        tab_override = cal.get('stashTabOriginDelta', {})
+        tdx, tdy = tab_override.get('dx', 0), tab_override.get('dy', 0)
+        if tdx or tdy:
+            if 'stash_tab_origin' in positions:
+                positions['stash_tab_origin'] = Point(
+                    positions['stash_tab_origin'].x + tdx,
+                    positions['stash_tab_origin'].y + tdy,
+                )
+        if cal.get('stashTabSpacing') is not None:
+            positions['stash_tab_spacing'] = float(cal['stashTabSpacing'])
     except Exception:
         pass  # fall through to uncalibrated positions
     return positions
@@ -405,7 +468,15 @@ def get_base_screen_positions():
                 base_pos = _ensure_positions(res)
                 stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
                 inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
-                return {'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"])}
+                tab_origin = Point(
+                    base_pos["stash_tab_origin"].x + window_left,
+                    base_pos["stash_tab_origin"].y + window_top,
+                )
+                return {
+                    'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"]),
+                    'stash_tab_origin': tab_origin,
+                    'stash_tab_spacing': base_pos['stash_tab_spacing'],
+                }
 
     return _clone_layout(_ensure_positions(res))
 
@@ -421,15 +492,26 @@ def get_screen_positions():
                 base_pos = _ensure_positions(res)
                 stash = Point(base_pos["stash"].x + window_left, base_pos["stash"].y + window_top)
                 inv = Point(base_pos["inv"].x + window_left, base_pos["inv"].y + window_top)
+                tab_origin = Point(
+                    base_pos["stash_tab_origin"].x + window_left,
+                    base_pos["stash_tab_origin"].y + window_top,
+                )
                 positions = _apply_calibration_override(
-                    {'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"])}, res,
+                    {
+                        'stash': stash, 'inv': inv, 'jump': float(base_pos["jump"]),
+                        'stash_tab_origin': tab_origin,
+                        'stash_tab_spacing': base_pos['stash_tab_spacing'],
+                    }, res,
                 )
                 # Keep module-level globals in sync so move_from_to_reliable
                 # (and other helpers) use the calibrated values.
                 global stash_screen_pos, inv_screen_pos, jump
+                global stash_tab_origin, stash_tab_spacing
                 stash_screen_pos = positions['stash']
                 inv_screen_pos = positions['inv']
                 jump = float(positions['jump'])
+                stash_tab_origin = positions['stash_tab_origin']
+                stash_tab_spacing = float(positions['stash_tab_spacing'])
                 return positions
 
     positions = _apply_calibration_override(_clone_layout(_ensure_positions(res)), res)
@@ -438,13 +520,61 @@ def get_screen_positions():
     stash_screen_pos = positions['stash']
     inv_screen_pos = positions['inv']
     jump = float(positions['jump'])
+    stash_tab_origin = positions['stash_tab_origin']
+    stash_tab_spacing = float(positions['stash_tab_spacing'])
     return positions
+
+
+def get_stash_tab_positions():
+    """Return a list of *STASH_TAB_COUNT* Points — one per stash tab selector.
+
+    Each position is computed from the calibrated tab origin + index * spacing.
+    """
+    origin = stash_tab_origin
+    spacing = stash_tab_spacing
+    return [
+        Point(int(round(origin.x)), int(round(origin.y + i * spacing)))
+        for i in range(STASH_TAB_COUNT)
+    ]
+
+
+def click_stash_tab(stash_type_value: int) -> bool:
+    """Click the stash tab selector for the given StashType value.
+
+    Returns True if the tab was clicked, False if the stash_type has no
+    corresponding tab (e.g. BAG, EQUIPMENT).
+    """
+    tab_index = STASH_TYPE_TO_TAB_INDEX.get(stash_type_value)
+    if tab_index is None:
+        logger.debug("No tab mapping for stash type %s", stash_type_value)
+        return False
+
+    _ensure_not_cancelled()
+    tab_positions = get_stash_tab_positions()
+    if tab_index >= len(tab_positions):
+        logger.warning("Tab index %d out of range (have %d tabs)", tab_index, len(tab_positions))
+        return False
+
+    pos = tab_positions[tab_index]
+    move_mouse(pos.x, pos.y)
+    _sleep_with_cancel(0.05)
+    mouse_down()
+    _sleep_with_cancel(0.03)
+    mouse_up()
+    _sleep_with_cancel(0.15)
+    logger.info("Clicked stash tab %d (stash type %d) at (%d, %d)",
+                tab_index, stash_type_value, pos.x, pos.y)
+    return True
 
 
 _initial_positions = get_screen_positions()
 stash_screen_pos = _initial_positions['stash']
 inv_screen_pos = _initial_positions['inv']
 jump = float(_initial_positions['jump'])
+stash_tab_origin = _initial_positions['stash_tab_origin']
+stash_tab_spacing = float(_initial_positions['stash_tab_spacing'])
+
+load_tab_mapping()
 
 
 def get_sort_delay():
