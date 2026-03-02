@@ -39,6 +39,7 @@
     const TILE = CELL_SIZE + CELL_GAP; // 48
 
     const DEFAULT_SORT_ORDER = [
+        { field: 'slot', direction: 'asc' },
         { field: 'height', direction: 'desc' },
         { field: 'width', direction: 'desc' },
         { field: 'name', direction: 'desc' },
@@ -1144,6 +1145,11 @@
             const field = (d.field || '').toLowerCase();
             const dir = (d.direction || 'desc').toLowerCase();
             switch (field) {
+                case 'slot': {
+                    const as = (a.slot_type || '').toLowerCase(), bs = (b.slot_type || '').toLowerCase();
+                    if (as !== bs) return dir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
+                    break;
+                }
                 case 'height': case 'width': {
                     const av = Number(a[field] ?? 0), bv = Number(b[field] ?? 0);
                     if (av !== bv) return dir === 'asc' ? av - bv : bv - av;
