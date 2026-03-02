@@ -970,52 +970,6 @@ class StashManager:
         if cancel_event and cancel_event.is_set():
             return False, "Sort cancelled", session_summary
 
-        # ── Cross-tab overflow: move excess items to another tab ──
-        overflow_dest_stash = None
-        overflow_dest_id = None
-        keep, overflow = self._identify_overflow_items(
-            stash, pack_mode, stack_mode,
-            all_stashes=stashes, source_stash_id=stash_type_int,
-        )
-        if overflow:
-            session.add_log(
-                f"Relocating {len(overflow)} item(s) to free workspace for sorting."
-            )
-            overflow_dest_id = self._find_overflow_destination(
-                stash_type_int, overflow, stashes,
-            )
-            if overflow_dest_id is None:
-                session.update_status(
-                    "No destination stash has enough free space for overflow.",
-                    status="error",
-                )
-                return False, "No overflow destination available", session_summary
-
-            tab_idx = macros.STASH_TYPE_TO_TAB_INDEX.get(overflow_dest_id)
-            dest_label = macros.STASH_TAB_LABELS[tab_idx] if tab_idx is not None else f"Stash {overflow_dest_id}"
-            session.add_log(f"Overflow destination: {dest_label}")
-
-            dest_items = stashes.get(overflow_dest_id)
-            if dest_items is None:
-                dest_items = stashes.get(str(overflow_dest_id), [])
-
-            overflow_dest_stash = self._execute_overflow_transfer(
-                source_stash=stash,
-                dest_stash_id=overflow_dest_id,
-                dest_stash_items=dest_items,
-                overflow_items=overflow,
-                inventory=inventory,
-                cancel_event=cancel_event,
-                session=session,
-            )
-            if overflow_dest_stash is None:
-                session.update_status("Overflow transfer failed.", status="error")
-                return False, "Overflow transfer failed", session_summary
-
-            stash.rebuild_pq()
-            # Inventory should be empty after a complete transfer.
-            inventory = Storage(StashType.BAG.value, inv_items)
-
         sorter = StashSorter(
             stash,
             inventory,
@@ -1044,22 +998,6 @@ class StashManager:
         if cancel_event and cancel_event.is_set():
             session_summary = sorter.get_feedback_summary()
             return False, "Sort cancelled", session_summary
-
-        # ── Return overflow items to original stash ──
-        if overflow and overflow_dest_stash is not None:
-            if not (cancel_event and cancel_event.is_set()):
-                session.update_status("Returning overflow items...", status="info")
-                returned_count = self._return_overflow_items(
-                    source_stash=stash,
-                    dest_stash=overflow_dest_stash,
-                    dest_stash_id=overflow_dest_id,
-                    overflow_items=overflow,
-                    inv_items_raw=inv_items,
-                    cancel_event=cancel_event,
-                    session=session,
-                )
-                if returned_count:
-                    session.add_log(f"Returned {returned_count} overflow item(s) to stash.")
 
         if success:
             session.update_status("Refreshing stash data...", status="success")

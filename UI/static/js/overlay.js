@@ -39,11 +39,11 @@
     const TILE = CELL_SIZE + CELL_GAP; // 48
 
     const DEFAULT_SORT_ORDER = [
-        { field: 'slot', direction: 'asc' },
-        { field: 'height', direction: 'desc' },
         { field: 'width', direction: 'desc' },
-        { field: 'name', direction: 'desc' },
-        { field: 'rarity', direction: 'desc' }
+        { field: 'height', direction: 'desc' },
+        { field: 'slot', direction: 'desc' },
+        { field: 'rarity', direction: 'desc' },
+        { field: 'name', direction: 'desc' }
     ];
 
     const CLASS_MAP = {
