@@ -1,7 +1,7 @@
 import copy
 
 _DEFAULT_DIRECTION = "desc"
-_DEFAULT_SORTABLE_FIELDS = ("height", "width", "name", "rarity")
+_DEFAULT_SORTABLE_FIELDS = ("slot", "height", "width", "name", "rarity")
 _DEFAULT_SORT_ORDER = [{"field": key, "direction": _DEFAULT_DIRECTION} for key in _DEFAULT_SORTABLE_FIELDS]
 
 
@@ -37,6 +37,7 @@ class Item:
         vendor_price=None,
         quantity=1,
         max_stack_size=1,
+        slot_type="",
     ):
         self.item_id = item_id
         self.name = name
@@ -46,6 +47,7 @@ class Item:
         self.position = position
         self.stash = stash
         self.vendor_price = vendor_price
+        self.slot_type = slot_type or ""
         self.quantity = int(quantity) if quantity is not None else 1
         if self.quantity < 1:
             self.quantity = 1
@@ -82,6 +84,7 @@ class Item:
             "vendor_price": self.vendor_price,
             "itemCount": self.quantity,
             "maxStackSize": self.max_stack_size,
+            "slot_type": self.slot_type,
         }
 
     @classmethod
@@ -141,6 +144,12 @@ class Item:
 
             if field in ("height", "width"):
                 result = cls._compare_numeric(getattr(left, field, 0), getattr(right, field, 0), direction)
+            elif field == "slot":
+                result = cls._compare_string(
+                    getattr(left, "slot_type", ""),
+                    getattr(right, "slot_type", ""),
+                    direction,
+                )
             elif field == "rarity":
                 result = cls._compare_numeric(
                     cls._rarity_rank(getattr(left, "rarity", None)),

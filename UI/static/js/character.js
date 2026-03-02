@@ -73,6 +73,7 @@ const rarityColors = {
 };
 
 const DEFAULT_SORT_ORDER = Object.freeze([
+    { field: 'slot', direction: 'asc' },
     { field: 'height', direction: 'desc' },
     { field: 'width', direction: 'desc' },
     { field: 'name', direction: 'desc' },
@@ -1285,6 +1286,14 @@ function compareItemsForPreview(itemA, itemB, sortOrder) {
         }
         const { field, direction } = normalized;
         switch (field) {
+            case 'slot': {
+                const aSlot = (itemA.slot_type || '').toLowerCase();
+                const bSlot = (itemB.slot_type || '').toLowerCase();
+                if (aSlot !== bSlot) {
+                    return direction === 'asc' ? aSlot.localeCompare(bSlot) : bSlot.localeCompare(aSlot);
+                }
+                break;
+            }
             case 'height':
             case 'width': {
                 const aVal = Number(itemA[field] ?? 0);

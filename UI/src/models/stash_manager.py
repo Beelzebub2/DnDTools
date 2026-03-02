@@ -744,7 +744,8 @@ class StashManager:
                         'imagePath': image_url,
                         'vendor_price': item_meta.get("vendor_price", 0),
                         'maxStackSize': max_stack,
-                        'max_stack_size': max_stack
+                        'max_stack_size': max_stack,
+                        'slot_type': item_meta.get("slot_type", ""),
                     }
                     if loot_state_value is not None:
                         enhanced_item['lootState'] = loot_state_value

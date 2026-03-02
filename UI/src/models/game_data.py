@@ -91,6 +91,12 @@ class ItemDataManager:
         item = self._data.get(item_id, {})
         return item.get("max_stack_size", 1)
 
+    def get_item_slot_type(self, item_id):
+        """Get equipment slot type for an item (e.g. Head, Chest, Hands)."""
+        self._ensure_loaded()
+        item = self._data.get(item_id, {})
+        return item.get("slot_type", "")
+
     def get_item_data(self, item_id):
         """Get full item data for an item"""
         self._ensure_loaded()
