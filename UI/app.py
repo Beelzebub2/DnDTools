@@ -2550,70 +2550,124 @@ class Api:
             return False
 
     def open_calibration(self):
-        """Open the native calibration overlay over the game window.
+        """Launch the native calibration overlay in a background thread.
 
-        Blocks until the user saves or cancels.  On save, persists the
-        adjusted positions locally and submits them to the website.
+        Returns immediately so the pywebview JS callback doesn't time out.
+        The frontend should poll :meth:`calibration_status` until the overlay
+        closes.
         """
-        from src.models.calibration_overlay import run_calibration_overlay
-        import requests as http_requests
+        if getattr(self, '_calibration_running', False):
+            return {'success': False, 'error': 'Calibration already in progress'}
 
-        result = run_calibration_overlay()
+        self._calibration_running = True
+        self._calibration_result = None
 
-        if not result.get('saved'):
-            return {'success': True, 'saved': False}
+        import threading
 
-        # Persist locally as deltas (robust for windowed-mode window moves)
-        try:
-            orig_stash = result.get('originalStash', result['stash'])
-            orig_inv = result.get('originalInv', result['inv'])
-            self.settings_manager.update({
-                'calibrationOverride': {
-                    'resolution': result['resolution'],
-                    'stashDelta': {
-                        'dx': result['stash']['x'] - orig_stash['x'],
-                        'dy': result['stash']['y'] - orig_stash['y'],
-                    },
-                    'invDelta': {
-                        'dx': result['inv']['x'] - orig_inv['x'],
-                        'dy': result['inv']['y'] - orig_inv['y'],
-                    },
-                    'jump': result.get('jump'),
+        def _run():
+            try:
+                from src.models.calibration_overlay import run_calibration_overlay
+                import requests as http_requests
+
+                result = run_calibration_overlay()
+
+                if not result.get('saved'):
+                    self._calibration_result = {'success': True, 'saved': False}
+                    return
+
+                logger.info(
+                    "Calibration saved — stash=(%s, %s) inv=(%s, %s) jump=%.1f "
+                    "tabOrigin=(%s, %s) tabSpacing=%.1f resolution=%s",
+                    result['stash']['x'], result['stash']['y'],
+                    result['inv']['x'], result['inv']['y'],
+                    result.get('jump', 0),
+                    result.get('tabOrigin', {}).get('x', '?'),
+                    result.get('tabOrigin', {}).get('y', '?'),
+                    result.get('tabSpacing', 0),
+                    result.get('resolution'),
+                )
+
+                # Persist locally as deltas (robust for windowed-mode window moves)
+                try:
+                    orig_stash = result.get('originalStash', result['stash'])
+                    orig_inv = result.get('originalInv', result['inv'])
+                    cal_override = {
+                        'resolution': result['resolution'],
+                        'stashDelta': {
+                            'dx': result['stash']['x'] - orig_stash['x'],
+                            'dy': result['stash']['y'] - orig_stash['y'],
+                        },
+                        'invDelta': {
+                            'dx': result['inv']['x'] - orig_inv['x'],
+                            'dy': result['inv']['y'] - orig_inv['y'],
+                        },
+                        'jump': result.get('jump'),
+                    }
+                    # Stash tab selector overrides
+                    if 'tabOrigin' in result:
+                        orig_tab = result.get('originalTabOrigin', result['tabOrigin'])
+                        cal_override['stashTabOriginDelta'] = {
+                            'dx': result['tabOrigin']['x'] - orig_tab['x'],
+                            'dy': result['tabOrigin']['y'] - orig_tab['y'],
+                        }
+                    if 'tabSpacing' in result:
+                        cal_override['stashTabSpacing'] = result['tabSpacing']
+                    self.settings_manager.update({
+                        'calibrationOverride': cal_override,
+                    })
+                    logger.info("Calibration persisted — overrides: %s", cal_override)
+                except Exception as exc:
+                    logger.error("Failed to persist calibration locally: %s", exc, exc_info=True)
+
+                # Submit to website (best-effort)
+                submitted = False
+                try:
+                    payload = {
+                        'resolution': result['resolution'],
+                        'stash': result['stash'],
+                        'inv': result['inv'],
+                        'jump': result.get('jump'),
+                        'originalStash': result.get('originalStash'),
+                        'originalInv': result.get('originalInv'),
+                        'originalJump': result.get('originalJump'),
+                        'appVersion': APP_VERSION,
+                    }
+                    resp = http_requests.post(
+                        'https://dndtools.rrmtools.uk/api/calibration',
+                        json=payload,
+                        headers={'User-Agent': 'DnDTools-Calibration', 'Content-Type': 'application/json'},
+                        timeout=10,
+                    )
+                    submitted = resp.status_code in (200, 201, 202)
+                except Exception as exc:
+                    logger.debug("Calibration submission failed (non-critical): %s", exc)
+
+                self._calibration_result = {
+                    'success': True,
+                    'saved': True,
+                    'submitted': submitted,
+                    'stash': result['stash'],
+                    'inv': result['inv'],
                 }
-            })
-        except Exception as exc:
-            logger.error("Failed to persist calibration locally: %s", exc, exc_info=True)
+            except Exception as exc:
+                logger.error("Calibration thread error: %s", exc, exc_info=True)
+                self._calibration_result = {'success': False, 'error': str(exc)}
+            finally:
+                self._calibration_running = False
 
-        # Submit to website (best-effort)
-        submitted = False
-        try:
-            payload = {
-                'resolution': result['resolution'],
-                'stash': result['stash'],
-                'inv': result['inv'],
-                'jump': result.get('jump'),
-                'originalStash': result.get('originalStash'),
-                'originalInv': result.get('originalInv'),
-                'originalJump': result.get('originalJump'),
-                'appVersion': APP_VERSION,
-            }
-            resp = http_requests.post(
-                'https://dndtools.rrmtools.uk/api/calibration',
-                json=payload,
-                headers={'User-Agent': 'DnDTools-Calibration', 'Content-Type': 'application/json'},
-                timeout=10,
-            )
-            submitted = resp.status_code in (200, 201, 202)
-        except Exception as exc:
-            logger.debug("Calibration submission failed (non-critical): %s", exc)
+        threading.Thread(target=_run, daemon=True, name="CalibrationWorker").start()
+        return {'success': True, 'started': True}
 
-        return {
-            'success': True,
-            'saved': True,
-            'submitted': submitted,
-            'stash': result['stash'],
-            'inv': result['inv'],
-        }
+    def calibration_status(self):
+        """Poll for calibration result.  Returns ``{'running': True}`` while
+        the overlay is still open, or the final result dict once done."""
+        if getattr(self, '_calibration_running', False):
+            return {'running': True}
+        result = getattr(self, '_calibration_result', None)
+        if result is not None:
+            self._calibration_result = None  # consume once
+            return result
+        return {'running': False, 'saved': False}
 
 @server.route('/api/download_update')
 def download_update():
@@ -3733,19 +3787,34 @@ def api_auto_resolution():
 @server.route('/api/calibration', methods=['GET'])
 def api_calibration_data():
     """Return current detected grid positions (informational)."""
-    from src.models.macros import get_screen_positions, get_current_resolution
+    from src.models.macros import (
+        get_screen_positions, get_current_resolution, get_stash_tab_positions,
+        STASH_TAB_COUNT, STASH_TAB_LABELS,
+    )
     try:
         positions = get_screen_positions()
         resolution = get_current_resolution()
         jump = float(positions.get('jump', 40))
         stash = positions.get('stash')
         inv = positions.get('inv')
+        tab_origin = positions.get('stash_tab_origin')
+        tab_spacing = positions.get('stash_tab_spacing', 47)
+        tab_positions = get_stash_tab_positions()
         return jsonify({
             'success': True,
             'resolution': {'width': resolution[0], 'height': resolution[1]},
             'jump': jump,
             'stash': {'x': int(stash.x), 'y': int(stash.y)},
             'inv': {'x': int(inv.x), 'y': int(inv.y)},
+            'stashTabOrigin': {'x': int(tab_origin.x), 'y': int(tab_origin.y)},
+            'stashTabSpacing': round(tab_spacing, 1),
+            'stashTabCount': STASH_TAB_COUNT,
+            'stashTabLabels': STASH_TAB_LABELS,
+            'stashTabs': [
+                {'index': i, 'label': STASH_TAB_LABELS[i],
+                 'x': int(p.x), 'y': int(p.y)}
+                for i, p in enumerate(tab_positions)
+            ],
         })
     except Exception as exc:
         logger.error("Failed to gather calibration data: %s", exc, exc_info=True)
@@ -4045,7 +4114,8 @@ def main():
         'search_items', 'get_characters', 'get_characters_summary', 'get_character_details',
         'get_capture_settings', 'set_capture_settings', 'get_character_stash_previews',
         'get_capture_state', 'set_sort_order', 'select_wireshark_path', 'detect_wireshark_path',
-        'open_calibration'
+        'open_calibration',
+        'calibration_status'
     ]:
         if hasattr(api, method_name):
             window.expose(getattr(api, method_name))

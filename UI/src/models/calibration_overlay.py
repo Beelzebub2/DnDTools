@@ -17,6 +17,10 @@ Usage:
     #     'jump': 40.0,
     #     'originalStash': {'x': 1378, 'y': 199},
     #     'originalInv': {'x': 690, 'y': 626},
+    #     'tabOrigin': {'x': 1322, 'y': 208},
+    #     'tabSpacing': 47.0,
+    #     'originalTabOrigin': {'x': 1322, 'y': 208},
+    #     'originalTabSpacing': 47.0,
     # }
     # -- or {'saved': False} when cancelled
 """
@@ -67,6 +71,8 @@ class CalibrationOverlay:
     STASH_FILL: Tuple[int, int, int] = (0, 50, 25)
     INV_COLOR: Tuple[int, int, int] = (255, 200, 50)
     INV_FILL: Tuple[int, int, int] = (60, 48, 10)
+    TAB_COLOR: Tuple[int, int, int] = (100, 160, 255)
+    TAB_FILL: Tuple[int, int, int] = (20, 30, 60)
     HIGHLIGHT: Tuple[int, int, int] = (255, 255, 255)
     BORDER_WIDTH = 3
     OVERLAY_ALPHA = 210
@@ -90,8 +96,17 @@ class CalibrationOverlay:
         self._orig_stash: Tuple[int, int] = (0, 0)
         self._orig_inv: Tuple[int, int] = (0, 0)
 
+        # Stash tab selector positions (vertical column of boxes)
+        self._tab_x = 0
+        self._tab_y = 0
+        self._tab_spacing = 47.0
+        self._tab_count = 8
+        self._tab_labels: list = []
+        self._orig_tab: Tuple[int, int] = (0, 0)
+        self._orig_tab_spacing = 47.0
+
         # Interaction state
-        self._dragging: Optional[str] = None  # 'stash' | 'inv' | None
+        self._dragging: Optional[str] = None  # 'stash' | 'inv' | 'tabs' | None
         self._drag_offset_x = 0
         self._drag_offset_y = 0
         self._selected: Optional[str] = None  # last-interacted box (arrow keys)
@@ -136,6 +151,15 @@ class CalibrationOverlay:
         self._inv_x = int(inv.x)
         self._inv_y = int(inv.y)
 
+        # Stash tab selectors
+        tab_origin = positions.get("stash_tab_origin")
+        if tab_origin:
+            self._tab_x = int(tab_origin.x)
+            self._tab_y = int(tab_origin.y)
+        self._tab_spacing = float(positions.get("stash_tab_spacing", 47))
+        self._tab_count = macros.STASH_TAB_COUNT
+        self._tab_labels = list(macros.STASH_TAB_LABELS)
+
         # Use uncalibrated base positions for the "R" reset so that
         # pressing R truly returns to the auto-detected defaults rather
         # than the previously saved calibration.
@@ -144,10 +168,18 @@ class CalibrationOverlay:
             self._orig_stash = (int(base["stash"].x), int(base["stash"].y))
             self._orig_inv = (int(base["inv"].x), int(base["inv"].y))
             self._orig_jump = float(base.get("jump", jump))
+            base_tab = base.get("stash_tab_origin")
+            if base_tab:
+                self._orig_tab = (int(base_tab.x), int(base_tab.y))
+            else:
+                self._orig_tab = (self._tab_x, self._tab_y)
+            self._orig_tab_spacing = float(base.get("stash_tab_spacing", self._tab_spacing))
         except Exception:
             self._orig_stash = (self._stash_x, self._stash_y)
             self._orig_inv = (self._inv_x, self._inv_y)
             self._orig_jump = self._jump
+            self._orig_tab = (self._tab_x, self._tab_y)
+            self._orig_tab_spacing = self._tab_spacing
         self._dragging = None
         self._resizing = None
         self._resize_corner = None
@@ -289,6 +321,33 @@ class CalibrationOverlay:
         h = int(_INV_ROWS * self._jump)
         return (self._inv_x, self._inv_y, self._inv_x + w, self._inv_y + h)
 
+    def _tab_box_size(self) -> int:
+        """Side length for each tab selector box."""
+        return max(10, int(self._jump * 0.85))
+
+    def _tab_rects(self) -> list:
+        """Return a list of (x1, y1, x2, y2) rects for each stash tab box.
+
+        Each rect is **centred** on the tab position point so the boxes align
+        with the in-game tab button centres.
+        """
+        sz = self._tab_box_size()
+        half = sz // 2
+        rects = []
+        for i in range(self._tab_count):
+            cx = self._tab_x
+            cy = int(round(self._tab_y + i * self._tab_spacing))
+            rects.append((cx - half, cy - half, cx - half + sz, cy - half + sz))
+        return rects
+
+    def _tabs_bounding_rect(self) -> Tuple[int, int, int, int]:
+        """Bounding rect enclosing all tab boxes (used for hit-testing the column)."""
+        sz = self._tab_box_size()
+        half = sz // 2
+        last_y = int(round(self._tab_y + (self._tab_count - 1) * self._tab_spacing))
+        return (self._tab_x - half, self._tab_y - half,
+                self._tab_x - half + sz, last_y - half + sz)
+
     @staticmethod
     def _point_in_rect(px: int, py: int, rect: Tuple[int, int, int, int]) -> bool:
         return rect[0] <= px <= rect[2] and rect[1] <= py <= rect[3]
@@ -330,6 +389,10 @@ class CalibrationOverlay:
             "originalStash": {"x": self._orig_stash[0], "y": self._orig_stash[1]},
             "originalInv": {"x": self._orig_inv[0], "y": self._orig_inv[1]},
             "originalJump": self._orig_jump,
+            "tabOrigin": {"x": self._tab_x, "y": self._tab_y},
+            "tabSpacing": self._tab_spacing,
+            "originalTabOrigin": {"x": self._orig_tab[0], "y": self._orig_tab[1]},
+            "originalTabSpacing": self._orig_tab_spacing,
         }
 
     # -- Win32 message handler --
@@ -397,6 +460,13 @@ class CalibrationOverlay:
             self._drag_offset_x = px - self._inv_x
             self._drag_offset_y = py - self._inv_y
             win32gui.SetCapture(hwnd)
+        elif self._point_in_rect(px, py, self._tabs_bounding_rect()):
+            # Clicking any tab box drags the whole column
+            self._dragging = "tabs"
+            self._selected = "tabs"
+            self._drag_offset_x = px - self._tab_x
+            self._drag_offset_y = py - self._tab_y
+            win32gui.SetCapture(hwnd)
         else:
             self._selected = None
 
@@ -455,6 +525,9 @@ class CalibrationOverlay:
             elif self._dragging == "inv":
                 self._inv_x = new_x
                 self._inv_y = new_y
+            elif self._dragging == "tabs":
+                self._tab_x = new_x
+                self._tab_y = new_y
 
             win32gui.InvalidateRect(hwnd, None, False)
             return
@@ -462,6 +535,7 @@ class CalibrationOverlay:
         # -- hover: update cursor based on what's under the pointer --
         stash_r = self._stash_rect()
         inv_r = self._inv_rect()
+        tab_br = self._tabs_bounding_rect()
         cursor = win32con.IDC_ARROW
         for rect in (stash_r, inv_r):
             corner = self._corner_at_point(px, py, rect)
@@ -474,6 +548,9 @@ class CalibrationOverlay:
             if self._point_in_rect(px, py, rect):
                 cursor = win32con.IDC_SIZEALL
                 break
+        else:
+            if self._point_in_rect(px, py, tab_br):
+                cursor = win32con.IDC_SIZEALL
         try:
             win32gui.SetCursor(win32gui.LoadCursor(0, cursor))
         except Exception:
@@ -511,19 +588,28 @@ class CalibrationOverlay:
             self._stash_x, self._stash_y = self._orig_stash
             self._inv_x, self._inv_y = self._orig_inv
             self._jump = self._orig_jump
+            self._tab_x, self._tab_y = self._orig_tab
+            self._tab_spacing = self._orig_tab_spacing
             win32gui.InvalidateRect(hwnd, None, False)
             return
 
-        # +/= -> increase cell size,  -/_ -> decrease cell size
+        # +/= -> increase cell size (or tab spacing if tabs selected)
+        # -/_ -> decrease cell size (or tab spacing if tabs selected)
         # VK_OEM_PLUS=0xBB  VK_OEM_MINUS=0xBD  (not in win32con)
         if vk in (0xBB, win32con.VK_ADD):
             shift_held = win32api.GetKeyState(win32con.VK_SHIFT) < 0
-            self._jump = min(120.0, self._jump + (5.0 if shift_held else 1.0))
+            if self._selected == "tabs":
+                self._tab_spacing = min(200.0, self._tab_spacing + (5.0 if shift_held else 1.0))
+            else:
+                self._jump = min(120.0, self._jump + (5.0 if shift_held else 1.0))
             win32gui.InvalidateRect(hwnd, None, False)
             return
         if vk in (0xBD, win32con.VK_SUBTRACT):
             shift_held = win32api.GetKeyState(win32con.VK_SHIFT) < 0
-            self._jump = max(15.0, self._jump - (5.0 if shift_held else 1.0))
+            if self._selected == "tabs":
+                self._tab_spacing = max(5.0, self._tab_spacing - (5.0 if shift_held else 1.0))
+            else:
+                self._jump = max(15.0, self._jump - (5.0 if shift_held else 1.0))
             win32gui.InvalidateRect(hwnd, None, False)
             return
 
@@ -550,6 +636,9 @@ class CalibrationOverlay:
             elif self._selected == "inv":
                 self._inv_x += dx
                 self._inv_y += dy
+            elif self._selected == "tabs":
+                self._tab_x += dx
+                self._tab_y += dy
 
             win32gui.InvalidateRect(hwnd, None, False)
 
@@ -574,6 +663,9 @@ class CalibrationOverlay:
             # Grids
             self._draw_grid(hdc, "stash")
             self._draw_grid(hdc, "inv")
+
+            # Stash tab selectors
+            self._draw_tab_selectors(hdc)
         except Exception:
             logger.debug("Calibration paint error", exc_info=True)
         finally:
@@ -688,6 +780,78 @@ class CalibrationOverlay:
             detail_rect = (x + 2, y + h + 4, x + w + 2, y + h + 24)
             win32gui.DrawText(
                 hdc, detail, -1, detail_rect,
+                win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
+            )
+            win32gui.SelectObject(hdc, old_font)
+
+    def _draw_tab_selectors(self, hdc) -> None:
+        """Draw stash tab selector boxes as a vertical column."""
+        is_sel = self._selected == "tabs"
+        color = self.TAB_COLOR
+        fill = self.TAB_FILL
+        border_color = self.HIGHLIGHT if is_sel else color
+        sz = self._tab_box_size()
+        rects = self._tab_rects()
+
+        for i, (x1, y1, x2, y2) in enumerate(rects):
+            # Fill
+            fill_brush = win32gui.CreateSolidBrush(win32api.RGB(*fill))
+            win32gui.FillRect(hdc, (x1, y1, x2, y2), fill_brush)
+            win32gui.DeleteObject(fill_brush)
+
+            # Border
+            bw = 2 + (1 if is_sel else 0)
+            pen = win32gui.CreatePen(win32con.PS_SOLID, bw, win32api.RGB(*border_color))
+            old_pen = win32gui.SelectObject(hdc, pen)
+            old_brush = win32gui.SelectObject(
+                hdc, win32gui.GetStockObject(win32con.NULL_BRUSH),
+            )
+            win32gui.Rectangle(hdc, x1, y1, x2, y2)
+            win32gui.SelectObject(hdc, old_brush)
+            win32gui.SelectObject(hdc, old_pen)
+            win32gui.DeleteObject(pen)
+
+            # Tab number inside box
+            win32gui.SetBkMode(hdc, win32con.TRANSPARENT)
+            if self._small_font:
+                old_font = win32gui.SelectObject(hdc, self._small_font)
+                win32gui.SetTextColor(hdc, win32api.RGB(*color))
+                label_text = str(i + 1)
+                win32gui.DrawText(
+                    hdc, label_text, -1,
+                    (x1, y1, x2, y2),
+                    win32con.DT_CENTER | win32con.DT_VCENTER | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
+                )
+                win32gui.SelectObject(hdc, old_font)
+
+            # Tab name to the right of the box
+            if self._small_font and i < len(self._tab_labels):
+                old_font = win32gui.SelectObject(hdc, self._small_font)
+                win32gui.SetTextColor(hdc, win32api.RGB(*color))
+                win32gui.DrawText(
+                    hdc, self._tab_labels[i], -1,
+                    (x2 + 4, y1, x2 + 200, y2),
+                    win32con.DT_LEFT | win32con.DT_VCENTER | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
+                )
+                win32gui.SelectObject(hdc, old_font)
+
+        # Label above the column
+        win32gui.SetBkMode(hdc, win32con.TRANSPARENT)
+        label = f"Tabs  ({self._tab_x}, {self._tab_y})  spacing {self._tab_spacing:.0f}"
+        if self._label_font:
+            old_font = win32gui.SelectObject(hdc, self._label_font)
+            # shadow
+            win32gui.SetTextColor(hdc, win32api.RGB(0, 0, 0))
+            win32gui.DrawText(
+                hdc, label, -1,
+                (self._tab_x + 3, self._tab_y - 28, self._tab_x + 400, self._tab_y - 2),
+                win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
+            )
+            # main
+            win32gui.SetTextColor(hdc, win32api.RGB(*color))
+            win32gui.DrawText(
+                hdc, label, -1,
+                (self._tab_x + 2, self._tab_y - 29, self._tab_x + 400, self._tab_y - 3),
                 win32con.DT_LEFT | win32con.DT_TOP | win32con.DT_SINGLELINE | win32con.DT_NOPREFIX,
             )
             win32gui.SelectObject(hdc, old_font)

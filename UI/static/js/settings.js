@@ -1713,7 +1713,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         calibrateBtn.classList.add('loading');
 
         try {
-            const result = await window.pywebview.api.open_calibration();
+            const startResult = await window.pywebview.api.open_calibration();
+
+            if (!startResult?.started) {
+                showNotification(startResult?.error || 'Could not start calibration.', 'error');
+                return;
+            }
+
+            // Poll for result — the overlay runs in a background thread
+            const result = await new Promise((resolve) => {
+                const poll = setInterval(async () => {
+                    try {
+                        const status = await window.pywebview.api.calibration_status();
+                        if (!status?.running) {
+                            clearInterval(poll);
+                            resolve(status);
+                        }
+                    } catch {
+                        clearInterval(poll);
+                        resolve({ saved: false });
+                    }
+                }, 500);
+            });
 
             if (result && result.saved) {
                 const submitMsg = result.submitted
