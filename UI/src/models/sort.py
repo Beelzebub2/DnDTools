@@ -1335,6 +1335,10 @@ class StashSorter:
         self._learning_session_id: Optional[str] = None
         self.feedback_handle = None
 
+        # ── Simulation (pre-plan all moves before execution) ──────────
+        self._simulating = False
+        self._planned_moves: List[tuple] = []
+
         # ── Compose sub-components ────────────────────────────────────
         callbacks = SortCallbacks(
             metric_increment=lambda key, amount=1.0: self._metric_increment(key, amount),
@@ -1497,86 +1501,132 @@ class StashSorter:
         self.cancel_event = cancel_event
         self.overlay_session = overlay_session or NullOverlaySession()
         self._reset_move_tracking()
+        self._planned_moves = []
         if cancel_event:
             macros.push_cancel_event(cancel_event)
 
         try:
-            # ── Safety monitor: abort sort on focus loss or mouse interference
+            # ══════════════════════════════════════════════════════════
+            #  SIMULATION PHASE — run the full sort logic on the
+            #  in-memory grid with a patched macro that records moves
+            #  instead of dragging the mouse.  No safety monitor yet.
+            # ══════════════════════════════════════════════════════════
+            self._overlay_update("Planning moves...", status="info")
+
+            original_macro = macros.move_from_to_reliable
+
+            def _recording_macro(start_stash, start_pos, end_stash, end_pos,
+                                 start_width=1, start_height=1, end_width=1, end_height=1):
+                self._planned_moves.append((
+                    start_stash, Point(start_pos.x, start_pos.y),
+                    end_stash, Point(end_pos.x, end_pos.y),
+                    start_width, start_height, end_width, end_height,
+                ))
+
+            macros.move_from_to_reliable = _recording_macro
+            self._simulating = True
+
+            try:
+                if self._stacking_engine.has_instructions:
+                    self._overlay_update("Planning stacking merges...", status="info")
+                    if not self._stacking_engine.execute():
+                        failure_reason = failure_reason or "stacking_failed"
+                        self._overlay_log("Stacking phase failed; aborting sort.")
+                        return False
+
+                self._overlay_update("Planning workspace preparation...", status="info")
+                self._workspace_mgr.ensure_initial_workspace(self._workspace_mgr.workspace_min_free_cells)
+                self._overlay_update("Analyzing stash contents...", status="info")
+
+                unique_items: Dict[int, Item] = {}
+                for itm in self.stash.pq:
+                    if itm.stash is self.stash or getattr(itm, "_buffered_by_sort", False):
+                        unique_items[id(itm)] = itm
+                for itm in self._buffer_tracker.buffered_items.values():
+                    unique_items[id(itm)] = itm
+                active_items = list(unique_items.values())
+                total_items = len(active_items)
+                if not total_items and not self._buffer_tracker.buffered_items:
+                    self._overlay_log("No items detected in stash; nothing to sort.")
+                    return True
+
+                self._overlay_update("Calculating deterministic layout...", status="info")
+                plan = self._build_sort_plan(active_items)
+
+                if plan and self.learning_manager and self._learning_session_id:
+                    try:
+                        plan_map = {}
+                        feature_map = {}
+                        for entry in plan.order:
+                            itm = entry.item
+                            item_id = str(getattr(itm, "item_id", "") or "")
+                            if item_id:
+                                plan_map[item_id] = (entry.target.x, entry.target.y)
+
+                            # LayoutPlanner stores `learning_payload[id(itm)] = record`
+                            if plan.learning:
+                                record = plan.learning.get(id(itm))
+                                if record and "features" in record:
+                                    feature_map[item_id] = record["features"]
+
+                        self.learning_manager.register_pending_plan(
+                            self._learning_session_id,
+                            plan_map,
+                            feature_map
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to register sort plan for learning: %s", exc)
+
+                if plan is None:
+                    failure_reason = failure_reason or "layout_plan_failed"
+                    self._overlay_update("Unable to calculate layout plan.", status="error")
+                    self._overlay_log("Unable to create deterministic layout; aborting sort.")
+                    return False
+
+                plan_size = len(plan.order)
+                self._plan_required_moves = self._count_required_moves(plan)
+                self._move_progress_total = self._plan_required_moves
+                self._overlay_update_overview(total_items, plan_size, self._plan_required_moves)
+                mode_label = "dense pack" if self.pack_mode else "scanline"
+                stack_label = "stacking on" if self.stack_mode else "stacking off"
+                self._overlay_log(
+                    f"Layout plan ready for {plan_size} items ({mode_label}, {stack_label})."
+                )
+                self._overlay_update("Planning item moves...", status="info")
+                sim_success = self._execute_plan(plan, total_items)
+                if not sim_success:
+                    if failure_reason is None:
+                        failure_reason = self._failure_reason or "simulation_failed"
+                    self._overlay_log("Move planning failed; aborting sort.")
+                    return False
+            finally:
+                macros.move_from_to_reliable = original_macro
+                self._simulating = False
+
+            # ══════════════════════════════════════════════════════════
+            #  EXECUTION PHASE — replay the recorded moves via the
+            #  real macro.  Safety monitor is active during this phase.
+            # ══════════════════════════════════════════════════════════
+            total_planned = len(self._planned_moves)
+            if total_planned == 0:
+                self._overlay_update("Sorting complete.", status="success")
+                self._overlay_log("All items are already in their correct positions.")
+                return True
+
+            logger.info("Simulation complete: %d moves planned — executing", total_planned)
+            self._overlay_log(f"Planned {total_planned} moves — executing...")
+            self._overlay_update(
+                f"Executing {total_planned} planned moves...",
+                status="info",
+            )
+
             self._safety_monitor = SortSafetyMonitor(cancel_event)
             self._safety_monitor.start()
 
-            if self._stacking_engine.has_instructions:
-                self._overlay_update("Merging stackable items before sorting...", status="info")
-                if not self._stacking_engine.execute():
-                    failure_reason = failure_reason or "stacking_failed"
-                    self._overlay_log("Stacking phase failed; aborting sort.")
-                    return False
-
-            self._overlay_update("Preparing workspace...", status="info")
-            self._workspace_mgr.ensure_initial_workspace(self._workspace_mgr.workspace_min_free_cells)
-            self._safety_snapshot()
-            self._overlay_update("Analyzing stash contents...", status="info")
-
-            unique_items: Dict[int, Item] = {}
-            for itm in self.stash.pq:
-                if itm.stash is self.stash or getattr(itm, "_buffered_by_sort", False):
-                    unique_items[id(itm)] = itm
-            for itm in self._buffer_tracker.buffered_items.values():
-                unique_items[id(itm)] = itm
-            active_items = list(unique_items.values())
-            total_items = len(active_items)
-            if not total_items and not self._buffer_tracker.buffered_items:
-                self._overlay_log("No items detected in stash; nothing to sort.")
-                return True
-
-            self._overlay_update("Calculating deterministic layout...", status="info")
-            plan = self._build_sort_plan(active_items)
-
-            if plan and self.learning_manager and self._learning_session_id:
-                try:
-                    plan_map = {}
-                    feature_map = {}
-                    for entry in plan.order:
-                        itm = entry.item
-                        item_id = str(getattr(itm, "item_id", "") or "")
-                        if item_id:
-                            plan_map[item_id] = (entry.target.x, entry.target.y)
-
-                        # LayoutPlanner stores `learning_payload[id(itm)] = record`
-                        if plan.learning:
-                            record = plan.learning.get(id(itm))
-                            if record and "features" in record:
-                                feature_map[item_id] = record["features"]
-
-                    self.learning_manager.register_pending_plan(
-                        self._learning_session_id,
-                        plan_map,
-                        feature_map
-                    )
-                except Exception as exc:
-                    logger.warning("Failed to register sort plan for learning: %s", exc)
-
-            if plan is None:
-                failure_reason = failure_reason or "layout_plan_failed"
-                self._overlay_update("Unable to calculate layout plan.", status="error")
-                self._overlay_log("Unable to create deterministic layout; aborting sort.")
-                return False
-
-            plan_size = len(plan.order)
-            self._plan_required_moves = self._count_required_moves(plan)
-            self._move_progress_total = self._plan_required_moves
-            self._overlay_update_overview(total_items, plan_size, self._plan_required_moves)
-            mode_label = "dense pack" if self.pack_mode else "scanline"
-            stack_label = "stacking on" if self.stack_mode else "stacking off"
-            self._overlay_log(
-                f"Layout plan ready for {plan_size} items ({mode_label}, {stack_label})."
-            )
-            self._overlay_update(
-                f"Executing layout plan for {plan_size} items...",
-                status="info",
-            )
-            success = self._execute_plan(plan, total_items)
-            if not success and failure_reason is None:
+            success = self._replay_planned_moves()
+            if success:
+                self._overlay_update("Sorting complete.", status="success")
+            elif failure_reason is None:
                 failure_reason = self._failure_reason or "execution_failed"
             return success
         except macros.MacroCancelled:
@@ -1626,6 +1676,31 @@ class StashSorter:
             if cancel_event:
                 macros.pop_cancel_event(cancel_event)
 
+    def _replay_planned_moves(self) -> bool:
+        """Replay recorded moves via the real macro.
+
+        Called after the simulation phase has pre-planned every move on
+        the in-memory grid.  Each entry in ``_planned_moves`` is a tuple
+        of arguments for ``macros.move_from_to_reliable``.
+        """
+        total = len(self._planned_moves)
+        for i, move_args in enumerate(self._planned_moves):
+            if not self._safety_check():
+                return False
+            macros.move_from_to_reliable(*move_args)
+            self._safety_snapshot()
+            if self.overlay_session:
+                try:
+                    self.overlay_session.update_progress(i + 1, total)
+                except Exception:
+                    pass
+            if (i + 1) == 1 or (i + 1) == total or (i + 1) % 5 == 0:
+                self._overlay_update(
+                    f"Executing moves... ({i + 1}/{total})",
+                    status="info",
+                )
+        return True
+
     # ------------------------------------------------------------------ overlay helpers
     def _overlay_update(self, subtitle: str, status: str = "info") -> None:
         if not self.overlay_session:
@@ -1651,6 +1726,9 @@ class StashSorter:
         ``False`` an appropriate log/overlay message has already been
         emitted and the caller should abort the current phase.
         """
+        if self._simulating:
+            return True
+
         if self.cancel_event and self.cancel_event.is_set():
             safety_reason = self._safety_monitor.reason if self._safety_monitor else None
             if safety_reason == "game_window_unfocused":
@@ -1681,6 +1759,8 @@ class StashSorter:
 
     def _safety_snapshot(self) -> None:
         """Record the current cursor position as the expected baseline."""
+        if self._simulating:
+            return
         if self._safety_monitor:
             self._safety_monitor.snapshot_position()
 
