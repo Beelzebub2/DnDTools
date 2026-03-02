@@ -1354,7 +1354,7 @@ class StashSorter:
         self._buffer_tracker = InventoryBufferTracker(inv, callbacks)
         self._stacking_engine = StackingEngine(
             stash, self._buffer_tracker, callbacks,
-            move_fn=lambda *args, **kwargs: self._move_executor.execute_verified_move(*args, **kwargs),
+            move_fn=lambda *args, **kwargs: macros.move_from_to_reliable(*args, **kwargs),
         )
         self._blocker_resolver = BlockerResolver(
             stash, inv, self._plan_state, self._buffer_tracker, callbacks,
@@ -1512,6 +1512,7 @@ class StashSorter:
             #  instead of dragging the mouse.  No safety monitor yet.
             # ══════════════════════════════════════════════════════════
             self._overlay_update("Planning moves...", status="info")
+            self._snapshot_grid_state()
 
             original_macro = macros.move_from_to_reliable
 
@@ -1613,6 +1614,11 @@ class StashSorter:
                 self._overlay_log("All items are already in their correct positions.")
                 return True
 
+            # Rewind the in-memory grid to the pre-simulation state so
+            # that each Storage.move() during replay starts from the
+            # correct position and keeps the grid in sync.
+            self._restore_grid_state()
+
             logger.info("Simulation complete: %d moves planned — executing", total_planned)
             self._overlay_log(f"Planned {total_planned} moves — executing...")
             self._overlay_update(
@@ -1677,17 +1683,59 @@ class StashSorter:
                 macros.pop_cancel_event(cancel_event)
 
     def _replay_planned_moves(self) -> bool:
-        """Replay recorded moves via the real macro.
+        """Replay recorded moves via the real macro with grid tracking.
 
-        Called after the simulation phase has pre-planned every move on
-        the in-memory grid.  Each entry in ``_planned_moves`` is a tuple
-        of arguments for ``macros.move_from_to_reliable``.
+        The in-memory grid has been rewound to its pre-simulation state
+        by ``_restore_grid_state`` before this method runs.  For each
+        recorded move we look up the item at the recorded start position
+        and execute through ``Storage.move()`` which updates the grid
+        *and* calls the real macro.  This keeps our internal state in
+        sync with what the game sees, preventing the drift that occurs
+        when moves are replayed blindly.
         """
         total = len(self._planned_moves)
         for i, move_args in enumerate(self._planned_moves):
             if not self._safety_check():
                 return False
-            macros.move_from_to_reliable(*move_args)
+
+            start_stash, start_pos, end_stash, end_pos, sw, sh, ew, eh = move_args
+
+            item_at_start = start_stash.grid[start_pos.x][start_pos.y]
+            item_at_end = end_stash.grid[end_pos.x][end_pos.y]
+
+            if (
+                item_at_start != 0
+                and item_at_start is not None
+                and item_at_end != 0
+                and item_at_end is not None
+                and item_at_start is not item_at_end
+            ):
+                # Stacking move: source item merges into the target item
+                # already occupying the destination.  Use the raw macro
+                # for the physical drag, then clear the source grid cells
+                # (the game absorbs the source into the target stack).
+                macros.move_from_to_reliable(*move_args)
+                for dx in range(sw):
+                    for dy in range(sh):
+                        gx, gy = start_pos.x + dx, start_pos.y + dy
+                        if 0 <= gx < start_stash.width and 0 <= gy < start_stash.height:
+                            start_stash.grid[gx][gy] = 0
+                item_at_start.stacked = True
+            elif item_at_start != 0 and item_at_start is not None:
+                # Regular move: Storage.move() updates the grid AND calls
+                # the real macro with the correct item.position.
+                item_at_start.stash.move(item_at_start, end_pos, end_stash)
+            else:
+                # No item found at the expected start position — grid
+                # drift or an edge case.  Fall back to the raw macro so
+                # the physical drag still happens.
+                logger.warning(
+                    "Grid replay: no item at (%s, %s) for move %d/%d — "
+                    "falling back to raw macro",
+                    start_pos.x, start_pos.y, i + 1, total,
+                )
+                macros.move_from_to_reliable(*move_args)
+
             self._safety_snapshot()
             if self.overlay_session:
                 try:
@@ -1763,6 +1811,62 @@ class StashSorter:
             return
         if self._safety_monitor:
             self._safety_monitor.snapshot_position()
+
+    def _snapshot_grid_state(self) -> None:
+        """Save every item's position and stash before simulation.
+
+        Called once before the simulation phase so that we can rewind the
+        in-memory grid back to its original state before replaying the
+        moves for real.
+        """
+        seen: set = set()
+        self._pre_sim_snapshots: List[Tuple[Item, Point, Any]] = []
+
+        for storage in (self.stash, self.inv):
+            if storage is None:
+                continue
+            for x in range(storage.width):
+                for y in range(storage.height):
+                    cell = storage.grid[x][y]
+                    if cell != 0 and cell is not None and id(cell) not in seen:
+                        seen.add(id(cell))
+                        self._pre_sim_snapshots.append(
+                            (cell, Point(cell.position.x, cell.position.y), cell.stash)
+                        )
+
+    def _restore_grid_state(self) -> None:
+        """Rewind grids and item positions to the pre-simulation snapshot.
+
+        After the simulation phase the in-memory grid reflects the *final*
+        sorted state.  Before we replay moves via the real macro we need
+        the grid to match the *original* game state so that each
+        ``Storage.move()`` call during replay updates the grid
+        incrementally and feeds the correct coordinates to the macro.
+        """
+        # Clear grids
+        for storage in (self.stash, self.inv):
+            if storage is None:
+                continue
+            for x in range(storage.width):
+                for y in range(storage.height):
+                    storage.grid[x][y] = 0
+            storage._reserved_slots.clear()
+
+        # Clear buffer tracker state (only meaningful during simulation)
+        self._buffer_tracker._buffered.clear()
+        self._buffer_tracker._reserved.clear()
+        self._buffer_tracker.blocker_move_counts.clear()
+
+        # Place each item back at its pre-simulation position
+        for item, pos, stash in self._pre_sim_snapshots:
+            item.position = Point(pos.x, pos.y)
+            item.stash = stash
+            item.stacked = False
+            for dx in range(item.width):
+                for dy in range(item.height):
+                    px, py = pos.x + dx, pos.y + dy
+                    if 0 <= px < stash.width and 0 <= py < stash.height:
+                        stash.grid[px][py] = item
 
     def _reset_move_tracking(self) -> None:
         self._plan_required_moves = 0
