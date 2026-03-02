@@ -146,6 +146,32 @@ class Storage:
                     return Point(x, y)
         return None  # no valid position found
 
+    def count_free_cells(self) -> int:
+        """Count unoccupied cells in the grid."""
+        free = 0
+        for x in range(self.width):
+            for y in range(self.height):
+                if self.grid[x][y] == 0:
+                    free += 1
+        return free
+
+    def rebuild_pq(self):
+        """Rebuild the priority queue from the current grid state.
+
+        Used after external modifications (e.g. overflow transfer) to ensure
+        the pq reflects only items still present on the grid.
+        """
+        import heapq
+        seen: set[int] = set()
+        new_pq: list = []
+        for x in range(self.width):
+            for y in range(self.height):
+                cell = self.grid[x][y]
+                if cell != 0 and cell is not None and id(cell) not in seen:
+                    seen.add(id(cell))
+                    heapq.heappush(new_pq, cell)
+        self.pq = new_pq
+
     def load(self):
         for obj in self.data:
             # Set items with no slotId to 0

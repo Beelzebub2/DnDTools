@@ -813,9 +813,9 @@ class CalibrationOverlay:
 
             # Tab number inside box
             win32gui.SetBkMode(hdc, win32con.TRANSPARENT)
-            if self._small_font:
-                old_font = win32gui.SelectObject(hdc, self._small_font)
-                win32gui.SetTextColor(hdc, win32api.RGB(*color))
+            if self._label_font:
+                old_font = win32gui.SelectObject(hdc, self._label_font)
+                win32gui.SetTextColor(hdc, win32api.RGB(255, 255, 255))
                 label_text = str(i + 1)
                 win32gui.DrawText(
                     hdc, label_text, -1,

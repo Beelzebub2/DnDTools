@@ -7,7 +7,7 @@ import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
 from .storage import Storage, StashType
-from .sort import StashSorter
+from .sort import StashSorter, LayoutPlanner, LayoutPlanError
 from src.models.game_data import item_data_manager
 from src.models import macros
 import pygetwindow as gw
@@ -904,6 +904,7 @@ class StashManager:
             return False, "Stash not found", session_summary
         session.update_status("Loading character inventory...", status="info")
         file_path = os.path.join(self.data_dir, f"{character_id}.json")
+        stashes = {}
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 raw = json.load(f)
@@ -928,7 +929,7 @@ class StashManager:
                     f"Excluded {supplied_skipped} Supplied item(s) from transfer (cannot be stashed)."
                 )
 
-        stash = Storage(StashType.STORAGE.value, stash_items)
+        stash = Storage(int(stash_id), stash_items)
         inventory = Storage(StashType.BAG.value, inv_items)
         session.update_status("Locating Dark and Darker window...", status="info")
         windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker  "]
@@ -946,6 +947,53 @@ class StashManager:
         except Exception as e:
             logger.error(f"Error focusing window: {e}")
             session.add_log("Unable to focus the game window automatically – please ensure it is active.")
+
+        # ── Auto-select the correct stash tab ──
+        stash_type_int = int(stash_id)
+        session.update_status("Selecting stash tab...", status="info")
+        if macros.click_stash_tab(stash_type_int):
+            tab_label = macros.STASH_TAB_LABELS[macros.STASH_TYPE_TO_TAB_INDEX[stash_type_int]]
+            session.add_log(f"Selected stash tab: {tab_label}")
+
+        # ── Cross-tab overflow: move excess items to another tab ──
+        keep, overflow = self._identify_overflow_items(stash, pack_mode, stack_mode)
+        if overflow:
+            session.add_log(
+                f"{len(overflow)} item(s) do not fit; attempting cross-tab overflow."
+            )
+            dest_id = self._find_overflow_destination(
+                stash_type_int, overflow, stashes,
+            )
+            if dest_id is None:
+                session.update_status(
+                    "No destination stash has enough free space for overflow.",
+                    status="error",
+                )
+                return False, "No overflow destination available", session_summary
+
+            dest_label = macros.STASH_TAB_LABELS[macros.STASH_TYPE_TO_TAB_INDEX[dest_id]]
+            session.add_log(f"Overflow destination: {dest_label}")
+
+            dest_items = stashes.get(dest_id)
+            if dest_items is None:
+                dest_items = stashes.get(str(dest_id), [])
+
+            ok = self._execute_overflow_transfer(
+                source_stash=stash,
+                dest_stash_id=dest_id,
+                dest_stash_items=dest_items,
+                overflow_items=overflow,
+                inventory=inventory,
+                cancel_event=cancel_event,
+                session=session,
+            )
+            if not ok:
+                session.update_status("Overflow transfer failed.", status="error")
+                return False, "Overflow transfer failed", session_summary
+
+            stash.rebuild_pq()
+            # Inventory should be empty after a complete transfer.
+            inventory = Storage(StashType.BAG.value, inv_items)
 
         sorter = StashSorter(
             stash,
@@ -991,6 +1039,176 @@ class StashManager:
             logger.debug("Failed to reset modifier state via Alt tap: %s", exc)
         else:
             session.add_log("Tapped Alt to clear any stuck modifier state.")
+
+    # ── Cross-tab overflow helpers ──────────────────────────────────────
+
+    _OVERFLOW_CANDIDATE_TYPES = {
+        StashType.STORAGE.value,
+        StashType.PURCHASED_STORAGE_0.value,
+        StashType.PURCHASED_STORAGE_1.value,
+        StashType.PURCHASED_STORAGE_2.value,
+        StashType.PURCHASED_STORAGE_3.value,
+        StashType.PURCHASED_STORAGE_4.value,
+        StashType.SHARED_STASH_0.value,
+        StashType.SHARED_STASH_SEASONAL_0.value,
+    }
+
+    def _identify_overflow_items(self, stash, pack_mode, stack_mode):
+        """Partition stash items into (keep, overflow).
+
+        Performs trial layouts, removing the lowest-priority items one at a
+        time until the layout succeeds.  Returns ``(items_that_fit, overflow)``.
+        """
+        all_items = list(stash.pq)
+        if not all_items:
+            return [], []
+
+        planner = LayoutPlanner(
+            stash.width, stash.height,
+            prefer_dense=pack_mode, stash=stash, stack_mode=stack_mode,
+        )
+        try:
+            planner.build(all_items)
+            return all_items, []
+        except LayoutPlanError:
+            pass
+
+        # Lowest-priority items removed first (smallest area, lowest rarity).
+        candidates = sorted(all_items, key=lambda itm: (
+            itm.width * itm.height,
+            getattr(itm, 'rarity', 0) or 0,
+            getattr(itm, 'vendor_price', 0) or 0,
+        ))
+
+        overflow: list = []
+        remaining = list(all_items)
+
+        for candidate in candidates:
+            remaining.remove(candidate)
+            overflow.append(candidate)
+            planner = LayoutPlanner(
+                stash.width, stash.height,
+                prefer_dense=pack_mode, stash=stash, stack_mode=stack_mode,
+            )
+            try:
+                planner.build(remaining)
+                return remaining, overflow
+            except LayoutPlanError:
+                continue
+
+        return [], all_items
+
+    def _find_overflow_destination(self, source_stash_id, overflow_items, all_stashes):
+        """Pick the stash tab with the most free cells to receive overflow.
+
+        Returns the ``stash_type`` int value, or ``None`` if nothing suitable.
+        """
+        overflow_cells = sum(itm.width * itm.height for itm in overflow_items)
+        best_id = None
+        best_free = 0
+
+        for stash_type_val in self._OVERFLOW_CANDIDATE_TYPES:
+            if stash_type_val == source_stash_id:
+                continue
+            items = all_stashes.get(stash_type_val)
+            if items is None:
+                items = all_stashes.get(str(stash_type_val))
+            if items is None:
+                items = []
+            try:
+                dest = Storage(stash_type_val, items)
+                free = dest.count_free_cells()
+            except Exception:
+                continue
+            if free >= overflow_cells and free > best_free:
+                best_free = free
+                best_id = stash_type_val
+
+        return best_id
+
+    def _execute_overflow_transfer(
+        self,
+        source_stash,
+        dest_stash_id,
+        dest_stash_items,
+        overflow_items,
+        inventory,
+        cancel_event,
+        session,
+    ):
+        """Move *overflow_items* from *source_stash* to another tab via the
+        inventory bridge.
+
+        Returns ``True`` on success.
+        """
+        source_stash_id = source_stash.stash_type
+        dest_stash = Storage(dest_stash_id, dest_stash_items)
+        inv_capacity = inventory.width * inventory.height
+
+        # Split items into batches that fit in the inventory.
+        batches: list[list] = []
+        batch: list = []
+        batch_cells = 0
+        for item in overflow_items:
+            cells = item.width * item.height
+            if batch and batch_cells + cells > inv_capacity:
+                batches.append(batch)
+                batch = [item]
+                batch_cells = cells
+            else:
+                batch.append(item)
+                batch_cells += cells
+        if batch:
+            batches.append(batch)
+
+        session.add_log(
+            f"Transferring {len(overflow_items)} overflow item(s) in "
+            f"{len(batches)} batch(es)."
+        )
+
+        for batch_idx, batch in enumerate(batches):
+            if cancel_event and cancel_event.is_set():
+                return False
+
+            label = f"Overflow batch {batch_idx + 1}/{len(batches)}"
+
+            # 1. Move items from source stash into inventory.
+            session.update_status(f"{label}: moving to inventory...", status="info")
+            for item in batch:
+                if cancel_event and cancel_event.is_set():
+                    return False
+                inv_slot = inventory.find_empty_slot(item)
+                if inv_slot is None:
+                    session.add_log("Inventory full during overflow; aborting.")
+                    return False
+                source_stash.move(item, inv_slot, inventory)
+
+            # 2. Click destination tab.
+            session.update_status(f"{label}: switching to destination tab...", status="info")
+            if not macros.click_stash_tab(dest_stash_id):
+                session.add_log("Failed to click destination stash tab.")
+                return False
+
+            # 3. Move items from inventory into destination stash.
+            session.update_status(f"{label}: placing in destination...", status="info")
+            for item in batch:
+                if cancel_event and cancel_event.is_set():
+                    return False
+                dest_slot = dest_stash.find_empty_slot(item)
+                if dest_slot is None:
+                    session.add_log("Destination stash full during overflow; aborting.")
+                    macros.click_stash_tab(source_stash_id)
+                    return False
+                inventory.move(item, dest_slot, dest_stash)
+
+            # 4. Click back to source tab.
+            session.update_status(f"{label}: returning to source tab...", status="info")
+            if not macros.click_stash_tab(source_stash_id):
+                session.add_log("Failed to return to source stash tab.")
+                return False
+
+        session.add_log(f"Overflow complete: {len(overflow_items)} item(s) moved.")
+        return True
 
     def _get_character(self, character_id):
         try:

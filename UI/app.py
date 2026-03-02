@@ -1652,6 +1652,12 @@ class Api:
             except Exception as exc:
                 logger.debug("Unable to propagate overlay settings: %s", exc, exc_info=True)
 
+            # ── Reload stash tab mapping if changed ──
+            try:
+                macros.load_tab_mapping()
+            except Exception as exc:
+                logger.debug("Unable to reload tab mapping: %s", exc, exc_info=True)
+
             result['settings'] = self.settings_manager.data
             result['success'] = success and not result['errors']
 

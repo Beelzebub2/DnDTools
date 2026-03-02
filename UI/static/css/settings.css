@@ -1845,3 +1845,40 @@ body.has-unsaved-settings #saveSettings:not(.saving):not(.save-success):not(.sav
 .spin-icon {
     animation: spin 0.8s linear infinite;
 }
+
+/* ══════════════════════════════════
+   Stash Tab Mapping
+   ══════════════════════════════════ */
+.tab-mapping-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 10px;
+}
+.tab-mapping-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.tab-mapping-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: rgba(100, 160, 255, 0.12);
+    border: 1px solid rgba(100, 160, 255, 0.30);
+    color: #7db4ff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+}
+.tab-mapping-fixed {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+.tab-mapping-select {
+    flex: 1;
+    max-width: 220px;
+}

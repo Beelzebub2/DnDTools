@@ -84,17 +84,34 @@ BASE_LAYOUT = {
 # Shared Stash, Shared Stash Seasonal).
 STASH_TAB_COUNT = 8
 
-# Labels that match the in-game tab order (index → display name)
-STASH_TAB_LABELS = [
-    'Storage',
-    'Purchased 1',
-    'Purchased 2',
-    'Purchased 3',
-    'Purchased 4',
-    'Purchased 5',
-    'Shared Stash',
-    'Shared Seasonal',
-]
+# Human-readable name for each StashType integer value.
+STASH_TYPE_NAMES = {
+    4: 'Storage', 5: 'Purchased 1', 6: 'Purchased 2',
+    7: 'Purchased 3', 8: 'Purchased 4', 9: 'Purchased 5',
+    20: 'Shared Stash', 30: 'Shared Seasonal',
+}
+
+# Default mapping: box index (0-7) → StashType int.
+# Box 0 = Storage, Box 1 = Shared Stash, Boxes 2-7 = Purchased 1-5 + Seasonal.
+DEFAULT_STASH_TAB_MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
+
+# These module-level globals are rebuilt by load_tab_mapping().
+STASH_TAB_LABELS: list = [STASH_TYPE_NAMES.get(v, '?') for v in DEFAULT_STASH_TAB_MAPPING]
+STASH_TYPE_TO_TAB_INDEX: dict = {v: i for i, v in enumerate(DEFAULT_STASH_TAB_MAPPING) if v}
+
+
+def load_tab_mapping():
+    """Rebuild STASH_TYPE_TO_TAB_INDEX and STASH_TAB_LABELS from settings."""
+    global STASH_TYPE_TO_TAB_INDEX, STASH_TAB_LABELS
+    mapping = None
+    try:
+        mapping = settings_manager.get('stashTabMapping')
+    except Exception:
+        pass
+    if not mapping or not isinstance(mapping, list) or len(mapping) != STASH_TAB_COUNT:
+        mapping = list(DEFAULT_STASH_TAB_MAPPING)
+    STASH_TAB_LABELS = [STASH_TYPE_NAMES.get(v, '?') for v in mapping]
+    STASH_TYPE_TO_TAB_INDEX = {v: i for i, v in enumerate(mapping) if v}
 
 # Resolutions that benefit from hand-tuned offsets can live here
 MANUAL_OVERRIDES = {
@@ -521,12 +538,43 @@ def get_stash_tab_positions():
     ]
 
 
+def click_stash_tab(stash_type_value: int) -> bool:
+    """Click the stash tab selector for the given StashType value.
+
+    Returns True if the tab was clicked, False if the stash_type has no
+    corresponding tab (e.g. BAG, EQUIPMENT).
+    """
+    tab_index = STASH_TYPE_TO_TAB_INDEX.get(stash_type_value)
+    if tab_index is None:
+        logger.debug("No tab mapping for stash type %s", stash_type_value)
+        return False
+
+    _ensure_not_cancelled()
+    tab_positions = get_stash_tab_positions()
+    if tab_index >= len(tab_positions):
+        logger.warning("Tab index %d out of range (have %d tabs)", tab_index, len(tab_positions))
+        return False
+
+    pos = tab_positions[tab_index]
+    move_mouse(pos.x, pos.y)
+    _sleep_with_cancel(0.05)
+    mouse_down()
+    _sleep_with_cancel(0.03)
+    mouse_up()
+    _sleep_with_cancel(0.15)
+    logger.info("Clicked stash tab %d (stash type %d) at (%d, %d)",
+                tab_index, stash_type_value, pos.x, pos.y)
+    return True
+
+
 _initial_positions = get_screen_positions()
 stash_screen_pos = _initial_positions['stash']
 inv_screen_pos = _initial_positions['inv']
 jump = float(_initial_positions['jump'])
 stash_tab_origin = _initial_positions['stash_tab_origin']
 stash_tab_spacing = float(_initial_positions['stash_tab_spacing'])
+
+load_tab_mapping()
 
 
 def get_sort_delay():
