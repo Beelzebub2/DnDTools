@@ -25,6 +25,7 @@ jobs:
             -X POST "https://dndtools.rrmtools.uk/api/release-notify" \
             -H "Authorization: Bearer ${SECRET}" \
             -H "Content-Type: application/json" \
+            -H "User-Agent: Mozilla/5.0 (compatible; DnDTools-CI/1.0)" \
             -d "{\"tag\": \"webhook-test\", \"channel\": \"${{ github.event.inputs.channel }}\"}")
           echo "HTTP response code: ${HTTP_CODE}"
           echo "Response body:"

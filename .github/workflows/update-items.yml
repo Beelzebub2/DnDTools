@@ -422,7 +422,7 @@ jobs:
 
     - name: Notify website of asset update
       run: |
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://dndtools.rrmtools.uk/api/assets-notify" -H "Authorization: Bearer ${SECRET}" -H "Content-Type: application/json" -d '{"source": "update-items"}')
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://dndtools.rrmtools.uk/api/assets-notify" -H "Authorization: Bearer ${SECRET}" -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0 (compatible; DnDTools-CI/1.0)" -d '{"source": "update-items"}')
         if [ "$HTTP_CODE" = "200" ]; then echo "Website notified (HTTP ${HTTP_CODE})"; else echo "Warning: Failed to notify website (HTTP ${HTTP_CODE})"; fi
       env:
         SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}
