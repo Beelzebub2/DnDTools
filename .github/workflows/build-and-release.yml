@@ -93,8 +93,7 @@ jobs:
       - name: Notify website of new release
         shell: bash
         run: |
-          curl -sf -X POST "https://dndtools.rrmtools.uk/api/release-notify" \
-            -H "Authorization: Bearer ${{ secrets.RELEASE_WEBHOOK_SECRET }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag\": \"${{ github.event.inputs.tag }}\", \"channel\": \"${{ github.event.inputs.channel }}\"}" \
-            || echo "Warning: Failed to notify website (non-fatal)"
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://dndtools.rrmtools.uk/api/release-notify" -H "Authorization: Bearer ${SECRET}" -H "Content-Type: application/json" -d "{\"tag\": \"${{ github.event.inputs.tag }}\", \"channel\": \"${{ github.event.inputs.channel }}\"}")
+          if [ "$HTTP_CODE" = "200" ]; then echo "Website notified (HTTP ${HTTP_CODE})"; else echo "Warning: Failed to notify website (HTTP ${HTTP_CODE})"; fi
+        env:
+          SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}

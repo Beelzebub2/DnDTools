@@ -1,0 +1,38 @@
+name: Test Webhook Notification
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Channel to test'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - dev
+
+jobs:
+  test-webhook:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test webhook endpoint (verbose)
+        run: |
+          echo "Testing webhook to https://dndtools.rrmtools.uk/api/release-notify"
+          echo "Channel: ${{ github.event.inputs.channel }}"
+          echo "Secret length: ${#SECRET}"
+          HTTP_CODE=$(curl -s -o response.txt -w "%{http_code}" \
+            -X POST "https://dndtools.rrmtools.uk/api/release-notify" \
+            -H "Authorization: Bearer ${SECRET}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag\": \"webhook-test\", \"channel\": \"${{ github.event.inputs.channel }}\"}")
+          echo "HTTP response code: ${HTTP_CODE}"
+          echo "Response body:"
+          cat response.txt
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "FAILED with HTTP ${HTTP_CODE}"
+            exit 1
+          fi
+          echo "SUCCESS"
+        env:
+          SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}
