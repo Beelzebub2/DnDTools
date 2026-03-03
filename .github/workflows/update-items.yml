@@ -419,3 +419,11 @@ jobs:
     - name: Push changes to main
       if: steps.verify-changed-files.outputs.changed == 'true'
       run: git push origin HEAD:main
+
+    - name: Notify website of asset update
+      run: |
+        curl -sf -X POST "https://dndtools.rrmtools.uk/api/assets-notify" \
+          -H "Authorization: Bearer ${{ secrets.RELEASE_WEBHOOK_SECRET }}" \
+          -H "Content-Type: application/json" \
+          -d '{"source": "update-items"}' \
+          || echo "Warning: Failed to notify website (non-fatal)"

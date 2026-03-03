@@ -89,3 +89,12 @@ jobs:
           prerelease: ${{ github.event.inputs.channel == 'dev' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify website of new release
+        shell: bash
+        run: |
+          curl -sf -X POST "https://dndtools.rrmtools.uk/api/release-notify" \
+            -H "Authorization: Bearer ${{ secrets.RELEASE_WEBHOOK_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag\": \"${{ github.event.inputs.tag }}\", \"channel\": \"${{ github.event.inputs.channel }}\"}" \
+            || echo "Warning: Failed to notify website (non-fatal)"
