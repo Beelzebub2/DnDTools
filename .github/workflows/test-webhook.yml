@@ -16,6 +16,13 @@ jobs:
   test-webhook:
     runs-on: ubuntu-latest
     steps:
+      - name: Bypass Cloudflare for webhook
+        uses: xiaotianxt/bypass-cloudflare-for-github-action@v2.1.0
+        with:
+          cf_account_id: ${{ secrets.CF_ACCOUNT_ID }}
+          cf_zone_id: ${{ secrets.CF_ZONE_ID }}
+          cf_api_token: ${{ secrets.CF_API_TOKEN }}
+
       - name: Test webhook endpoint (verbose)
         run: |
           echo "Testing webhook to https://dndtools.rrmtools.uk/api/release-notify"
@@ -25,7 +32,6 @@ jobs:
             -X POST "https://dndtools.rrmtools.uk/api/release-notify" \
             -H "Authorization: Bearer ${SECRET}" \
             -H "Content-Type: application/json" \
-            -H "User-Agent: Mozilla/5.0 (compatible; DnDTools-CI/1.0)" \
             -d "{\"tag\": \"webhook-test\", \"channel\": \"${{ github.event.inputs.channel }}\"}")
           echo "HTTP response code: ${HTTP_CODE}"
           echo "Response body:"

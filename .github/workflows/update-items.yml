@@ -420,9 +420,16 @@ jobs:
       if: steps.verify-changed-files.outputs.changed == 'true'
       run: git push origin HEAD:main
 
+    - name: Bypass Cloudflare for webhook
+      uses: xiaotianxt/bypass-cloudflare-for-github-action@v2.1.0
+      with:
+        cf_account_id: ${{ secrets.CF_ACCOUNT_ID }}
+        cf_zone_id: ${{ secrets.CF_ZONE_ID }}
+        cf_api_token: ${{ secrets.CF_API_TOKEN }}
+
     - name: Notify website of asset update
       run: |
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://dndtools.rrmtools.uk/api/assets-notify" -H "Authorization: Bearer ${SECRET}" -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0 (compatible; DnDTools-CI/1.0)" -d '{"source": "update-items"}')
+        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://dndtools.rrmtools.uk/api/assets-notify" -H "Authorization: Bearer ${SECRET}" -H "Content-Type: application/json" -d '{"source": "update-items"}')
         if [ "$HTTP_CODE" = "200" ]; then echo "Website notified (HTTP ${HTTP_CODE})"; else echo "Warning: Failed to notify website (HTTP ${HTTP_CODE})"; fi
       env:
         SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}
