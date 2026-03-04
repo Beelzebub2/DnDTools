@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const overlayHotkeyInput = document.getElementById('overlayHotkey');
     const overlayOpacitySlider = document.getElementById('overlayOpacity');
     const overlayOpacityValue = document.getElementById('overlayOpacityValue');
+    const autoStashSelectionCheckbox = document.getElementById('autoStashSelection');
     const tabMapSelects = [
         document.getElementById('tabMap0'),
         document.getElementById('tabMap1'),
@@ -64,7 +65,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         overlayEnabled: 'Game Overlay',
         overlayHotkey: 'Overlay Toggle Hotkey',
         overlayOpacity: 'Overlay Opacity',
-        stashTabMapping: 'Stash Tab Mapping'
+        stashTabMapping: 'Stash Tab Mapping',
+        autoStashSelection: 'Auto Stash Selection'
     };
 
     function updateSaveButtonState() {
@@ -200,7 +202,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: normalizeBoolean(settings.overlayEnabled),
             overlayHotkey: (settings.overlayHotkey || '').trim().toLowerCase(),
             overlayOpacity: toNumber(settings.overlayOpacity),
-            stashTabMapping: JSON.stringify(settings.stashTabMapping || [0, 0, 0, 0, 0, 0, 0, 0])
+            stashTabMapping: JSON.stringify(settings.stashTabMapping || [0, 0, 0, 0, 0, 0, 0, 0]),
+            autoStashSelection: normalizeBoolean(
+                settings.autoStashSelection === undefined ? true : settings.autoStashSelection
+            )
         };
     }
 
@@ -220,7 +225,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: Boolean(settings.overlayEnabled),
             overlayHotkey: settings.overlayHotkey || 'ctrl+shift+o',
             overlayOpacity: parseFloat(settings.overlayOpacity) || 0.92,
-            stashTabMapping: settings.stashTabMapping || [0, 0, 0, 0, 0, 0, 0, 0]
+            stashTabMapping: settings.stashTabMapping || [0, 0, 0, 0, 0, 0, 0, 0],
+            autoStashSelection: settings.autoStashSelection !== false
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -244,7 +250,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
             overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
             overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92,
-            stashTabMapping: tabMapSelects.map(el => el ? parseInt(el.value, 10) : 0)
+            stashTabMapping: tabMapSelects.map(el => el ? parseInt(el.value, 10) : 0),
+            autoStashSelection: autoStashSelectionCheckbox ? autoStashSelectionCheckbox.checked : true
         };
     }
 
@@ -573,6 +580,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (tabMapSelects[i]) {
                     tabMapSelects[i].value = String(mapping[i] || 0);
                 }
+            }
+
+            if (autoStashSelectionCheckbox) {
+                autoStashSelectionCheckbox.checked = currentSettings.autoStashSelection !== false;
             }
         });
 
@@ -1184,7 +1195,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
             overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
             overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92,
-            stashTabMapping: tabMapSelects.map(el => el ? parseInt(el.value, 10) : 0)
+            stashTabMapping: tabMapSelects.map(el => el ? parseInt(el.value, 10) : 0),
+            autoStashSelection: autoStashSelectionCheckbox ? autoStashSelectionCheckbox.checked : true
         };
 
         if (!newSettings.interface) {
@@ -1703,6 +1715,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         { element: overlayEnabledCheckbox, events: ['change'] },
         { element: overlayHotkeyInput, events: ['change', 'blur'] },
         { element: overlayOpacitySlider, events: ['change'] },
+        { element: autoStashSelectionCheckbox, events: ['change'] },
         ...tabMapSelects.filter(Boolean).map(el => ({ element: el, events: ['change'] }))
     ];
 
