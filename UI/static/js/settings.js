@@ -24,7 +24,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     const overlayOpacitySlider = document.getElementById('overlayOpacity');
     const overlayOpacityValue = document.getElementById('overlayOpacityValue');
     const tabMapSelects = [
-        null, null,  // indices 0, 1 are fixed (Storage, Shared Stash)
+        document.getElementById('tabMap0'),
+        document.getElementById('tabMap1'),
         document.getElementById('tabMap2'),
         document.getElementById('tabMap3'),
         document.getElementById('tabMap4'),
@@ -199,7 +200,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: normalizeBoolean(settings.overlayEnabled),
             overlayHotkey: (settings.overlayHotkey || '').trim().toLowerCase(),
             overlayOpacity: toNumber(settings.overlayOpacity),
-            stashTabMapping: JSON.stringify(settings.stashTabMapping || [4,20,5,6,7,8,9,30])
+            stashTabMapping: JSON.stringify(settings.stashTabMapping || [0, 0, 0, 0, 0, 0, 0, 0])
         };
     }
 
@@ -219,7 +220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: Boolean(settings.overlayEnabled),
             overlayHotkey: settings.overlayHotkey || 'ctrl+shift+o',
             overlayOpacity: parseFloat(settings.overlayOpacity) || 0.92,
-            stashTabMapping: settings.stashTabMapping || [4, 20, 5, 6, 7, 8, 9, 30]
+            stashTabMapping: settings.stashTabMapping || [0, 0, 0, 0, 0, 0, 0, 0]
         };
         normalizedSettingsSnapshot = normalizeForComparison(currentSettings);
     }
@@ -243,10 +244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
             overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
             overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92,
-            stashTabMapping: [
-                4, 20,
-                ...tabMapSelects.slice(2).map(el => el ? parseInt(el.value, 10) : 0)
-            ]
+            stashTabMapping: tabMapSelects.map(el => el ? parseInt(el.value, 10) : 0)
         };
     }
 
@@ -569,9 +567,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             applyOverlayDependentState();
 
-            // Tab mapping dropdowns (indices 2-7 are configurable)
-            const mapping = currentSettings.stashTabMapping || [4, 20, 5, 6, 7, 8, 9, 30];
-            for (let i = 2; i < 8; i++) {
+            // Tab mapping dropdowns (all 8 positions are configurable)
+            const mapping = currentSettings.stashTabMapping || [0, 0, 0, 0, 0, 0, 0, 0];
+            for (let i = 0; i < 8; i++) {
                 if (tabMapSelects[i]) {
                     tabMapSelects[i].value = String(mapping[i] || 0);
                 }
@@ -1186,10 +1184,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             overlayEnabled: overlayEnabledCheckbox ? overlayEnabledCheckbox.checked : false,
             overlayHotkey: overlayHotkeyInput ? overlayHotkeyInput.value : 'ctrl+shift+o',
             overlayOpacity: overlayOpacitySlider ? parseInt(overlayOpacitySlider.value, 10) / 100 : 0.92,
-            stashTabMapping: [
-                4, 20,
-                ...tabMapSelects.slice(2).map(el => el ? parseInt(el.value, 10) : 0)
-            ]
+            stashTabMapping: tabMapSelects.map(el => el ? parseInt(el.value, 10) : 0)
         };
 
         if (!newSettings.interface) {
