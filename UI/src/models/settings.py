@@ -106,7 +106,7 @@ class SettingsManager:
             "overlayEnabled": False,
             "overlayHotkey": "ctrl+shift+o",
             "overlayOpacity": 0.92,
-            "stashTabMapping": [4, 20, 5, 6, 7, 8, 9, 30],
+            "stashTabMapping": [0, 0, 0, 0, 0, 0, 0, 0],
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
