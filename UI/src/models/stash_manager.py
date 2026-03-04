@@ -956,6 +956,12 @@ class StashManager:
         try:
             windows[0].activate()
             logger.info("Focused window: Dark and Darker")
+            # Exclusive fullscreen (mode 0) needs extra time to regain focus
+            window_mode = macros.get_game_window_mode()
+            if window_mode == 0:
+                logger.info("Game is in exclusive fullscreen — adding extra focus delay")
+                session.add_log("Exclusive fullscreen detected — waiting for focus.")
+                time.sleep(1.0)
             session.update_status("Game window focused. Resetting modifiers...", status="info")
             self._reset_modifier_state(session)
             session.update_status("Game window focused. Executing sort...", status="info")
