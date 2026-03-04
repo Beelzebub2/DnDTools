@@ -88,7 +88,7 @@ STASH_TAB_COUNT = 8
 STASH_TYPE_NAMES = {
     4: 'Storage', 5: 'Purchased 1', 6: 'Purchased 2',
     7: 'Purchased 3', 8: 'Purchased 4', 9: 'Purchased 5',
-    20: 'Shared Stash', 30: 'Shared Seasonal',
+    20: 'Shared Seasonal', 30: 'Shared Stash',
 }
 
 # Default mapping: box index (0-7) → StashType int.
