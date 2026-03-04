@@ -521,6 +521,10 @@ function maybeShowUpdatePopup(data, { fromCache = false } = {}) {
             releaseTag: data.releaseTag || ''
         }
     );
+
+    // Mark this version as shown immediately so the popup does not
+    // reappear on every tab switch (full page reloads destroy the DOM).
+    safeStorageSet(window.localStorage, UPDATE_DISMISSED_VERSION_KEY, remoteVersionNormalized);
 }
 
 async function checkForUpdates(force = false) {
@@ -597,181 +601,224 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '', tr
     // Remove any existing popup
     const existing = document.getElementById('update-popup');
     if (existing) existing.remove();
-    const popup = document.createElement('div');
-    popup.id = 'update-popup';
-    popup.style.position = 'fixed';
-    popup.style.bottom = '30px';
-    popup.style.right = '30px';
-    popup.style.background = 'var(--bg-secondary, #241c17)';
-    popup.style.color = 'var(--text-primary, #e4c869)';
-    popup.style.padding = '24px 32px';
-    popup.style.borderRadius = '8px';
-    popup.style.border = '1px solid var(--border-color, #392e24)';
-    popup.style.boxShadow = '0 8px 32px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(228, 200, 105, 0.1)';
-    popup.style.zIndex = '99999';
-    popup.style.maxWidth = '380px';
-    popup.style.minWidth = '320px';
-    popup.style.backdropFilter = 'blur(8px)';
-    popup.style.animation = 'slideInFromRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)';
 
-    // Add animation keyframes if not already defined
+    // Inject styles once
     if (!document.getElementById('update-popup-styles')) {
         const style = document.createElement('style');
         style.id = 'update-popup-styles';
         style.textContent = `
-            @keyframes slideInFromRight {
-                from {
-                    transform: translateX(100%);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateX(0);
-                    opacity: 1;
-                }
+            @keyframes updateSlideIn {
+                from { transform: translateY(16px); opacity: 0; }
+                to   { transform: translateY(0);    opacity: 1; }
             }
-            
-            .update-popup-btn {
-                background: var(--accent-gold, #e4c869);
-                color: #1a1412;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-weight: 600;
-                font-size: 14px;
-                text-decoration: none;
-                display: inline-flex;
+            @keyframes updateSlideOut {
+                from { transform: translateY(0);    opacity: 1; }
+                to   { transform: translateY(16px); opacity: 0; }
+            }
+            #update-popup {
+                position: fixed;
+                bottom: 24px;
+                right: 24px;
+                z-index: 99999;
+                width: 340px;
+                background: linear-gradient(135deg, rgba(20,20,20,0.98), rgba(11,11,11,0.98));
+                border: 1px solid var(--border-color, #2a2a2a);
+                border-radius: 12px;
+                box-shadow: 0 12px 40px rgba(0,0,0,0.55), 0 0 0 1px rgba(207,163,70,0.08);
+                backdrop-filter: blur(16px);
+                animation: updateSlideIn 0.35s cubic-bezier(0.22,1,0.36,1) forwards;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                overflow: hidden;
+            }
+            #update-popup.closing {
+                animation: updateSlideOut 0.25s cubic-bezier(0.4,0,1,1) forwards;
+            }
+            .upd-header {
+                display: flex;
                 align-items: center;
-                gap: 8px;
-                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                box-shadow: 0 2px 8px rgba(228, 200, 105, 0.2);
+                gap: 10px;
+                padding: 14px 16px 12px;
+                border-bottom: 1px solid var(--border-color, #2a2a2a);
             }
-            
-            .update-popup-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 16px rgba(228, 200, 105, 0.3);
-                background: #f0d478;
-            }
-            
-            .update-popup-close {
-                background: transparent;
-                border: 1px solid var(--border-color, #392e24);
-                color: var(--text-secondary, #a89a6c);
-                padding: 8px;
-                border-radius: 6px;
-                cursor: pointer;
-                font-size: 16px;
-                line-height: 1;
-                transition: all 0.2s ease;
-                width: 32px;
-                height: 32px;
+            .upd-icon {
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                width: 32px; height: 32px;
+                border-radius: 8px;
+                background: rgba(207,163,70,0.12);
+                color: var(--accent-gold, #cfa346);
+                flex-shrink: 0;
             }
-            
-            .update-popup-close:hover {
-                background: rgba(255, 255, 255, 0.05);
-                color: var(--text-primary, #e4c869);
-                border-color: var(--accent-gold, #e4c869);
+            .upd-icon .material-icons { font-size: 18px; }
+            .upd-title {
+                flex: 1;
+                font-size: 13.5px;
+                font-weight: 600;
+                color: var(--text-primary, #e6e6e6);
+                letter-spacing: 0.01em;
             }
-
-            .update-badge {
+            .upd-close {
+                background: none; border: none; cursor: pointer;
+                color: var(--text-secondary, #888);
+                padding: 4px; border-radius: 6px;
+                display: flex; align-items: center; justify-content: center;
+                transition: color .15s, background .15s;
+            }
+            .upd-close:hover {
+                color: var(--text-primary, #e6e6e6);
+                background: rgba(255,255,255,0.06);
+            }
+            .upd-close .material-icons { font-size: 18px; }
+            .upd-body { padding: 14px 16px; }
+            .upd-versions {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 13px;
+                color: var(--text-secondary, #888);
+                margin-bottom: 12px;
+            }
+            .upd-ver {
+                font-family: 'Consolas', 'SF Mono', monospace;
+                font-size: 12.5px;
+                padding: 3px 8px;
+                border-radius: 6px;
+                font-weight: 500;
+            }
+            .upd-ver-old {
+                background: rgba(255,255,255,0.05);
+                color: var(--text-secondary, #888);
+            }
+            .upd-ver-new {
+                background: rgba(207,163,70,0.12);
+                color: var(--accent-gold, #cfa346);
+            }
+            .upd-arrow {
+                color: var(--text-secondary, #555);
+                font-size: 16px;
+                display: flex;
+            }
+            .upd-badge {
                 display: inline-flex;
                 align-items: center;
-                gap: 6px;
-                padding: 2px 10px;
+                padding: 2px 8px;
                 border-radius: 999px;
-                font-size: 12px;
+                font-size: 10.5px;
                 font-weight: 600;
-                margin-left: 8px;
                 text-transform: uppercase;
                 letter-spacing: 0.5px;
+                margin-left: auto;
             }
-
-            .update-badge.stable {
-                background: rgba(106, 173, 86, 0.2);
-                color: #8fe18d;
-                border: 1px solid rgba(143, 225, 141, 0.5);
+            .upd-badge.stable {
+                background: rgba(106,173,86,0.15);
+                color: #7fd17d;
             }
-
-            .update-badge.dev {
-                background: rgba(255, 128, 0, 0.15);
+            .upd-badge.dev {
+                background: rgba(255,128,0,0.12);
                 color: #ffb46e;
-                border: 1px solid rgba(255, 180, 110, 0.4);
             }
+            .upd-notes {
+                margin-top: 10px;
+                padding: 10px 12px;
+                background: rgba(255,255,255,0.025);
+                border-radius: 8px;
+                border: 1px solid rgba(255,255,255,0.04);
+                font-size: 12.5px;
+                line-height: 1.55;
+                color: var(--text-secondary, #999);
+                max-height: 120px;
+                overflow-y: auto;
+                white-space: pre-line;
+            }
+            .upd-notes::-webkit-scrollbar { width: 4px; }
+            .upd-notes::-webkit-scrollbar-thumb {
+                background: rgba(255,255,255,0.1);
+                border-radius: 4px;
+            }
+            .upd-actions {
+                display: flex;
+                gap: 8px;
+                padding: 0 16px 14px;
+            }
+            .upd-btn {
+                flex: 1;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 6px;
+                padding: 9px 14px;
+                border-radius: 8px;
+                font-size: 12.5px;
+                font-weight: 600;
+                cursor: pointer;
+                text-decoration: none;
+                transition: background .15s, box-shadow .15s, transform .1s;
+                border: none;
+            }
+            .upd-btn-primary {
+                background: var(--accent-gold, #cfa346);
+                color: #0b0b0b;
+                box-shadow: 0 2px 8px rgba(207,163,70,0.2);
+            }
+            .upd-btn-primary:hover {
+                background: #ddb04e;
+                box-shadow: 0 4px 16px rgba(207,163,70,0.3);
+                transform: translateY(-1px);
+            }
+            .upd-btn-secondary {
+                background: rgba(255,255,255,0.05);
+                color: var(--text-secondary, #999);
+                border: 1px solid var(--border-color, #2a2a2a);
+            }
+            .upd-btn-secondary:hover {
+                background: rgba(255,255,255,0.08);
+                color: var(--text-primary, #e6e6e6);
+            }
+            .upd-btn .material-icons { font-size: 15px; }
         `;
         document.head.appendChild(style);
     }
 
     const channel = (options.channel || 'stable').toString().toLowerCase();
-    const releaseTag = options.releaseTag || '';
-    const badgeClass = channel === 'dev' ? 'update-badge dev' : 'update-badge stable';
-    const badgeLabel = channel === 'dev' ? 'Test build' : 'Stable release';
-    const releaseTagSnippet = releaseTag && !releaseTag.startsWith('Release')
-        ? `<div style="margin-top: 4px; font-size: 12px; color: var(--text-secondary, #988c65);">Tag: ${releaseTag}</div>`
-        : '';
+    const badgeClass = channel === 'dev' ? 'upd-badge dev' : 'upd-badge stable';
+    const badgeLabel = channel === 'dev' ? 'DEV' : 'STABLE';
 
+    const popup = document.createElement('div');
+    popup.id = 'update-popup';
     popup.innerHTML = `
-        <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px;">
-            <div style="
-                background: linear-gradient(135deg, var(--accent-gold, #e4c869), #f0d478);
-                border-radius: 50%;
-                padding: 12px;
-                box-shadow: 0 4px 12px rgba(228, 200, 105, 0.3);
-            ">
-                <span class="material-icons" style="font-size: 24px; color: #1a1412;">system_update_alt</span>
-            </div>
-            <div style="flex: 1;">
-                <h3 style="
-                    color: var(--accent-gold, #e4c869);
-                    font-size: 18px;
-                    font-weight: 600;
-                    margin: 0 0 8px 0;
-                    letter-spacing: 0.5px;
-                ">Update Available!</h3>
-                <div style="
-                    font-size: 14px;
-                    color: var(--text-secondary, #a89a6c);
-                    line-height: 1.4;
-                ">
-                    <div style="margin-bottom: 4px;">
-                        <span style="color: var(--text-primary, #e4c869);">Current:</span> v${localVersion}
-                    </div>
-                    <div>
-                        <span style="color: var(--text-primary, #e4c869);">Latest:</span> 
-                        <span style="color: var(--accent-gold, #e4c869); font-weight: 600;">v${remoteVersion}</span>
-                        <span class="${badgeClass}">${badgeLabel}</span>
-                    </div>
-                    ${releaseTagSnippet}
-                </div>
-                ${notes ? `<div style="margin-top: 12px; padding: 12px; background: rgba(255, 255, 255, 0.04); border-radius: 6px; border: 1px solid rgba(228, 200, 105, 0.2); font-size: 13px; line-height: 1.6; color: var(--text-secondary, #c0b18a); white-space: pre-line;">${notes}</div>` : ''}
-            </div>
-            <button id="close-update-popup" class="update-popup-close" title="Close">✕</button>
+        <div class="upd-header">
+            <div class="upd-icon"><span class="material-icons">upgrade</span></div>
+            <span class="upd-title">Update available</span>
+            <span class="${badgeClass}">${badgeLabel}</span>
+            <button class="upd-close" title="Dismiss"><span class="material-icons">close</span></button>
         </div>
-        <div style="
-            display: flex;
-            justify-content: flex-end;
-            gap: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--border-color, #392e24);
-        ">
-            <button class="update-popup-btn" id="trigger-auto-update" type="button">
-                <span class="material-icons" style="font-size: 18px;">bolt</span>
-                Install update
+        <div class="upd-body">
+            <div class="upd-versions">
+                <span class="upd-ver upd-ver-old">v${localVersion}</span>
+                <span class="upd-arrow material-icons">arrow_forward</span>
+                <span class="upd-ver upd-ver-new">v${remoteVersion}</span>
+            </div>
+            ${notes ? `<div class="upd-notes">${notes}</div>` : ''}
+        </div>
+        <div class="upd-actions">
+            <button class="upd-btn upd-btn-primary" id="trigger-auto-update" type="button">
+                <span class="material-icons">bolt</span>
+                Install
             </button>
-            <a href="${releaseUrl}" target="_blank" class="update-popup-btn">
-                <span class="material-icons" style="font-size: 18px;">open_in_new</span>
-                Download manually
+            <a href="${releaseUrl}" target="_blank" class="upd-btn upd-btn-secondary">
+                <span class="material-icons">open_in_new</span>
+                Download
             </a>
         </div>
     `;
     document.body.appendChild(popup);
 
-    const closeBtn = popup.querySelector('.update-popup-close');
+    const closeBtn = popup.querySelector('.upd-close');
     if (closeBtn) {
         closeBtn.addEventListener('click', () => {
-            popup.remove();
+            popup.classList.add('closing');
+            popup.addEventListener('animationend', () => popup.remove(), { once: true });
             if (trackingVersion) {
                 safeStorageSet(window.localStorage, UPDATE_DISMISSED_VERSION_KEY, trackingVersion);
             }
@@ -783,7 +830,7 @@ function showUpdatePopup(remoteVersion, localVersion, releaseUrl, notes = '', tr
         autoUpdateBtn.addEventListener('click', () => startAutomaticUpdate(autoUpdateBtn, releaseUrl, trackingVersion));
     }
 
-    const manualBtn = popup.querySelector('a.update-popup-btn');
+    const manualBtn = popup.querySelector('a.upd-btn-secondary');
     if (manualBtn && trackingVersion) {
         manualBtn.addEventListener('click', () => safeStorageSet(window.localStorage, UPDATE_DISMISSED_VERSION_KEY, trackingVersion), { once: true });
     }

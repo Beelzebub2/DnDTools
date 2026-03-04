@@ -82,6 +82,7 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: ${{ github.event.inputs.channel == 'dev' && 'Test-Release' || 'Release' }} ${{ github.event.inputs.tag }}
+          generate_release_notes: true
           files: |
             dist/DnDTools-Setup-*.exe
             dist/update-manifest.json

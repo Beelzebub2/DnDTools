@@ -815,16 +815,31 @@ class StashManager:
             stash_queue = [stash_id for stash_id in stashes.keys() if stash_id in requested_ids]
 
         if not stash_queue:
-            return {'previewImages': preview_paths, 'stashData': {}, 'stashStats': stash_stats}
+            # Even with an empty queue, requested IDs that aren't in stashes
+            # must appear as empty so the frontend clears stale data.
+            stash_data: Dict[str, List[Dict]] = {}
+            if requested_ids:
+                for sid in requested_ids:
+                    stash_data[sid] = []
+            return {'previewImages': preview_paths, 'stashData': stash_data, 'stashStats': stash_stats}
 
         stash_cache = self._get_stash_cache(char_data)
         stash_data: Dict[str, List[Dict]] = {}
+
+        # Pre-populate requested IDs that aren't present in stashes so the
+        # frontend receives an explicit empty list and clears old items.
+        if requested_ids:
+            for sid in requested_ids:
+                if sid not in stashes:
+                    stash_data[sid] = []
 
         tasks: List[Tuple[str, int, List[Dict]]] = []
         for stash_id in stash_queue:
             items = stashes.get(stash_id)
             if not isinstance(items, list):
                 stash_data[stash_id] = []
+                if stash_cache and stash_id in stash_cache:
+                    del stash_cache[stash_id]
                 continue
 
             signature = self._compute_stash_signature(items)
