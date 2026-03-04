@@ -380,6 +380,12 @@ class CalibrationOverlay:
     # -- result builder --
 
     def _save_result(self) -> None:
+        # Compute each tab centre so every position is stored individually.
+        tab_positions = []
+        for i in range(self._tab_count):
+            cx = self._tab_x
+            cy = int(round(self._tab_y + i * self._tab_spacing))
+            tab_positions.append({"x": cx, "y": cy})
         self._result = {
             "saved": True,
             "stash": {"x": self._stash_x, "y": self._stash_y},
@@ -391,6 +397,7 @@ class CalibrationOverlay:
             "originalJump": self._orig_jump,
             "tabOrigin": {"x": self._tab_x, "y": self._tab_y},
             "tabSpacing": self._tab_spacing,
+            "tabPositions": tab_positions,
             "originalTabOrigin": {"x": self._orig_tab[0], "y": self._orig_tab[1]},
             "originalTabSpacing": self._orig_tab_spacing,
         }

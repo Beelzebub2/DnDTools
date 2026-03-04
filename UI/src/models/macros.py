@@ -446,6 +446,9 @@ def _apply_calibration_override(positions, res):
                 )
         if cal.get('stashTabSpacing') is not None:
             positions['stash_tab_spacing'] = float(cal['stashTabSpacing'])
+        # Carry individual tab positions if the calibration saved them.
+        if cal.get('stashTabPositions'):
+            positions['stash_tab_positions'] = cal['stashTabPositions']
     except Exception:
         pass  # fall through to uncalibrated positions
     return positions
@@ -525,14 +528,38 @@ def get_screen_positions():
     return positions
 
 
+def has_calibration_saved() -> bool:
+    """Return True if a calibration override has been saved for the current resolution."""
+    try:
+        cal = settings_manager.get('calibrationOverride')
+        if not cal:
+            return False
+        res = get_current_resolution()
+        cal_res = cal.get('resolution', {})
+        return cal_res.get('width') == res[0] and cal_res.get('height') == res[1]
+    except Exception:
+        return False
+
+
 def get_stash_tab_positions():
     """Return a list of *STASH_TAB_COUNT* Points — one per stash tab selector.
 
-    Each position is computed from the calibrated tab origin + index * spacing.
+    If individual tab positions were saved during calibration they are used
+    directly.  Otherwise falls back to computing ``origin + index * spacing``.
     Calls :func:`get_screen_positions` to ensure the latest calibration data
     is used (including any overrides saved after module import).
     """
     positions = get_screen_positions()
+
+    # Prefer individually-saved positions from a calibration session.
+    saved = positions.get('stash_tab_positions')
+    if saved and isinstance(saved, list) and len(saved) >= STASH_TAB_COUNT:
+        pts = []
+        for p in saved[:STASH_TAB_COUNT]:
+            pts.append(Point(int(round(p['x'])), int(round(p['y']))))
+        return pts
+
+    # Fallback: compute from origin + index * uniform spacing.
     origin = positions['stash_tab_origin']
     spacing = float(positions['stash_tab_spacing'])
     return [

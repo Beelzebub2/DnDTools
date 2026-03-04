@@ -51,7 +51,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.9.3"
+APP_VERSION = "3.9.2"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -2618,6 +2618,8 @@ class Api:
                         }
                     if 'tabSpacing' in result:
                         cal_override['stashTabSpacing'] = result['tabSpacing']
+                    if 'tabPositions' in result:
+                        cal_override['stashTabPositions'] = result['tabPositions']
                     self.settings_manager.update({
                         'calibrationOverride': cal_override,
                     })
