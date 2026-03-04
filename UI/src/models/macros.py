@@ -636,8 +636,7 @@ def move_mouse_smooth(x1, y1, x2, y2, steps=25, min_delay=0.008, max_delay=0.01,
 def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_width=1, start_height=1, end_width=1, end_height=1):
     """
     Most reliable mouse move and click: now uses raw Windows API SendInput.
-    Adds random jitter and delay to mimic human input.
-    Now uses smooth mouse movement with cancellation awareness.
+    Uses smooth mouse movement with cancellation awareness.
     """
     global _last_drop_signature, _last_drop_time, _last_pickup_signature, _last_pickup_time
 
@@ -674,14 +673,11 @@ def move_from_to_reliable(start_stash, start_pos, end_stash, end_pos, start_widt
         travel_x = abs(end_x - start_x)
         travel_y = abs(end_y - start_y)
         max_travel = max(travel_x, travel_y)
-        jitter_range = 3.0
-        if max_travel <= max(jump * 0.6, 12):
-            jitter_range = 1.25
 
-        sx = start_x + random.uniform(-jitter_range, jitter_range)
-        sy = start_y + random.uniform(-jitter_range, jitter_range)
-        ex = end_x + random.uniform(-jitter_range, jitter_range)
-        ey = end_y + random.uniform(-jitter_range, jitter_range)
+        sx = start_x
+        sy = start_y
+        ex = end_x
+        ey = end_y
 
         # Move to start position smoothly from current mouse position
         pt = POINT()
