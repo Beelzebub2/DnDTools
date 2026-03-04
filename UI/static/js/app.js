@@ -893,6 +893,25 @@ async function fetchMarketPrice(itemId) {
     }
 }
 
+async function checkFullscreenMode() {
+    try {
+        const resp = await fetch('/api/window_mode');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        // mode 0 = exclusive fullscreen — warn the user
+        if (data.mode === 0) {
+            showNotification(
+                'Dark and Darker is running in Exclusive Fullscreen. This can cause focus delays that interfere with sorting. Please switch to Borderless Windowed (Fullscreen Mode 1) in your game settings for the best experience.',
+                'warning',
+                { id: 'fullscreen-warning', persistent: true }
+            );
+        }
+    } catch (e) {
+        // Silently ignore — game may not be running or settings unreadable
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     checkForUpdates();
+    checkFullscreenMode();
 });

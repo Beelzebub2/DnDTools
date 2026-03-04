@@ -51,7 +51,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.9.4"
+APP_VERSION = "3.9.5"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -3796,6 +3796,13 @@ def serve_file(filename):
 
     assets_dir = get_resource_dir()
     return send_from_directory(assets_dir, filename)
+
+@server.route('/api/window_mode', methods=['GET'])
+def api_window_mode():
+    """Return the game's current fullscreen mode from GameUserSettings.ini."""
+    from src.models.macros import get_game_window_mode
+    mode = get_game_window_mode()
+    return jsonify({"mode": mode})
 
 @server.route('/api/auto_resolution', methods=['GET'])
 def api_auto_resolution():
