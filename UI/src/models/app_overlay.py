@@ -150,7 +150,9 @@ class AppOverlayManager:
                 self._bring_to_front()
                 return
 
-        if not self._window:
+        first_create = self._window is None
+        if first_create:
+            self._ready_event.clear()
             self._create_window()
         else:
             try:
@@ -159,7 +161,15 @@ class AppOverlayManager:
                 logger.warning("Failed to show overlay window: %s", exc)
                 # Window might have been destroyed — recreate
                 self._window = None
+                self._ready_event.clear()
                 self._create_window()
+                first_create = True
+
+        # On first creation wait briefly for the JS to signal readiness so
+        # the user never sees an unstyled white flash.
+        if first_create:
+            if not self._ready_event.wait(timeout=3.0):
+                logger.debug("Overlay ready signal timed out — showing anyway")
 
         self._visible = True
         self._apply_opacity()
@@ -200,6 +210,11 @@ class AppOverlayManager:
     @property
     def is_enabled(self) -> bool:
         return self._enabled
+
+    def mark_ready(self) -> None:
+        """Signal that the overlay page has finished initialising."""
+        self._ready_event.set()
+        logger.debug("Overlay ready signal received")
 
     # ----------------------------------------------------------------- internal
 
@@ -242,7 +257,8 @@ class AppOverlayManager:
                 maximized=True,
                 on_top=True,
                 transparent=True,
-                background_color="#000000",
+                background_color="#08080a",
+                hidden=True,
             )
 
             self._window = window

@@ -3652,6 +3652,16 @@ def overlay_show():
         logger.error("Failed to show overlay: %s", exc)
         return jsonify({'success': False, 'error': str(exc)}), 500
 
+@server.route('/api/overlay/ready', methods=['POST'])
+def overlay_ready():
+    """Called by the overlay JS once the page has fully initialised."""
+    try:
+        api._app_overlay.mark_ready()
+        return jsonify({'success': True})
+    except Exception as exc:
+        logger.debug("overlay/ready signal failed: %s", exc)
+        return jsonify({'success': False}), 500
+
 @server.route('/record')
 def record():
     return render_template('record.html')
