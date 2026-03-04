@@ -77,7 +77,7 @@ BASE_LAYOUT = {
     'inv': Point(690, 626),
     'jump': 40.5,
     'stash_tab_origin': Point(1328, 211),   # centre of the first stash tab selector
-    'stash_tab_spacing': 47,                # vertical px between consecutive tab centres
+    'stash_tab_spacing': 45,                # vertical px between consecutive tab centres
 }
 
 # Number of stash tab selectors in the game UI (Storage, Purchased 0-4,

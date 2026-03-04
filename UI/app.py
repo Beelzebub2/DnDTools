@@ -3797,6 +3797,13 @@ def serve_file(filename):
     assets_dir = get_resource_dir()
     return send_from_directory(assets_dir, filename)
 
+@server.route('/api/window_mode', methods=['GET'])
+def api_window_mode():
+    """Return the game's current fullscreen mode from GameUserSettings.ini."""
+    from src.models.macros import get_game_window_mode
+    mode = get_game_window_mode()
+    return jsonify({"mode": mode})
+
 @server.route('/api/auto_resolution', methods=['GET'])
 def api_auto_resolution():
     from src.models.macros import get_game_resolution
