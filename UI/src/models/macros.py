@@ -96,7 +96,7 @@ STASH_TYPE_NAMES = {
 DEFAULT_STASH_TAB_MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
 
 # These module-level globals are rebuilt by load_tab_mapping().
-STASH_TAB_LABELS: list = [STASH_TYPE_NAMES.get(v, '?') for v in DEFAULT_STASH_TAB_MAPPING]
+STASH_TAB_LABELS: list = [STASH_TYPE_NAMES.get(v, 'Not set') if v else 'Not set' for v in DEFAULT_STASH_TAB_MAPPING]
 STASH_TYPE_TO_TAB_INDEX: dict = {v: i for i, v in enumerate(DEFAULT_STASH_TAB_MAPPING) if v}
 
 
@@ -110,7 +110,7 @@ def load_tab_mapping():
         pass
     if not mapping or not isinstance(mapping, list) or len(mapping) != STASH_TAB_COUNT:
         mapping = list(DEFAULT_STASH_TAB_MAPPING)
-    STASH_TAB_LABELS = [STASH_TYPE_NAMES.get(v, '?') for v in mapping]
+    STASH_TAB_LABELS = [STASH_TYPE_NAMES.get(v, 'Not set') if v else 'Not set' for v in mapping]
     STASH_TYPE_TO_TAB_INDEX = {v: i for i, v in enumerate(mapping) if v}
 
 # Resolutions that benefit from hand-tuned offsets can live here
@@ -529,9 +529,12 @@ def get_stash_tab_positions():
     """Return a list of *STASH_TAB_COUNT* Points — one per stash tab selector.
 
     Each position is computed from the calibrated tab origin + index * spacing.
+    Calls :func:`get_screen_positions` to ensure the latest calibration data
+    is used (including any overrides saved after module import).
     """
-    origin = stash_tab_origin
-    spacing = stash_tab_spacing
+    positions = get_screen_positions()
+    origin = positions['stash_tab_origin']
+    spacing = float(positions['stash_tab_spacing'])
     return [
         Point(int(round(origin.x)), int(round(origin.y + i * spacing)))
         for i in range(STASH_TAB_COUNT)
