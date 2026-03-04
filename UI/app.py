@@ -2618,6 +2618,8 @@ class Api:
                         }
                     if 'tabSpacing' in result:
                         cal_override['stashTabSpacing'] = result['tabSpacing']
+                    if 'tabPositions' in result:
+                        cal_override['stashTabPositions'] = result['tabPositions']
                     self.settings_manager.update({
                         'calibrationOverride': cal_override,
                     })

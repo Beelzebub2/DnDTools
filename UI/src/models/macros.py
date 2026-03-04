@@ -88,7 +88,7 @@ STASH_TAB_COUNT = 8
 STASH_TYPE_NAMES = {
     4: 'Storage', 5: 'Purchased 1', 6: 'Purchased 2',
     7: 'Purchased 3', 8: 'Purchased 4', 9: 'Purchased 5',
-    20: 'Shared Stash', 30: 'Shared Seasonal',
+    20: 'Shared Seasonal', 30: 'Shared Stash',
 }
 
 # Default mapping: box index (0-7) → StashType int.
@@ -96,7 +96,7 @@ STASH_TYPE_NAMES = {
 DEFAULT_STASH_TAB_MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
 
 # These module-level globals are rebuilt by load_tab_mapping().
-STASH_TAB_LABELS: list = [STASH_TYPE_NAMES.get(v, '?') for v in DEFAULT_STASH_TAB_MAPPING]
+STASH_TAB_LABELS: list = [STASH_TYPE_NAMES.get(v, 'Not set') if v else 'Not set' for v in DEFAULT_STASH_TAB_MAPPING]
 STASH_TYPE_TO_TAB_INDEX: dict = {v: i for i, v in enumerate(DEFAULT_STASH_TAB_MAPPING) if v}
 
 
@@ -110,7 +110,7 @@ def load_tab_mapping():
         pass
     if not mapping or not isinstance(mapping, list) or len(mapping) != STASH_TAB_COUNT:
         mapping = list(DEFAULT_STASH_TAB_MAPPING)
-    STASH_TAB_LABELS = [STASH_TYPE_NAMES.get(v, '?') for v in mapping]
+    STASH_TAB_LABELS = [STASH_TYPE_NAMES.get(v, 'Not set') if v else 'Not set' for v in mapping]
     STASH_TYPE_TO_TAB_INDEX = {v: i for i, v in enumerate(mapping) if v}
 
 # Resolutions that benefit from hand-tuned offsets can live here
@@ -446,6 +446,9 @@ def _apply_calibration_override(positions, res):
                 )
         if cal.get('stashTabSpacing') is not None:
             positions['stash_tab_spacing'] = float(cal['stashTabSpacing'])
+        # Carry individual tab positions if the calibration saved them.
+        if cal.get('stashTabPositions'):
+            positions['stash_tab_positions'] = cal['stashTabPositions']
     except Exception:
         pass  # fall through to uncalibrated positions
     return positions
@@ -525,13 +528,40 @@ def get_screen_positions():
     return positions
 
 
+def has_calibration_saved() -> bool:
+    """Return True if a calibration override has been saved for the current resolution."""
+    try:
+        cal = settings_manager.get('calibrationOverride')
+        if not cal:
+            return False
+        res = get_current_resolution()
+        cal_res = cal.get('resolution', {})
+        return cal_res.get('width') == res[0] and cal_res.get('height') == res[1]
+    except Exception:
+        return False
+
+
 def get_stash_tab_positions():
     """Return a list of *STASH_TAB_COUNT* Points — one per stash tab selector.
 
-    Each position is computed from the calibrated tab origin + index * spacing.
+    If individual tab positions were saved during calibration they are used
+    directly.  Otherwise falls back to computing ``origin + index * spacing``.
+    Calls :func:`get_screen_positions` to ensure the latest calibration data
+    is used (including any overrides saved after module import).
     """
-    origin = stash_tab_origin
-    spacing = stash_tab_spacing
+    positions = get_screen_positions()
+
+    # Prefer individually-saved positions from a calibration session.
+    saved = positions.get('stash_tab_positions')
+    if saved and isinstance(saved, list) and len(saved) >= STASH_TAB_COUNT:
+        pts = []
+        for p in saved[:STASH_TAB_COUNT]:
+            pts.append(Point(int(round(p['x'])), int(round(p['y']))))
+        return pts
+
+    # Fallback: compute from origin + index * uniform spacing.
+    origin = positions['stash_tab_origin']
+    spacing = float(positions['stash_tab_spacing'])
     return [
         Point(int(round(origin.x)), int(round(origin.y + i * spacing)))
         for i in range(STASH_TAB_COUNT)

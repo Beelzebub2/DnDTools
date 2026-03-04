@@ -31,7 +31,7 @@
         2: 'Bag', 3: 'Equipment', 4: 'Storage',
         5: 'Purchased Storage 1', 6: 'Purchased Storage 2',
         7: 'Purchased Storage 3', 8: 'Purchased Storage 4',
-        9: 'Purchased Storage 5', 20: 'Shared Stash', 30: 'Shared Stash Seasonal'
+        9: 'Purchased Storage 5', 20: 'Shared Seasonal', 30: 'Shared Stash'
     };
 
     const CELL_SIZE = 45;
