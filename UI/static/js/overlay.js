@@ -1382,8 +1382,6 @@
             }
         } finally {
             setSortingState(false);
-            // Restore the overlay now that sorting is done
-            try { await fetch('/api/overlay/show', { method: 'POST' }); } catch (_) { /* best-effort */ }
         }
     }
 
@@ -1512,8 +1510,6 @@
         } finally {
             setSortingState(false);
             if (execBtn) { execBtn.disabled = false; execBtn.innerHTML = '<span class="material-icons">check</span> Execute Deposit'; }
-            // Restore the overlay now that deposit is done
-            try { await fetch('/api/overlay/show', { method: 'POST' }); } catch (_) { /* best-effort */ }
         }
     }
 
@@ -2681,6 +2677,10 @@
         window.onCharacterDataCaptured = () => {
             checkForDataUpdates();
         };
+
+        // Signal the backend that the overlay has initialised so it can
+        // safely reveal the window (avoids white flash on first open).
+        fetch('/api/overlay/ready', { method: 'POST' }).catch(() => {});
     }
 
     // Boot
