@@ -1162,8 +1162,8 @@ const getStashName = (stashId) => {
         7: 'Purchased Storage 3',
         8: 'Purchased Storage 4',
         9: 'Purchased Storage 5',
-        20: 'Shared Stash',
-        30: 'Shared Stash Seasonal'
+        20: 'Shared Seasonal',
+        30: 'Shared Stash'
     };
     return stashTypes[stashId] || `Stash ${stashId}`;
 };
