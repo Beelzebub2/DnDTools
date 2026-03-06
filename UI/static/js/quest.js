@@ -3969,7 +3969,7 @@
         }
     };
 
-    window.addEventListener('questDataCleared', () => {
+    function _onQuestDataCleared() {
         state.progress = sanitizeProgressData(null);
         lastServerSyncPayload = '';
         try {
@@ -3995,12 +3995,43 @@
             renderItemsList();
         }
         syncProgressFromServer();
-    });
-    window.addEventListener('beforeunload', () => {
+    }
+
+    function _onQuestBeforeUnload() {
         stopAutoTrackPolling();
         saveCapturedFlags();
         sendActiveMerchantsToServer({ keepalive: true });
         scheduleServerPersistProgress({ immediate: true });
+    }
+
+    window.addEventListener('questDataCleared', _onQuestDataCleared);
+    window.addEventListener('beforeunload', _onQuestBeforeUnload);
+
+    // Register cleanup for AJAX router
+    window.__pageCleanup = window.__pageCleanup || [];
+    window.__pageCleanup.push(function () {
+        // Persist data before leaving
+        stopAutoTrackPolling();
+        saveCapturedFlags();
+        sendActiveMerchantsToServer({ keepalive: true });
+        scheduleServerPersistProgress({ immediate: true });
+
+        // Clear all timers
+        if (persistTimeout) window.clearTimeout(persistTimeout);
+        if (serverPersistTimeout) window.clearTimeout(serverPersistTimeout);
+        if (globalRenderTimeout) window.clearTimeout(globalRenderTimeout);
+        if (holdingsPositionFrame !== null) window.cancelAnimationFrame(holdingsPositionFrame);
+        if (_questEventDebounce) clearTimeout(_questEventDebounce);
+
+        // Remove window-level listeners
+        window.removeEventListener('resize', scheduleHoldingsPositionUpdate);
+        window.removeEventListener('scroll', scheduleHoldingsPositionUpdate, true);
+        window.removeEventListener('questDataCleared', _onQuestDataCleared);
+        window.removeEventListener('beforeunload', _onQuestBeforeUnload);
+
+        // Clean globals
+        window.onQuestPacketEvent = undefined;
     });
+
     refreshAll({ force: false });
 })();

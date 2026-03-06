@@ -323,180 +323,181 @@ function getStashTypeDisplay(stashId) {
     return stashTypes[stashId] || `Stash ${stashId}`;
 }
 
-window.addEventListener('load', () => {
-    const searchInput = document.getElementById('searchInput');
-    const searchResults = document.getElementById('searchResults');
-    const clearSearch = document.getElementById('clearSearch');
-    const searchMeta = document.getElementById('searchMeta');
-    const resultsCount = document.getElementById('resultsCount');
-    const filterRarity = document.getElementById('filterRarity');
+(function () {
+    function searchPageInit() {
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+        const clearSearch = document.getElementById('clearSearch');
+        const searchMeta = document.getElementById('searchMeta');
+        const resultsCount = document.getElementById('resultsCount');
+        const filterRarity = document.getElementById('filterRarity');
 
-    // Show initial loading if data hasn't been loaded yet
-    let isInitialLoad = true;
+        // Show initial loading if data hasn't been loaded yet
+        let isInitialLoad = true;
 
-    // Pre-load character data on page load to avoid delays during search
-    const preloadData = async () => {
-        try {
-            if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.get_characters === 'function') {
-                await window.pywebview.api.get_characters();
-            } else {
-                const response = await fetch('/api/characters');
-                await response.json();
+        // Pre-load character data on page load to avoid delays during search
+        const preloadData = async () => {
+            try {
+                if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.get_characters === 'function') {
+                    await window.pywebview.api.get_characters();
+                } else {
+                    const response = await fetch('/api/characters');
+                    await response.json();
+                }
+                isInitialLoad = false;
+            } catch (error) {
+                console.warn('Failed to preload character data:', error);
+                isInitialLoad = false;
             }
-            isInitialLoad = false;
-        } catch (error) {
-            console.warn('Failed to preload character data:', error);
-            isInitialLoad = false;
-        }
-    };
+        };
 
-    // Start preloading in the background
-    preloadData();
+        // Start preloading in the background
+        preloadData();
 
-    // ── Filter helpers ─────────────────────────────────────────────
+        // ── Filter helpers ─────────────────────────────────────────────
 
-    /** Build the final API query string from text input + rarity dropdown. */
-    function buildCompositeQuery() {
-        const parts = [];
-        const textValue = searchInput.value.trim();
-        if (textValue) parts.push(textValue);
+        /** Build the final API query string from text input + rarity dropdown. */
+        function buildCompositeQuery() {
+            const parts = [];
+            const textValue = searchInput.value.trim();
+            if (textValue) parts.push(textValue);
 
-        if (filterRarity && filterRarity.value) {
-            parts.push(filterRarity.value);
+            if (filterRarity && filterRarity.value) {
+                parts.push(filterRarity.value);
+            }
+
+            return parts.join(', ');
         }
 
-        return parts.join(', ');
-    }
-
-    /** Update the visual state of the rarity dropdown. */
-    function updateFilterUI() {
-        if (filterRarity) {
-            filterRarity.classList.toggle('filter-active', !!filterRarity.value);
+        /** Update the visual state of the rarity dropdown. */
+        function updateFilterUI() {
+            if (filterRarity) {
+                filterRarity.classList.toggle('filter-active', !!filterRarity.value);
+            }
         }
-    }
 
-    /** Trigger a search using the composite query (text + rarity filter). */
-    function triggerFilteredSearch() {
-        updateFilterUI();
-        const compositeQuery = buildCompositeQuery();
-        if (compositeQuery) {
-            performSearch(compositeQuery);
-        } else {
-            showEmptyState();
-            updateResultsCount(0, '');
+        /** Trigger a search using the composite query (text + rarity filter). */
+        function triggerFilteredSearch() {
+            updateFilterUI();
+            const compositeQuery = buildCompositeQuery();
+            if (compositeQuery) {
+                performSearch(compositeQuery);
+            } else {
+                showEmptyState();
+                updateResultsCount(0, '');
+            }
         }
-    }
 
-    // ── Clear search ────────────────────────────────────────────────
-    clearSearch.addEventListener('click', () => {
-        searchInput.value = '';
-        if (filterRarity) filterRarity.value = '';
-        clearSearch.style.display = 'none';
-        searchMeta.textContent = '';
-        resultsCount.textContent = '';
-        updateFilterUI();
-        showEmptyState();
-        searchInput.focus();
-    });
-
-    // Show/hide clear button based on input
-    searchInput.addEventListener('input', (e) => {
-        const value = e.target.value.trim();
-        clearSearch.style.display = value ? 'flex' : 'none';
-
-        if (!value && !(filterRarity && filterRarity.value)) {
+        // ── Clear search ────────────────────────────────────────────────
+        clearSearch.addEventListener('click', () => {
+            searchInput.value = '';
+            if (filterRarity) filterRarity.value = '';
+            clearSearch.style.display = 'none';
             searchMeta.textContent = '';
             resultsCount.textContent = '';
+            updateFilterUI();
+            showEmptyState();
+            searchInput.focus();
+        });
+
+        // Show/hide clear button based on input
+        searchInput.addEventListener('input', (e) => {
+            const value = e.target.value.trim();
+            clearSearch.style.display = value ? 'flex' : 'none';
+
+            if (!value && !(filterRarity && filterRarity.value)) {
+                searchMeta.textContent = '';
+                resultsCount.textContent = '';
+            }
+        });
+
+        // ── Filter event handler ────────────────────────────────────────
+        if (filterRarity) {
+            filterRarity.addEventListener('change', () => triggerFilteredSearch());
         }
-    });
 
-    // ── Filter event handler ────────────────────────────────────────
-    if (filterRarity) {
-        filterRarity.addEventListener('change', () => triggerFilteredSearch());
-    }
-
-    const showEmptyState = () => {
-        searchResults.innerHTML = `
+        const showEmptyState = () => {
+            searchResults.innerHTML = `
             <div class="empty-search-state">
                 <span class="material-icons">search</span>
                 <h3>Ready to search</h3>
                 <p>Enter search terms above to find items across all your character stashes</p>
             </div>
         `;
-    };
+        };
 
-    const showLoadingState = () => {
-        const loadingMessage = isInitialLoad ?
-            'Loading character data for the first time...' :
-            'Searching your character stashes...';
+        const showLoadingState = () => {
+            const loadingMessage = isInitialLoad ?
+                'Loading character data for the first time...' :
+                'Searching your character stashes...';
 
-        searchResults.innerHTML = `
+            searchResults.innerHTML = `
             <div class="loading">
                 <span class="material-icons">hourglass_empty</span>
                 ${loadingMessage}
             </div>
         `;
-    };
+        };
 
-    const updateResultsCount = (count, query) => {
-        if (count === 0) {
-            resultsCount.textContent = 'No results';
-            searchMeta.textContent = query ? `No items found for "${query}"` : '';
-        } else {
-            resultsCount.textContent = `${count} ${count === 1 ? 'result' : 'results'}`;
-            searchMeta.textContent = query ? `Found items matching "${query}"` : '';
-        }
-    };
+        const updateResultsCount = (count, query) => {
+            if (count === 0) {
+                resultsCount.textContent = 'No results';
+                searchMeta.textContent = query ? `No items found for "${query}"` : '';
+            } else {
+                resultsCount.textContent = `${count} ${count === 1 ? 'result' : 'results'}`;
+                searchMeta.textContent = query ? `Found items matching "${query}"` : '';
+            }
+        };
 
-    const displayResults = (results, query = '') => {
-        const container = document.getElementById('searchResults');
-        container.innerHTML = '';
+        const displayResults = (results, query = '') => {
+            const container = document.getElementById('searchResults');
+            container.innerHTML = '';
 
-        const groupedResults = groupItems(results);
-        updateResultsCount(groupedResults.length, query);
+            const groupedResults = groupItems(results);
+            updateResultsCount(groupedResults.length, query);
 
-        if (groupedResults.length === 0) {
-            container.innerHTML = `
+            if (groupedResults.length === 0) {
+                container.innerHTML = `
                 <div class="empty-search-state">
                     <span class="material-icons">search_off</span>
                     <h3>No items found</h3>
                     <p>Try different search terms, adjust your filters, or check if you have captured character data</p>
                 </div>
             `;
-            return;
-        }
+                return;
+            }
 
-        groupedResults.forEach(result => {
-            const itemElement = document.createElement('div');
-            itemElement.className = 'result-item';
+            groupedResults.forEach(result => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'result-item';
 
-            const normalizedItem = normalizeItem(result.item);
-            const rarityColor = rarityColors[normalizedItem.rarity] || rarityColors['Unknown'] || '#ffffff';
-            const rarityStyle = `
+                const normalizedItem = normalizeItem(result.item);
+                const rarityColor = rarityColors[normalizedItem.rarity] || rarityColors['Unknown'] || '#ffffff';
+                const rarityStyle = `
                 background: linear-gradient(135deg, ${rarityColor}20, ${rarityColor}10);
                 border: 1px solid ${rarityColor}40;
                 color: ${rarityColor};
             `;
-            const totalCount = Math.max(sanitizeCount(result.itemCount, 1), 1);
+                const totalCount = Math.max(sanitizeCount(result.itemCount, 1), 1);
 
-            const locationsHtml = (Array.isArray(result.locations) ? result.locations : []).map(loc => {
-                const stashLocations = Array.isArray(loc.stashLocations) ? loc.stashLocations : [];
-                let primaryStashId = null;
-                let primarySlotIds = [];
+                const locationsHtml = (Array.isArray(result.locations) ? result.locations : []).map(loc => {
+                    const stashLocations = Array.isArray(loc.stashLocations) ? loc.stashLocations : [];
+                    let primaryStashId = null;
+                    let primarySlotIds = [];
 
-                const stashesHtml = stashLocations.map(stashEntry => {
-                    const stashIdStr = String(stashEntry.stashId ?? '').trim();
-                    if (!primaryStashId && stashIdStr) {
-                        primaryStashId = stashIdStr;
-                        primarySlotIds = Array.isArray(stashEntry.slotIds) ? stashEntry.slotIds : [];
-                    }
-                    const quantity = sanitizeCount(stashEntry.count, 0);
-                    const slotIds = Array.isArray(stashEntry.slotIds) ? stashEntry.slotIds : [];
-                    const slotIdsDisplay = slotIds.length ? slotIds.join(', ') : '';
-                    const slotDataset = slotIds.length ? ` data-slot-ids="${slotIds.join(',')}"` : '';
-                    const slotLabel = slotIds.length ? `<span class="stash-slot">(Slot${slotIds.length > 1 ? 's' : ''}: ${escapeHtml(slotIdsDisplay)})</span>` : '';
-                    const stashLabel = escapeHtml(getStashTypeDisplay(stashIdStr));
-                    return `
+                    const stashesHtml = stashLocations.map(stashEntry => {
+                        const stashIdStr = String(stashEntry.stashId ?? '').trim();
+                        if (!primaryStashId && stashIdStr) {
+                            primaryStashId = stashIdStr;
+                            primarySlotIds = Array.isArray(stashEntry.slotIds) ? stashEntry.slotIds : [];
+                        }
+                        const quantity = sanitizeCount(stashEntry.count, 0);
+                        const slotIds = Array.isArray(stashEntry.slotIds) ? stashEntry.slotIds : [];
+                        const slotIdsDisplay = slotIds.length ? slotIds.join(', ') : '';
+                        const slotDataset = slotIds.length ? ` data-slot-ids="${slotIds.join(',')}"` : '';
+                        const slotLabel = slotIds.length ? `<span class="stash-slot">(Slot${slotIds.length > 1 ? 's' : ''}: ${escapeHtml(slotIdsDisplay)})</span>` : '';
+                        const stashLabel = escapeHtml(getStashTypeDisplay(stashIdStr));
+                        return `
                         <div class="stash-entry" data-char-id="${loc.id || ''}" data-stash-id="${stashIdStr}"${slotDataset}>
                             <div class="stash-location">
                                 <span class="material-icons">inventory_2</span>
@@ -506,40 +507,40 @@ window.addEventListener('load', () => {
                             </div>
                         </div>
                     `;
-                }).join('');
+                    }).join('');
 
-                const nameParts = [];
-                if (loc.nickname) {
-                    nameParts.push(escapeHtml(loc.nickname));
-                }
-                if (loc.class) {
-                    const levelPart = loc.level !== undefined && loc.level !== null && loc.level !== '' ? ` LvL ${escapeHtml(loc.level)}` : '';
-                    nameParts.push(`(${escapeHtml(loc.class)}${levelPart})`);
-                }
-                let headerLabel = nameParts.join(' ').trim();
-                if (!headerLabel) {
-                    if (loc.sharedStash) {
-                        headerLabel = escapeHtml(result.stashType || loc.stashLabel || getStashName(primaryStashId));
-                    } else {
-                        headerLabel = escapeHtml(loc.stashLabel || getStashTypeDisplay(primaryStashId) || 'Unknown Location');
+                    const nameParts = [];
+                    if (loc.nickname) {
+                        nameParts.push(escapeHtml(loc.nickname));
                     }
-                } else if (loc.sharedStash && result.stashType) {
-                    headerLabel = `${escapeHtml(result.stashType)} • ${headerLabel}`;
-                }
+                    if (loc.class) {
+                        const levelPart = loc.level !== undefined && loc.level !== null && loc.level !== '' ? ` LvL ${escapeHtml(loc.level)}` : '';
+                        nameParts.push(`(${escapeHtml(loc.class)}${levelPart})`);
+                    }
+                    let headerLabel = nameParts.join(' ').trim();
+                    if (!headerLabel) {
+                        if (loc.sharedStash) {
+                            headerLabel = escapeHtml(result.stashType || loc.stashLabel || getStashName(primaryStashId));
+                        } else {
+                            headerLabel = escapeHtml(loc.stashLabel || getStashTypeDisplay(primaryStashId) || 'Unknown Location');
+                        }
+                    } else if (loc.sharedStash && result.stashType) {
+                        headerLabel = `${escapeHtml(result.stashType)} • ${headerLabel}`;
+                    }
 
-                const locationAttrs = [];
-                if (loc.id) {
-                    locationAttrs.push(`data-char-id="${loc.id}"`);
-                }
-                if (primaryStashId) {
-                    locationAttrs.push(`data-stash-id="${primaryStashId}"`);
-                }
-                if (primarySlotIds.length) {
-                    locationAttrs.push(`data-slot-ids="${primarySlotIds.join(',')}"`);
-                }
-                const locationAttrString = locationAttrs.length ? ` ${locationAttrs.join(' ')}` : '';
-                const sharedClass = loc.sharedStash ? ' shared-location' : '';
-                const stashContent = stashesHtml || `
+                    const locationAttrs = [];
+                    if (loc.id) {
+                        locationAttrs.push(`data-char-id="${loc.id}"`);
+                    }
+                    if (primaryStashId) {
+                        locationAttrs.push(`data-stash-id="${primaryStashId}"`);
+                    }
+                    if (primarySlotIds.length) {
+                        locationAttrs.push(`data-slot-ids="${primarySlotIds.join(',')}"`);
+                    }
+                    const locationAttrString = locationAttrs.length ? ` ${locationAttrs.join(' ')}` : '';
+                    const sharedClass = loc.sharedStash ? ' shared-location' : '';
+                    const stashContent = stashesHtml || `
                     <div class="stash-entry disabled">
                         <div class="stash-location">
                             <span class="material-icons">info</span>
@@ -547,7 +548,7 @@ window.addEventListener('load', () => {
                         </div>
                     </div>
                 `;
-                return `
+                    return `
                     <div class="location-info${sharedClass}"${locationAttrString}>
                         <div class="character-name">${headerLabel}</div>
                         <div class="stash-container">
@@ -555,17 +556,17 @@ window.addEventListener('load', () => {
                         </div>
                     </div>
                 `;
-            }).join('');
+                }).join('');
 
-            const iconPath = normalizedItem.iconPath ? `/assets/${normalizedItem.iconPath.replaceAll('\\', '/')}` : null;
+                const iconPath = normalizedItem.iconPath ? `/assets/${normalizedItem.iconPath.replaceAll('\\', '/')}` : null;
 
-            itemElement.innerHTML = `
+                itemElement.innerHTML = `
                 <div class="item-icon-container">
                     ${iconPath ?
-                    `<img src="${iconPath}" alt="${escapeHtml(normalizedItem.name)}" class="item-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        `<img src="${iconPath}" alt="${escapeHtml(normalizedItem.name)}" class="item-icon" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                          <span class="material-icons item-icon-fallback" style="display: none;">inventory_2</span>` :
-                    `<span class="material-icons item-icon-fallback">inventory_2</span>`
-                }
+                        `<span class="material-icons item-icon-fallback">inventory_2</span>`
+                    }
                 </div>
                 <div class="item-content">
                     <div class="item-details">
@@ -582,11 +583,11 @@ window.addEventListener('load', () => {
                 </div>
             `;
 
-            itemElement.addEventListener('mouseenter', (e) => {
-                if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
+                itemElement.addEventListener('mouseenter', (e) => {
+                    if (tooltipHideTimeout) clearTimeout(tooltipHideTimeout);
 
-                const rarityHex = rarityColors[normalizedItem.rarity] || rarityColors['Unknown'] || rarityColors['Common'];
-                const html = `
+                    const rarityHex = rarityColors[normalizedItem.rarity] || rarityColors['Unknown'] || rarityColors['Common'];
+                    const html = `
                     <div class="tooltip-header" style="background-color: ${rarityHex}44;">
                         <div class="tooltip-name">${escapeHtml(normalizedItem.name) || 'Unknown'}</div>
                         <div class="tooltip-rarity">${escapeHtml(normalizedItem.rarity) || 'Common'}</div>
@@ -601,134 +602,134 @@ window.addEventListener('load', () => {
                         </div>
                     </div>
                 `;
-                showGlobalTooltip(html, e.clientX, e.clientY);
-            });
+                    showGlobalTooltip(html, e.clientX, e.clientY);
+                });
 
-            itemElement.addEventListener('mousemove', (e) => {
-                if (globalTooltip && globalTooltip.style.display === 'block') {
-                    showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
-                }
-            });
-
-            itemElement.addEventListener('mouseleave', () => {
-                hideGlobalTooltip();
-            });
-
-            const attachNavigationHandler = (element) => {
-                if (!element) {
-                    return;
-                }
-                element.addEventListener('click', async (e) => {
-                    e.stopPropagation();
-                    const charId = element.dataset.charId;
-                    const stashId = element.dataset.stashId;
-                    if (!charId || !stashId) {
-                        return;
-                    }
-                    const slotIds = element.dataset.slotIds;
-                    const slotParam = slotIds ? `&slotIds=${encodeURIComponent(slotIds)}` : '';
-                    try {
-                        await fetch(`/api/character/${encodeURIComponent(charId)}/current-stash/${encodeURIComponent(stashId)}`, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            }
-                        });
-                    } catch (error) {
-                        console.error('Error navigating to character page:', error);
-                    } finally {
-                        window.location.href = `/character/${encodeURIComponent(charId)}?stashId=${encodeURIComponent(stashId)}${slotParam}`;
+                itemElement.addEventListener('mousemove', (e) => {
+                    if (globalTooltip && globalTooltip.style.display === 'block') {
+                        showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
                     }
                 });
-            };
 
-            itemElement.querySelectorAll('.location-info').forEach(location => {
-                const stashEntries = location.querySelectorAll('.stash-entry');
-                if (stashEntries.length > 0) {
-                    stashEntries.forEach(entry => attachNavigationHandler(entry));
+                itemElement.addEventListener('mouseleave', () => {
+                    hideGlobalTooltip();
+                });
+
+                const attachNavigationHandler = (element) => {
+                    if (!element) {
+                        return;
+                    }
+                    element.addEventListener('click', async (e) => {
+                        e.stopPropagation();
+                        const charId = element.dataset.charId;
+                        const stashId = element.dataset.stashId;
+                        if (!charId || !stashId) {
+                            return;
+                        }
+                        const slotIds = element.dataset.slotIds;
+                        const slotParam = slotIds ? `&slotIds=${encodeURIComponent(slotIds)}` : '';
+                        try {
+                            await fetch(`/api/character/${encodeURIComponent(charId)}/current-stash/${encodeURIComponent(stashId)}`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+                        } catch (error) {
+                            console.error('Error navigating to character page:', error);
+                        } finally {
+                            window.location.href = `/character/${encodeURIComponent(charId)}?stashId=${encodeURIComponent(stashId)}${slotParam}`;
+                        }
+                    });
+                };
+
+                itemElement.querySelectorAll('.location-info').forEach(location => {
+                    const stashEntries = location.querySelectorAll('.stash-entry');
+                    if (stashEntries.length > 0) {
+                        stashEntries.forEach(entry => attachNavigationHandler(entry));
+                    } else {
+                        attachNavigationHandler(location);
+                    }
+                });
+
+                const popup = itemElement.querySelector('.item-popup');
+
+                itemElement.addEventListener('mouseenter', () => {
+                    if (popup) popup.style.display = 'block';
+                });
+
+                itemElement.addEventListener('mousemove', (e) => {
+                    if (!popup) return;
+
+                    const offsetX = 15;
+                    const offsetY = 15;
+                    const rect = itemElement.getBoundingClientRect();
+                    const viewportWidth = window.innerWidth;
+                    const viewportHeight = window.innerHeight;
+                    const tooltipWidth = popup.offsetWidth || 200;
+                    const tooltipHeight = popup.offsetHeight || 150;
+
+                    let left = e.clientX + offsetX;
+                    let top = e.clientY + offsetY;
+
+                    if (left + tooltipWidth > viewportWidth) {
+                        left = e.clientX - tooltipWidth - offsetX;
+                    }
+                    if (top + tooltipHeight > viewportHeight) {
+                        top = e.clientY - tooltipHeight - offsetY;
+                    }
+
+                    left = Math.max(0, left);
+                    top = Math.max(0, top);
+
+                    popup.style.left = `${left - rect.left}px`;
+                    popup.style.top = `${top - rect.top}px`;
+                });
+
+                itemElement.addEventListener('mouseleave', () => {
+                    if (popup) popup.style.display = 'none';
+                });
+
+                container.appendChild(itemElement);
+            });
+        };
+
+        const performSearch = async (query) => {
+            const trimmedQuery = query.trim();
+
+            if (!trimmedQuery) {
+                showEmptyState();
+                updateResultsCount(0, '');
+                return;
+            }
+
+            showLoadingState();
+            console.log('Performing search for:', trimmedQuery);
+
+            try {
+                let details;
+                if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.search_items === 'function') {
+                    console.log('Using pywebview API for search');
+                    details = await window.pywebview.api.search_items(trimmedQuery);
                 } else {
-                    attachNavigationHandler(location);
-                }
-            });
-
-            const popup = itemElement.querySelector('.item-popup');
-
-            itemElement.addEventListener('mouseenter', () => {
-                if (popup) popup.style.display = 'block';
-            });
-
-            itemElement.addEventListener('mousemove', (e) => {
-                if (!popup) return;
-
-                const offsetX = 15;
-                const offsetY = 15;
-                const rect = itemElement.getBoundingClientRect();
-                const viewportWidth = window.innerWidth;
-                const viewportHeight = window.innerHeight;
-                const tooltipWidth = popup.offsetWidth || 200;
-                const tooltipHeight = popup.offsetHeight || 150;
-
-                let left = e.clientX + offsetX;
-                let top = e.clientY + offsetY;
-
-                if (left + tooltipWidth > viewportWidth) {
-                    left = e.clientX - tooltipWidth - offsetX;
-                }
-                if (top + tooltipHeight > viewportHeight) {
-                    top = e.clientY - tooltipHeight - offsetY;
+                    console.log('Using fetch API for search');
+                    const res = await fetch(`/api/search_items?query=${encodeURIComponent(trimmedQuery)}`);
+                    if (!res.ok) {
+                        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                    }
+                    details = await res.json();
                 }
 
-                left = Math.max(0, left);
-                top = Math.max(0, top);
-
-                popup.style.left = `${left - rect.left}px`;
-                popup.style.top = `${top - rect.top}px`;
-            });
-
-            itemElement.addEventListener('mouseleave', () => {
-                if (popup) popup.style.display = 'none';
-            });
-
-            container.appendChild(itemElement);
-        });
-    };
-
-    const performSearch = async (query) => {
-        const trimmedQuery = query.trim();
-
-        if (!trimmedQuery) {
-            showEmptyState();
-            updateResultsCount(0, '');
-            return;
-        }
-
-        showLoadingState();
-        console.log('Performing search for:', trimmedQuery);
-
-        try {
-            let details;
-            if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.search_items === 'function') {
-                console.log('Using pywebview API for search');
-                details = await window.pywebview.api.search_items(trimmedQuery);
-            } else {
-                console.log('Using fetch API for search');
-                const res = await fetch(`/api/search_items?query=${encodeURIComponent(trimmedQuery)}`);
-                if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+                // Mark initial load as complete after first successful search
+                if (isInitialLoad) {
+                    isInitialLoad = false;
                 }
-                details = await res.json();
-            }
 
-            // Mark initial load as complete after first successful search
-            if (isInitialLoad) {
-                isInitialLoad = false;
-            }
-
-            console.log('Search results:', details.length, 'items found');
-            displayResults(details, trimmedQuery);
-        } catch (error) {
-            console.error('Search error:', error);
-            searchResults.innerHTML = `
+                console.log('Search results:', details.length, 'items found');
+                displayResults(details, trimmedQuery);
+            } catch (error) {
+                console.error('Search error:', error);
+                searchResults.innerHTML = `
                 <div class="empty-search-state">
                     <span class="material-icons">error_outline</span>
                     <h3>Search Error</h3>
@@ -736,18 +737,36 @@ window.addEventListener('load', () => {
                     <p>Please try again or check the console for more details.</p>
                 </div>
             `;
-            updateResultsCount(0, trimmedQuery);
-        }
-    };    // Debounced search with improved timing — uses composite query (text + filters)
-    const debouncedSearch = debounce(() => triggerFilteredSearch(), 200);
-    searchInput.addEventListener('input', debouncedSearch);
+                updateResultsCount(0, trimmedQuery);
+            }
+        };    // Debounced search with improved timing — uses composite query (text + filters)
+        const debouncedSearch = debounce(() => triggerFilteredSearch(), 200);
+        searchInput.addEventListener('input', debouncedSearch);
 
-    // Initial filter UI state
-    updateFilterUI();
+        // Initial filter UI state
+        updateFilterUI();
 
-    // Initial state
-    showEmptyState();
+        // Initial state
+        showEmptyState();
 
-    // Focus search input
-    searchInput.focus();
-});
+        // Focus search input
+        searchInput.focus();
+
+        // Register cleanup for AJAX router
+        window.__pageCleanup = window.__pageCleanup || [];
+        window.__pageCleanup.push(function () {
+            clearTimeout(searchTimeout);
+            clearTimeout(tooltipHideTimeout);
+            if (globalTooltip && globalTooltip.parentNode) {
+                globalTooltip.parentNode.removeChild(globalTooltip);
+                globalTooltip = null;
+            }
+        });
+    }
+
+    if (document.readyState === 'complete') {
+        searchPageInit();
+    } else {
+        window.addEventListener('load', searchPageInit, { once: true });
+    }
+})();

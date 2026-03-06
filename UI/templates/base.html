@@ -120,6 +120,12 @@
             animation: fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
         }
 
+        /* Router-managed transitions (after first load, animation is handled by JS) */
+        .content.router-managed {
+            animation: none;
+            transition: opacity 0.15s ease, transform 0.15s ease;
+        }
+
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -960,11 +966,14 @@
 
         // Check developer mode on load and periodically
         document.addEventListener('DOMContentLoaded', updateDeveloperModeLink);
-        setInterval(updateDeveloperModeLink, 30000);
+        if (!window.__devModeLinkIntervalId) {
+            window.__devModeLinkIntervalId = setInterval(updateDeveloperModeLink, 30000);
+        }
     </script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/router.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 

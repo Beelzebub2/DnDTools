@@ -199,7 +199,12 @@ function getTimeSinceUpdate(dateString) {
     }
 }
 
-window.addEventListener('DOMContentLoaded', loadCharacters);
+// Init: load characters on page ready or immediately if DOM is already loaded
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', loadCharacters, { once: true });
+} else {
+    loadCharacters();
+}
 
 // Add global function to refresh character list
 window.updateCharacterList = async function () {
@@ -215,3 +220,10 @@ window.showCharacterCaptureAnimation = function (characterClass, characterNickna
     console.log(`Character captured: ${characterNickname} (${characterClass})`);
     // Could add a simple notification here if needed
 };
+
+// Register cleanup for AJAX router
+window.__pageCleanup = window.__pageCleanup || [];
+window.__pageCleanup.push(function () {
+    window.updateCharacterList = undefined;
+    window.showCharacterCaptureAnimation = undefined;
+});

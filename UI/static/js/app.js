@@ -410,60 +410,11 @@ function setLoading(element, isLoading) {
     }
 }
 
-window.navigateWithTransition = function (href) {
-    const content = document.querySelector('.content');
-    if (content) {
-        content.style.opacity = '0';
-        content.style.transform = 'translateY(5px)';
-        requestAnimationFrame(() => {
-            setTimeout(() => {
-                window.location.href = href;
-            }, 50);
-        });
-    } else {
-        window.location.href = href;
-    }
-};
-
-// Add active class to current navigation link
-document.addEventListener('DOMContentLoaded', () => {
-    const currentPath = window.location.pathname;
-    document.querySelectorAll('.nav-link').forEach(link => {
-        if (link.getAttribute('href') === currentPath) {
-            link.classList.add('active');
-        }
-    });
-
-    // Handle navigation transitions
-    const links = document.querySelectorAll('.nav-link');
-    links.forEach(link => {
-        link.addEventListener('click', (e) => {
-            if (link.classList.contains('disabled')) {
-                e.preventDefault();
-                return;
-            }
-
-            const guard = window.unsavedChangesGuard;
-            const shouldPrompt = guard && typeof guard.shouldPrompt === 'function' && guard.shouldPrompt();
-            if (shouldPrompt && typeof guard.requestNavigation === 'function') {
-                e.preventDefault();
-                guard.requestNavigation(link.href);
-                return;
-            }
-
-            e.preventDefault();
-            window.navigateWithTransition(link.href);
-        });
-    });
-
-    // Listen for background initialization completion
-    window.addEventListener('backgroundInitDone', () => {
-        showNotification('Data loaded!', 'success');
-        // Example: hide a loading spinner if you have one
-        const spinner = document.getElementById('loading-spinner');
-        if (spinner) spinner.style.display = 'none';
-        // You can also trigger data refresh or enable UI here
-    });
+// Listen for background initialization completion
+window.addEventListener('backgroundInitDone', () => {
+    showNotification('Data loaded!', 'success');
+    const spinner = document.getElementById('loading-spinner');
+    if (spinner) spinner.style.display = 'none';
 });
 
 // Version check and update notification

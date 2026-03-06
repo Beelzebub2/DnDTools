@@ -2349,10 +2349,11 @@ async function submitSortFeedback(isSuccess) {
     }
 }
 
-window.addEventListener('sortSessionCompleted', (event) => {
+function _onSortSessionCompleted(event) {
     const payload = event && event.detail ? event.detail : null;
     handleSortSessionSummary(payload);
-});
+}
+window.addEventListener('sortSessionCompleted', _onSortSessionCompleted);
 
 const triggerSort = async () => {
     // If we're using the combined character view, default to sorting the bag (2)
@@ -3030,7 +3031,7 @@ const loadStashes = async () => {
 
 // Keep a lightweight in-app escape hatch. Global hotkeys are managed natively by the desktop layer,
 // so we only watch for ESC while a sort is running to provide immediate visual feedback.
-window.addEventListener('keydown', (e) => {
+function _onKeyDownEscSort(e) {
     try {
         if (!abortController) {
             return;
@@ -3052,14 +3053,16 @@ window.addEventListener('keydown', (e) => {
     } catch (err) {
         console.error('Key handler error:', err);
     }
-}, { capture: true });
+}
+window.addEventListener('keydown', _onKeyDownEscSort, { capture: true });
 
 // Add an event listener for when sorting starts from a keybind
-window.addEventListener('sortingStarted', () => {
+function _onSortingStarted() {
     setSortingState(true);
-});
+}
+window.addEventListener('sortingStarted', _onSortingStarted);
 
-window.addEventListener('sortingEnded', () => {
+function _onSortingEnded() {
     setSortingState(false);
     // Turn off sort preview after sort ends to avoid confusing the user
     if (isPreviewMode) {
@@ -3067,7 +3070,8 @@ window.addEventListener('sortingEnded', () => {
         updatePreviewToggleUI();
         refreshCurrentStashView();
     }
-});
+}
+window.addEventListener('sortingEnded', _onSortingEnded);
 
 // Add update handler for character data
 window.updateCharacterData = async () => {
@@ -3090,7 +3094,7 @@ window.showCharacterCaptureAnimation = function (characterClass, characterNickna
 };
 
 // Initialize page when DOM is loaded
-window.addEventListener('DOMContentLoaded', async () => {
+async function _characterPageInit1() {
     previewToggleButton = document.getElementById('previewToggleButton');
     if (previewToggleButton) {
         previewToggleButton.addEventListener('click', () => togglePreviewMode());
@@ -3185,7 +3189,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     } catch (error) {
         handleApiError(error, document.querySelector('.character-details'));
     }
-});
+}
 
 // Global price cache object to store results
 const priceCache = {};
@@ -3752,7 +3756,7 @@ async function loadSavedOrdering(menu) {
 }
 
 // Stash sort ordering popup
-document.addEventListener('DOMContentLoaded', async () => {
+async function _characterPageInit2() {
     const button = document.getElementById('orderingButton');
     const menu = document.getElementById('orderingMenu');
     const resetButton = document.getElementById('resetOrderingButton');
@@ -3849,7 +3853,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         onOrderChange();
     });
-});
+}
 
 function animateSwap(element1, element2, direction) {
     const container = element1.parentNode;
@@ -4423,7 +4427,7 @@ function overlayQuestBadgesInPlace() {
 }
 
 // Refresh needed items on relevant events
-window.addEventListener('DOMContentLoaded', () => {
+function _characterPageInit3() {
     const successBtn = document.getElementById('sortFeedbackSuccess');
     if (successBtn) {
         successBtn.addEventListener('click', () => submitSortFeedback(true));
@@ -4441,14 +4445,71 @@ window.addEventListener('DOMContentLoaded', () => {
         queuedSortSummary = null;
         handleSortSessionSummary(summary);
     }
-});
+}
 
-window.addEventListener('DOMContentLoaded', () => {
+let _questRefreshTimeout = null;
+let _questRefreshInterval = null;
+function _onQuestDataClearedCharacter() { refreshQuestNeededItems(); }
+
+function _characterPageInit4() {
     // Delay initial quest fetch so it doesn't compete with the main page render.
     // Quest badges are supplementary — a 1.5s delay keeps initial load snappy.
-    setTimeout(() => refreshQuestNeededItems(), 1500);
+    _questRefreshTimeout = setTimeout(() => refreshQuestNeededItems(), 1500);
     // also refresh when quest cache/progress cleared elsewhere in the app
-    window.addEventListener('questDataCleared', () => refreshQuestNeededItems());
+    window.addEventListener('questDataCleared', _onQuestDataClearedCharacter);
     // periodic refresh every 60s to keep badges reasonably up to date
-    setInterval(() => refreshQuestNeededItems(), 60000);
-});
+    _questRefreshInterval = setInterval(() => refreshQuestNeededItems(), 60000);
+}
+
+// Combined init: run all character page initializers
+function _characterPageInitAll() {
+    _characterPageInit1();
+    _characterPageInit2();
+    _characterPageInit3();
+    _characterPageInit4();
+
+    // Register cleanup for AJAX router
+    window.__pageCleanup = window.__pageCleanup || [];
+    window.__pageCleanup.push(function () {
+        // Clear all timers
+        clearTimeout(backgroundStashPrefetchTimer);
+        clearTimeout(highlightReattemptTimeout);
+        clearTimeout(highlightCleanupTimeout);
+        clearTimeout(tooltipHideTimeout);
+        clearTimeout(_questRefreshTimeout);
+        clearInterval(sortingTextInterval);
+        clearInterval(_questRefreshInterval);
+
+        // Abort any active sort
+        if (abortController) {
+            try { abortController.abort(); } catch (e) { /* noop */ }
+            abortController = null;
+        }
+
+        // Remove window-level event listeners
+        window.removeEventListener('sortSessionCompleted', _onSortSessionCompleted);
+        window.removeEventListener('keydown', _onKeyDownEscSort, { capture: true });
+        window.removeEventListener('sortingStarted', _onSortingStarted);
+        window.removeEventListener('sortingEnded', _onSortingEnded);
+        window.removeEventListener('questDataCleared', _onQuestDataClearedCharacter);
+
+        // Remove tooltip if it exists
+        var tooltip = document.querySelector('.item-tooltip');
+        if (tooltip && tooltip.parentNode) {
+            tooltip.parentNode.removeChild(tooltip);
+        }
+
+        // Clear window globals
+        window.updateCharacterData = undefined;
+        window.showCharacterCaptureAnimation = undefined;
+        window.questNeededItems = undefined;
+        window.questNeededBy = undefined;
+        window.questNeededLootStates = undefined;
+    });
+}
+
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', _characterPageInitAll, { once: true });
+} else {
+    _characterPageInitAll();
+}
