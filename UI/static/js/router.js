@@ -7,7 +7,6 @@
     // Known base CSS that should never be removed during page swaps
     var BASE_CSS_MARKERS = [
         '/css/style.css',
-        '/css/sidebar-indicator.css',
         '/css/utils.css',
         'fonts.googleapis.com'
     ];
