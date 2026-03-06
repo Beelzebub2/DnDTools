@@ -7,7 +7,7 @@
 }
 
 .install-card {
-    background: var(--surface-color);
+    background: var(--bg-secondary);
     border-radius: 8px;
     padding: 24px;
     width: 100%;
@@ -22,12 +22,12 @@
 
 .install-header h2 {
     margin: 0 0 8px 0;
-    color: var(--text-color);
+    color: var(--text-primary);
 }
 
 .install-header p {
     margin: 0;
-    color: var(--text-secondary-color);
+    color: var(--text-secondary);
 }
 
 .install-progress {
@@ -36,7 +36,7 @@
 
 .progress-bar {
     height: 8px;
-    background: var(--surface-variant-color);
+    background: var(--border-color);
     border-radius: 4px;
     overflow: hidden;
     margin-bottom: 12px;
@@ -44,13 +44,13 @@
 
 .progress-fill {
     height: 100%;
-    background: var(--primary-color);
+    background: var(--accent-gold);
     width: 0;
     transition: width 0.3s ease;
 }
 
 .status-text {
     text-align: center;
-    color: var(--text-color);
+    color: var(--text-primary);
     font-size: 14px;
 }

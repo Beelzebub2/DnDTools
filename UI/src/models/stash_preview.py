@@ -5,6 +5,7 @@ import difflib
 from typing import Tuple, Dict, List, Optional
 from dataclasses import dataclass
 from PIL import Image, ImageDraw, ImageFont
+from concurrent.futures import ThreadPoolExecutor
 import logging
 from datetime import datetime
 from src.models.game_data import item_data_manager
@@ -95,11 +96,11 @@ class StashPreviewGenerator:
     def generate_preview(self, stash_id: str, items: List[ItemInfo]) -> Image.Image:
         # Get appropriate dimensions for this stash type
         grid_width, grid_height = self._get_stash_dimensions(stash_id)
-        
-        preview = Image.new("RGBA", 
-                          (grid_width * self.CELL_SIZE, 
+
+        preview = Image.new("RGBA",
+                          (grid_width * self.CELL_SIZE,
                            grid_height * self.CELL_SIZE))
-                           
+
         from src.models.storage import StashType
         try:
             stash_id_int = int(stash_id)
@@ -107,21 +108,60 @@ class StashPreviewGenerator:
         except ValueError:
             # Handle purchased storage or invalid types
             stash_type = None
-        
+
         # Special handling for equipment screen
         if stash_type == StashType.EQUIPMENT:
             self._draw_equipment_layout(preview)
         else:
             self._draw_grid(preview, grid_width, grid_height)
-        
+
+        # Pre-load item images in parallel for faster preview generation
+        preloaded = self._preload_item_images(items)
+
         for item in items:
+            cached = preloaded.get(id(item))
             # Special handling for equipment screen
             if stash_type == StashType.EQUIPMENT:
-                self._place_equipment_item(preview, item)
+                self._place_equipment_item(preview, item, cached)
             else:
-                self._place_item(preview, item, grid_width, grid_height)
-            
+                self._place_item(preview, item, grid_width, grid_height, cached)
+
         return preview
+
+    def _preload_item_images(self, items: List[ItemInfo]) -> Dict:
+        """Pre-load item metadata and images concurrently using threads."""
+        results = {}
+
+        def load_one(item):
+            img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+            if img_path:
+                img_path = resource_path(str(img_path))
+            w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
+            name = item_data_manager.get_item_name_from_id(item.itemId)
+            has_image = img_path and os.path.exists(img_path)
+            loaded_img = None
+            if has_image:
+                try:
+                    loaded_img = Image.open(img_path).convert("RGBA")
+                except Exception:
+                    has_image = False
+                    loaded_img = None
+            return id(item), {
+                "img_path": img_path, "w": w, "h": h,
+                "name": name, "has_image": has_image, "loaded_img": loaded_img,
+            }
+
+        if len(items) <= 2:
+            for item in items:
+                key, val = load_one(item)
+                results[key] = val
+        else:
+            max_workers = min(len(items), os.cpu_count() or 4, 8)
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                for key, val in pool.map(load_one, items):
+                    results[key] = val
+
+        return results
         
     def _draw_equipment_layout(self, img: Image.Image) -> None:
         """Draw the special equipment layout with slots for armor, weapons, consumables"""
@@ -149,21 +189,25 @@ class StashPreviewGenerator:
                 outline=(100, 90, 70, 255), width=2
             )
             
-    def _place_equipment_item(self, preview: Image.Image, item: ItemInfo) -> None:
-        img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
-        if img_path:
-            # Convert PathLib to string and use resource_path
-            img_path = resource_path(str(img_path))
-        w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
-        name = item_data_manager.get_item_name_from_id(item.itemId)
+    def _place_equipment_item(self, preview: Image.Image, item: ItemInfo, cached: Optional[Dict] = None) -> None:
+        if cached:
+            img_path, w, h, name = cached["img_path"], cached["w"], cached["h"], cached["name"]
+            has_image, item_img = cached["has_image"], cached["loaded_img"]
+        else:
+            img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+            if img_path:
+                img_path = resource_path(str(img_path))
+            w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
+            name = item_data_manager.get_item_name_from_id(item.itemId)
+            has_image = img_path and os.path.exists(img_path)
+            item_img = None
 
-        if not img_path or not os.path.exists(img_path):
-            logging.warning(f"Item not found or missing image: {item.itemId}")
-            return
+        if not has_image:
+            if not name:
+                name = item_data_manager.format_design_id_as_name(item.itemId) or item.itemId
+            logging.info(f"Equipment item missing image (assets not updated): {item.itemId} – displaying as '{name}'")
         
         try:
-            item_img = Image.open(img_path).convert("RGBA")
-            
             # Get slot position from configuration
             slot_id_str = str(item.slotId)
             equipment_slots = self.slot_config.get("equipment_slots", {})
@@ -172,12 +216,29 @@ class StashPreviewGenerator:
                 slot_data = equipment_slots[slot_id_str]
                 x, y = slot_data.get("x", 0), slot_data.get("y", 0)
                 expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
-                
-                if item_img.size != expected_size:
-                    item_img = item_img.resize(expected_size, Image.LANCZOS)
-                
-                # Paste the item
-                preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+
+                if has_image:
+                    if item_img is None:
+                        item_img = Image.open(img_path).convert("RGBA")
+                    if item_img.size != expected_size:
+                        item_img = item_img.resize(expected_size, Image.LANCZOS)
+                    preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+                else:
+                    # Draw text fallback for missing icon
+                    draw = ImageDraw.Draw(preview)
+                    display_name = name or item.itemId or '?'
+                    cell_w, cell_h = expected_size
+                    try:
+                        small_font = ImageFont.truetype("arial.ttf", max(9, min(12, cell_w // max(len(display_name), 1) + 2)))
+                    except Exception:
+                        small_font = ImageFont.load_default()
+                    bbox = draw.textbbox((0, 0), display_name, font=small_font)
+                    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                    tx = x * self.CELL_SIZE + (cell_w - tw) // 2
+                    ty = y * self.CELL_SIZE + (cell_h - th) // 2
+                    draw.text((tx + 1, ty + 1), display_name, fill=(0, 0, 0, 200), font=small_font)
+                    draw.text((tx, ty), display_name, fill=(255, 255, 255, 220), font=small_font)
+
                 logging.debug(f"Placed equipment '{name}' at slot {item.slotId} ({x},{y})")
                 
                 # Draw item count if greater than 1
@@ -215,13 +276,18 @@ class StashPreviewGenerator:
             y_pos = y * self.CELL_SIZE
             draw.line([(0, y_pos), (img.width, y_pos)], fill=grid_color)
 
-    def _place_item(self, preview: Image.Image, item: ItemInfo, grid_width: int, grid_height: int) -> None:
-        img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
-        if img_path:
-            # Convert PathLib to string and use resource_path
-            img_path = resource_path(str(img_path))
-        w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
-        name = item_data_manager.get_item_name_from_id(item.itemId)
+    def _place_item(self, preview: Image.Image, item: ItemInfo, grid_width: int, grid_height: int, cached: Optional[Dict] = None) -> None:
+        if cached:
+            img_path, w, h, name = cached["img_path"], cached["w"], cached["h"], cached["name"]
+            has_image, item_img = cached["has_image"], cached["loaded_img"]
+        else:
+            img_path = item_data_manager.get_item_image_path_from_id(item.itemId)
+            if img_path:
+                img_path = resource_path(str(img_path))
+            w, h = item_data_manager.get_item_dimensions_from_id(item.itemId)
+            name = item_data_manager.get_item_name_from_id(item.itemId)
+            has_image = img_path and os.path.exists(img_path)
+            item_img = None
 
         # Get rarity from the item data
         parts = item.itemId.split('_')
@@ -272,9 +338,11 @@ class StashPreviewGenerator:
         if rarity is None:
             rarity = 0
 
-        if not img_path or not os.path.exists(img_path):
-            logging.warning(f"Item not found or missing image: {item.itemId}")
-            return
+        has_image = img_path and os.path.exists(img_path)
+        if not has_image:
+            if not name:
+                name = item_data_manager.format_design_id_as_name(item.itemId) or item.itemId
+            logging.info(f"Item missing image (assets not updated): {item.itemId} – displaying as '{name}'")
 
         try:
             # Calculate item position
@@ -288,13 +356,32 @@ class StashPreviewGenerator:
             bg_rect = Image.new('RGBA', ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE), bg_color)
             preview.paste(bg_rect, (x * self.CELL_SIZE, y * self.CELL_SIZE), bg_rect)
             
-            # Place the item image
-            item_img = Image.open(img_path).convert("RGBA")
-            expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
-            if item_img.size != expected_size:
-                item_img = item_img.resize(expected_size, Image.LANCZOS)
+            if has_image:
+                # Use pre-loaded image if available, otherwise load now
+                if item_img is None:
+                    item_img = Image.open(img_path).convert("RGBA")
+                expected_size = ((w or 1) * self.CELL_SIZE, (h or 1) * self.CELL_SIZE)
+                if item_img.size != expected_size:
+                    item_img = item_img.resize(expected_size, Image.LANCZOS)
+                preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
+            else:
+                # Draw item name as text fallback when icon is missing
+                draw = ImageDraw.Draw(preview)
+                display_name = name or item.itemId or '?'
+                cell_w = (w or 1) * self.CELL_SIZE
+                cell_h = (h or 1) * self.CELL_SIZE
+                # Use a smaller font for the name text
+                try:
+                    small_font = ImageFont.truetype("arial.ttf", max(9, min(12, cell_w // max(len(display_name), 1) + 2)))
+                except Exception:
+                    small_font = ImageFont.load_default()
+                bbox = draw.textbbox((0, 0), display_name, font=small_font)
+                tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                tx = x * self.CELL_SIZE + (cell_w - tw) // 2
+                ty = y * self.CELL_SIZE + (cell_h - th) // 2
+                draw.text((tx + 1, ty + 1), display_name, fill=(0, 0, 0, 200), font=small_font)
+                draw.text((tx, ty), display_name, fill=(255, 255, 255, 220), font=small_font)
             
-            preview.paste(item_img, (x * self.CELL_SIZE, y * self.CELL_SIZE), item_img)
             logging.debug(f"Placed '{name}' (rarity {rarity}) at ({x},{y})")
             
             # Draw item count if greater than 1
@@ -358,8 +445,7 @@ def parse_stashes(packet_data):
                     "data": item,
                     "vendor_price": vendor_price
                 })
-        if stash_items:
-            stashes[inventory_id] = stash_items
+        stashes[inventory_id] = stash_items
     # inventory
     item_list = packet_data.get("characterDataBase", {}).get("CharacterItemList", [])
     for item in item_list:

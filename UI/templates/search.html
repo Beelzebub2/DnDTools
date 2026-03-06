@@ -6,90 +6,68 @@
 
 {% block content %}
 <div class="search-container">
-    <!-- Header Section -->
-    <div class="search-header">
-        <div class="header-content">
-            <div class="header-icon">
+    <!-- Compact hero banner -->
+    <div class="search-banner">
+        <div class="search-banner-inner">
+            <div class="search-banner-icon">
                 <span class="material-icons">search</span>
             </div>
-            <div class="header-text">
+            <div class="search-banner-text">
                 <h1>Item Search</h1>
-                <p>Find items across all your captured character stashes</p>
+                <p class="search-banner-subtitle">Find items across all your captured character stashes</p>
             </div>
         </div>
     </div>
 
-    <!-- Search Section -->
-    <div class="search-sections">
-        <div class="search-section">
-            <div class="section-header">
-                <span class="material-icons">manage_search</span>
-                <h2>Search Items</h2>
-            </div>
-            <div class="section-content">
-                <div class="search-form">
-                    <div class="instructions-panel">
-                        <h3>How to search</h3>
-                        <ol>
-                            <li>Capture characters whose stashes you want to search in the <strong>Characters</strong>
-                                section</li>
-                            <li>Enter keywords separated by commas (item names, rarities, enchantments)</li>
-                            <li>Results will show items matching your search terms</li>
-                            <li>Click on results to see detailed item information</li>
-                        </ol>
-                        <div class="search-tips">
-                            <h4>Search Examples</h4>
-                            <div class="tip-examples">
-                                <div class="tip-example">
-                                    <span class="tip-label">Item name:</span>
-                                    <code>barbuta helm</code>
-                                </div>
-                                <div class="tip-example">
-                                    <span class="tip-label">By rarity:</span>
-                                    <code>rare, epic, legendary</code>
-                                </div>
-                                <div class="tip-example">
-                                    <span class="tip-label">By enchantment:</span>
-                                    <code>agility, strength, magical damage</code>
-                                </div>
-                                <div class="tip-example">
-                                    <span class="tip-label">Combined search:</span>
-                                    <code>sword, rare, strength</code>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="search-input-container">
-                        <div class="search-input-wrapper">
-                            <input type="text" class="search-input"
-                                placeholder="Search for items across all characters..." id="searchInput">
-                            <div class="search-icon">
-                                <span class="material-icons">search</span>
-                            </div>
-                            <button class="clear-search" id="clearSearch" style="display: none;">
-                                <span class="material-icons">clear</span>
-                            </button>
-                        </div>
-                        <div class="search-meta" id="searchMeta"></div>
-                    </div>
+    <!-- Search bar — hero-level prominence -->
+    <div class="search-bar-card">
+        <div class="search-row">
+            <div class="search-input-wrapper">
+                <input type="text" class="search-input" placeholder="Search items by name, enchantment…"
+                    id="searchInput">
+                <div class="search-icon">
+                    <span class="material-icons">search</span>
                 </div>
+                <button class="clear-search" id="clearSearch" style="display: none;">
+                    <span class="material-icons">clear</span>
+                </button>
             </div>
+            <select class="rarity-filter" id="filterRarity">
+                <option value="">All Rarities</option>
+                <option value="Poor">Poor</option>
+                <option value="Common">Common</option>
+                <option value="Uncommon">Uncommon</option>
+                <option value="Rare">Rare</option>
+                <option value="Epic">Epic</option>
+                <option value="Legend">Legendary</option>
+                <option value="Unique">Unique</option>
+                <option value="Artifact">Artifact</option>
+            </select>
         </div>
+        <div class="search-meta" id="searchMeta"></div>
 
-        <!-- Results Section -->
-        <div class="search-section results-section" id="resultsSection">
-            <div class="section-header">
-                <span class="material-icons">inventory_2</span>
-                <h2>Search Results</h2>
-                <div class="results-count" id="resultsCount"></div>
-            </div>
-            <div class="section-content">
-                <div class="search-results" id="searchResults">
-                    <div class="empty-search-state">
-                        <span class="material-icons">search</span>
-                        <h3>Ready to search</h3>
-                        <p>Enter search terms above to find items across all your character stashes</p>
-                    </div>
+        <!-- Inline tips -->
+        <div class="search-tips-row">
+            <span class="search-tip-label">Try:</span>
+            <code>barbuta helm</code>
+            <code>agility, strength</code>
+            <code>sword, rare, strength</code>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-panel" id="resultsSection">
+        <div class="results-panel-header">
+            <span class="material-icons">inventory_2</span>
+            <h2>Results</h2>
+            <div class="results-count" id="resultsCount"></div>
+        </div>
+        <div class="results-panel-body">
+            <div class="search-results" id="searchResults">
+                <div class="empty-search-state">
+                    <span class="material-icons">search</span>
+                    <h3>Ready to search</h3>
+                    <p>Enter search terms above to find items across all your character stashes</p>
                 </div>
             </div>
         </div>

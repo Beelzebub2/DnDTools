@@ -24,6 +24,16 @@ class ItemDataManager:
                         self._data = json.load(file)
                     self._loaded = True
 
+    def reload(self) -> None:
+        """Force the item data cache to reload from disk."""
+        with self._lock:
+            self._data = None
+            self._loaded = False
+        try:
+            self._ensure_loaded()
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            logger.warning("Failed to reload items.json: %s", exc, exc_info=True)
+
     def get_item_dimensions_from_id(self, item_id):
         self._ensure_loaded()
         item = self._data.get(item_id, {})
@@ -55,6 +65,20 @@ class ItemDataManager:
         design_str = "DesignDataItem:Id_Item_"
         return item_id.replace(design_str, "")
 
+    @staticmethod
+    def format_design_id_as_name(item_id):
+        """Convert a stripped design ID into a human-readable item name.
+
+        Example: 'Armor_Leather_ChestArmor_0001' → 'Armor Leather ChestArmor'
+        """
+        if not item_id:
+            return ""
+        import re
+        # Strip trailing numeric-only segments (e.g. _0001, _6001)
+        cleaned = re.sub(r'(?:_\d+)+$', '', item_id)
+        # Replace underscores with spaces
+        return cleaned.replace('_', ' ').strip()
+
     def get_item_vendor_price(self, item_id):
         """Get vendor price for an item"""
         self._ensure_loaded()
@@ -66,6 +90,12 @@ class ItemDataManager:
         self._ensure_loaded()
         item = self._data.get(item_id, {})
         return item.get("max_stack_size", 1)
+
+    def get_item_slot_type(self, item_id):
+        """Get equipment slot type for an item (e.g. Head, Chest, Hands)."""
+        self._ensure_loaded()
+        item = self._data.get(item_id, {})
+        return item.get("slot_type", "")
 
     def get_item_data(self, item_id):
         """Get full item data for an item"""

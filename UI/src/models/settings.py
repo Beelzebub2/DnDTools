@@ -2,11 +2,76 @@ import copy
 import json
 import logging
 import os
+import shutil
 import threading
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 from src.models.appdirs import get_settings_file, resource_path
+from src.models.hotkeys import canonicalize_hotkey, HotkeyParseError
 from src.models.item import Item
+
+
+def _expand_path(candidate: Optional[str]) -> Optional[Path]:
+    if not candidate:
+        return None
+    try:
+        expanded = os.path.expandvars(os.path.expanduser(str(candidate))).strip().strip('"')
+        if not expanded:
+            return None
+        return Path(expanded)
+    except Exception:
+        return None
+
+
+def resolve_tshark_executable(selected_path: Optional[str]) -> Optional[str]:
+    expanded = _expand_path(selected_path)
+    if not expanded:
+        return None
+
+    if expanded.is_file():
+        # If the user picked Wireshark.exe, assume tshark resides alongside it
+        if expanded.name.lower() == "wireshark.exe":
+            candidate = expanded.with_name("tshark.exe")
+            return str(candidate) if candidate.is_file() else None
+        # If they selected tshark.exe directly, we're done
+        if expanded.name.lower() == "tshark.exe":
+            return str(expanded)
+        # Otherwise assume the executable resides next to the selected file
+        candidate = expanded.with_name("tshark.exe")
+        return str(candidate) if candidate.is_file() else None
+
+    if expanded.is_dir():
+        candidate = expanded / "tshark.exe"
+        return str(candidate) if candidate.is_file() else None
+
+    return None
+
+
+def detect_wireshark_installation() -> str:
+    # Prefer tshark when it is already on PATH
+    tshark_on_path = shutil.which("tshark")
+    if tshark_on_path and Path(tshark_on_path).is_file():
+        return str(Path(tshark_on_path))
+
+    # Check common installation directories on Windows
+    default_dirs = [
+        r"C:\\Program Files\\Wireshark",
+        r"C:\\Program Files (x86)\\Wireshark",
+    ]
+
+    for directory in default_dirs:
+        resolved = resolve_tshark_executable(directory)
+        if resolved:
+            return resolved
+
+    # Some users may prefer to point to Wireshark.exe directly
+    wireshark_on_path = shutil.which("wireshark")
+    resolved = resolve_tshark_executable(wireshark_on_path)
+    if resolved:
+        return resolved
+
+    return ""
 
 
 class SettingsManager:
@@ -27,11 +92,22 @@ class SettingsManager:
     def _build_defaults(self) -> Dict[str, Any]:
         return {
             "interface": os.getenv("CAPTURE_INTERFACE", "Ethernet"),
-            "sortHotkey": "ctrl+alt+s",
-            "cancelHotkey": "ctrl+alt+x",
+            "sortHotkey": "ctrl+f11",
+            "cancelHotkey": "ctrl+f12",
             "sortSpeed": 0.2,
             "resolution": "Auto",
-            "stashSortOrder": list(Item.SORTABLE_FIELDS),
+            "stashSortOrder": Item.copy_sort_order(),
+            "wiresharkPath": detect_wireshark_installation(),
+            "includeDevReleases": False,
+            "autoUpdateEnabled": True,
+            "closeToTrayEnabled": True,
+            "developerMode": False,
+            "sortFeedbackSyncEnabled": True,
+            "overlayEnabled": False,
+            "overlayHotkey": "ctrl+shift+o",
+            "overlayOpacity": 0.92,
+            "stashTabMapping": [0, 0, 0, 0, 0, 0, 0, 0],
+            "autoStashSelection": True,
         }
 
     def set_logger(self, logger: Optional[logging.Logger]) -> None:
@@ -42,6 +118,13 @@ class SettingsManager:
     def path(self) -> str:
         return self._settings_file
 
+    @staticmethod
+    def _safe_copy(value):
+        """Return value directly for immutable types, deep-copy only mutable containers."""
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        return copy.deepcopy(value)
+
     @property
     def data(self) -> Dict[str, Any]:
         with self._lock:
@@ -49,14 +132,14 @@ class SettingsManager:
 
     def get(self, key: str, default: Any = None) -> Any:
         with self._lock:
-            return copy.deepcopy(self._data.get(key, default))
+            return self._safe_copy(self._data.get(key, default))
 
     def get_sort_speed(self) -> float:
         value = self.get("sortSpeed", self._defaults["sortSpeed"])
         try:
             speed = float(value)
-            if speed <= 0:
-                raise ValueError("sortSpeed must be positive")
+            if speed < 0:
+                raise ValueError("sortSpeed must be non-negative")
             return speed
         except (TypeError, ValueError):
             return float(self._defaults["sortSpeed"])
@@ -98,15 +181,25 @@ class SettingsManager:
         normalized = settings.copy()
 
         for key in ("sortHotkey", "cancelHotkey"):
-            if key in normalized and normalized[key] is not None:
-                normalized[key] = str(normalized[key]).lower()
+            raw_value = normalized.get(key)
+            if raw_value:
+                try:
+                    normalized[key] = canonicalize_hotkey(raw_value)
+                except HotkeyParseError as exc:
+                    self._logger.warning("Invalid %s '%s': %s", key, raw_value, exc)
+                    normalized[key] = canonicalize_hotkey(self._defaults[key])
+            else:
+                normalized[key] = canonicalize_hotkey(self._defaults[key])
 
         sort_speed = normalized.get("sortSpeed", self._defaults["sortSpeed"])
         try:
             sort_speed_value = float(sort_speed)
-            if sort_speed_value <= 0:
+            if sort_speed_value < 0:
                 raise ValueError
-            normalized["sortSpeed"] = sort_speed_value
+            if sort_speed_value == 0:
+                normalized["sortSpeed"] = 0.0
+            else:
+                normalized["sortSpeed"] = min(sort_speed_value, 1.0)
         except (TypeError, ValueError):
             normalized["sortSpeed"] = self._defaults["sortSpeed"]
 
@@ -123,6 +216,101 @@ class SettingsManager:
         normalized["stashSortOrder"] = Item.normalize_sort_order(
             sort_order or self._defaults["stashSortOrder"]
         )
+
+        wireshark_path = normalized.get("wiresharkPath") or ""
+        expanded = _expand_path(wireshark_path)
+        if expanded and expanded.exists():
+            normalized["wiresharkPath"] = str(expanded)
+        elif wireshark_path:
+            # Keep user-entered value even if it does not currently exist
+            normalized["wiresharkPath"] = str(wireshark_path)
+        else:
+            normalized["wiresharkPath"] = ""
+
+        include_dev_value = normalized.get("includeDevReleases")
+        if isinstance(include_dev_value, str):
+            normalized["includeDevReleases"] = include_dev_value.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        else:
+            normalized["includeDevReleases"] = bool(include_dev_value)
+
+        auto_update_value = normalized.get("autoUpdateEnabled")
+        if isinstance(auto_update_value, str):
+            normalized["autoUpdateEnabled"] = auto_update_value.strip().lower() not in {
+                "0",
+                "false",
+                "no",
+                "off",
+            }
+        else:
+            normalized["autoUpdateEnabled"] = bool(
+                self._defaults.get("autoUpdateEnabled", True) if auto_update_value is None else auto_update_value
+            )
+
+        close_to_tray_value = normalized.get("closeToTrayEnabled")
+        if isinstance(close_to_tray_value, str):
+            normalized["closeToTrayEnabled"] = close_to_tray_value.strip().lower() not in {
+                "0",
+                "false",
+                "no",
+                "off",
+            }
+        else:
+            normalized["closeToTrayEnabled"] = bool(
+                self._defaults.get("closeToTrayEnabled", True) if close_to_tray_value is None else close_to_tray_value
+            )
+
+        developer_mode_value = normalized.get("developerMode")
+        if isinstance(developer_mode_value, str):
+            normalized["developerMode"] = developer_mode_value.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        else:
+            normalized["developerMode"] = bool(developer_mode_value)
+
+        sync_value = normalized.get("sortFeedbackSyncEnabled")
+        if isinstance(sync_value, str):
+            normalized["sortFeedbackSyncEnabled"] = sync_value.strip().lower() in {
+                "1",
+                "true",
+                "yes",
+                "on",
+            }
+        else:
+            normalized["sortFeedbackSyncEnabled"] = bool(sync_value)
+
+        # ── Overlay settings ──
+        overlay_enabled_value = normalized.get("overlayEnabled")
+        if isinstance(overlay_enabled_value, str):
+            normalized["overlayEnabled"] = overlay_enabled_value.strip().lower() in {
+                "1", "true", "yes", "on",
+            }
+        else:
+            normalized["overlayEnabled"] = bool(overlay_enabled_value)
+
+        overlay_hotkey = normalized.get("overlayHotkey")
+        if overlay_hotkey:
+            try:
+                normalized["overlayHotkey"] = canonicalize_hotkey(overlay_hotkey)
+            except HotkeyParseError as exc:
+                self._logger.warning("Invalid overlayHotkey '%s': %s", overlay_hotkey, exc)
+                normalized["overlayHotkey"] = canonicalize_hotkey(self._defaults["overlayHotkey"])
+        else:
+            normalized["overlayHotkey"] = canonicalize_hotkey(self._defaults["overlayHotkey"])
+
+        overlay_opacity = normalized.get("overlayOpacity", self._defaults["overlayOpacity"])
+        try:
+            opacity_val = float(overlay_opacity)
+            normalized["overlayOpacity"] = max(0.3, min(1.0, opacity_val))
+        except (TypeError, ValueError):
+            normalized["overlayOpacity"] = self._defaults["overlayOpacity"]
 
         return normalized
 

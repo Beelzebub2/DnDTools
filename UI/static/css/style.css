@@ -1,18 +1,22 @@
 :root {
-    --bg-primary: #1a1412;
-    /* Dark brown background */
-    --bg-secondary: #241c17;
-    /* Slightly lighter brown */
-    --text-primary: #e4c869;
-    /* Gold text */
-    --text-secondary: #a89a6c;
-    /* Darker gold */
-    --accent-gold: #e4c869;
-    /* Gold accent */
-    --border-color: #392e24;
-    /* Brown border */
-    --hover-color: #2a2018;
-    /* Hover state */
+    --bg-primary: #0b0b0b;
+    /* Deep black/gray */
+    --bg-secondary: #141414;
+    /* Dark gray for cards/sidebars */
+    --bg-tertiary: #1a1a1a;
+    /* Slightly lighter dark gray */
+    --text-primary: #e6e6e6;
+    /* Light gray/white */
+    --text-secondary: #888888;
+    /* Muted gray */
+    --accent-gold: #cfa346;
+    /* Richer gold */
+    --accent-color: #cfa346;
+    /* Alias for accent gold */
+    --border-color: #2a2a2a;
+    /* Subtle dark border */
+    --hover-color: #202020;
+    /* Dark hover */
 }
 
 * {
@@ -27,63 +31,6 @@ body {
     color: var(--text-primary);
     display: flex;
     min-height: 100vh;
-}
-
-.sidebar {
-    width: 250px;
-    background-color: var(--bg-secondary);
-    border-right: 1px solid var(--border-color);
-    padding: 2rem 1rem;
-}
-
-.nav-header h1 {
-    color: var(--accent-gold);
-    font-size: 1.5rem;
-    margin-bottom: 2rem;
-    text-align: center;
-}
-
-.nav-links {
-    list-style: none;
-}
-
-.nav-link {
-    display: flex;
-    align-items: center;
-    gap: 0.8rem;
-    padding: 0.8rem 1rem;
-    color: #a89a6c;
-    text-decoration: none;
-    border-radius: 4px;
-    transition: all 0.3s ease;
-}
-
-.nav-link .material-icons {
-    font-size: 1.2rem;
-    color: #a89a6c;
-    transition: color 0.3s ease;
-}
-
-.nav-link:hover .material-icons,
-.nav-link.active .material-icons {
-    color: #e4c869;
-}
-
-.nav-link:hover {
-    background-color: var(--hover-color);
-    color: #e4c869;
-}
-
-.nav-link.active {
-    background-color: var(--hover-color);
-    color: #e4c869;
-    border-left: 3px solid #e4c869;
-}
-
-.content {
-    flex: 1;
-    padding: 2rem;
-    overflow-y: auto;
 }
 
 .content-header {
@@ -108,7 +55,7 @@ body {
     border: 1px solid var(--border-color);
     border-radius: 8px;
     padding: 1.5rem;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     cursor: pointer;
     position: relative;
     overflow: hidden;
@@ -322,7 +269,7 @@ body {
     color: var(--text-primary);
     cursor: pointer;
     border-radius: 4px;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .stash-tab:hover {
@@ -334,17 +281,6 @@ body {
     background-color: var(--hover-color);
     border-color: var(--accent-gold);
     color: var(--accent-gold);
-    animation: tabActivate 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes tabActivate {
-    from {
-        background-color: var(--bg-secondary);
-    }
-
-    to {
-        background-color: var(--hover-color);
-    }
 }
 
 .character-header {
@@ -436,7 +372,7 @@ body {
     padding: 0.8rem;
     background-color: var(--bg-primary);
     border: 1px solid var(--border-color);
-    color: var (--text-primary);
+    color: var(--text-primary);
     border-radius: 4px;
     margin-top: 0.5rem;
     margin-bottom: 1.5rem;
@@ -504,7 +440,7 @@ label {
 
 .instructions-panel ol {
     padding-left: 1.5rem;
-    color: var (--text-primary);
+    color: var(--text-primary);
 }
 
 .instructions-panel li {
@@ -539,57 +475,7 @@ label {
     color: #dc3545;
 }
 
-/* Notification Styles */
-.notification {
-    position: fixed;
-    top: 1rem;
-    right: 1rem;
-    padding: 1rem 2rem;
-    border-radius: 4px;
-    animation: slideIn 0.4s cubic-bezier(0.4, 0, 0.2, 1),
-        fadeOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards 2.5s;
-    z-index: 1000;
-}
-
-.notification.success {
-    background-color: rgba(40, 167, 69, 0.9);
-    color: white;
-}
-
-.notification.error {
-    background-color: rgba(220, 53, 69, 0.9);
-    color: white;
-}
-
-.notification.info {
-    background-color: #2196F3;
-    /* blue */
-    color: #FFFFFF;
-}
-
-@keyframes slideIn {
-    from {
-        transform: translateX(100%) translateY(-50%);
-        opacity: 0;
-    }
-
-    to {
-        transform: translateX(0) translateY(0);
-        opacity: 1;
-    }
-}
-
-@keyframes fadeOut {
-    from {
-        opacity: 1;
-        transform: translateY(0);
-    }
-
-    to {
-        opacity: 0;
-        transform: translateY(-10px);
-    }
-}
+/* Notification styles are now unified in utils.css */
 
 .character-select {
     margin-top: 2rem;
@@ -630,16 +516,6 @@ label {
     border-radius: 50%;
     animation: spin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
     margin: auto;
-}
-
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
 }
 
 img {
@@ -697,7 +573,8 @@ img:not([src]) {
     width: max-content;
     min-width: 220px;
     text-align: center;
-    opacity: 0;
+    border-right: 1px solid var(--border-color);
+    /* Make all sidebar items bold */
     transform: translateY(10px);
     transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -710,6 +587,7 @@ img:not([src]) {
     border-radius: 4px;
     margin-bottom: 8px;
 }
+
 
 .item-popup .primary-props {
     color: #ffffff;
@@ -802,34 +680,6 @@ img:not([src]) {
 }
 
 /* Button styles if not already defined */
-.btn-primary {
-    background-color: var(--color-primary, #c4a564);
-    color: #000;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-    font-weight: 500;
-}
-
-.btn-secondary {
-    background-color: #444;
-    color: #fff;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
-.btn {
-    background-color: transparent;
-    color: var(--color-text, #a89a6c);
-    border: 1px solid var(--color-border, #392e24);
-    padding: 8px 16px;
-    border-radius: 4px;
-    cursor: pointer;
-}
-
 .btn-primary:hover {
     background-color: var(--color-primary-hover, #d5b675);
 }

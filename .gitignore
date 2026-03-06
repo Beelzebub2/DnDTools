@@ -6,8 +6,11 @@ test-data/
 data/
 UI/capture_state.json
 UI/settings.json
+UI/assets/checksums.json
+/UI/tests/
 website/
 githelp.md
+TODO
 
 # Python
 __pycache__/
@@ -29,7 +32,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-*.spec
 res.py
 screenshot_with_boxes.png
 

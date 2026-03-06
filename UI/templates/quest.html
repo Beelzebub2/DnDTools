@@ -1,0 +1,273 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/quest.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="quests-container">
+    <div class="quests-header">
+        <div class="header-icon" aria-hidden="true">
+            <span class="material-icons">assignment</span>
+        </div>
+        <div class="header-text">
+            <h1>Quest Tracker</h1>
+            <p>Explore contracts by merchant and prepare every item objective before you venture out.</p>
+        </div>
+        <div class="header-actions">
+            <button type="button" class="refresh-all" id="refreshAll" title="Refresh quest data">
+                <span class="material-icons" aria-hidden="true">refresh</span>
+                <span>Refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="quest-progress-bar" id="questProgressBar" aria-hidden="true">
+        <div class="quest-progress-fill"></div>
+    </div>
+
+    <div class="quest-toolbar">
+        <div class="quest-tabs" role="tablist">
+            <button type="button" class="quest-tab active" data-view="gallery" role="tab" aria-selected="true"
+                id="galleryTab">Merchants</button>
+            <button type="button" class="quest-tab" data-view="merchant" role="tab" aria-selected="false"
+                id="merchantTab">Quests</button>
+            <button type="button" class="quest-tab" data-view="items" role="tab" aria-selected="false"
+                id="itemsTab">Item Checklist</button>
+            <button type="button" class="quest-tab" data-view="info" role="tab" aria-selected="false"
+                id="infoTab">Info</button>
+        </div>
+        <div class="prerequisite-control">
+            <label for="prerequisiteFilter">Prerequisites</label>
+            <div class="prerequisite-toggle-wrapper">
+                <input type="checkbox" id="prerequisiteFilter" role="switch" aria-checked="false"
+                    aria-describedby="prerequisiteFilterHint">
+                <label class="quest-toggle" for="prerequisiteFilter">
+                    <span class="quest-toggle-track" aria-hidden="true">
+                        <span class="quest-toggle-thumb"></span>
+                    </span>
+                    <span class="quest-toggle-text">
+                        <span class="quest-toggle-title">Hide locked quests</span>
+                        <span class="quest-toggle-hint" id="prerequisiteFilterHint">Only show quests with prerequisites
+                            met</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="quest-views">
+        <section id="galleryView" class="quest-view" role="tabpanel" aria-labelledby="galleryTab">
+            <div id="merchantGallery" class="merchant-gallery">
+                <div class="loading-spinner" id="galleryLoading">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p>Loading merchants...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="merchantView" class="quest-view hidden" role="tabpanel" aria-labelledby="merchantTab">
+            <div class="merchant-controls">
+                <button type="button" class="merchant-back-btn" id="backToGallery" title="Back to merchants">
+                    <span class="material-icons" aria-hidden="true">arrow_back</span>
+                    <span>Merchants</span>
+                </button>
+                <div class="control-group">
+                    <label for="merchantSelect">Merchant</label>
+                    <div class="control-input">
+                        <select id="merchantSelect" aria-label="Select merchant"></select>
+                        <button type="button" class="icon-button" id="merchantRefresh"
+                            title="Refresh quests for this merchant">
+                            <span class="material-icons" aria-hidden="true">sync</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="merchant-stats" id="merchantStats"></div>
+                <div class="merchant-view-toggle" role="tablist" aria-label="Quest objective filter">
+                    <button type="button" class="view-toggle-btn active" data-mode="active" role="tab"
+                        aria-selected="true">Active</button>
+                    <button type="button" class="view-toggle-btn" data-mode="completed" role="tab"
+                        aria-selected="false">Completed</button>
+                </div>
+            </div>
+            <div id="questList" class="quest-list">
+                <div class="loading-spinner" id="questLoading">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p>Loading quests...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="itemsView" class="quest-view hidden" role="tabpanel" aria-labelledby="itemsTab">
+            <div class="items-controls">
+                <div class="items-search" role="search">
+                    <span class="material-icons" aria-hidden="true">search</span>
+                    <input type="text" id="itemSearch" placeholder="Search by item or merchant"
+                        aria-label="Search quest items">
+                    <button type="button" class="clear-search" id="clearItemSearch" aria-label="Clear search">
+                        <span class="material-icons" aria-hidden="true">close</span>
+                    </button>
+                </div>
+                <div class="items-owned-toggle">
+                    <label class="custom-checkbox" for="itemsOwnedFirst">
+                        <input type="checkbox" id="itemsOwnedFirst">
+                        <span class="checkbox-mark" aria-hidden="true"></span>
+                        <span class="checkbox-label">Owned items first</span>
+                    </label>
+                </div>
+                <div class="items-meta" id="itemsMeta"></div>
+                <button type="button" class="icon-button" id="itemsRefresh" title="Refresh quest items">
+                    <span class="material-icons" aria-hidden="true">sync</span>
+                </button>
+            </div>
+            <div id="itemsList" class="quest-items-list">
+                <div class="loading-spinner" id="itemsLoading">
+                    <div class="spinner" aria-hidden="true"></div>
+                    <p>Aggregating quest requirements...</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="infoView" class="quest-view hidden" role="tabpanel" aria-labelledby="infoTab">
+            <div class="info-content">
+
+                <div class="info-section">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">storefront</span>
+                        Merchant Card Symbols
+                    </h2>
+                    <p class="info-desc">Each card in the <strong>Merchants</strong> gallery can display the following
+                        indicators:</p>
+                    <div class="info-legend">
+                        <div class="info-legend-item">
+                            <span class="info-legend-icon merchant-tracked-sample">
+                                <span class="material-icons">sensors</span>
+                            </span>
+                            <div class="info-legend-text">
+                                <strong>Live Tracking Active</strong>
+                                <span>A pulsing green badge in the top-right corner means the app has captured quest
+                                    data from the game for this merchant. Quest status and objective progress are being
+                                    tracked automatically.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="info-legend-icon done-sample">
+                                <span class="material-icons">check_circle</span>
+                            </span>
+                            <div class="info-legend-text">
+                                <strong>All Quests Completed</strong>
+                                <span>When every quest for a merchant has all objectives fulfilled, the card shows a
+                                    green accent and a checkmark to indicate full completion.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">label</span>
+                        Quest Status Badges
+                    </h2>
+                    <p class="info-desc">When auto-tracking is active, each quest card shows a badge reflecting its
+                        in-game status:</p>
+                    <div class="info-legend">
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--available info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">radio_button_unchecked</span>Not
+                                Accepted
+                            </span>
+                            <div class="info-legend-text">
+                                <span>The quest is available at the merchant but you haven't accepted it yet.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--progress info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">pending</span>In Progress
+                            </span>
+                            <div class="info-legend-text">
+                                <span>You have accepted this quest and it is currently active.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--success info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">check_circle</span>Ready to Turn In
+                            </span>
+                            <div class="info-legend-text">
+                                <span>All objectives are met. Return to the merchant to turn in the quest and claim your
+                                    reward.</span>
+                            </div>
+                        </div>
+                        <div class="info-legend-item">
+                            <span class="quest-status-badge quest-status--complete info-badge-sample">
+                                <span class="material-icons" aria-hidden="true">verified</span>Completed
+                            </span>
+                            <div class="info-legend-text">
+                                <span>The quest has been turned in and completed successfully.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">track_changes</span>
+                        How Auto-Tracking Works
+                    </h2>
+                    <div class="info-body">
+                        <p>DnDTools listens to the game's network traffic in real time using <strong>TShark</strong>
+                            (packet capture). When you open a merchant, accept a quest, or complete objectives in
+                            <em>Dark and Darker</em>, the app intercepts those packets and extracts quest data
+                            automatically.</p>
+                        <p>The captured data is reconciled with the <strong>DarkerDB</strong> quest database to match
+                            quest IDs, objectives, and item requirements. This allows the tracker to:</p>
+                        <ul>
+                            <li>Detect which quests you have accepted, completed, or haven't picked up yet</li>
+                            <li>Track individual objective progress (e.g. "Bring 3 Healing Potions — 2/3")</li>
+                            <li>Show live merchant status in the gallery cards</li>
+                        </ul>
+                        <p>Your captured quest status (accepted, in-progress, completed) is <strong>saved across
+                                sessions</strong> so you won't lose progress when you close the app.</p>
+                        <p><strong>Requirements:</strong> WireShark must be installed and packet capture must be enabled
+                            in Settings for auto-tracking to function.</p>
+                    </div>
+                </div>
+
+                <div class="info-section info-credits">
+                    <h2 class="info-section-title">
+                        <span class="material-icons" aria-hidden="true">favorite</span>
+                        Credits
+                    </h2>
+                    <div class="info-body">
+                        <p>Quest data and merchant information is provided by <strong>DarkerDB</strong>.</p>
+                        <p>Merchant portrait images are sourced from the community wiki:</p>
+                        <a href="https://darkanddarker.wiki.spellsandguns.com/" target="_blank"
+                            rel="noopener noreferrer" class="info-credit-link">
+                            <span class="material-icons" aria-hidden="true">open_in_new</span>
+                            darkanddarker.wiki.spellsandguns.com
+                        </a>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+    </div>
+</div>
+<div id="itemHoldingsOverlay" class="item-holdings-overlay hidden" aria-hidden="true"></div>
+<div id="itemHoldingsModal" class="item-holdings-modal hidden" role="dialog" aria-modal="true"
+    aria-labelledby="itemHoldingsTitle">
+    <div class="item-holdings-dialog" id="itemHoldingsDialog">
+        <header class="item-holdings-header">
+            <h3 id="itemHoldingsTitle">Item holdings</h3>
+            <button type="button" class="item-holdings-close" id="itemHoldingsClose" aria-label="Close holdings dialog">
+                <span class="material-icons" aria-hidden="true">close</span>
+            </button>
+        </header>
+        <div class="item-holdings-summary" id="itemHoldingsSummary"></div>
+        <div class="item-holdings-body" id="itemHoldingsBody"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/quest.js') }}"></script>
+{% endblock %}

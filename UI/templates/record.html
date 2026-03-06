@@ -6,95 +6,95 @@
 
 {% block content %}
 <div class="record-container">
-    <!-- Header Section -->
-    <div class="record-header">
-        <div class="header-content">
-            <div class="header-icon">
+    <!-- Compact hero banner -->
+    <div class="capture-banner">
+        <div class="capture-banner-inner">
+            <div class="capture-banner-icon">
                 <span class="material-icons">wifi_tethering</span>
             </div>
-            <div class="header-text">
+            <div class="capture-banner-text">
                 <h1>Character Capture</h1>
-                <p>Collect character data from your game sessions</p>
+                <p class="capture-banner-subtitle">Collect character data from your game sessions</p>
             </div>
         </div>
     </div>
 
-    <!-- Capture Section -->
-    <div class="record-sections">
-        <div class="record-section">
-            <div class="section-header">
-                <span class="material-icons">monitor</span>
-                <h2>Game Traffic Monitor</h2>
+    <!-- Main capture card -->
+    <div class="capture-card">
+        <!-- Steps strip -->
+        <div class="steps-strip">
+            <div class="step-chip">
+                <span class="step-num">1</span>
+                <span>Open your game &amp; go to character select</span>
             </div>
-            <div class="section-content">
-                <div class="instructions-panel">
-                    <h3>How to use</h3>
-                    <ol>
-                        <li>Start the game and go to the character select screen</li>
-                        <li>Toggle the capture switch ON below to start background capture</li>
-                        <li>When new character data is captured, it will appear in the list</li>
-                    </ol>
-                </div>
-
-                <!-- Traffic Visualization -->
-                <div class="traffic-visualization" id="trafficVisualization">
-                    <!-- Game Node -->
-                    <div class="visualization-node node-game" id="nodeGame">
-                        <span class="material-icons node-icon">sports_esports</span>
-                        <div class="node-label">Game</div>
-                    </div>
-
-                    <!-- Tool Node (only visible when capture is on) -->
-                    <div class="visualization-node node-tool" id="nodeTool" style="opacity: 0.4">
-                        <span class="material-icons node-icon">build</span>
-                        <div class="node-label">DnDTools</div>
-                    </div>
-
-                    <!-- Server Node -->
-                    <div class="visualization-node node-server" id="nodeServer">
-                        <span class="material-icons node-icon">dns</span>
-                        <div class="node-label">Servers</div>
-                    </div>
-
-                    <!-- Traffic Paths -->
-                    <div class="traffic-path path-game-server" id="pathGameServer"></div>
-                    <div class="traffic-path path-game-tool" id="pathGameTool" style="opacity: 0.4"></div>
-
-                    <!-- Traffic Particles for Animation -->
-                    <div class="traffic-particle" id="particleGameServer" style="background-color: var(--game-color);">
-                    </div>
-                    <div class="traffic-particle" id="particleGameTool"
-                        style="background-color: var(--game-color); opacity: 0;"></div>
-                    <div class="traffic-particle" id="particleToolServer"
-                        style="background-color: var(--tool-color); opacity: 0;"></div>
-                </div>
-
-                <!-- Capture Switch -->
-                <div class="capture-controls">
-                    <div class="toggle-switch" id="captureToggle">
-                        <div class="switch-thumb" id="switchThumb"></div>
-                        <div class="switch-option" id="switchOff">Capture Off</div>
-                        <div class="switch-option" id="switchOn">Capture On</div>
-                        <input type="checkbox" id="captureSwitch" style="display: none;">
-                    </div>
-                    <div class="capture-status">
-                        <div class="status-indicator" id="statusIndicator"></div>
-                        <span id="captureStatus">Capture is currently off</span>
-                    </div>
-                </div>
+            <span class="material-icons step-arrow">chevron_right</span>
+            <div class="step-chip">
+                <span class="step-num">2</span>
+                <span>Toggle capture ON below</span>
+            </div>
+            <span class="material-icons step-arrow">chevron_right</span>
+            <div class="step-chip">
+                <span class="step-num">3</span>
+                <span>New character data appears automatically</span>
             </div>
         </div>
 
-        <!-- Character Section -->
-        <div class="record-section character-section" id="characterSection" style="display: none;">
-            <div class="section-header">
-                <span class="material-icons">people</span>
-                <h2>Captured Characters</h2>
+        <!-- Traffic Visualization -->
+        <div class="traffic-visualization" id="trafficVisualization">
+            <!-- Game Node -->
+            <div class="visualization-node node-game" id="nodeGame">
+                <span class="material-icons node-icon">sports_esports</span>
+                <div class="node-label">Game</div>
             </div>
-            <div class="section-content">
-                <div class="character-grid" id="characterGrid">
-                    <!-- Characters will be loaded here -->
-                </div>
+
+            <!-- Tool Node (only visible when capture is on) -->
+            <div class="visualization-node node-tool" id="nodeTool" style="opacity: 0.4">
+                <span class="material-icons node-icon">build</span>
+                <div class="node-label">DnDTools</div>
+            </div>
+
+            <!-- Server Node -->
+            <div class="visualization-node node-server" id="nodeServer">
+                <span class="material-icons node-icon">dns</span>
+                <div class="node-label">Servers</div>
+            </div>
+
+            <!-- Traffic Paths -->
+            <div class="traffic-path path-game-server" id="pathGameServer"></div>
+            <div class="traffic-path path-game-tool" id="pathGameTool" style="opacity: 0.4"></div>
+
+            <!-- Traffic Particles for Animation -->
+            <div class="traffic-particle" id="particleGameServer" style="background-color: var(--game-color);"></div>
+            <div class="traffic-particle" id="particleGameTool"
+                style="background-color: var(--game-color); opacity: 0;"></div>
+            <div class="traffic-particle" id="particleToolServer"
+                style="background-color: var(--tool-color); opacity: 0;"></div>
+        </div>
+
+        <!-- Capture Switch -->
+        <div class="capture-controls">
+            <div class="toggle-switch" id="captureToggle">
+                <div class="switch-thumb" id="switchThumb"></div>
+                <div class="switch-option" id="switchOff">Capture Off</div>
+                <div class="switch-option" id="switchOn">Capture On</div>
+                <input type="checkbox" id="captureSwitch" style="display: none;">
+            </div>
+            <div class="capture-status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="captureStatus">Capture is currently off</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Captured Characters Section -->
+    <div class="captured-characters-card" id="characterSection" style="display: none;">
+        <div class="captured-characters-header">
+            <span class="material-icons">people</span>
+            <h2>Captured Characters</h2>
+        </div>
+        <div class="captured-characters-body">
+            <div class="character-grid" id="characterGrid">
+                <!-- Characters will be loaded here -->
             </div>
         </div>
     </div>

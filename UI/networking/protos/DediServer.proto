@@ -116,6 +116,10 @@ message C2S_GameEnterUser_Post {
   uint32 isSuccess = 4;
 }
 
+message SS3Info {
+  string s3BasePath = 1;
+}
+
 message S2C_GameStartServer_Json {
   enum MATCH_MAKE {
     NONE = 0;
@@ -156,6 +160,8 @@ message S2C_GameStartServer_Json {
   uint32 escapeFailAdventurePointOnOff = 33;
   uint32 gearScoreIndex = 34;
   uint32 dungeonGrade = 35;
+  uint32 rankPointRatio = 36;
+  .DC.Packet.SS3Info s3HackInfo = 37;
 }
 
 message C2S_GameEndServer_POST {
@@ -309,6 +315,7 @@ message GameResultInfo {
   string dungeonId = 30;
   repeated .DC.Packet.MonsterKillLog monsterKillAssistLogs = 31;
   repeated string faustianMonsterIds = 32;
+  repeated .DC.Packet.MonsterKillLog slayerMonsterLogs = 33;
 }
 
 message C2S_GameEscapeUser_POST {
@@ -420,6 +427,7 @@ message SDownCharacterInfo {
   repeated .DC.Packet.IngameObjectiveInfo downAchievements = 13;
   repeated uint64 prevGameIds = 14;
   repeated .DC.Packet.SDownLog downLogs = 15;
+  repeated .DC.Packet.MonsterKillLog slayerMonsterLogs = 16;
 }
 
 message S2C_ContinuousMatch_CharacterInfo {

@@ -31,6 +31,17 @@ message SLOGIN_CHARACTER_INFO {
   uint32 orderId = 14;
 }
 
+message SFINGER_PRINT_INFO {
+  string clientIp = 1;
+  uint32 screenW = 2;
+  uint32 screenH = 3;
+  string osVersion = 4;
+  string language = 5;
+  string region = 6;
+  uint32 coreCount = 7;
+  string gpuModel = 8;
+}
+
 message SC2S_ACCOUNT_LOGIN_REQ {
   string loginId = 1;
   string password = 2;
@@ -41,6 +52,7 @@ message SC2S_ACCOUNT_LOGIN_REQ {
   uint32 platformId = 7;
   string buildVersion = 8;
   string eulaHash = 9;
+  .DC.Packet.SFINGER_PRINT_INFO fingerPrint = 10;
 }
 
 message SS2C_ACCOUNT_LOGIN_RES {

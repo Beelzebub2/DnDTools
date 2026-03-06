@@ -1,9 +1,33 @@
 import logging
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging.handlers import RotatingFileHandler
 from src.models.appdirs import get_appdata_dir, is_frozen
+
+
+class _AnsiColorFormatter(logging.Formatter):
+    COLORS = {
+        logging.DEBUG: "\x1b[38;5;244m",
+        logging.INFO: "\x1b[38;5;250m",
+        logging.WARNING: "\x1b[38;5;214m",
+        logging.ERROR: "\x1b[38;5;203m",
+        logging.CRITICAL: "\x1b[1;38;5;196m",
+    }
+    RESET = "\x1b[0m"
+
+    def __init__(self, fmt: str, datefmt: str) -> None:
+        super().__init__(fmt=fmt, datefmt=datefmt)
+        self._supports_color = hasattr(sys.stdout, "isatty") and sys.stdout.isatty()
+
+    def format(self, record: logging.LogRecord) -> str:
+        message = super().format(record)
+        if not self._supports_color:
+            return message
+        color = self.COLORS.get(record.levelno)
+        if not color:
+            return message
+        return f"{color}{message}{self.RESET}"
 
 def get_logs_dir():
     """Get or create logs directory in AppData"""
@@ -11,7 +35,56 @@ def get_logs_dir():
     os.makedirs(logs_dir, exist_ok=True)
     return logs_dir
 
-def setup_logging(level=logging.INFO):
+def cleanup_old_logs(logs_dir, keep_days=3):
+    """Delete logs older than keep_days from current date"""
+    try:
+        cutoff_date = datetime.now().date() - timedelta(days=keep_days)
+        
+        if not os.path.exists(logs_dir):
+            return
+
+        for f in os.listdir(logs_dir):
+            file_path = os.path.join(logs_dir, f)
+            if not os.path.isfile(file_path):
+                continue
+            
+            file_date = None
+            name_lower = f.lower()
+            
+            # Format 1: dndtools_YYYYMMDD.log (Legacy)
+            if name_lower.startswith('dndtools_') and '-' not in name_lower:
+                try:
+                    # dndtools_20251126.log or dndtools_20251126.log.1
+                    parts = f.split('_')
+                    if len(parts) >= 2:
+                        date_str = parts[1].split('.')[0]
+                        if len(date_str) == 8 and date_str.isdigit():
+                            file_date = datetime.strptime(date_str, "%Y%m%d").date()
+                except (IndexError, ValueError):
+                    pass
+
+            # Format 2: DnDTools_YYYY-MM-DD.log (New)
+            elif name_lower.startswith('dndtools_') and '-' in name_lower:
+                try:
+                    # DnDTools_2025-11-26.log
+                    parts = f.split('_')
+                    if len(parts) >= 2:
+                        date_str = parts[1].split('.')[0]
+                        # Basic validation for YYYY-MM-DD
+                        if len(date_str) == 10 and date_str.count('-') == 2:
+                            file_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                except (IndexError, ValueError):
+                    pass
+            
+            if file_date and file_date < cutoff_date:
+                try:
+                    os.remove(file_path)
+                except OSError:
+                    pass
+    except Exception:
+        pass
+
+def setup_logging(level=logging.WARNING):
     """
     Set up logging for the application.
     - When running as an executable, logs to AppData/Local/DnDTools/logs/
@@ -31,17 +104,31 @@ def setup_logging(level=logging.INFO):
         '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
+    color_formatter = _AnsiColorFormatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
     
-    # Console handler for development - less verbose
+    # Console handler for development
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
-    console_handler.setFormatter(formatter)
+    console_handler.setLevel(level)
+    console_handler.setFormatter(color_formatter)
     root_logger.addHandler(console_handler)
+    
+    # Cleanup logs if directory exists (regardless of frozen state)
+    try:
+        logs_dir = get_logs_dir()
+        if os.path.exists(logs_dir):
+            cleanup_old_logs(logs_dir, keep_days=3)
+    except Exception:
+        pass
     
     # Always log to file when in executable mode
     if is_frozen():
         logs_dir = get_logs_dir()
-        log_file = os.path.join(logs_dir, f'dndtools_{datetime.now().strftime("%Y%m%d")}.log')
+        
+        # Use new human readable format
+        log_file = os.path.join(logs_dir, f'DnDTools_{datetime.now().strftime("%Y-%m-%d")}.log')
         
         # Set up rotating file handler - 5MB per file, keep 5 backup files
         file_handler = RotatingFileHandler(
@@ -50,7 +137,7 @@ def setup_logging(level=logging.INFO):
             backupCount=5,
             encoding='utf-8'
         )
-        file_handler.setLevel(logging.INFO)  # Logs INFO and above to file
+        file_handler.setLevel(level)  # Logs based on requested level
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
         
@@ -65,6 +152,17 @@ def setup_logging(level=logging.INFO):
     setup_specialized_loggers()
     
     return root_logger
+
+
+def set_logging_level(level: int) -> None:
+    """Update the global log level for all root handlers."""
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+    for handler in root_logger.handlers:
+        try:
+            handler.setLevel(level)
+        except Exception:
+            continue
 
 def setup_specialized_loggers():
     """Set up specialized loggers for different components"""

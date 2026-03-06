@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/packet_viewer.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="packet-viewer">
+    <!-- Header -->
+    <div class="pv-header">
+        <div class="pv-header-left">
+            <div class="pv-header-icon" aria-hidden="true">
+                <span class="material-icons">lan</span>
+            </div>
+            <div class="pv-header-text">
+                <h1>Packet Viewer</h1>
+                <p>Inspect captured network packets in real-time.</p>
+            </div>
+        </div>
+        <div class="pv-header-actions">
+            <div class="pv-live-badge">
+                <span class="pv-live-dot"></span>
+                <span>LIVE</span>
+            </div>
+            <div class="pv-packet-count" id="packet-count">
+                <span class="material-icons">description</span>
+                <span id="packet-count-text">Loading...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="pv-filters-panel">
+        <div class="pv-filters-header" id="pv-filters-toggle">
+            <div class="pv-filters-header-left">
+                <span class="material-icons">filter_list</span>
+                <span>Packet Type Filters</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div class="pv-filters-actions" id="pv-filters-actions">
+                    <button type="button" class="pv-btn pv-btn--small" id="select-all" title="Select all visible types">
+                        <span class="material-icons">check_box</span> All
+                    </button>
+                    <button type="button" class="pv-btn pv-btn--ghost pv-btn--small" id="deselect-all"
+                        title="Deselect all types">
+                        <span class="material-icons">check_box_outline_blank</span> None
+                    </button>
+                </div>
+                <div class="pv-filters-chevron open" id="pv-filters-chevron">
+                    <span class="material-icons">expand_more</span>
+                </div>
+            </div>
+        </div>
+        <div class="pv-filters-body" id="packet-type-filters">
+            <!-- Chips rendered by JS -->
+        </div>
+    </div>
+
+    <!-- Error -->
+    <div class="packet-error" id="packet-error" style="display:none">
+        <span class="material-icons" aria-hidden="true">warning</span>
+        <span id="packet-error-text"></span>
+    </div>
+
+    <!-- Packets List -->
+    <div class="packets-list" id="packets-list">
+        <div class="no-packets">
+            <span class="material-icons" aria-hidden="true">wifi_tethering</span>
+            <h3>No packets captured yet</h3>
+            <p>Start capture to see packets appear here in real-time.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/packet_viewer.js') }}"></script>
+{% endblock %}

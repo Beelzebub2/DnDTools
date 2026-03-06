@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en" style="background:#08080a;">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DnDTools Overlay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/overlay.css') }}">
+</head>
+
+<body style="background:rgba(8,8,10,0.96);color:#ececec;">
+    <!-- ─── Overlay Title Bar ─── -->
+    <div class="overlay-titlebar pywebview-drag-region">
+        <div class="overlay-titlebar-left">
+            <img src="{{ url_for('serve_file', filename='logo.png') }}" class="overlay-logo" alt="">
+            <span class="overlay-brand">DnDTools</span>
+            <span class="overlay-version">v{{ app_version }}</span>
+        </div>
+        <div class="overlay-titlebar-right">
+            <div class="overlay-hotkeys">
+                <kbd>{{ sort_hotkey_display }}</kbd> Sort
+                <span class="overlay-hint-sep">·</span>
+                <kbd>{{ cancel_hotkey_display }}</kbd> Cancel
+            </div>
+            <button class="overlay-btn-icon overlay-close" id="overlayCloseBtn" title="Hide overlay (Esc)">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ─── Main Layout: Sidebar + Content ─── -->
+    <div class="overlay-main">
+
+        <!-- Sidebar: Character List -->
+        <aside class="overlay-sidebar">
+            <div class="overlay-sidebar-header">
+                <span class="overlay-sidebar-title">Characters</span>
+                <button class="overlay-btn-icon overlay-btn-sm" id="overlayRefreshChars" title="Refresh characters">
+                    <span class="material-icons">refresh</span>
+                </button>
+            </div>
+            <div class="overlay-char-list" id="overlayCharList">
+                <div class="overlay-empty-state small">
+                    <span class="material-icons">hourglass_empty</span>
+                    <p>Loading…</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Content Area -->
+        <div class="overlay-content">
+
+            <!-- Tab Navigation -->
+            <nav class="overlay-nav" role="tablist">
+                <button class="overlay-tab active" data-tab="sort" role="tab" aria-selected="true">
+                    <span class="material-icons">sort</span>
+                    <span>Sort</span>
+                </button>
+                <button class="overlay-tab" data-tab="search" role="tab" aria-selected="false">
+                    <span class="material-icons">search</span>
+                    <span>Search</span>
+                </button>
+                <button class="overlay-tab" data-tab="quests" role="tab" aria-selected="false">
+                    <span class="material-icons">assignment</span>
+                    <span>Quests</span>
+                </button>
+            </nav>
+
+            <!-- ═══ Sort Panel ═══ -->
+            <section class="overlay-panel active" data-panel="sort">
+                <!-- Sort Toolbar -->
+                <div class="overlay-sort-toolbar">
+                    <div class="overlay-sort-toolbar-left">
+                        <!-- Stash Tabs -->
+                        <div class="overlay-stash-tabs" id="overlayStashTabs">
+                            <span class="overlay-stash-placeholder">Select a character</span>
+                        </div>
+                    </div>
+                    <div class="overlay-sort-toolbar-right">
+                        <!-- Sort Order Dropdown -->
+                        <div class="overlay-dropdown" id="overlayOrderingDropdown">
+                            <button class="overlay-toolbar-btn" id="overlayOrderingBtn" title="Sort Order">
+                                <span class="material-icons">swap_vert</span>
+                                <span>Order</span>
+                            </button>
+                            <div class="overlay-dropdown-menu" id="overlayOrderingMenu">
+                                <div class="overlay-dropdown-title">Sort Order (drag to reorder)</div>
+                                <div class="overlay-ordering-list" id="overlayOrderingList"></div>
+                                <button class="overlay-dropdown-action" id="overlayResetOrdering">
+                                    <span class="material-icons">restart_alt</span> Reset
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Pack Toggle -->
+                        <label class="overlay-toggle" title="Pack items tightly together">
+                            <input type="checkbox" id="overlayPackToggle">
+                            <span class="overlay-toggle-label">Pack</span>
+                        </label>
+
+                        <!-- Stack Toggle -->
+                        <label class="overlay-toggle" title="Merge stackable items before sorting">
+                            <input type="checkbox" id="overlayStackToggle">
+                            <span class="overlay-toggle-label">Stack</span>
+                        </label>
+
+                        <div class="overlay-toolbar-sep"></div>
+
+                        <!-- Preview Button -->
+                        <button class="overlay-toolbar-btn" id="overlayPreviewBtn" title="Toggle local preview">
+                            <span class="material-icons">visibility</span>
+                            <span>Preview</span>
+                        </button>
+
+                        <!-- Sort Button -->
+                        <button class="overlay-sort-btn" id="overlayTriggerSort" disabled>
+                            <span class="material-icons">sort</span>
+                            Sort
+                        </button>
+
+                        <!-- Deposit Dropdown -->
+                        <div class="overlay-dropdown overlay-dropdown-right" id="overlayDepositDropdown">
+                            <button class="overlay-deposit-btn" id="overlayDepositBtn" disabled
+                                title="Deposit bag items into this stash">
+                                <span class="material-icons">move_to_inbox</span>
+                                <span id="overlayDepositLabel">Deposit</span>
+                                <span class="overlay-deposit-badge" id="overlayDepositBadge"></span>
+                            </button>
+                            <div class="overlay-dropdown-menu overlay-deposit-menu" id="overlayDepositMenu">
+                                <div class="overlay-deposit-info" id="overlayDepositInfo">
+                                    Checking feasibility…
+                                </div>
+                                <button class="overlay-deposit-execute" id="overlayDepositExecute" disabled>
+                                    <span class="material-icons">check</span> Execute Deposit
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stash Grid Area -->
+                <div class="overlay-stash-area" id="overlayStashArea">
+                    <div class="overlay-empty-state">
+                        <span class="material-icons">inventory_2</span>
+                        <p>Select a character to view their stash</p>
+                    </div>
+                </div>
+
+                <!-- Sort Progress Overlay -->
+                <div class="overlay-sort-overlay" id="overlaySortOverlay" style="display:none;">
+                    <div class="overlay-sort-overlay-content">
+                        <div class="overlay-spinner-large"></div>
+                        <p id="overlaySortMessage">Sorting…</p>
+                        <div class="overlay-progress-bar-track">
+                            <div class="overlay-progress-bar-fill" id="overlaySortProgressBar"></div>
+                        </div>
+                        <button class="overlay-btn-cancel" id="overlaySortCancel" title="Cancel Sort">
+                            <span class="material-icons">close</span> Cancel
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Sort Feedback Prompt -->
+                <div id="overlaySortFeedback" class="ov-feedback hidden">
+                    <div class="ov-feedback-card">
+                        <div class="ov-feedback-header">
+                            <div class="ov-feedback-title-wrap">
+                                <p class="ov-feedback-title">Did this sort finish correctly?</p>
+                                <p class="ov-feedback-risk" id="overlaySortFeedbackRisk"></p>
+                            </div>
+                            <button type="button" class="ov-feedback-dismiss" id="overlaySortFeedbackDismiss"
+                                aria-label="Dismiss">
+                                <span class="material-icons">close</span>
+                            </button>
+                        </div>
+                        <p class="ov-feedback-desc">Quick thumbs up or down helps us retrain the sorter.</p>
+                        <div class="ov-feedback-actions">
+                            <button type="button" class="ov-feedback-btn success" id="overlaySortFeedbackSuccess">
+                                <span class="material-icons">thumb_up</span>
+                                Worked great
+                            </button>
+                            <button type="button" class="ov-feedback-btn failure" id="overlaySortFeedbackFailure">
+                                <span class="material-icons">bug_report</span>
+                                It had issues
+                            </button>
+                        </div>
+                        <textarea id="overlaySortFeedbackNote" class="ov-feedback-note"
+                            placeholder="Optional details (e.g., failed to place last shield)"></textarea>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Search Panel ═══ -->
+            <section class="overlay-panel" data-panel="search">
+                <div class="overlay-search-bar">
+                    <span class="material-icons overlay-search-icon">search</span>
+                    <input type="text" id="overlaySearchInput" class="overlay-input"
+                        placeholder="Search items… e.g. sword, rare" autocomplete="off">
+                    <select id="overlayRarityFilter" class="overlay-select" title="Filter by rarity">
+                        <option value="">All Rarities</option>
+                        <option value="Poor">Poor</option>
+                        <option value="Common">Common</option>
+                        <option value="Uncommon">Uncommon</option>
+                        <option value="Rare">Rare</option>
+                        <option value="Epic">Epic</option>
+                        <option value="Legendary">Legendary</option>
+                        <option value="Unique">Unique</option>
+                        <option value="Artifact">Artifact</option>
+                    </select>
+                    <button class="overlay-btn-icon overlay-btn-sm" id="overlaySearchClear" title="Clear"
+                        style="display:none;">
+                        <span class="material-icons">close</span>
+                    </button>
+                </div>
+                <div class="overlay-scroll-area" id="overlaySearchResults">
+                    <div class="overlay-empty-state">
+                        <span class="material-icons">manage_search</span>
+                        <p>Type to search items across all characters</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ═══ Quests Panel ═══ -->
+            <section class="overlay-panel" data-panel="quests">
+                <div class="overlay-quest-toolbar">
+                    <div class="overlay-quest-toolbar-left">
+                        <button class="overlay-btn-icon overlay-btn-sm" id="overlayQuestBack" style="display:none;"
+                            title="Back to merchants">
+                            <span class="material-icons">arrow_back</span>
+                        </button>
+                        <span class="overlay-quest-toolbar-title" id="overlayQuestTitle">Merchants</span>
+                    </div>
+                    <div class="overlay-quest-toolbar-right">
+                        <label class="overlay-toggle" title="Hide quests with unmet prerequisites">
+                            <input type="checkbox" id="overlayPrereqFilter">
+                            <span class="overlay-toggle-label">Prerequisites</span>
+                        </label>
+                        <button class="overlay-btn-icon overlay-btn-sm" id="overlayRefreshQuests" title="Refresh">
+                            <span class="material-icons">refresh</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="overlay-scroll-area" id="overlayQuestContent">
+                    <div class="overlay-merchant-gallery" id="overlayMerchantGallery">
+                        <div class="overlay-empty-state">
+                            <span class="material-icons">hourglass_empty</span>
+                            <p>Loading quests…</p>
+                        </div>
+                    </div>
+                    <div class="overlay-merchant-quests" id="overlayMerchantQuests" style="display:none;">
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </div>
+
+    <!-- ─── Notification Area ─── -->
+    <div id="overlay-notifications"></div>
+
+    <script src="{{ url_for('static', filename='js/overlay.js') }}"></script>
+</body>
+
+</html>

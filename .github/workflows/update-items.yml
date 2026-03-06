@@ -1,28 +1,124 @@
 name: Update Items and Icons
 
 on:
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      skip_patch_check:
+        description: 'Skip patch version check and force update'
+        required: false
+        default: false
+        type: boolean
   schedule:
-    - cron: '0 0 * * 0'  # Run weekly on Sunday at midnight UTC
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
 
 jobs:
+  check-darkerdb-version:
+    runs-on: ubuntu-latest
+
+    outputs:
+      build: ${{ steps.detect.outputs.build }}
+      patch: ${{ steps.detect.outputs.patch }}
+      changed: ${{ steps.detect.outputs.changed }}
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v6
+
+    - name: Detect DarkerDB build changes
+      id: detect
+      env:
+        SKIP_CHECK: ${{ github.event.inputs.skip_patch_check }}
+      run: |
+        python - <<'PY'
+        import json
+        import os
+        import urllib.request
+        from pathlib import Path
+
+        HEALTH_URL = "https://api.darkerdb.com/v1/health-check"
+        with urllib.request.urlopen(HEALTH_URL, timeout=15) as resp:
+            payload = json.loads(resp.read().decode('utf-8'))
+
+        build = payload.get('build')
+        patch = payload.get('patch')
+
+        if not build or patch is None:
+            raise SystemExit('Missing build or patch fields in health-check response.')
+
+        meta_path = Path('UI/assets/darkerdb_health.json')
+        if meta_path.exists():
+            try:
+                previous = json.loads(meta_path.read_text())
+            except json.JSONDecodeError:
+                previous = {}
+        else:
+            previous = {}
+
+        # Normalize types: the API may return patch as int while the saved
+        # file stores it as int or string.  Compare as strings to avoid
+        # false-positive "changed" detections from type mismatches.
+        changed = (
+            str(previous.get('build', '')).strip() != str(build).strip()
+            or str(previous.get('patch', '')).strip() != str(patch).strip()
+        )
+
+        if os.environ.get('SKIP_CHECK') == 'true':
+            print("Manual override: forcing update regardless of version change.")
+            changed = True
+
+        print(f"Current build: {build}, patch: {patch}")
+        print(f"Previous build: {previous.get('build', '<none>')}, patch: {previous.get('patch', '<none>')}")
+        print(f"Change detected? {changed}")
+
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a', encoding='utf-8') as fh:
+                fh.write(f"build={build}\n")
+                fh.write(f"patch={patch}\n")
+                fh.write(f"changed={'true' if changed else 'false'}\n")
+        PY
+
+    - name: Log up-to-date status
+      if: steps.detect.outputs.changed != 'true'
+      run: echo "DarkerDB build/patch unchanged; skipping asset refresh."
+
   refresh-assets:
+    needs: check-darkerdb-version
+    if: needs.check-darkerdb-version.outputs.changed == 'true'
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
         cache: 'pip'
 
+    - name: Prepare filtered requirements (remove platform-only packages)
+      run: |
+        python - <<'PY'
+        from pathlib import Path
+        p = Path('UI/requirements.txt')
+        out = p.with_name('requirements.filtered.txt')
+        if p.exists():
+            lines = [l for l in p.read_text().splitlines() if l.strip() and not l.strip().lower().startswith('pywin32')]
+            out.write_text('\n'.join(lines) + '\n')
+            print(f'Wrote {out}')
+        else:
+            print('No UI/requirements.txt found')
+        PY
+
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        python -m pip install -r UI/requirements.txt
+        if [ -f UI/requirements.filtered.txt ]; then
+          python -m pip install -r UI/requirements.filtered.txt
+        elif [ -f UI/requirements.txt ]; then
+          python -m pip install -r UI/requirements.txt
+        fi
 
     - name: Update items data
       env:
@@ -38,6 +134,271 @@ jobs:
       working-directory: UI
       run: python scripts/build_icons_pak.py --check --skip-convert
 
+    - name: Summarize item and icon changes
+      id: summarize-items
+      run: |
+        python - <<'PY'
+        import json
+        import subprocess
+        import datetime as dt
+        import os
+        from pathlib import Path
+
+        items_path = Path('UI/assets/items.json')
+        current = json.loads(items_path.read_text()) if items_path.exists() else {}
+
+        try:
+            prev_raw = subprocess.check_output(['git', 'show', 'HEAD:UI/assets/items.json'], text=True)
+            previous = json.loads(prev_raw)
+        except subprocess.CalledProcessError:
+            previous = {}
+
+        new_keys = sorted(set(current) - set(previous))
+        removed_keys = sorted(set(previous) - set(current))
+
+        icon_status_raw = subprocess.check_output([
+          'git',
+          'status',
+          '--porcelain',
+          'UI/assets/icons'
+        ], text=True, stderr=subprocess.STDOUT)
+
+        icon_changes = {
+          'added': [],
+          'modified': [],
+          'deleted': []
+        }
+
+        for line in icon_status_raw.splitlines():
+          if not line.strip():
+            continue
+          status = line[:2]
+          path = line[3:].strip()
+          if not path:
+            continue
+          normalized = path.replace('\\', '/')
+          if status.strip() in {'A', '??'}:
+            icon_changes['added'].append(normalized)
+          elif 'D' in status:
+            icon_changes['deleted'].append(normalized)
+          else:
+            icon_changes['modified'].append(normalized)
+
+        def preview_list(values, limit=20):
+          if not values:
+            return []
+          selected = values[:limit]
+          lines = [f"- {value}" for value in selected]
+          if len(values) > limit:
+            lines.append(f"... (+{len(values) - limit} more)")
+          return lines
+
+        def format_items(title, keys, data):
+            if not keys:
+                return f"{title}: none"
+            lines = [f"{title} ({len(keys)}):"]
+            limit = 20
+            for key in keys[:limit]:
+                entry = data.get(key, {})
+                name = entry.get('name', key)
+                lines.append(f"- {name} [{key}]")
+            if len(keys) > limit:
+                lines.append(f"... (+{len(keys) - limit} more)")
+            return '\n'.join(lines)
+
+        date_str = dt.datetime.utcnow().strftime('%d/%m/%Y')
+        summary_lines = [
+          f"Updated {date_str}",
+          f"Total items: {len(current)} (was {len(previous)})",
+          format_items('Added items', new_keys, current),
+          format_items('Removed items', removed_keys, previous),
+          f"Icon changes — added: {len(icon_changes['added'])}, modified: {len(icon_changes['modified'])}, removed: {len(icon_changes['deleted'])}",
+        ]
+
+        icon_preview_sections = []
+        for label, values in icon_changes.items():
+          lines = preview_list(values)
+          if lines:
+            icon_preview_sections.append(f"{label.capitalize()} icons ({len(values)}):\n" + '\n'.join(lines))
+        if icon_preview_sections:
+          summary_lines.append('\n'.join(icon_preview_sections))
+
+        summary = '\n'.join(summary_lines)
+        print(summary)
+
+        added_preview = [
+            {
+                "id": key,
+                "name": current.get(key, {}).get('name', key),
+            }
+            for key in new_keys[:50]
+        ]
+
+        removed_preview = [
+            {
+                "id": key,
+                "name": previous.get(key, {}).get('name', key),
+            }
+            for key in removed_keys[:50]
+        ]
+
+        changelog = {
+            "generated_at": dt.datetime.utcnow().isoformat() + 'Z',
+            "display_date": date_str,
+            "total_items": len(current),
+            "previous_total": len(previous),
+            "added_count": len(new_keys),
+            "removed_count": len(removed_keys),
+            "has_added": bool(new_keys),
+            "has_removed": bool(removed_keys),
+            "added_items": added_preview,
+          "removed_items": removed_preview,
+          "icon_changes": {
+            "added": icon_changes['added'],
+            "modified": icon_changes['modified'],
+            "removed": icon_changes['deleted'],
+          }
+        }
+
+        changelog_path = Path('UI/assets/changelog.json')
+        changelog_path.write_text(json.dumps(changelog, indent=2, ensure_ascii=False))
+        print(f"Wrote changelog data to {changelog_path}")
+
+        github_output = os.environ.get('GITHUB_OUTPUT')
+        if github_output:
+            with open(github_output, 'a', encoding='utf-8') as fh:
+                fh.write("release_summary<<EOF\n")
+                fh.write(summary)
+                fh.write("\nEOF\n")
+        PY
+
+    - name: Update DarkerDB health metadata
+      run: |
+        python - <<'PY'
+        import json
+        from pathlib import Path
+
+        build = "${{ needs.check-darkerdb-version.outputs.build }}"
+        patch_raw = "${{ needs.check-darkerdb-version.outputs.patch }}"
+
+        try:
+            patch = int(patch_raw)
+        except ValueError:
+            patch = patch_raw
+
+        data = {
+            "build": build,
+            "patch": patch,
+        }
+
+        path = Path('UI/assets/darkerdb_health.json')
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2), encoding='utf-8')
+        print(f"Wrote {path} -> {data}")
+        PY
+
+    - name: Compute asset checksums
+      run: |
+        python - <<'PY'
+        import hashlib
+        import json
+        from pathlib import Path
+
+        assets = {
+            "icons.pak": "UI/assets/icons.pak",
+            "items.json": "UI/assets/items.json",
+            "changelog.json": "UI/assets/changelog.json",
+            "darkerdb_health.json": "UI/assets/darkerdb_health.json",
+        }
+
+        checksums = {}
+        for name, filepath in assets.items():
+            p = Path(filepath)
+            if p.exists():
+                sha256 = hashlib.sha256(p.read_bytes()).hexdigest()
+                checksums[name] = sha256
+                print(f"{name}: {sha256}")
+            else:
+                print(f"Warning: {filepath} not found, skipping")
+
+        out = Path("UI/assets/checksums.json")
+        out.write_text(json.dumps(checksums, indent=2))
+        print(f"Wrote {out}")
+        PY
+
+    - name: Install jq
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y jq
+
+    - name: Publish assets-latest release (create or update)
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        RELEASE_SUMMARY: ${{ steps.summarize-items.outputs.release_summary }}
+      run: |
+        set -euo pipefail
+        TAG="assets-latest"
+        REPO="$GITHUB_REPOSITORY"
+        TOKEN="$GITHUB_TOKEN"
+
+        echo "Checking for existing release with tag $TAG"
+        release_json=$(curl -s -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/tags/$TAG") || true
+
+        # Prefer the summarized release body if available; otherwise fall back to current date
+        if [ -n "${RELEASE_SUMMARY:-}" ]; then
+          RELEASE_BODY="$RELEASE_SUMMARY"
+        else
+          RELEASE_BODY=$(date -u +%d/%m/%Y)
+        fi
+        echo "Release body will be: $RELEASE_BODY"
+
+        if echo "$release_json" | jq -e '.id' >/dev/null 2>&1; then
+          release_id=$(echo "$release_json" | jq -r .id)
+          echo "Found existing release: id=$release_id"
+          # Update the existing release body to current date and keep it as prerelease so it won't become the repo's latest release
+          update_payload=$(jq -n --arg body "$RELEASE_BODY" '{ body: $body, prerelease: true, draft: false }')
+          curl -s -X PATCH -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" -d "$update_payload" "https://api.github.com/repos/$REPO/releases/$release_id"
+          echo "Updated release body to current date (prerelease)"
+        else
+          echo "Release not found, creating release $TAG"
+          create_payload=$(jq -n --arg tag "$TAG" --arg name "$TAG" --arg body "$RELEASE_BODY" '{ tag_name: $tag, name: $name, body: $body, draft: false, prerelease: true }')
+          release_json=$(curl -s -X POST -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" -d "$create_payload" "https://api.github.com/repos/$REPO/releases")
+          release_id=$(echo "$release_json" | jq -r .id)
+          echo "Created release: id=$release_id"
+        fi
+
+        upload_url="https://uploads.github.com/repos/$REPO/releases/$release_id/assets"
+
+        upload_asset() {
+          local path="$1"
+          local name
+          name=$(basename "$path")
+          if [ ! -f "$path" ]; then
+            echo "Warning: asset $path not found, skipping"
+            return
+          fi
+
+          # Delete existing asset with same name if present
+          assets_json=$(curl -s -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/$release_id/assets")
+          asset_id=$(echo "$assets_json" | jq -r --arg name "$name" '.[] | select(.name==$name) | .id' || true)
+          if [ -n "$asset_id" ] && [ "$asset_id" != "null" ]; then
+            echo "Deleting existing asset $name (id=$asset_id)"
+            curl -s -X DELETE -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/assets/$asset_id"
+          fi
+
+          echo "Uploading $name"
+          curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/octet-stream" --data-binary @"$path" "$upload_url?name=$name"
+        }
+
+        # List of assets to publish (relative to repo root)
+        upload_asset "UI/assets/icons.pak"
+        upload_asset "UI/assets/items.json"
+        upload_asset "UI/assets/changelog.json"
+        upload_asset "UI/assets/darkerdb_health.json"
+        upload_asset "UI/assets/checksums.json"
+
     - name: Check for changes
       id: verify-changed-files
       run: |
@@ -47,7 +408,7 @@ jobs:
           echo "changed=false" >> $GITHUB_OUTPUT
         fi
 
-    - name: Create Pull Request
+    - name: Commit updated assets
       if: steps.verify-changed-files.outputs.changed == 'true'
       uses: peter-evans/create-pull-request@v7
       with:

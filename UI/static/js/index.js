@@ -43,7 +43,10 @@ async function loadCharacters() {
     try {
         let characters;
         if (window.pywebview && window.pywebview.api) {
-            characters = await window.pywebview.api.get_characters();
+            // Use lightweight summary endpoint (no stash item data)
+            characters = await (window.pywebview.api.get_characters_summary
+                ? window.pywebview.api.get_characters_summary()
+                : window.pywebview.api.get_characters());
         } else {
             const response = await fetch('/api/characters');
             if (!response.ok) {
@@ -89,41 +92,66 @@ async function loadCharacters() {
         characters.forEach(char => {
             const card = document.createElement('div');
             card.className = 'character-card';
+            card.setAttribute('data-class', (char.class || '').toLowerCase());
             card.onclick = () => window.location.href = `/character/${char.id}`;
 
             const classImageSrc = getClassImage(char.class);
             const timeSinceUpdate = getTimeSinceUpdate(char.lastUpdate);
+            const stashCount = char.stashes ? Object.keys(char.stashes).length : 0;
+
+            // Calculate total items — summary returns {stashId: count}
+            let totalItems = 0;
+            if (char.stashes) {
+                Object.values(char.stashes).forEach(stash => {
+                    if (typeof stash === 'number') totalItems += stash;
+                    else if (Array.isArray(stash)) totalItems += stash.length;
+                });
+            }
 
             card.innerHTML = `
-                <div class="card-header">
-                    <img src="${classImageSrc}" 
-                         alt="${char.class}" 
-                         class="class-image"
-                         onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                    <span class="material-icons class-icon-fallback" style="display: none;">person</span>
-                    <div class="character-title">
-                        <div class="character-name">${char.nickname}</div>
-                        <div class="character-subtitle">${char.class}</div>
+                <div class="card-bg"></div>
+                <div class="card-content">
+                    <div class="card-header">
+                        <div class="class-image-container">
+                            <img src="${classImageSrc}" 
+                                 alt="${char.class}" 
+                                 class="class-image"
+                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                            <span class="material-icons class-icon-fallback" style="display: none;">person</span>
+                            <div class="level-badge" title="Level ${char.level}">${char.level}</div>
+                        </div>
+                        <div class="character-title">
+                            <div class="character-name">${char.nickname}</div>
+                            <div class="character-subtitle">${char.class}</div>
+                        </div>
                     </div>
-                </div>                <div class="character-info">
-                    <div class="info-row">
-                        <span class="info-label">
-                            <span class="material-icons">star</span>
-                            Level:
-                        </span>
-                        <span class="info-value level-badge">${char.level}</span>
+
+                    <div class="character-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Rank</span>
+                            <span class="stat-value">
+                                <span class="material-icons">military_tech</span>
+                                ${(char.rank && char.rank.name) || 'Unknown'}
+                            </span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-label">Stash Tabs</span>
+                            <span class="stat-value">
+                                <span class="material-icons">inventory_2</span>
+                                ${stashCount}
+                            </span>
+                        </div>
                     </div>
-                    <div class="info-row">
-                        <span class="info-label">
+
+                    <div class="card-footer">
+                        <div class="last-updated" title="${formatDate(char.lastUpdate)}">
                             <span class="material-icons">schedule</span>
-                            Last Updated:
-                        </span>
-                        <span class="info-value" title="${formatDate(char.lastUpdate)}">${timeSinceUpdate}</span>
+                            ${timeSinceUpdate}
+                        </div>
+                        <div class="view-btn">
+                            View Stash <span class="material-icons">arrow_forward</span>
+                        </div>
                     </div>
-                </div>
-                <div class="card-action-hint">
-                    <span>View Details</span>
-                    <span class="material-icons">arrow_forward</span>
                 </div>
             `;
 
@@ -171,7 +199,12 @@ function getTimeSinceUpdate(dateString) {
     }
 }
 
-window.addEventListener('DOMContentLoaded', loadCharacters);
+// Init: load characters on page ready or immediately if DOM is already loaded
+if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', loadCharacters, { once: true });
+} else {
+    loadCharacters();
+}
 
 // Add global function to refresh character list
 window.updateCharacterList = async function () {
@@ -187,3 +220,10 @@ window.showCharacterCaptureAnimation = function (characterClass, characterNickna
     console.log(`Character captured: ${characterNickname} (${characterClass})`);
     // Could add a simple notification here if needed
 };
+
+// Register cleanup for AJAX router
+window.__pageCleanup = window.__pageCleanup || [];
+window.__pageCleanup.push(function () {
+    window.updateCharacterList = undefined;
+    window.showCharacterCaptureAnimation = undefined;
+});

@@ -1,12 +1,15 @@
 flask==3.1.2
-pywebview==6.0
-protobuf==6.32.1
+pywebview==6.1
+protobuf==6.33.5
 python-dotenv
 pyautogui
 keyboard
 psutil
 pygetwindow
 pyshark
+pystray
 pywin32
 requests
 Pillow
+numpy
+scikit-learn

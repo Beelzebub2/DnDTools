@@ -7,6 +7,14 @@ on:
         description: 'Release tag (example: v1.0.0)'
         required: true
         default: 'v2.0.0'
+      channel:
+        description: 'Release channel'
+        required: true
+        default: 'stable'
+        type: choice
+        options:
+          - stable
+          - dev
 
 permissions:
   contents: write
@@ -14,9 +22,12 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+    env:
+      DNDTOOLS_RELEASE_VERSION: ${{ github.event.inputs.tag }}
+      DNDTOOLS_RELEASE_CHANNEL: ${{ github.event.inputs.channel }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -26,7 +37,7 @@ jobs:
           cache-dependency-path: UI/requirements.txt
 
       - name: Cache PyInstaller
-        uses: actions/cache@v3
+        uses: actions/cache@v5
         with:
           path: |
             ~/.cache/pip
@@ -41,24 +52,49 @@ jobs:
           pip install -r UI/requirements.txt
           pip install pyinstaller
 
-      - name: Run build script (build_app.bat)
+      - name: Install Inno Setup
+        shell: powershell
+        run: |
+          choco install innosetup --no-progress -y
+
+      - name: Build installer package
         shell: cmd
         run: |
-          build_app.bat
+          installer\build_installer.bat
 
-      - name: Compress executable with UPX
-        uses: crazy-max/ghaction-upx@v3
-        with:
-          files: dist/DnDTools.exe
-          args: --best --lzma --force
+      - name: Verify PyInstaller outputs
+        shell: powershell
+        run: |
+          if (-not (Test-Path "dist/DnDTools/DnDTools.exe")) {
+            throw "DnDTools onedir build missing."
+          }
+          if (-not (Test-Path "dist/update.exe")) {
+            throw "Update executable missing."
+          }
 
-      - name: Create GitHub Pre-Release and Upload executable
+      - name: Generate update manifest
+        shell: powershell
+        run: |
+          python scripts/generate_update_manifest.py --release-tag "${{ github.event.inputs.tag }}" --version "${{ github.event.inputs.tag }}" --channel "${{ github.event.inputs.channel }}"
+
+      - name: Create GitHub Pre-Release and Upload installer
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
-          name: Test-Release ${{ github.event.inputs.tag }}
-          files: dist/DnDTools.exe
+          name: ${{ github.event.inputs.channel == 'dev' && 'Test-Release' || 'Release' }} ${{ github.event.inputs.tag }}
+          generate_release_notes: true
+          files: |
+            dist/DnDTools-Setup-*.exe
+            dist/update-manifest.json
           fail_on_unmatched_files: false
-          prerelease: true
+          prerelease: ${{ github.event.inputs.channel == 'dev' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Notify website of new release
+        shell: bash
+        run: |
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://dndtools.rrmtools.uk/api/release-notify" -H "Authorization: Bearer ${SECRET}" -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0 (compatible; DnDTools-CI/1.0)" -d "{\"tag\": \"${{ github.event.inputs.tag }}\", \"channel\": \"${{ github.event.inputs.channel }}\"}")
+          if [ "$HTTP_CODE" = "200" ]; then echo "Website notified (HTTP ${HTTP_CODE})"; else echo "Warning: Failed to notify website (HTTP ${HTTP_CODE})"; fi
+        env:
+          SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}

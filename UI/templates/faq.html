@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+    .faq-webview-wrapper {
+        width: 100%;
+        height: calc(100vh - 32px - 40px);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .faq-webview-wrapper iframe {
+        flex: 1;
+        width: 100%;
+        border: none;
+        border-radius: 12px;
+        background: #0c0e14;
+    }
+
+    .faq-webview-fallback {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        padding: 3rem;
+        text-align: center;
+        color: var(--text-secondary, #8a8a8a);
+    }
+
+    .faq-webview-fallback .material-icons {
+        font-size: 2.5rem;
+        color: var(--accent-gold, #cfa346);
+    }
+
+    .faq-webview-fallback a {
+        color: var(--accent-gold, #cfa346);
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="faq-webview-wrapper">
+    <iframe id="faq-frame" src="https://dndtools.rrmtools.uk/faq" loading="eager"
+        sandbox="allow-scripts allow-same-origin allow-popups" title="Q&amp;A"></iframe>
+    <div class="faq-webview-fallback" id="faq-fallback">
+        <span class="material-icons">wifi_off</span>
+        <p>Couldn't load the Q&amp;A page. Make sure you're connected to the internet.</p>
+        <a href="https://dndtools.rrmtools.uk/faq" target="_blank" rel="noopener">Open in browser instead</a>
+    </div>
+</div>
+<script>
+    (function () {
+        var frame = document.getElementById('faq-frame');
+        var fallback = document.getElementById('faq-fallback');
+        var timeout = setTimeout(function () {
+            frame.style.display = 'none';
+            fallback.style.display = 'flex';
+        }, 10000);
+        frame.addEventListener('load', function () {
+            clearTimeout(timeout);
+        });
+        frame.addEventListener('error', function () {
+            clearTimeout(timeout);
+            frame.style.display = 'none';
+            fallback.style.display = 'flex';
+        });
+    })();
+</script>
+{% endblock %}

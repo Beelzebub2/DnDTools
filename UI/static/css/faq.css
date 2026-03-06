@@ -1,0 +1,289 @@
+/* ═══════════════════════════════════════════════════════════
+   DnDTools — FAQ / Q&A Page
+   Matches the existing Settings page design language.
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Container ── */
+.faq-page {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 2rem 2rem 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* ── Banner ── */
+.faq-banner {
+    padding: 1.25rem 1.5rem;
+    background: var(--bg-card, #161616);
+    border: 1px solid var(--border-color, #232323);
+    border-radius: var(--radius-lg, 16px);
+    position: relative;
+    overflow: hidden;
+}
+
+.faq-banner::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent-gold, #cfa346), transparent);
+    opacity: 0.45;
+}
+
+.faq-banner-inner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.faq-banner-icon {
+    font-size: 1.75rem;
+    color: var(--accent-gold);
+    background: rgba(207, 163, 70, 0.12);
+    border: 1px solid rgba(207, 163, 70, 0.25);
+    border-radius: 8px;
+    padding: 0.5rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.faq-banner-icon .material-icons {
+    font-size: 1.75rem;
+}
+
+.faq-banner-text h1 {
+    margin: 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary, #e8e8e8);
+}
+
+.faq-banner-subtitle {
+    margin: 0.15rem 0 0;
+    font-size: 0.85rem;
+    color: var(--text-secondary, #8a8a8a);
+}
+
+/* ── Category pill strip ── */
+.faq-pills {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.35rem;
+    background: var(--bg-card, #161616);
+    border: 1px solid var(--border-color, #232323);
+    border-radius: var(--radius-md, 12px);
+    overflow-x: auto;
+}
+
+.faq-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.55rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-secondary, #8a8a8a);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+        background 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-pill .material-icons {
+    font-size: 1rem;
+}
+
+.faq-pill:hover {
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--text-primary, #e8e8e8);
+}
+
+.faq-pill.active {
+    background: rgba(207, 163, 70, 0.12);
+    color: var(--accent-gold, #cfa346);
+    border-color: rgba(207, 163, 70, 0.25);
+}
+
+/* ── Sections ── */
+.faq-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.faq-section {
+    display: none;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.faq-section.active {
+    display: flex;
+}
+
+.faq-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    margin-bottom: 0.25rem;
+}
+
+.faq-section-header .material-icons {
+    font-size: 1.3rem;
+    color: var(--accent-gold);
+}
+
+.faq-section-header h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text-primary, #e8e8e8);
+    margin: 0;
+}
+
+.faq-intro {
+    font-size: 0.88rem;
+    color: var(--text-secondary, #8a8a8a);
+    line-height: 1.6;
+    margin: 0 0 0.25rem;
+}
+
+/* ── Accordion items ── */
+.faq-item {
+    background: var(--bg-card, #161616);
+    border: 1px solid var(--border-color, #232323);
+    border-radius: var(--radius-md, 12px);
+    transition:
+        border-color 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+        box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.faq-item:hover {
+    border-color: rgba(207, 163, 70, 0.2);
+}
+
+.faq-item[open] {
+    border-color: rgba(207, 163, 70, 0.25);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Question row */
+.faq-q {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.85rem 1.15rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary, #e8e8e8);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.faq-q::-webkit-details-marker {
+    display: none;
+}
+
+.faq-q::marker {
+    content: '';
+}
+
+.faq-q:hover {
+    color: var(--accent-gold);
+}
+
+.faq-chevron {
+    font-size: 1.1rem;
+    color: var(--text-muted, #5a5a5a);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    flex-shrink: 0;
+}
+
+.faq-item[open] .faq-chevron {
+    transform: rotate(180deg);
+    color: var(--accent-gold);
+}
+
+/* Answer */
+.faq-a {
+    padding: 0 1.15rem 1.15rem;
+    font-size: 0.86rem;
+    color: var(--text-secondary, #8a8a8a);
+    line-height: 1.7;
+}
+
+.faq-a p {
+    margin-bottom: 0.6rem;
+}
+
+.faq-a ol,
+.faq-a ul {
+    padding-left: 1.4rem;
+    margin: 0.4rem 0 0.75rem;
+}
+
+.faq-a ol {
+    list-style: decimal;
+}
+
+.faq-a ul {
+    list-style: disc;
+}
+
+.faq-a li {
+    margin-bottom: 0.3rem;
+}
+
+.faq-a strong {
+    color: var(--text-primary, #e8e8e8);
+}
+
+/* ── Tip & Warning boxes ── */
+.faq-tip,
+.faq-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    padding: 0.7rem 0.9rem;
+    border-radius: 8px;
+    margin-top: 0.6rem;
+    font-size: 0.84rem;
+    line-height: 1.55;
+}
+
+.faq-tip {
+    background: rgba(207, 163, 70, 0.08);
+    border: 1px solid rgba(207, 163, 70, 0.18);
+}
+
+.faq-tip .material-icons {
+    color: var(--accent-gold);
+    font-size: 1.1rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}
+
+.faq-warning {
+    background: rgba(224, 85, 69, 0.08);
+    border: 1px solid rgba(224, 85, 69, 0.18);
+}
+
+.faq-warning .material-icons {
+    color: var(--danger, #e05545);
+    font-size: 1.1rem;
+    margin-top: 0.1rem;
+    flex-shrink: 0;
+}

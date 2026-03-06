@@ -313,6 +313,9 @@ message SOPEN_DUNGEON_POOL_INFO {
   uint32 gearPoolIndex = 1;
   uint32 maxIncludingRarity = 2;
   uint32 isLegendaryStatusOnly = 3;
+  uint32 entranceGoldFee = 4;
+  uint32 entranceLevel = 5;
+  uint32 isRequireFullParty = 6;
 }
 
 message SOPEN_DUNGEON_INFO {
@@ -321,6 +324,7 @@ message SOPEN_DUNGEON_INFO {
   repeated .DC.Packet.SDUNGEON_GEAR_POOL_INFO gearPoolInfos = 3;
   repeated .DC.Packet.SOPEN_DUNGEON_POOL_INFO dungeonPoolInfos = 4;
   string dungeonIdTag = 5;
+  string rankLimit = 6;
 }
 
 message SS2C_OPEN_DUNGEON_INFO_NOT {

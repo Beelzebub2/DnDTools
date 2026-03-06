@@ -16,158 +16,278 @@
         <!-- loading spinner -->
         <div id="stashSpinner" class="spinner"></div>
 
-        <!-- Stash Section with organized layout -->
-        <div class="stash-section-header hidden" id="stashSectionHeader">
-            <div class="stash-section-title">
-                <span class="material-icons">storage</span>
-                <h2>Character Stashes</h2>
-            </div>
-            <!-- stash tabs -->
-            <div id="stashSelector" class="stash-tabs"></div>
-        </div>
-
-        <!-- Stash content area -->
-        <div id="stashPreview" class="stash-content-area hidden">
-            <div class="stash-controls">
-                <div class="stash-value-indicator">
+        <!-- Unified Stash Panel -->
+        <div class="stash-panel hidden" id="stashSectionHeader">
+            <!-- Panel toolbar: tabs + actions in one bar -->
+            <div class="stash-panel-toolbar">
+                <div class="stash-panel-tabs" id="stashSelector"></div>
+                <div class="stash-panel-value" id="stashValueToolbar">
                     <span class="material-icons">monetization_on</span>
-                    <span>Total Value: </span>
                     <span id="totalStashValue">0</span>
-                    <span> coins</span>
+                    <span class="stash-value-label">coins</span>
                 </div>
+            </div>
 
-                <div class="stash-actions-row">
-                    <div class="primary-actions">
-                        <button class="stash-action-button sort-button">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
-                            </svg>
-                            <!-- Jelly Triangle Animation Container -->
+            <!-- Controls row (visible once stash selected) -->
+            <div id="stashPreview" class="stash-panel-body hidden">
+                <div class="stash-panel-actions">
+                    <div class="stash-controls-group stash-primary-actions">
+                        <button class="stash-action-button btn-sort-stash">
+                            <span class="material-icons">sort</span>
                             <div class="jelly-triangle-container">
                                 <div class="dot"></div>
                                 <div class="traveler"></div>
                             </div>
                             Sort Stash
                         </button>
-                        <button class="stash-action-button preview-button" id="previewToggleButton">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
-                            </svg>
+
+                        <button class="stash-action-button btn-preview" id="previewToggleButton">
+                            <span class="material-icons">visibility</span>
                             <div class="jelly-triangle-container">
                                 <div class="dot"></div>
                                 <div class="traveler"></div>
                             </div>
-                            Show Sort Preview
+                            Preview
                         </button>
+
+                        <!-- Deposit to current stash -->
+                        <div class="transfer-dropdown" id="transferDropdown">
+                            <button class="stash-action-button btn-transfer" id="transferButton" disabled
+                                title="Select a storage stash to enable deposit">
+                                <span class="material-icons">move_to_inbox</span>
+                                <div class="jelly-triangle-container">
+                                    <div class="dot"></div>
+                                    <div class="traveler"></div>
+                                </div>
+                                <span class="transfer-btn-label">Deposit</span>
+                                <span class="transfer-btn-badge" id="transferBadge"></span>
+                            </button>
+                            <div class="transfer-menu hidden" id="transferMenu">
+                                <div class="transfer-menu-header" id="transferMenuHeader">Deposit to Storage</div>
+                                <div class="transfer-feasibility" id="transferFeasibility">
+                                    <div class="transfer-feasibility-icon">
+                                        <span class="material-icons" id="transferFeasibilityIcon">info</span>
+                                    </div>
+                                    <div class="transfer-feasibility-text" id="transferFeasibilityText"></div>
+                                    <div class="transfer-feasibility-details" id="transferFeasibilityDetails"></div>
+                                </div>
+                                <div class="transfer-menu-footer">
+                                    <button type="button" class="stash-action-button transfer-execute-button"
+                                        id="transferExecuteButton" disabled>
+                                        <span class="material-icons">send</span>
+                                        Execute Deposit
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="sort-options">
+                    <div class="stash-controls-separator"></div>
+
+                    <div class="stash-controls-group stash-config-actions">
+                        <div class="ordering-dropdown">
+                            <button class="stash-action-button btn-ordering" id="orderingButton">
+                                <span class="material-icons">tune</span>
+                                <div class="jelly-triangle-container">
+                                    <div class="dot"></div>
+                                    <div class="traveler"></div>
+                                </div>
+                                Ordering
+                            </button>
+                            <div class="ordering-menu hidden" id="orderingMenu">
+                                <div class="ordering-menu-header">Sort Priority</div>
+                                <div class="ordering-option" data-sort="slot" data-direction="asc"
+                                    data-default-direction="asc" draggable="true">
+                                    <span class="material-icons ordering-drag-handle">drag_indicator</span>
+                                    <span class="ordering-priority">1</span>
+                                    <span class="ordering-label">Slot</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Asc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">
+                                                <span class="material-icons">arrow_upward</span>
+                                            </button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">
+                                                <span class="material-icons">arrow_downward</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ordering-option" data-sort="rarity" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="material-icons ordering-drag-handle">drag_indicator</span>
+                                    <span class="ordering-priority">2</span>
+                                    <span class="ordering-label">Rarity</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">
+                                                <span class="material-icons">arrow_upward</span>
+                                            </button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">
+                                                <span class="material-icons">arrow_downward</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ordering-option" data-sort="height" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="material-icons ordering-drag-handle">drag_indicator</span>
+                                    <span class="ordering-priority">3</span>
+                                    <span class="ordering-label">Height</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">
+                                                <span class="material-icons">arrow_upward</span>
+                                            </button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">
+                                                <span class="material-icons">arrow_downward</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ordering-option" data-sort="width" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="material-icons ordering-drag-handle">drag_indicator</span>
+                                    <span class="ordering-priority">4</span>
+                                    <span class="ordering-label">Width</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">
+                                                <span class="material-icons">arrow_upward</span>
+                                            </button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">
+                                                <span class="material-icons">arrow_downward</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="ordering-option" data-sort="name" data-direction="desc"
+                                    data-default-direction="desc" draggable="true">
+                                    <span class="material-icons ordering-drag-handle">drag_indicator</span>
+                                    <span class="ordering-priority">5</span>
+                                    <span class="ordering-label">Name</span>
+                                    <div class="ordering-controls">
+                                        <button type="button" class="direction-toggle"
+                                            aria-label="Toggle sort direction">Desc</button>
+                                        <div class="ordering-arrows">
+                                            <button type="button" class="arrow-up" aria-label="Move up">
+                                                <span class="material-icons">arrow_upward</span>
+                                            </button>
+                                            <button type="button" class="arrow-down" aria-label="Move down">
+                                                <span class="material-icons">arrow_downward</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="ordering-menu-footer">
+                                    <button type="button" class="stash-action-button ordering-reset-button"
+                                        id="resetOrderingButton">
+                                        <span class="material-icons">restart_alt</span>
+                                        Restore Default
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="checkbox-group">
                             <label class="custom-checkbox" for="packItemsToggle">
                                 <input type="checkbox" id="packItemsToggle">
                                 <span class="checkbox-mark"></span>
-                                <span class="checkbox-label">Pack Items</span>
+                                <span class="checkbox-label">Pack</span>
                             </label>
                             <label class="custom-checkbox" for="stackItemsToggle">
                                 <input type="checkbox" id="stackItemsToggle">
                                 <span class="checkbox-mark"></span>
-                                <span class="checkbox-label">Stack Items</span>
+                                <span class="checkbox-label">Stack</span>
                             </label>
                         </div>
                     </div>
+
                 </div>
-
-                <div class="ordering-actions-row">
-                    <div class="ordering-dropdown">
-                        <button class="stash-action-button sort-button" id="orderingButton">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none"
-                                xmlns="http://www.w3.org/2000/svg">
-                                <path d="M2 4h12M4 8h8M6 12h4" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" />
-                            </svg>
-                            <!-- Jelly Triangle Animation Container -->
-                            <div class="jelly-triangle-container">
-                                <div class="dot"></div>
-                                <div class="traveler"></div>
-                            </div>
-                            Ordering
-                        </button>
-                        <div class="ordering-menu hidden" id="orderingMenu">
-                            <div class="ordering-option" data-sort="rarity" draggable="true">
-                                <span>Rarity</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up" aria-label="Move up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
-                                </div>
-                            </div>
-                            <div class="ordering-option" data-sort="height" draggable="true">
-                                <span>Height</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
-                                </div>
-                            </div>
-                            <div class="ordering-option" data-sort="width" draggable="true">
-                                <span>Width</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
-                                </div>
-                            </div>
-                            <div class="ordering-option" data-sort="name" draggable="true">
-                                <span>Name</span>
-                                <div class="ordering-arrows">
-                                    <button class="arrow-up">▲</button>
-                                    <button class="arrow-down" aria-label="Move down">▼</button>
-                                </div>
-                            </div>
-
-                            <div class="ordering-menu-footer">
-                                <button type="button" class="stash-action-button ordering-reset-button"
-                                    id="resetOrderingButton">
-                                    Restore Default Order
-                                </button>
-                            </div>
-
-                            <!-- Space for future options -->
-                        </div>
-                    </div>
-                </div>
-                <!-- Replace static image with interactive grid container -->
+                <!-- Stash grid -->
                 <div id="interactiveStashGrid" class="stash-grid-container"></div>
-                <!-- Keep the image as a fallback but hide it by default -->
+                <!-- Fallback image (hidden by default) -->
                 <img id="currentStashPreview" class="stash-preview-image hidden" src="" alt="Stash Preview">
                 <!-- Sorting overlay with jelly triangle animation -->
                 <div id="sortingOverlay" class="sorting-overlay hidden">
-                    <div class="sorting-animation-container">
-                        <div class="jelly-triangle-container">
-                            <div class="dot"></div>
-                            <div class="traveler"></div>
+                    <div class="sorting-overlay-card">
+                        <div class="sorting-overlay-header">
+                            <div class="sorting-overlay-logo" aria-hidden="true">
+                                <img src="{{ url_for('serve_file', filename='logo.png') }}" alt="DnDTools logo">
+                            </div>
+                            <div class="sorting-overlay-heading">
+                                <span class="sorting-overlay-title">DnDTools</span>
+                                <span class="sorting-overlay-subtitle">Advanced Stash Sorting</span>
+                            </div>
                         </div>
-                        <div class="sorting-text" id="sortingText">Sorting items...</div>
+                        <div class="sorting-overlay-body">
+                            <div class="sorting-animation-container">
+                                <div class="jelly-triangle-container">
+                                    <div class="dot"></div>
+                                    <div class="traveler"></div>
+                                </div>
+                            </div>
+                            <div class="sorting-text" id="sortingText">Sorting items...</div>
+                            <div class="sorting-overlay-description">
+                                Sit tight while we arrange your stash for peak efficiency.
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
+                <div id="sortFeedbackPrompt" class="sort-feedback hidden" aria-live="assertive">
+                    <div class="sort-feedback-card">
+                        <div class="sort-feedback-header">
+                            <div class="sort-feedback-title-wrap">
+                                <p class="sort-feedback-title">Did this sort finish correctly?</p>
+                                <p class="sort-feedback-risk" id="sortFeedbackRisk"></p>
+                            </div>
+                            <button type="button" class="sort-feedback-dismiss" id="sortFeedbackDismiss"
+                                aria-label="Dismiss feedback prompt">
+                                <span class="material-icons">close</span>
+                            </button>
+                        </div>
+                        <p class="sort-feedback-description">Share a quick thumbs up or down and we&#39;ll retrain the
+                            sorter for tighter workspaces.</p>
+                        <div class="sort-feedback-actions">
+                            <button type="button" class="sort-feedback-button success" id="sortFeedbackSuccess">
+                                <span class="material-icons">thumb_up</span>
+                                Worked great
+                            </button>
+                            <button type="button" class="sort-feedback-button failure" id="sortFeedbackFailure">
+                                <span class="material-icons">bug_report</span>
+                                It had issues
+                            </button>
+                        </div>
+                        <textarea id="sortFeedbackNote" class="sort-feedback-note"
+                            placeholder="Optional details (e.g., failed to place last shield)"></textarea>
+                    </div>
+                </div>
+            </div><!-- /stash-panel-body -->
+        </div><!-- /stash-panel -->
+    </div><!-- /stash-container -->
+</div><!-- /character-details -->
 
-    <!-- SVG Filter for Jelly Triangle Animation -->
-    <svg width="0" height="0" class="jelly-svg">
-        <defs>
-            <filter id="uib-jelly-triangle-ooze">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="3.333" result="blur" />
-                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
-                    result="ooze" />
-                <feBlend in="SourceGraphic" in2="ooze" />
-            </filter>
-        </defs>
-    </svg>
-    {% endblock %}
+<!-- SVG Filter for Jelly Triangle Animation -->
+<svg width="0" height="0" class="jelly-svg">
+    <defs>
+        <filter id="uib-jelly-triangle-ooze">
+            <feGaussianBlur in="SourceGraphic" stdDeviation="3.333" result="blur" />
+            <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 18 -7"
+                result="ooze" />
+            <feBlend in="SourceGraphic" in2="ooze" />
+        </filter>
+    </defs>
+</svg>
+{% endblock %}
 
-    {% block scripts %}
-    <script src="{{ url_for('static', filename='js/character.js') }}"></script>
-    {% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/character.js') }}"></script>
+{% endblock %}

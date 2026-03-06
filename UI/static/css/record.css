@@ -1,14 +1,14 @@
-/* Modern Dark and Darker Record Page */
+/* ── Capture Page ─────────────────────────────────────────────────── */
 :root {
-    --accent-gold: #e4c869;
+    --accent-gold: #cfa346;
     --accent-brown: #8b6914;
-    --bg-dark: #1a1a1a;
-    --bg-secondary: #2a2118;
-    --bg-tertiary: #3a2d1e;
-    --border-color: #4a3a2a;
-    --text-primary: #f0f0f0;
-    --text-secondary: #c0c0c0;
-    --text-muted: #888;
+    --bg-dark: #0b0b0b;
+    --bg-secondary: #141414;
+    --bg-tertiary: #1a1a1a;
+    --border-color: #2a2a2a;
+    --text-primary: #e6e6e6;
+    --text-secondary: #888888;
+    --text-muted: #666;
     --danger: #e74c3c;
     --success: #27ae60;
     --warning: #f39c12;
@@ -17,25 +17,29 @@
     --tool-color: #4caf50;
 }
 
+/* ── Page Container ──────────────────────────────────────────────── */
 .record-container {
     max-width: 900px;
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.5rem 2rem 2rem;
     background: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
 }
 
-/* Header Section */
-.record-header {
-    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(36, 28, 23, 0.8) 100%);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 2rem;
-    margin-bottom: 2rem;
+/* ── Hero Banner ─────────────────────────────────────────────────── */
+.capture-banner {
+    background: linear-gradient(135deg, rgba(26, 21, 16, 0.95) 0%, rgba(13, 11, 9, 0.98) 100%);
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    border-radius: 14px;
+    padding: 1.5rem 2rem;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
-.record-header::before {
+.capture-banner::before {
     content: '';
     position: absolute;
     top: 0;
@@ -43,118 +47,137 @@
     right: 0;
     height: 2px;
     background: linear-gradient(90deg, transparent, var(--accent-gold), transparent);
-    opacity: 0.6;
+    opacity: 0.5;
 }
 
-.header-content {
+.capture-banner::after {
+    content: '';
+    position: absolute;
+    top: -60%;
+    right: -10%;
+    width: 300px;
+    height: 300px;
+    background: radial-gradient(circle, rgba(207, 163, 70, 0.06) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.capture-banner-inner {
     display: flex;
     align-items: center;
     gap: 1.5rem;
+    position: relative;
+    z-index: 1;
 }
 
-.header-icon {
-    width: 4rem;
-    height: 4rem;
-    font-size: 2rem;
-    color: var(--accent-gold);
+.capture-banner-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: rgba(228, 200, 105, 0.1);
+    border: 1px solid rgba(228, 200, 105, 0.25);
     border-radius: 12px;
-    border: 2px solid rgba(228, 200, 105, 0.2);
+    color: var(--accent-gold);
+    font-size: 1.6rem;
+}
+
+.capture-banner-text h1 {
+    color: var(--accent-gold);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0 0 0.25rem 0;
+    letter-spacing: -0.01em;
+}
+
+.capture-banner-subtitle {
+    color: var(--text-secondary);
+    margin: 0;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* ── Main Capture Card ───────────────────────────────────────────── */
+.capture-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Steps Strip ─────────────────────────────────────────────────── */
+.steps-strip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.85rem 1.25rem;
+    background: rgba(0, 0, 0, 0.15);
+    border-bottom: 1px solid var(--border-color);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.steps-strip::-webkit-scrollbar {
+    display: none;
+}
+
+.step-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.step-num {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(207, 163, 70, 0.15);
+    border: 1px solid rgba(207, 163, 70, 0.4);
+    color: var(--accent-gold);
+    font-size: 0.72rem;
+    font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
 }
 
-.header-text h1 {
-    color: var(--accent-gold);
-    font-size: 2rem;
-    font-weight: 600;
-    margin: 0 0 0.5rem 0;
-    letter-spacing: -0.02em;
+.step-arrow {
+    color: var(--text-muted);
+    font-size: 1rem;
+    flex-shrink: 0;
+    opacity: 0.5;
 }
 
-.header-text p {
-    color: var(--text-secondary);
-    margin: 0;
-    font-size: 1.1rem;
-}
-
-/* Record Sections */
-.record-sections {
-    display: flex;
-    flex-direction: column;
-    gap: 2rem;
-}
-
-.record-section {
-    background: var(--bg-secondary);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-}
-
-.record-section:hover {
-    border-color: var(--accent-brown);
-    box-shadow: 0 4px 20px rgba(228, 200, 105, 0.1);
-}
-
-.section-header {
-    background: linear-gradient(135deg, var(--bg-tertiary), var(--bg-secondary));
-    padding: 1.5rem;
-    border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-}
-
-.section-header .material-icons {
-    color: var(--accent-gold);
-    font-size: 2rem;
-    background: rgba(228, 200, 105, 0.1);
-    padding: 0.5rem;
-    border-radius: 8px;
-    width: 3rem;
-    height: 3rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.section-header h2 {
-    color: var(--accent-gold);
-    margin: 0;
-    font-size: 1.3rem;
-    font-weight: 600;
-}
-
-.section-content {
-    padding: 2rem;
-}
-
-/* Traffic Visualization */
+/* ── Traffic Visualization ────────────────────────────────────────── */
 .traffic-visualization {
-    height: 180px;
+    height: 160px;
     position: relative;
-    margin: 2rem 0;
+    margin: 0;
+    padding: 1.5rem 2rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
 }
 
 .visualization-node {
-    width: 80px;
-    height: 80px;
-    border-radius: 12px;
+    width: 72px;
+    height: 72px;
+    border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     flex-direction: column;
     position: relative;
     z-index: 2;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .node-game {
@@ -220,14 +243,16 @@
     opacity: 0;
 }
 
-/* Capture Controls */
+/* ── Capture Controls ─────────────────────────────────────────────── */
 .capture-controls {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: 1.5rem;
-    margin: 2rem 0;
+    gap: 1rem;
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.08);
 }
 
 .toggle-switch {
@@ -242,7 +267,7 @@
     border: 2px solid var(--border-color);
     border-radius: 50px;
     padding: 4px;
-    transition: all 0.3s ease;
+    transition: border-color 0.3s ease;
 }
 
 .toggle-switch:hover {
@@ -284,7 +309,7 @@
 }
 
 .capture-status {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     font-weight: 500;
     color: var(--text-secondary);
     display: flex;
@@ -293,8 +318,8 @@
 }
 
 .status-indicator {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     background: var(--danger);
 }
@@ -314,35 +339,64 @@
     animation: pulse 0.8s alternate infinite;
 }
 
-/* Character List */
-.character-section {
-    margin-top: 2rem;
+/* ── Captured Characters Card ────────────────────────────────────── */
+.captured-characters-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 
+.captured-characters-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.captured-characters-header .material-icons {
+    color: var(--accent-gold);
+    font-size: 1.25rem;
+}
+
+.captured-characters-header h2 {
+    color: var(--accent-gold);
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+.captured-characters-body {
+    padding: 1.25rem;
+}
+
+/* Character List */
 .character-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     gap: 1rem;
-    margin-top: 1.5rem;
 }
 
 .character-card {
     background: var(--bg-dark);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 1.5rem;
+    border-radius: 10px;
+    padding: 1.25rem;
     cursor: pointer;
-    transition: all 0.3s ease;
-    min-height: 140px;
+    transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+    min-height: 120px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }
 
 .character-card:hover {
-    border-color: var(--accent-gold);
+    border-color: rgba(207, 163, 70, 0.5);
     transform: translateY(-3px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
 }
 
 .character-name {
@@ -424,30 +478,31 @@
     }
 }
 
-/* Instructions panel */
+/* ── Legacy compat: instructions panel (no longer in template, kept for JS) ── */
 .instructions-panel {
     background: var(--bg-dark);
     border: 1px solid var(--border-color);
     border-radius: 8px;
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
 }
 
 .instructions-panel h3 {
     color: var(--accent-gold);
     margin-top: 0;
-    margin-bottom: 1rem;
-    font-size: 1.2rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.1rem;
 }
 
 .instructions-panel ol {
     color: var(--text-secondary);
     padding-left: 1.5rem;
     margin: 0;
+    line-height: 1.6;
 }
 
 .instructions-panel li {
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.4rem;
 }
 
 .instructions-panel li:last-child {
@@ -456,19 +511,90 @@
 
 /* Status Text (keep for compatibility) */
 .status-text {
-    padding: 0.5rem 1rem;
-    border-radius: 4px;
+    padding: 0.4rem 0.85rem;
+    border-radius: 6px;
     font-weight: 500;
+    font-size: 0.88rem;
 }
 
 .status-text.capturing {
-    background-color: rgba(52, 199, 89, 0.15);
+    background-color: rgba(52, 199, 89, 0.12);
     color: #34c759;
 }
 
 .status-text.error {
-    background-color: rgba(255, 59, 48, 0.15);
+    background-color: rgba(255, 59, 48, 0.12);
     color: #ff3b30;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+    .record-container {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .capture-banner {
+        padding: 1.15rem 1.25rem;
+    }
+
+    .capture-banner-inner {
+        gap: 1rem;
+    }
+
+    .capture-banner-icon {
+        width: 2.75rem;
+        height: 2.75rem;
+        font-size: 1.3rem;
+    }
+
+    .capture-banner-text h1 {
+        font-size: 1.35rem;
+    }
+
+    .steps-strip {
+        padding: 0.65rem 0.85rem;
+        gap: 0.35rem;
+    }
+
+    .step-chip {
+        font-size: 0.75rem;
+    }
+
+    .traffic-visualization {
+        padding: 1rem;
+        height: 140px;
+    }
+
+    .visualization-node {
+        width: 60px;
+        height: 60px;
+    }
+
+    .node-icon {
+        font-size: 1.5rem;
+    }
+
+    .node-label {
+        font-size: 0.7rem;
+    }
+
+    .character-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .capture-banner-inner {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.75rem;
+    }
+
+    .steps-strip {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
 }
 
 /* Character Capture Animation */
@@ -502,16 +628,19 @@
         transform: translateY(-50%) scale(1);
         opacity: 1;
     }
+
     20% {
         transform: translateY(-50%) scale(1.2);
         box-shadow: 0 0 30px rgba(228, 200, 105, 0.8);
     }
+
     80% {
         right: calc(100% - 120px);
         top: 50%;
         transform: translateY(-50%) scale(1);
         opacity: 1;
     }
+
     100% {
         right: calc(100% - 120px);
         top: 50%;

@@ -5,12 +5,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dark and Darker Stash Organizer</title>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons&display=swap">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/sidebar-indicator.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/utils.css') }}">
     {% block head %}{% endblock %}
+    <!-- Hide loading overlay on tab switches (only show on very first app launch) -->
+    <script>
+        if (sessionStorage.getItem('dnd-app-loaded')) {
+            document.documentElement.classList.add('app-loaded');
+        }
+    </script>
     <style>
+        /* ── Sidebar layout tokens ── */
+        :root {
+            --sidebar-width-expanded: 240px;
+        }
+
+        /* Skip loading overlay when navigating between tabs */
+        html.app-loaded .app-loading-overlay {
+            display: none !important;
+        }
+
         /* Global scrollbar styling */
         ::-webkit-scrollbar {
             width: 10px;
@@ -23,6 +39,49 @@
             font-weight: 400;
             letter-spacing: 0.4px;
             opacity: 0.85;
+        }
+
+        /* App loading screen — shown until page is fully ready */
+        .app-loading-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            background: #0b0b0b;
+            transition: opacity 0.35s ease;
+        }
+
+        .app-loading-overlay.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .app-loading-spinner {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 3px solid rgba(207, 163, 70, 0.15);
+            border-top-color: #cfa346;
+            animation: appLoadSpin 0.8s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+        }
+
+        .app-loading-text {
+            color: rgba(207, 163, 70, 0.7);
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        @keyframes appLoadSpin {
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         ::-webkit-scrollbar-track {
@@ -45,15 +104,12 @@
 
         /* Animation and transition styles */
         body {
-            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         body.animating {
-            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1),
-                filter 0.1s cubic-bezier(0.4, 0, 0.2, 1);
-            filter: blur(8px) brightness(0.7);
-            opacity: 0.9;
+            transition: opacity 0.1s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0.7;
         }
 
         /* Add smooth page transitions */
@@ -61,6 +117,12 @@
             opacity: 0;
             transform: translateY(5px);
             animation: fadeInUp 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        /* Router-managed transitions (after first load, animation is handled by JS) */
+        .content.router-managed {
+            animation: none;
+            transition: opacity 0.15s ease, transform 0.15s ease;
         }
 
         @keyframes fadeInUp {
@@ -90,81 +152,6 @@
             pointer-events: none !important;
         }
 
-        .titlebar {
-            -webkit-user-select: none;
-            user-select: none;
-            height: 32px;
-            background: #1a1412;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 9999;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-            border-top-left-radius: 12px;
-            border-top-right-radius: 12px;
-        }
-
-        .titlebar-title {
-            color: #e4c869;
-            margin-left: 12px;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            flex: 1;
-            height: 100%;
-            -webkit-app-region: drag;
-            app-region: drag;
-        }
-
-        /* Add the pywebview drag region class directly */
-        .titlebar-title.pywebview-drag-region,
-        .pywebview-drag-region {
-            -webkit-app-region: drag;
-            app-region: drag;
-        }
-
-        .titlebar-logo {
-            font-size: 20px;
-            margin-right: 8px;
-            color: #e4c869;
-        }
-
-        .titlebar-logo-img {
-            height: 20px;
-            margin-right: 8px;
-        }
-
-        .titlebar-buttons {
-            -webkit-app-region: no-drag;
-            display: flex;
-            height: 100%;
-            z-index: 10000;
-        }
-
-        .titlebar-button {
-            height: 32px;
-            width: 45px;
-            border: none;
-            background: transparent;
-            color: #ffffff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-        }
-
-        .titlebar-button:hover {
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        .titlebar-button.close:hover {
-            background: #e81123;
-        }
-
         /* Adjust body and main content layout */
         body {
             margin: 0;
@@ -174,34 +161,26 @@
             height: 100vh;
             display: flex;
             flex-direction: column;
-            background: #1a1412 !important;
+            background: #0b0b0b !important;
             /* Ensure consistent background color */
-            border-radius: 12px;
-            -webkit-app-region: no-drag;
         }
 
-        /* Fixed top space for titlebar */
+        /* Main app container */
         .app-container {
             display: flex;
-            height: calc(100vh - 32px);
-            margin-top: 32px;
-            /* Same as titlebar height */
-            border-bottom-left-radius: 12px;
-            border-bottom-right-radius: 12px;
+            height: 100vh;
             overflow: hidden;
         }
 
         .sidebar {
             position: fixed;
-            top: 32px;
-            /* Start below titlebar */
-            width: 240px;
-            /* Increased from 220px for better spacing */
-            height: calc(100vh - 32px);
-            overflow-y: auto;
-            background: linear-gradient(180deg, #241c17 0%, #1f1712 100%);
-            border-right: 1px solid #392e24;
-            border-bottom-left-radius: 12px;
+            top: 0;
+            width: var(--sidebar-width-expanded);
+            height: 100vh;
+            overflow-y: hidden;
+            overflow-x: hidden;
+            background: linear-gradient(180deg, #141414 0%, #0b0b0b 100%);
+            border-right: 1px solid #2a2a2a;
             display: flex;
             flex-direction: column;
             z-index: 100;
@@ -210,8 +189,8 @@
 
         .nav-header {
             padding: 1.5rem 1rem;
-            border-bottom: 1px solid rgba(228, 200, 105, 0.1);
-            background: linear-gradient(135deg, rgba(228, 200, 105, 0.05) 0%, transparent 100%);
+            border-bottom: 1px solid rgba(207, 163, 70, 0.1);
+            background: linear-gradient(135deg, rgba(207, 163, 70, 0.05) 0%, transparent 100%);
         }
 
         .app-logo {
@@ -242,22 +221,22 @@
             font-weight: 400;
         }
 
-        .nav-section {
-            margin: 0.5rem 0;
+        .sidebar .nav-section {
+            margin: 0.75rem 0;
         }
 
-        .nav-section-bottom {
+        .sidebar .nav-section-bottom {
             margin-top: auto;
             margin-bottom: 1rem;
         }
 
-        .section-divider {
-            padding: 0.5rem 1rem;
-            margin-bottom: 0.5rem;
+        .sidebar .section-divider {
+            padding: 0.6rem 1rem;
+            margin-bottom: 0.6rem;
             position: relative;
         }
 
-        .section-title {
+        .sidebar .section-title {
             font-size: 0.7rem;
             font-weight: 600;
             color: var(--text-secondary);
@@ -266,7 +245,7 @@
             opacity: 0.7;
         }
 
-        .section-divider::after {
+        .sidebar .section-divider::after {
             content: '';
             position: absolute;
             bottom: 0;
@@ -276,15 +255,16 @@
             background: linear-gradient(90deg, transparent, rgba(228, 200, 105, 0.2), transparent);
         }
 
-        .nav-links {
+        .sidebar .nav-links {
             list-style: none;
             padding: 0;
             margin: 0;
         }
 
-        .nav-link {
+        .sidebar .nav-link {
             display: flex;
             align-items: center;
+            gap: 0;
             padding: 0.75rem 1rem;
             text-decoration: none;
             color: var(--text-secondary);
@@ -293,11 +273,11 @@
             border-radius: 8px;
             margin: 0 0.5rem 0.25rem 0.5rem;
             position: relative;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: background 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: hidden;
         }
 
-        .nav-link::before {
+        .sidebar .nav-link::before {
             content: '';
             position: absolute;
             left: 0;
@@ -310,35 +290,35 @@
             transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        .nav-link:hover::before,
-        .nav-link.active::before {
+        .sidebar .nav-link:hover::before,
+        .sidebar .nav-link.active::before {
             transform: scaleY(1);
         }
 
-        .nav-link .material-icons {
+        .sidebar .nav-link .material-icons {
             font-size: 1.1rem;
             margin-right: 0.75rem;
             min-width: 20px;
             transition: all 0.3s ease;
         }
 
-        .nav-icon-container {
+        .sidebar .nav-icon-container {
             position: relative;
             display: flex;
             align-items: center;
             margin-right: 0.75rem;
         }
 
-        .nav-icon-container .material-icons {
+        .sidebar .nav-icon-container .material-icons {
             margin-right: 0;
         }
 
-        .nav-text {
+        .sidebar .nav-text {
             flex: 1;
             transition: color 0.3s ease;
         }
 
-        .nav-indicator {
+        .sidebar .nav-indicator {
             width: 6px;
             height: 6px;
             border-radius: 50%;
@@ -347,46 +327,46 @@
             margin-left: auto;
         }
 
-        .nav-link:hover {
+        .sidebar .nav-link:hover {
             background: rgba(228, 200, 105, 0.1);
             color: var(--accent-gold);
             transform: translateX(4px);
             box-shadow: 0 2px 10px rgba(228, 200, 105, 0.15);
         }
 
-        .nav-link:hover .material-icons {
+        .sidebar .nav-link:hover .material-icons {
             color: var(--accent-gold);
             transform: scale(1.1);
         }
 
-        .nav-link:hover .nav-indicator {
+        .sidebar .nav-link:hover .nav-indicator {
             background: var(--accent-gold);
             box-shadow: 0 0 6px rgba(228, 200, 105, 0.5);
         }
 
-        .nav-link.active {
+        .sidebar .nav-link.active {
             background: linear-gradient(90deg, rgba(228, 200, 105, 0.15) 0%, rgba(228, 200, 105, 0.05) 100%);
             color: var(--accent-gold);
             border: 1px solid rgba(228, 200, 105, 0.2);
             box-shadow: 0 2px 15px rgba(228, 200, 105, 0.2);
         }
 
-        .nav-link.active .material-icons {
+        .sidebar .nav-link.active .material-icons {
             color: var(--accent-gold);
         }
 
-        .nav-link.active .nav-indicator {
+        .sidebar .nav-link.active .nav-indicator {
             background: var(--accent-gold);
             animation: pulse 2s infinite;
         }
 
-        .nav-link.disabled {
+        .sidebar .nav-link.disabled {
             opacity: 0.5;
             cursor: not-allowed;
             pointer-events: none;
         }
 
-        .coming-soon {
+        .sidebar .coming-soon {
             font-size: 0.6rem;
             background: rgba(255, 193, 7, 0.2);
             color: #ffc107;
@@ -400,31 +380,14 @@
         .content {
             flex: 1;
             overflow-y: auto;
-            margin-left: 240px;
-            /* Match new sidebar width */
-            padding: 20px;
+            margin-left: var(--sidebar-width-expanded);
+            padding: 24px 28px;
             box-sizing: border-box;
             height: 100%;
-            background: #1a1412;
-            border-bottom-right-radius: 12px;
+            background: #0b0b0b;
             z-index: 1;
         }
 
-        .window-border {
-            pointer-events: none;
-            border: 2px solid #e4c869;
-            border-radius: 14px;
-            box-sizing: border-box;
-            position: fixed;
-            inset: 0;
-            z-index: 19999;
-            background: none;
-        }
-
-        /* Ensure notifications appear on top */
-        .notification {
-            z-index: 20000;
-        }
 
         .closing-overlay {
             position: fixed;
@@ -434,7 +397,7 @@
             align-items: center;
             justify-content: center;
             gap: 18px;
-            background: rgba(17, 12, 10, 0.92);
+            background: rgba(11, 11, 11, 0.95);
             color: #f6e0a5;
             font-family: 'Inter', sans-serif;
             letter-spacing: 0.05em;
@@ -451,7 +414,7 @@
 
         .closing-overlay .material-icons {
             font-size: 42px;
-            color: #e4c869;
+            color: #cfa346;
             animation: rotateSandWatch 2s linear infinite;
         }
 
@@ -472,17 +435,17 @@
         }
 
         /* Pulse animation for sidebar */
-        .sidebar-pulse-container {
+        .sidebar .sidebar-pulse-container {
             position: relative;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin-right: 0.75rem;
+            width: 20px;
             min-width: 20px;
             height: 20px;
         }
 
-        .sidebar-container {
+        .sidebar .sidebar-container {
             --uib-size: 12px;
             --uib-color: #ff3b30;
             /* Default to red (off) */
@@ -492,8 +455,8 @@
             width: var(--uib-size);
         }
 
-        .sidebar-container::before,
-        .sidebar-container::after {
+        .sidebar .sidebar-container::before,
+        .sidebar .sidebar-container::after {
             content: '';
             position: absolute;
             top: 0;
@@ -508,7 +471,7 @@
             transition: background-color 0.3s ease;
         }
 
-        .sidebar-container::after {
+        .sidebar .sidebar-container::after {
             animation-delay: calc(var(--uib-speed) / -2);
         }
 
@@ -524,12 +487,12 @@
             }
         }
 
-        .sidebar-container.active {
+        .sidebar .sidebar-container.active {
             --uib-color: #34c759;
             /* Green when active */
         }
 
-        .sidebar-container.stopping {
+        .sidebar .sidebar-container.stopping {
             --uib-color: #ffd600;
             /* Yellow when stopping */
         }
@@ -537,23 +500,10 @@
 </head>
 
 <body>
-    <!-- Title bar -->
-    <div class="titlebar">
-        <div class="titlebar-title pywebview-drag-region">
-            <img src="{{ url_for('serve_file', filename='logo.png') }}" class="titlebar-logo-img" alt="Logo">
-            Dark and Darker Stash Organizer
-        </div>
-        <div class="titlebar-buttons">
-            <button class="titlebar-button minimize" onclick="pywebview.api.minimize()">
-                <span class="material-icons" style="font-size: 18px;">remove</span>
-            </button>
-            <button class="titlebar-button maximize" onclick="pywebview.api.toggle_maximize()">
-                <span class="material-icons" style="font-size: 18px;">crop_square</span>
-            </button>
-            <button class="titlebar-button close" onclick="handleWindowClose()">
-                <span class="material-icons" style="font-size: 18px;">close</span>
-            </button>
-        </div>
+    <!-- Loading screen — hidden once page is ready -->
+    <div id="app-loading" class="app-loading-overlay">
+        <div class="app-loading-spinner"></div>
+        <div class="app-loading-text">Loading</div>
     </div>
     <!-- Main app container -->
     <div class="app-container">
@@ -617,10 +567,23 @@
                         </a>
                     </li>
                     <li>
-                        <a href="#" class="nav-link disabled" data-page="backup">
-                            <span class="material-icons">backup</span>
-                            <span class="nav-text">Soon</span>
-                            <span class="coming-soon">Soon</span>
+                        <a href="{{ url_for('quests') }}" class="nav-link" data-page="quests">
+                            <span class="material-icons">assignment</span>
+                            <span class="nav-text">Quests</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('feedback') }}" class="nav-link" data-page="feedback">
+                            <span class="material-icons">rate_review</span>
+                            <span class="nav-text">Feedback</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                    <li id="packet-viewer-link" style="{% if not developer_mode_enabled %}display: none;{% endif %}">
+                        <a href="{{ url_for('packet_viewer') }}" class="nav-link" data-page="packet_viewer">
+                            <span class="material-icons">bug_report</span>
+                            <span class="nav-text">Packet Viewer</span>
                             <div class="nav-indicator"></div>
                         </a>
                     </li>
@@ -634,6 +597,13 @@
                 </div>
                 <ul class="nav-links">
                     <li>
+                        <a href="{{ url_for('faq') }}" class="nav-link" data-page="faq">
+                            <span class="material-icons">help_outline</span>
+                            <span class="nav-text">Q&amp;A</span>
+                            <div class="nav-indicator"></div>
+                        </a>
+                    </li>
+                    <li>
                         <a href="{{ url_for('settings') }}" class="nav-link" data-page="settings">
                             <span class="material-icons">tune</span>
                             <span class="nav-text">Settings</span>
@@ -642,6 +612,7 @@
                     </li>
                 </ul>
             </div>
+
         </nav>
         <main class="content">
             <div class="content-header">
@@ -650,14 +621,36 @@
             {% block content %}{% endblock %}
         </main>
     </div>
-    <div class="window-border"></div>
     <div id="closing-overlay" class="closing-overlay">
         <span class="material-icons">hourglass_top</span>
         <div class="closing-overlay-message">Closing application...</div>
         <div id="closing-overlay-status" class="closing-overlay-status"></div>
     </div>
-    <!-- Global modals and notifications -->
-    <div id="notifications-container"></div> <!-- Global scripts -->
+    <!-- Unified notification container (managed by app.js) -->
+    <div id="notifications-container"></div>
+    <!-- Dismiss loading overlay once page is fully ready -->
+    <script>
+        (function () {
+            var overlay = document.getElementById('app-loading');
+            if (!overlay) return;
+            function dismiss() {
+                // Mark app as loaded so subsequent tab switches skip the overlay
+                try { sessionStorage.setItem('dnd-app-loaded', '1'); } catch (e) { /* ignore */ }
+                overlay.classList.add('fade-out');
+                overlay.addEventListener('transitionend', function () {
+                    overlay.remove();
+                }, { once: true });
+                // Safety fallback — remove even if transitionend doesn't fire
+                setTimeout(function () { if (overlay.parentNode) overlay.remove(); }, 500);
+            }
+            if (document.readyState === 'complete') {
+                dismiss();
+            } else {
+                window.addEventListener('load', dismiss);
+            }
+        })();
+    </script>
+    <!-- Global scripts -->
     <script>
         // Global variables for unsaved changes tracking
         window.hasUnsavedChanges = false;
@@ -678,72 +671,263 @@
                     link.classList.add('active');
                 }
             });
-
-            // Add smooth hover animations
-            navLinks.forEach(link => {
-                if (!link.classList.contains('disabled')) {
-                    link.addEventListener('mouseenter', function () {
-                        this.style.transform = 'translateX(6px)';
-                    });
-
-                    link.addEventListener('mouseleave', function () {
-                        this.style.transform = this.classList.contains('active') ? 'translateX(2px)' : 'translateX(0)';
-                    });
-                }
-            });
-
-            // Set active link position
-            const activeLink = document.querySelector('.nav-link.active');
-            if (activeLink) {
-                activeLink.style.transform = 'translateX(2px)';
-            }
         });
 
         // Create modal for unsaved changes prompt
-        window.createUnsavedChangesModal = function (onSave, onDiscard, onCancel) {
-            // Remove any existing modal
-            const existingModal = document.querySelector('.modal');
-            if (existingModal) {
-                document.body.removeChild(existingModal);
+        window.createUnsavedChangesModal = function (configOrOnSave, onDiscard, onCancel) {
+            const defaults = {
+                title: 'Unsaved changes',
+                message: 'You have unsaved changes. Save before leaving?',
+                bodyText: 'Choose how you want to leave this page:',
+                bodyTips: [
+                    { icon: 'task_alt', text: 'Exit and save keeps your latest changes.' },
+                    { icon: 'logout', text: 'Exit anyway discards anything unsaved.' }
+                ],
+                saveLabel: 'Exit and Save',
+                discardLabel: 'Exit Anyway',
+                cancelLabel: 'Stay Here',
+                onSave: null,
+                onDiscard: null,
+                onCancel: null
+            };
+
+            const config = (typeof configOrOnSave === 'object' && configOrOnSave !== null && !Array.isArray(configOrOnSave))
+                ? { ...defaults, ...configOrOnSave }
+                : { ...defaults, onSave: configOrOnSave, onDiscard, onCancel };
+
+            const existingModal = document.querySelector('.modal.unsaved-modal');
+            if (existingModal && existingModal.parentNode) {
+                existingModal.parentNode.removeChild(existingModal);
             }
 
-            // Create custom modal for better UX
             const modal = document.createElement('div');
-            modal.className = 'modal';
+            modal.className = 'modal unsaved-modal';
             modal.innerHTML = `
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h2>Unsaved Changes</h2>
+                <div class="modal-content unsaved-modal-card" role="dialog" aria-modal="true" aria-labelledby="unsaved-modal-title">
+                    <div class="unsaved-modal-header">
+                        <div class="unsaved-modal-header-icon">
+                            <span class="material-icons" aria-hidden="true">warning_amber</span>
+                        </div>
+                        <div class="unsaved-modal-header-text">
+                            <h2 id="unsaved-modal-title"></h2>
+                            <p class="unsaved-modal-message"></p>
+                        </div>
+                        <button type="button" class="unsaved-modal-close" aria-label="Cancel">&times;</button>
                     </div>
-                    <div class="modal-body">
-                        <p>You have unsaved changes. What would you like to do?</p>
+                    <div class="unsaved-modal-body">
+                        <p class="unsaved-modal-body-text">Choose how you want to leave this page:</p>
+                        <ul class="unsaved-modal-list">
+                            <li><span class="material-icons" aria-hidden="true">task_alt</span><span>Exit and save keeps your latest changes.</span></li>
+                            <li><span class="material-icons" aria-hidden="true">logout</span><span>Exit anyway discards anything unsaved.</span></li>
+                        </ul>
                     </div>
-                    <div class="modal-footer">
-                        <button id="modal-discard" class="btn-secondary">Discard Changes</button>
-                        <button id="modal-save" class="btn-primary">Save Changes</button>
-                        <button id="modal-cancel" class="btn">Cancel</button>
+                    <div class="unsaved-modal-actions">
+                        <button type="button" class="modal-btn modal-btn-cancel" data-action="cancel"></button>
+                        <button type="button" class="modal-btn modal-btn-discard" data-action="discard"></button>
+                        <button type="button" class="modal-btn modal-btn-save" data-action="save"></button>
                     </div>
                 </div>
             `;
 
             document.body.appendChild(modal);
 
-            // Add event listeners to modal buttons
-            document.getElementById('modal-discard').addEventListener('click', () => {
-                document.body.removeChild(modal);
-                if (onDiscard) onDiscard();
+            const card = modal.querySelector('.unsaved-modal-card');
+            const messageEl = modal.querySelector('.unsaved-modal-message');
+            const bodyTextEl = modal.querySelector('.unsaved-modal-body-text');
+            const tipsListEl = modal.querySelector('.unsaved-modal-list');
+            const cancelButton = modal.querySelector('[data-action="cancel"]');
+            const discardButton = modal.querySelector('[data-action="discard"]');
+            const saveButton = modal.querySelector('[data-action="save"]');
+            const closeButton = modal.querySelector('.unsaved-modal-close');
+
+            card.querySelector('#unsaved-modal-title').textContent = config.title;
+            messageEl.textContent = config.message;
+            if (bodyTextEl) {
+                if (config.bodyText === null) {
+                    bodyTextEl.style.display = 'none';
+                    bodyTextEl.textContent = '';
+                } else {
+                    bodyTextEl.style.display = '';
+                    bodyTextEl.textContent = (typeof config.bodyText === 'string' ? config.bodyText : defaults.bodyText) || '';
+                }
+            }
+
+            if (tipsListEl) {
+                const tips = Array.isArray(config.bodyTips) ? config.bodyTips.filter(Boolean) : defaults.bodyTips;
+                tipsListEl.innerHTML = '';
+                if (Array.isArray(tips) && tips.length > 0) {
+                    tipsListEl.style.display = '';
+                    tips.forEach((tip) => {
+                        const tipConfig = typeof tip === 'string' ? { icon: 'info', text: tip } : {
+                            icon: (tip && typeof tip.icon === 'string' && tip.icon.trim()) ? tip.icon.trim() : 'info',
+                            text: tip && typeof tip.text === 'string' ? tip.text : ''
+                        };
+
+                        if (!tipConfig.text) {
+                            return;
+                        }
+
+                        const item = document.createElement('li');
+                        const iconEl = document.createElement('span');
+                        iconEl.className = 'material-icons';
+                        iconEl.setAttribute('aria-hidden', 'true');
+                        iconEl.textContent = tipConfig.icon;
+
+                        const textEl = document.createElement('span');
+                        textEl.textContent = tipConfig.text;
+
+                        item.appendChild(iconEl);
+                        item.appendChild(textEl);
+                        tipsListEl.appendChild(item);
+                    });
+
+                    if (!tipsListEl.children.length) {
+                        tipsListEl.style.display = 'none';
+                    }
+                } else {
+                    tipsListEl.style.display = 'none';
+                }
+            }
+            cancelButton.textContent = config.cancelLabel;
+            discardButton.textContent = config.discardLabel;
+            saveButton.textContent = config.saveLabel;
+            closeButton.setAttribute('aria-label', config.cancelLabel || 'Cancel');
+
+            const actionButtons = [cancelButton, discardButton, saveButton, closeButton];
+            let isClosing = false;
+
+            const onKeyDown = (event) => {
+                if (event.key === 'Escape' && !modal.classList.contains('unsaved-modal--busy')) {
+                    event.preventDefault();
+                    triggerCancel();
+                }
+            };
+
+            document.addEventListener('keydown', onKeyDown);
+
+            function setBusy(state) {
+                modal.classList.toggle('unsaved-modal--busy', state);
+                actionButtons.forEach(btn => {
+                    if (btn) {
+                        btn.disabled = state;
+                    }
+                });
+                if (state) {
+                    saveButton.dataset.originalLabel = saveButton.textContent;
+                    saveButton.innerHTML = `<span class="modal-btn-spinner" aria-hidden="true"></span>${config.saveLabel}`;
+                } else if (saveButton.dataset.originalLabel) {
+                    saveButton.textContent = saveButton.dataset.originalLabel;
+                    delete saveButton.dataset.originalLabel;
+                }
+            }
+
+            function closeModal() {
+                if (isClosing) {
+                    return;
+                }
+                isClosing = true;
+                document.removeEventListener('keydown', onKeyDown);
+                modal.classList.add('closing');
+                setTimeout(() => {
+                    if (modal.parentNode) {
+                        modal.parentNode.removeChild(modal);
+                    }
+                }, 220);
+            }
+
+            function triggerCancel() {
+                if (typeof config.onCancel === 'function') {
+                    config.onCancel();
+                }
+                closeModal();
+            }
+
+            cancelButton.addEventListener('click', triggerCancel);
+            closeButton.addEventListener('click', triggerCancel);
+
+            discardButton.addEventListener('click', () => {
+                if (typeof config.onDiscard === 'function') {
+                    config.onDiscard();
+                }
+                closeModal();
             });
 
-            document.getElementById('modal-save').addEventListener('click', async () => {
-                if (onSave) onSave();
+            saveButton.addEventListener('click', async () => {
+                if (modal.classList.contains('unsaved-modal--busy')) {
+                    return;
+                }
+
+                if (typeof config.onSave !== 'function') {
+                    closeModal();
+                    return;
+                }
+
+                setBusy(true);
+                let shouldClose = true;
+                try {
+                    const result = await config.onSave();
+                    if (result === false) {
+                        shouldClose = false;
+                    }
+                } catch (error) {
+                    console.error('Unsaved changes modal save handler failed', error);
+                    shouldClose = false;
+                }
+
+                if (shouldClose) {
+                    closeModal();
+                } else {
+                    setBusy(false);
+                }
             });
 
-            document.getElementById('modal-cancel').addEventListener('click', () => {
-                document.body.removeChild(modal);
-                if (onCancel) onCancel();
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal && !modal.classList.contains('unsaved-modal--busy')) {
+                    triggerCancel();
+                }
             });
 
-            return modal;
+            return {
+                close: closeModal,
+                setBusy
+            };
+        };
+
+        window.closeToTrayEnabled = JSON.parse('{{ close_to_tray_enabled | tojson | safe }}');
+
+        window.setCloseToTrayEnabled = function (value) {
+            window.closeToTrayEnabled = !!value;
+        };
+
+        window.isCloseToTrayEnabled = function () {
+            if (typeof window.closeToTrayEnabled === 'boolean') {
+                return window.closeToTrayEnabled;
+            }
+            return true;
+        };
+
+        window.developerModeEnabled = JSON.parse('{{ developer_mode_enabled | tojson | safe }}');
+
+        window.setDeveloperModeEnabled = function (value) {
+            window.developerModeEnabled = !!value;
+        };
+
+        window.isDeveloperModeEnabled = function () {
+            if (typeof window.developerModeEnabled === 'boolean') {
+                return window.developerModeEnabled;
+            }
+            return false;
+        };
+
+        window.hideClosingOverlay = function () {
+            try {
+                const overlay = document.getElementById('closing-overlay');
+                if (overlay) {
+                    overlay.classList.remove('active');
+                }
+            } catch (err) {
+                console.error('Unable to hide closing overlay', err);
+            }
         };
 
         window.updateClosingStatus = function (message) {
@@ -757,38 +941,39 @@
             }
         };
 
-        window.handleWindowClose = function () {
+        // Developer mode link visibility
+        async function updateDeveloperModeLink() {
             try {
-                const overlay = document.getElementById('closing-overlay');
-                if (overlay && !overlay.classList.contains('active')) {
-                    overlay.classList.add('active');
-                }
-                window.updateClosingStatus('Stopping capture...');
-            } catch (err) {
-                console.error('Failed to show closing overlay', err);
-            }
-
-            const triggerClose = () => {
-                try {
-                    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.close_window === 'function') {
-                        window.pywebview.api.close_window();
+                const response = await fetch('/api/developer_mode');
+                if (response.ok) {
+                    const data = await response.json();
+                    const link = document.getElementById('packet-viewer-link');
+                    if (link) {
+                        const currentDisplay = link.style.display;
+                        const newDisplay = data.enabled ? 'block' : 'none';
+                        if (currentDisplay !== newDisplay) {
+                            link.style.display = newDisplay;
+                            console.log('Packet Viewer link visibility updated:', newDisplay);
+                        }
                     }
-                } catch (closeErr) {
-                    console.error('Failed to invoke close_window()', closeErr);
+                } else {
+                    console.error('Failed to fetch developer mode:', response.status);
                 }
-            };
-
-            if (window.requestAnimationFrame) {
-                window.requestAnimationFrame(() => setTimeout(triggerClose, 60));
-            } else {
-                setTimeout(triggerClose, 60);
+            } catch (error) {
+                console.error('Failed to check developer mode:', error);
             }
-        };
+        }
+
+        // Check developer mode on load and periodically
+        document.addEventListener('DOMContentLoaded', updateDeveloperModeLink);
+        if (!window.__devModeLinkIntervalId) {
+            window.__devModeLinkIntervalId = setInterval(updateDeveloperModeLink, 30000);
+        }
     </script>
-    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/app.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/window_state.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
     <script src="{{ url_for('static', filename='js/global.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/router.js') }}"></script>
     {% block scripts %}{% endblock %}
 </body>
 
