@@ -644,6 +644,7 @@ img:not([src]) {
     border-radius: 4px;
     margin-bottom: 8px;
 }
+
 .sidebar a,
 .sidebar .nav-link,
 .sidebar li {
