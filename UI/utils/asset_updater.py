@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import Callable, Iterable, Mapping, Optional, Sequence
 
@@ -115,15 +116,31 @@ class AssetUpdater:
                 return
 
             total = len(files)
-            for index, file_info in enumerate(files, start=1):
-                display_name = file_info.get("path") or file_info.get("name") or "asset"
-                self.logger.info("Downloading asset %s from %s", display_name, file_info.get("url"))
-                self._notify_ui({
-                    "status": "downloading",
-                    "message": f"Downloading {display_name} ({index}/{total})...",
-                    "progress": index / total,
-                })
-                downloads.append(self._download_asset(file_info))
+            self._notify_ui({
+                "status": "downloading",
+                "message": f"Downloading {total} asset(s)...",
+                "progress": 0,
+            })
+
+            max_workers = min(total, 4)
+            completed_count = 0
+            with ThreadPoolExecutor(max_workers=max_workers) as pool:
+                futures = {
+                    pool.submit(self._download_asset, file_info): file_info
+                    for file_info in files
+                }
+                for future in as_completed(futures):
+                    file_info = futures[future]
+                    display_name = file_info.get("path") or file_info.get("name") or "asset"
+                    result = future.result()
+                    downloads.append(result)
+                    completed_count += 1
+                    self.logger.info("Downloaded asset %s (%d/%d)", display_name, completed_count, total)
+                    self._notify_ui({
+                        "status": "downloading",
+                        "message": f"Downloaded {display_name} ({completed_count}/{total})...",
+                        "progress": completed_count / total,
+                    })
 
             self._apply_assets(downloads)
             self._cache_manifest(manifest)

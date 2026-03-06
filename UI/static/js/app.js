@@ -894,17 +894,34 @@ async function fetchMarketPrice(itemId) {
 }
 
 async function checkFullscreenMode() {
+    const DISMISS_KEY = 'fullscreen-warning-dismissed-at';
+    const COOLDOWN_MS = 2 * 60 * 60 * 1000; // 2 hours
+
     try {
+        // Skip if the user dismissed the notification recently
+        const dismissedAt = Number(localStorage.getItem(DISMISS_KEY) || 0);
+        if (dismissedAt && Date.now() - dismissedAt < COOLDOWN_MS) return;
+
         const resp = await fetch('/api/window_mode');
         if (!resp.ok) return;
         const data = await resp.json();
         // mode 0 = exclusive fullscreen — warn the user
         if (data.mode === 0) {
             showNotification(
-                'Dark and Darker is running in Exclusive Fullscreen. This can cause focus delays that interfere with sorting. Please switch to Borderless Windowed (Fullscreen Mode 1) in your game settings for the best experience.',
+                'Dark and Darker is running in Exclusive Fullscreen. This can cause focus delays that interfere with sorting. Please switch to Borderless Windowed in your game settings for the best experience.',
                 'warning',
                 { id: 'fullscreen-warning', persistent: true }
             );
+            // Record dismissal timestamp when user closes the notification
+            const el = document.querySelector('[data-notification-id="fullscreen-warning"]');
+            if (el) {
+                const closeBtn = el.querySelector('.notification-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', () => {
+                        try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (_) { }
+                    }, { once: true });
+                }
+            }
         }
     } catch (e) {
         // Silently ignore — game may not be running or settings unreadable
