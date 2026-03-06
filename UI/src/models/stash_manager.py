@@ -483,15 +483,15 @@ class StashManager:
             self._load_data()
 
         target_set = set(targets)
-        aggregated: Dict[str, List[Dict]] = {item_id: [] for item_id in target_set}
 
-        for char in self.get_characters():
+        def process_character(char):
+            """Process a single character and return its holdings dict."""
             if not isinstance(char, dict):
-                continue
+                return {}
 
             stashes = char.get('stashes') or {}
             if not isinstance(stashes, dict):
-                continue
+                return {}
 
             character_holdings: Dict[str, Dict] = {}
 
@@ -518,7 +518,6 @@ class StashManager:
                     except (TypeError, ValueError):
                         loot_state_value = None
 
-                    # Skip items that don't match the desired loot state filter
                     if loot_states is not None and loot_state_value not in loot_states:
                         continue
 
@@ -554,6 +553,20 @@ class StashManager:
                 info['stashes'].sort(
                     key=lambda payload: (-payload.get('count', 0), str(payload.get('stash_id')))
                 )
+            return character_holdings
+
+        characters = self.get_characters()
+        aggregated: Dict[str, List[Dict]] = {item_id: [] for item_id in target_set}
+
+        if len(characters) <= 2:
+            char_results = [process_character(char) for char in characters]
+        else:
+            max_workers = min(len(characters), os.cpu_count() or 4, 8)
+            with ThreadPool(max_workers=max_workers) as pool:
+                char_results = list(pool.map(process_character, characters))
+
+        for character_holdings in char_results:
+            for item_id, info in character_holdings.items():
                 aggregated.setdefault(item_id, []).append(info)
 
         for item_id, entries in aggregated.items():
@@ -579,13 +592,17 @@ class StashManager:
         if not keywords:
             return []
 
-        output: List[Dict] = []
+        characters = self.get_characters()
+        if not characters:
+            return []
+
         effect_prefix = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_"
 
-        for char in self.get_characters():
+        def search_character(char):
+            results = []
             stashes = char.get('stashes', {})
             if not isinstance(stashes, dict):
-                continue
+                return results
 
             char_nickname = char.get('nickname') or 'Unknown'
             char_id = char.get('id')
@@ -605,7 +622,6 @@ class StashManager:
                         except Exception:
                             item_id = design_str or item.get("data", {}).get("itemUniqueId") or "unknown"
 
-                        # Single lookup instead of 3 separate calls
                         try:
                             item_meta = item_data_manager.get_item_data(item_id)
                         except Exception:
@@ -662,7 +678,7 @@ class StashManager:
                         except (TypeError, ValueError):
                             slot_id = slot_id_raw
 
-                        output.append({
+                        results.append({
                             'nickname': char_nickname,
                             'id': char_id,
                             'class': char_class,
@@ -681,6 +697,18 @@ class StashManager:
                     except Exception as exc:
                         logger.error("Error processing item in search: %s", exc)
                         continue
+            return results
+
+        if len(characters) <= 2:
+            output = []
+            for char in characters:
+                output.extend(search_character(char))
+        else:
+            max_workers = min(len(characters), os.cpu_count() or 4, 8)
+            output = []
+            with ThreadPool(max_workers=max_workers) as pool:
+                for char_results in pool.map(search_character, characters):
+                    output.extend(char_results)
 
         return output
 
