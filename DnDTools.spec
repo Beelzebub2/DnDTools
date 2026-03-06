@@ -18,7 +18,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         # --- unused stdlib modules ---
-        'tkinter', '_tkinter',
+        # NOTE: tkinter/_tkinter kept — required by PyInstaller Splash
         'test',
         'xmlrpc',
         'pydoc', 'pydoc_data',
@@ -45,9 +45,19 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
+splash = Splash(
+    'UI\\assets\\banner.jpg',
+    binaries=a.binaries,
+    datas=a.datas,
+    text_pos=None,
+    minify_script=True,
+    always_on_top=True,
+)
+
 exe = EXE(
     pyz,
     a.scripts,
+    splash,
     [],
     exclude_binaries=True,
     name='DnDTools',
@@ -66,6 +76,7 @@ exe = EXE(
 coll = COLLECT(
     exe,
     a.binaries,
+    splash.binaries,
     a.datas,
     strip=False,
     upx=False,

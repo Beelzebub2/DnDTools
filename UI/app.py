@@ -4154,6 +4154,13 @@ def main():
     logger.info(f"UI initialization completed in {time.time() - start_time:.2f} seconds")
     
     def on_loaded():
+        # Close PyInstaller splash screen now that the UI is visible
+        try:
+            import pyi_splash
+            if pyi_splash:
+                pyi_splash.close()
+        except (ImportError, ModuleNotFoundError):
+            pass
         # Initialize window state
         api.set_initial_window_state()
         # Start background initialization after UI is ready
