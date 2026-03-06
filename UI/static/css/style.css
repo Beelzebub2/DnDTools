@@ -630,7 +630,8 @@ img:not([src]) {
     width: max-content;
     min-width: 220px;
     text-align: center;
-    opacity: 0;
+    border-right: 1px solid var(--border-color);
+    /* Make all sidebar items bold */
     transform: translateY(10px);
     transition: opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1),
         transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -642,6 +643,12 @@ img:not([src]) {
     padding: 6px 10px;
     border-radius: 4px;
     margin-bottom: 8px;
+}
+.sidebar a,
+.sidebar .nav-link,
+.sidebar li {
+    font-weight: bold;
+    color: #a89a6c;
 }
 
 .item-popup .primary-props {

@@ -908,7 +908,7 @@ async function checkFullscreenMode() {
         // mode 0 = exclusive fullscreen — warn the user
         if (data.mode === 0) {
             showNotification(
-                'Dark and Darker is running in Exclusive Fullscreen. This can cause focus delays that interfere with sorting. Please switch to Borderless Windowed (Fullscreen Mode 1) in your game settings for the best experience.',
+                'Dark and Darker is running in Exclusive Fullscreen. This can cause focus delays that interfere with sorting. Please switch to Borderless Windowed in your game settings for the best experience.',
                 'warning',
                 { id: 'fullscreen-warning', persistent: true }
             );
@@ -918,7 +918,7 @@ async function checkFullscreenMode() {
                 const closeBtn = el.querySelector('.notification-close');
                 if (closeBtn) {
                     closeBtn.addEventListener('click', () => {
-                        try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (_) {}
+                        try { localStorage.setItem(DISMISS_KEY, String(Date.now())); } catch (_) { }
                     }, { once: true });
                 }
             }
