@@ -565,12 +565,32 @@
     }
 
     /* ── Auto-refresh ── */
-    setInterval(loadPackets, 2000);
-    setInterval(loadPacketTypes, 2000);
+    var _packetPollId = setInterval(loadPackets, 2000);
+    var _typePollId = setInterval(loadPacketTypes, 2000);
 
     /* ── Init ── */
-    document.addEventListener('DOMContentLoaded', function () {
+    function packetViewerInit() {
         setupFilterToggle();
         loadPacketTypes();
-    });
+
+        // Register cleanup for AJAX router
+        window.__pageCleanup = window.__pageCleanup || [];
+        window.__pageCleanup.push(function () {
+            clearInterval(_packetPollId);
+            clearInterval(_typePollId);
+            window.showError = undefined;
+            window.clearError = undefined;
+            window.escapeHtml = undefined;
+            window.toggleType = undefined;
+            window.hideType = undefined;
+            window.unhideType = undefined;
+            window.toggleJsonId = undefined;
+        });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', packetViewerInit, { once: true });
+    } else {
+        packetViewerInit();
+    }
 })();

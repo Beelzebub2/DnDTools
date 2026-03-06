@@ -777,7 +777,7 @@
 }
 
 /* ── Utilities ────────────────────────────────────────────────────── */
-.material-icons {
+.content .material-icons {
     vertical-align: middle;
     line-height: 1;
     display: inline-flex;

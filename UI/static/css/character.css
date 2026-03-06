@@ -1413,7 +1413,7 @@
     flex-shrink: 0;
 }
 
-.section-title {
+.content .section-title {
     font-size: 1.2em;
     font-weight: bold;
     color: var(--accent-gold);
