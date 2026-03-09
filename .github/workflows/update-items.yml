@@ -410,7 +410,7 @@ jobs:
 
     - name: Commit updated assets
       if: steps.verify-changed-files.outputs.changed == 'true'
-      uses: peter-evans/create-pull-request@v7
+      uses: peter-evans/create-pull-request@v8
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: "Update items data and icon pack"
