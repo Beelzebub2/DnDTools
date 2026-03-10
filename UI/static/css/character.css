@@ -849,6 +849,124 @@
     color: rgba(255, 255, 255, 0.85);
 }
 
+/* --- Market price tooltip rows --- */
+.tooltip-price-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+    font-size: 12px;
+}
+
+.tooltip-price-label {
+    color: rgba(255, 255, 255, 0.7);
+    flex: 0 0 auto;
+}
+
+.tooltip-price-value {
+    color: #ffd700;
+    font-weight: 600;
+}
+
+.tooltip-loading {
+    color: rgba(255, 255, 255, 0.4);
+    font-style: italic;
+    animation: tooltipPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes tooltipPulse {
+
+    0%,
+    100% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+}
+
+.tooltip-na {
+    color: rgba(255, 255, 255, 0.35);
+    font-style: italic;
+}
+
+.tooltip-market-gold {
+    color: #4fc3f7;
+    font-weight: 600;
+}
+
+.tooltip-price-detail {
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 10px;
+    margin-left: 2px;
+}
+
+/* --- Tooltip profit indicator --- */
+.tooltip-profit-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+    padding-top: 4px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.08);
+}
+
+.tooltip-profit-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.tooltip-profit-badge.profit-positive {
+    background: rgba(76, 175, 80, 0.25);
+    color: #66bb6a;
+    border: 1px solid rgba(76, 175, 80, 0.4);
+}
+
+.tooltip-profit-badge.profit-vendor {
+    background: rgba(207, 163, 70, 0.2);
+    color: var(--accent-gold);
+    border: 1px solid rgba(207, 163, 70, 0.35);
+}
+
+.tooltip-profit-detail {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 10px;
+}
+
+/* --- Stash panel toolbar: market value display --- */
+.stash-value-divider {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin: 0 0.15rem;
+}
+
+.market-value-icon {
+    font-size: 1.05rem;
+    color: #4fc3f7;
+}
+
+.market-value-number {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: #4fc3f7;
+}
+
+/* --- Profit advisor glow on stash items --- */
+.stash-item.profit-high {
+    box-shadow: 0 0 8px 2px rgba(76, 175, 80, 0.5),
+        inset 0 0 6px rgba(76, 175, 80, 0.2) !important;
+}
+
+.stash-item.profit-medium {
+    box-shadow: 0 0 6px 1px rgba(139, 195, 74, 0.35),
+        inset 0 0 4px rgba(139, 195, 74, 0.15) !important;
+}
+
 .stash-action-button {
     background: rgba(20, 20, 20, 0.6);
     border: 1px solid var(--border-color);

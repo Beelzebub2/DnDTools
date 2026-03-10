@@ -1904,6 +1904,9 @@ const renderInteractiveGrid = (stashId, items) => {
 
             if (rawSlotId !== null) itemEl.dataset.slotId = String(rawSlotId);
             if (displaySlotId !== null) itemEl.dataset.displaySlotId = String(displaySlotId);
+            itemEl.dataset.itemName = item.name || '';
+            itemEl.dataset.itemRarity = item.rarity || '';
+            itemEl.dataset.vendorPrice = String(item.vendor_price || 0);
 
             const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
             itemEl.style.borderColor = rarityColor;
@@ -1955,6 +1958,14 @@ const renderInteractiveGrid = (stashId, items) => {
     applyPendingHighlight(stashId, grid);
     gridContainer.appendChild(grid);
     focusStashIfRequested(gridContainer);
+
+    // Fetch market prices and update display
+    if (items && items.length > 0) {
+        fetchBulkMarketPrices(items).then(prices => {
+            _updateMarketTotalDisplay(items, prices);
+            _applyProfitAdvisorGlow(prices);
+        });
+    }
 };
 
 // --- Event delegation for grid tooltips (set up once per container) ---
@@ -1997,6 +2008,8 @@ function _ensureGridTooltipDelegation(container) {
 function _showItemTooltip(data, clientX, clientY) {
     const { item, stashId, slotIndex, rawSlotId, displaySlotId, x, y } = data;
     const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
+    // Generate a unique id for this tooltip instance to avoid stale async updates
+    const tooltipId = `tip_${Date.now()}`;
     let html = `
         <div class="tooltip-header" style="background-color: ${rarityColor}44;">
             <div class="tooltip-name">${item.name || 'Unknown'}</div>
@@ -2008,8 +2021,16 @@ function _showItemTooltip(data, clientX, clientY) {
         </div>
         <div class="tooltip-body">
             <div class="tooltip-section primary-props" id="extra-info-placeholder">
-                Market Prices: Soon
-                <div>Vendor Price: ${item.vendor_price || 0} coins</div>
+                <div class="tooltip-price-row">
+                    <span class="tooltip-price-label">Vendor:</span>
+                    <span class="tooltip-price-value">${item.vendor_price || 0} gold</span>
+                </div>
+                <div class="tooltip-price-row" id="tooltip-market-price-${tooltipId}">
+                    <span class="tooltip-price-label">Market:</span>
+                    <span class="tooltip-price-value tooltip-loading">Loading...</span>
+                </div>
+                <div class="tooltip-price-row tooltip-profit-row hidden" id="tooltip-profit-${tooltipId}">
+                </div>
             </div>
         </div>
     `;
@@ -2037,6 +2058,46 @@ function _showItemTooltip(data, clientX, clientY) {
         if (devSection) html += devSection;
     }
     showGlobalTooltip(html, clientX, clientY);
+
+    // Async: fetch market price and update tooltip in-place
+    getMostRecentPrice(item).then(priceData => {
+        const marketEl = document.getElementById(`tooltip-market-price-${tooltipId}`);
+        const profitEl = document.getElementById(`tooltip-profit-${tooltipId}`);
+        if (!marketEl) return; // tooltip already dismissed
+
+        if (!priceData || !priceData.has_data) {
+            marketEl.innerHTML = `
+                <span class="tooltip-price-label">Market:</span>
+                <span class="tooltip-price-value tooltip-na">N/A</span>`;
+            return;
+        }
+
+        const avgPrice = priceData.avg_price;
+        const recentPrice = priceData.recent_price;
+        const displayPrice = recentPrice || avgPrice;
+        marketEl.innerHTML = `
+            <span class="tooltip-price-label">Market:</span>
+            <span class="tooltip-price-value tooltip-market-gold">~${displayPrice.toLocaleString()} gold</span>
+            <span class="tooltip-price-detail">(avg: ${avgPrice.toLocaleString()}, ${priceData.num_listings} sold)</span>`;
+
+        // Profit advisor indicator in tooltip
+        const vendorPrice = item.vendor_price || 0;
+        if (profitEl && displayPrice && vendorPrice > 0) {
+            const profit = displayPrice - vendorPrice;
+            const profitPct = Math.round((profit / vendorPrice) * 100);
+            if (profit > 0 && profitPct >= 20) {
+                profitEl.classList.remove('hidden');
+                profitEl.innerHTML = `
+                    <span class="tooltip-profit-badge profit-positive">LIST +${profitPct}%</span>
+                    <span class="tooltip-profit-detail">+${profit.toLocaleString()} gold vs vendor</span>`;
+            } else if (profit <= 0) {
+                profitEl.classList.remove('hidden');
+                profitEl.innerHTML = `
+                    <span class="tooltip-profit-badge profit-vendor">VENDOR</span>
+                    <span class="tooltip-profit-detail">Market price at or below vendor</span>`;
+            }
+        }
+    });
 }
 
 const createStashTabs = (stashes) => {
@@ -3193,82 +3254,200 @@ async function _characterPageInit1() {
 
 // Global price cache object to store results
 const priceCache = {};
-const priceFetchPromises = {}; // Track ongoing fetch promises
-const PRICE_CACHE_EXPIRY = 600000; // 10 minutes in milliseconds
-const MAX_CONCURRENT_REQUESTS = 3; // Limit concurrent requests
+const priceFetchPromises = {};
+const PRICE_CACHE_EXPIRY = 300000; // 5 minutes (matches server cache)
+const MAX_CONCURRENT_REQUESTS = 3;
 let activeRequests = 0;
 
+function _marketCacheKey(item) {
+    let key = `${item.name || ''}|${item.rarity || ''}`;
+    if (item.pp && item.pp.length) {
+        const sorted = [...item.pp].sort((a, b) => a[0].localeCompare(b[0]));
+        key += '|p:' + sorted.map(p => `${p[0]}=${p[1]}`).join(',');
+    }
+    if (item.sp && item.sp.length) {
+        const sorted = [...item.sp].sort((a, b) => a[0].localeCompare(b[0]));
+        key += '|s:' + sorted.map(p => `${p[0]}=${p[1]}`).join(',');
+    }
+    return key;
+}
+
 async function getMostRecentPrice(item) {
-    const itemId = item.itemId;
+    const cacheKey = _marketCacheKey(item);
 
     // Check client-side cache first
     const now = Date.now();
-    if (priceCache[itemId] && now - priceCache[itemId].timestamp < PRICE_CACHE_EXPIRY) {
-        console.log(`Using cached price for ${itemId}`);
-        return priceCache[itemId].data;
+    if (priceCache[cacheKey] && now - priceCache[cacheKey].timestamp < PRICE_CACHE_EXPIRY) {
+        return priceCache[cacheKey].data;
     }
 
-    // If there's already a fetch in progress for this item, return that promise
-    if (priceFetchPromises[itemId]) {
-        console.log(`Using existing fetch promise for ${itemId}`);
-        return priceFetchPromises[itemId];
+    // If there's already a fetch in progress for this key, reuse that promise
+    if (priceFetchPromises[cacheKey]) {
+        return priceFetchPromises[cacheKey];
     }
 
     // Limit concurrent requests
     if (activeRequests >= MAX_CONCURRENT_REQUESTS) {
-        console.log(`Too many concurrent requests, queuing ${itemId}`);
-        // Wait for a slot to become available
         while (activeRequests >= MAX_CONCURRENT_REQUESTS) {
             await new Promise(resolve => setTimeout(resolve, 100));
         }
     }
 
-    // No valid cache entry, use our Flask proxy endpoint
-    const apiUrl = `/api/market/price/${itemId}`;
+    const apiUrl = `/api/market/price/${encodeURIComponent(item.name)}?rarity=${encodeURIComponent(item.rarity || '')}`;
+    const hasProps = (item.pp && item.pp.length) || (item.sp && item.sp.length);
 
     try {
-        // Store the promise in our tracking object so we can reuse it for concurrent requests
-        priceFetchPromises[itemId] = (async () => {
+        priceFetchPromises[cacheKey] = (async () => {
             activeRequests++;
             try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-
-                const data = await response.json();
-
-                // Cache the result with timestamp
-                if (data && data.success) {
-                    priceCache[itemId] = {
-                        timestamp: now,
-                        data: data
-                    };
-                    return data; // Return the entire data object
+                let response;
+                if (hasProps) {
+                    response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pp: item.pp || [], sp: item.sp || [] }),
+                    });
                 } else {
-                    return "No Info";
+                    response = await fetch(apiUrl);
                 }
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                if (data && data.success) {
+                    priceCache[cacheKey] = { timestamp: now, data: data };
+                    return data;
+                }
+                return { success: true, has_data: false };
             } finally {
                 activeRequests--;
             }
         })();
 
-        // Wait for the fetch to complete
-        const result = await priceFetchPromises[itemId];
-
-        // Clear the promise now that it's done
-        delete priceFetchPromises[itemId];
-
+        const result = await priceFetchPromises[cacheKey];
+        delete priceFetchPromises[cacheKey];
         return result;
     } catch (error) {
-        console.error('Error fetching price:', error);
-
-        // Clear the failed promise
-        delete priceFetchPromises[itemId];
-        activeRequests = Math.max(0, activeRequests - 1);
-
-        return "Error";
+        console.error('Error fetching market price:', error);
+        delete priceFetchPromises[cacheKey];
+        return { success: false, has_data: false, error: error.message };
     }
+}
+
+async function fetchBulkMarketPrices(items) {
+    // Deduplicate by name|rarity
+    const uniqueItems = [];
+    const seen = new Set();
+    for (const item of items) {
+        const key = _marketCacheKey(item);
+        if (!seen.has(key) && item.name) {
+            seen.add(key);
+            // Skip if already cached on the client
+            const now = Date.now();
+            if (priceCache[key] && now - priceCache[key].timestamp < PRICE_CACHE_EXPIRY) {
+                continue;
+            }
+            uniqueItems.push({ name: item.name, rarity: item.rarity || '', pp: item.pp || [], sp: item.sp || [] });
+        }
+    }
+
+    // If everything is cached, return from cache directly
+    if (uniqueItems.length === 0) {
+        const result = {};
+        for (const item of items) {
+            const key = _marketCacheKey(item);
+            if (priceCache[key]) {
+                result[key] = priceCache[key].data;
+            }
+        }
+        return result;
+    }
+
+    try {
+        const response = await fetch('/api/market/prices/bulk', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: uniqueItems }),
+        });
+        if (!response.ok) return {};
+        const data = await response.json();
+        if (!data.success) return {};
+
+        // Populate client-side cache with new results.
+        // Server keys results by name|rarity; map back to full cache keys.
+        const now = Date.now();
+        const itemsBySimpleKey = {};
+        for (const item of items) {
+            const sk = `${item.name || ''}|${item.rarity || ''}`;
+            if (!itemsBySimpleKey[sk]) itemsBySimpleKey[sk] = [];
+            itemsBySimpleKey[sk].push(item);
+        }
+        for (const [serverKey, priceData] of Object.entries(data.prices || {})) {
+            const matching = itemsBySimpleKey[serverKey] || [];
+            for (const it of matching) {
+                const fullKey = _marketCacheKey(it);
+                priceCache[fullKey] = { timestamp: now, data: priceData };
+            }
+        }
+
+        // Return full map including previously cached entries
+        // Index by both full cache key and simple name|rarity for glow/total consumers
+        const result = {};
+        for (const item of items) {
+            const key = _marketCacheKey(item);
+            if (priceCache[key]) {
+                result[key] = priceCache[key].data;
+                const simpleKey = `${item.name || ''}|${item.rarity || ''}`;
+                if (!result[simpleKey]) result[simpleKey] = priceCache[key].data;
+            }
+        }
+        return result;
+    } catch (error) {
+        console.error('Bulk market price fetch failed:', error);
+        return {};
+    }
+}
+
+function _computeMarketTotal(items, prices) {
+    let marketTotal = 0;
+    let hasAnyMarketData = false;
+    for (const item of (items || [])) {
+        const key = _marketCacheKey(item);
+        const priceData = prices[key];
+        const qty = item.itemCount || 1;
+        if (priceData && priceData.has_data && priceData.avg_price) {
+            marketTotal += priceData.avg_price * qty;
+            hasAnyMarketData = true;
+        } else {
+            // Fallback to vendor price when no market data
+            marketTotal += (item.vendor_price || 0) * qty;
+        }
+    }
+    return { marketTotal, hasAnyMarketData };
+}
+
+function _updateMarketTotalDisplay(items, prices) {
+    const el = document.getElementById('totalMarketValue');
+    if (!el) return;
+    const { marketTotal, hasAnyMarketData } = _computeMarketTotal(items, prices);
+    el.textContent = hasAnyMarketData ? marketTotal.toLocaleString() : 'N/A';
+}
+
+function _applyProfitAdvisorGlow(prices) {
+    document.querySelectorAll('.stash-item[data-item-name]').forEach(el => {
+        el.classList.remove('profit-high', 'profit-medium');
+        const name = el.dataset.itemName;
+        const rarity = el.dataset.itemRarity || '';
+        const vendorPrice = parseInt(el.dataset.vendorPrice || '0', 10);
+        const key = `${name}|${rarity}`;
+        const priceData = prices[key];
+        if (priceData && priceData.has_data && priceData.avg_price && vendorPrice > 0) {
+            const profitPct = ((priceData.avg_price - vendorPrice) / vendorPrice) * 100;
+            if (profitPct >= 50) {
+                el.classList.add('profit-high');
+            } else if (profitPct >= 20) {
+                el.classList.add('profit-medium');
+            }
+        }
+    });
 }
 
 // --- GLOBAL TOOLTIP SINGLETON ---
@@ -3286,29 +3465,6 @@ function getOrCreateGlobalTooltip() {
 
 function showGlobalTooltip(html, x, y) {
     const tooltip = getOrCreateGlobalTooltip();
-
-    // Check if we have existing content with price info that's already loaded
-    if (tooltip.innerHTML.includes('Estimated Price:') &&
-        !tooltip.innerHTML.includes('Estimated Price: Loading...') &&
-        html.includes('Estimated Price: Loading...')) {
-
-        // Extract the completed price section from the existing tooltip
-        const currentPriceInfo = tooltip.querySelector('#extra-info-placeholder');
-        if (currentPriceInfo) {
-            // Create a temporary container to parse the new HTML
-            const tempContainer = document.createElement('div');
-            tempContainer.innerHTML = html;
-
-            // Replace the loading price section with our completed one
-            const newPriceSection = tempContainer.querySelector('#extra-info-placeholder');
-            if (newPriceSection) {
-                newPriceSection.innerHTML = currentPriceInfo.innerHTML;
-            }
-
-            // Use the updated HTML
-            html = tempContainer.innerHTML;
-        }
-    }
 
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';
@@ -3449,6 +3605,9 @@ const renderCombinedCharacterView = async (stashes = null) => {
         if (displaySlotId !== null) {
             itemEl.dataset.displaySlotId = String(displaySlotId);
         }
+        itemEl.dataset.itemName = item.name || '';
+        itemEl.dataset.itemRarity = item.rarity || '';
+        itemEl.dataset.vendorPrice = String(item.vendor_price || 0);
 
         const rarityColor = rarityColors[item.rarity] || rarityColors['Common'];
         itemEl.style.borderColor = rarityColor;
@@ -3590,6 +3749,9 @@ const renderCombinedCharacterView = async (stashes = null) => {
 
             if (rawSlotId !== null) itemEl.dataset.slotId = String(rawSlotId);
             if (displaySlotId !== null) itemEl.dataset.displaySlotId = String(displaySlotId);
+            itemEl.dataset.itemName = item.name || '';
+            itemEl.dataset.itemRarity = item.rarity || '';
+            itemEl.dataset.vendorPrice = String(item.vendor_price || 0);
 
             if (item.itemCount > 1) {
                 const countBadge = document.createElement('div');
@@ -3620,6 +3782,15 @@ const renderCombinedCharacterView = async (stashes = null) => {
     // Set up event delegation on the container (shared with renderInteractiveGrid)
     _ensureGridTooltipDelegation(gridContainer);
     focusStashIfRequested(gridContainer);
+
+    // Fetch market prices and update display
+    const allItems = [...equipmentItems, ...bagItems];
+    if (allItems.length > 0) {
+        fetchBulkMarketPrices(allItems).then(prices => {
+            _updateMarketTotalDisplay(allItems, prices);
+            _applyProfitAdvisorGlow(prices);
+        });
+    }
 };
 
 function updatePreviewForCurrentStash() {
