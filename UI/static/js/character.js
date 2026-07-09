@@ -1965,6 +1965,7 @@ const renderInteractiveGrid = (stashId, items) => {
     if (items && items.length > 0) {
         fetchBulkMarketPrices(items).then(prices => {
             _updateMarketTotalDisplay(items, prices);
+            _updateMarketAdvisor(items, prices);
             _applyProfitAdvisorGlow(prices);
         });
     }
@@ -2067,6 +2068,13 @@ function _showItemTooltip(data, clientX, clientY) {
         const profitEl = document.getElementById(`tooltip-profit-${tooltipId}`);
         if (!marketEl) return; // tooltip already dismissed
 
+        if (priceData && priceData.status === 'disabled') {
+            marketEl.innerHTML = `
+                <span class="tooltip-price-label">Market:</span>
+                <span class="tooltip-price-value tooltip-na">API key needed</span>`;
+            return;
+        }
+
         if (!priceData || !priceData.has_data) {
             marketEl.innerHTML = `
                 <span class="tooltip-price-label">Market:</span>
@@ -2077,10 +2085,14 @@ function _showItemTooltip(data, clientX, clientY) {
         const avgPrice = priceData.avg_price;
         const recentPrice = priceData.recent_price;
         const displayPrice = recentPrice || avgPrice;
+        const detailParts = [];
+        if (priceData.num_listings !== undefined) detailParts.push(`${priceData.num_listings} sold`);
+        if (priceData.confidence && priceData.confidence !== 'none') detailParts.push(`${priceData.confidence} confidence`);
+        if (priceData.freshness && priceData.freshness !== 'unknown') detailParts.push(priceData.freshness);
         marketEl.innerHTML = `
             <span class="tooltip-price-label">Market:</span>
             <span class="tooltip-price-value tooltip-market-gold">~${displayPrice.toLocaleString()} gold</span>
-            <span class="tooltip-price-detail">(avg: ${avgPrice.toLocaleString()}, ${priceData.num_listings} sold)</span>`;
+            <span class="tooltip-price-detail">(avg: ${avgPrice.toLocaleString()}${detailParts.length ? `, ${detailParts.join(', ')}` : ''})</span>`;
 
         // Profit advisor indicator in tooltip
         const vendorPrice = item.vendor_price || 0;
@@ -3327,17 +3339,25 @@ async function getMostRecentPrice(item) {
 
     const apiUrl = `/api/market/price/${encodeURIComponent(item.name)}?rarity=${encodeURIComponent(item.rarity || '')}`;
     const hasProps = (item.pp && item.pp.length) || (item.sp && item.sp.length);
+    const itemId = item.item_id || item.itemId || item.id || '';
+    const archetype = item.archetype || '';
 
     try {
         priceFetchPromises[cacheKey] = (async () => {
             activeRequests++;
             try {
                 let response;
-                if (hasProps) {
+                if (hasProps || itemId || archetype) {
                     response = await fetch(apiUrl, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ pp: item.pp || [], sp: item.sp || [] }),
+                        body: JSON.stringify({
+                            pp: item.pp || [],
+                            sp: item.sp || [],
+                            item_id: itemId,
+                            itemId,
+                            archetype,
+                        }),
                     });
                 } else {
                     response = await fetch(apiUrl);
@@ -3377,7 +3397,15 @@ async function fetchBulkMarketPrices(items) {
             if (priceCache[key] && now - priceCache[key].timestamp < PRICE_CACHE_EXPIRY) {
                 continue;
             }
-            uniqueItems.push({ name: item.name, rarity: item.rarity || '', pp: item.pp || [], sp: item.sp || [] });
+            uniqueItems.push({
+                name: item.name,
+                rarity: item.rarity || '',
+                pp: item.pp || [],
+                sp: item.sp || [],
+                item_id: item.item_id || item.itemId || item.id || '',
+                itemId: item.itemId || item.item_id || item.id || '',
+                archetype: item.archetype || '',
+            });
         }
     }
 
@@ -3399,20 +3427,30 @@ async function fetchBulkMarketPrices(items) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items: uniqueItems }),
         });
-        if (!response.ok) return {};
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ success: false, error: `HTTP ${response.status}` }));
+            return { __marketStatus: errorData };
+        }
         const data = await response.json();
-        if (!data.success) return {};
+        if (!data.success) return { __marketStatus: data };
+        const marketStatus = data.market_status || null;
 
         // Populate client-side cache with new results.
         // Server keys results by name|rarity; map back to full cache keys.
         const now = Date.now();
         const itemsBySimpleKey = {};
+        const itemsByFullKey = {};
         for (const item of items) {
             const sk = `${item.name || ''}|${item.rarity || ''}`;
             if (!itemsBySimpleKey[sk]) itemsBySimpleKey[sk] = [];
             itemsBySimpleKey[sk].push(item);
+            itemsByFullKey[_marketCacheKey(item)] = item;
         }
         for (const [serverKey, priceData] of Object.entries(data.prices || {})) {
+            if (priceData && priceData.cache_key && itemsByFullKey[priceData.cache_key]) {
+                priceCache[priceData.cache_key] = { timestamp: now, data: priceData };
+                continue;
+            }
             const matching = itemsBySimpleKey[serverKey] || [];
             for (const it of matching) {
                 const fullKey = _marketCacheKey(it);
@@ -3423,6 +3461,9 @@ async function fetchBulkMarketPrices(items) {
         // Return full map including previously cached entries
         // Index by both full cache key and simple name|rarity for glow/total consumers
         const result = {};
+        if (marketStatus && marketStatus.status !== 'ready' && marketStatus.status !== 'empty') {
+            result.__marketStatus = marketStatus;
+        }
         for (const item of items) {
             const key = _marketCacheKey(item);
             if (priceCache[key]) {
@@ -3434,7 +3475,7 @@ async function fetchBulkMarketPrices(items) {
         return result;
     } catch (error) {
         console.error('Bulk market price fetch failed:', error);
-        return {};
+        return { __marketStatus: { success: false, status: 'error', error: error.message } };
     }
 }
 
@@ -3459,8 +3500,90 @@ function _computeMarketTotal(items, prices) {
 function _updateMarketTotalDisplay(items, prices) {
     const el = document.getElementById('totalMarketValue');
     if (!el) return;
+    const status = prices && prices.__marketStatus;
+    if (status && status.status === 'disabled') {
+        el.textContent = 'key needed';
+        el.title = status.error || 'DarkerDB API key is not configured.';
+        return;
+    }
+    el.title = '';
     const { marketTotal, hasAnyMarketData } = _computeMarketTotal(items, prices);
     el.textContent = hasAnyMarketData ? marketTotal.toLocaleString() : 'N/A';
+}
+
+function _itemSlots(item) {
+    const width = Math.max(1, Number(item.width) || 1);
+    const height = Math.max(1, Number(item.height) || 1);
+    return width * height;
+}
+
+function _updateMarketAdvisor(items, prices) {
+    const panel = document.getElementById('marketAdvisor');
+    if (!panel) return;
+
+    const title = document.getElementById('marketAdvisorTitle');
+    const subtitle = document.getElementById('marketAdvisorSubtitle');
+    const best = document.getElementById('marketAdvisorBest');
+    const density = document.getElementById('marketAdvisorDensity');
+    const warnings = document.getElementById('marketAdvisorWarnings');
+    const status = prices && prices.__marketStatus;
+
+    panel.classList.remove('hidden', 'market-advisor-warning', 'market-advisor-error');
+
+    if (status && status.status === 'disabled') {
+        panel.classList.add('market-advisor-warning');
+        title.textContent = 'Market advisor unavailable';
+        subtitle.textContent = 'Set DARKERDB_API_KEY to enable roll-aware DarkerDB pricing.';
+        best.textContent = '--';
+        density.textContent = '--';
+        warnings.textContent = 'API key';
+        return;
+    }
+
+    if (status && status.success === false) {
+        panel.classList.add('market-advisor-error');
+        title.textContent = 'Market advisor error';
+        subtitle.textContent = status.error || 'Unable to reach DarkerDB market data.';
+        best.textContent = '--';
+        density.textContent = '--';
+        warnings.textContent = status.error_code || 'error';
+        return;
+    }
+
+    const priced = [];
+    let lowConfidence = 0;
+    let stale = 0;
+    for (const item of items || []) {
+        const priceData = prices[_marketCacheKey(item)];
+        if (!priceData || !priceData.has_data || !priceData.avg_price) continue;
+        const qty = item.itemCount || 1;
+        const total = priceData.avg_price * qty;
+        const valueDensity = Math.round(priceData.avg_price / _itemSlots(item));
+        priced.push({ item, priceData, total, valueDensity });
+        if (['none', 'low'].includes(priceData.confidence)) lowConfidence += 1;
+        if (priceData.freshness === 'stale') stale += 1;
+    }
+
+    if (!priced.length) {
+        title.textContent = 'Market advisor';
+        subtitle.textContent = 'No DarkerDB prices found for this stash yet.';
+        best.textContent = '--';
+        density.textContent = '--';
+        warnings.textContent = 'No prices';
+        return;
+    }
+
+    const bestItem = priced.reduce((current, candidate) => candidate.total > current.total ? candidate : current);
+    const bestDensity = priced.reduce((current, candidate) => candidate.valueDensity > current.valueDensity ? candidate : current);
+    const warningParts = [];
+    if (lowConfidence) warningParts.push(`${lowConfidence} low confidence`);
+    if (stale) warningParts.push(`${stale} stale`);
+
+    title.textContent = 'Market advisor';
+    subtitle.textContent = `${priced.length} priced items from DarkerDB. Vendor prices fill gaps.`;
+    best.textContent = `${bestItem.item.name || 'Item'} (${bestItem.total.toLocaleString()}g)`;
+    density.textContent = `${bestDensity.item.name || 'Item'} (${bestDensity.valueDensity.toLocaleString()}g/slot)`;
+    warnings.textContent = warningParts.length ? warningParts.join(', ') : 'Clear';
 }
 
 function _applyProfitAdvisorGlow(prices) {
@@ -3820,6 +3943,7 @@ const renderCombinedCharacterView = async (stashes = null) => {
     if (allItems.length > 0) {
         fetchBulkMarketPrices(allItems).then(prices => {
             _updateMarketTotalDisplay(allItems, prices);
+            _updateMarketAdvisor(allItems, prices);
             _applyProfitAdvisorGlow(prices);
         });
     }

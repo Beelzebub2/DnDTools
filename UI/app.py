@@ -42,6 +42,7 @@ from src.models.loot import (
     extract_loot_state_filter,
     format_loot_state_label,
 )
+from src import market_service
 
 sys.path.append(os.path.dirname(__file__))
 from src.quest_service import QuestService, RARITY_ORDER
@@ -2918,100 +2919,6 @@ def api_search_items():
 
 
 # ── Market price proxy endpoints ─────────────────────────────────────
-_market_price_cache = {}
-_MARKET_CACHE_DURATION = 300  # 5 minutes
-
-# Rarity normalization: DnDTools may use "Legend" while DarkerDB expects "Legendary"
-_RARITY_NORMALIZE = {
-    'legend': 'Legendary',
-}
-
-
-def _normalize_rarity(rarity):
-    if not rarity:
-        return ''
-    return _RARITY_NORMALIZE.get(rarity.lower(), rarity)
-
-
-
-def _pascal_to_snake(name):
-    """Convert PascalCase property name to snake_case for the API."""
-    import re
-    return re.sub(r'(?<=[a-z0-9])([A-Z])', r'_\1', name).lower()
-
-
-def _build_cache_key(item_name, rarity, pp=None, sp=None):
-    """Build a cache key that includes item name, rarity, and properties."""
-    parts = [item_name, rarity or '']
-    for prefix, props in [('p', pp), ('s', sp)]:
-        if props:
-            for prop_name, prop_value in sorted(props, key=lambda x: x[0]):
-                parts.append(f"{prefix}:{prop_name}={prop_value}")
-    return '|'.join(parts)
-
-
-def _fetch_market_data(item_name, rarity='', pp=None, sp=None):
-    """Fetch price-check data from DarkerDB for a single item.
-
-    Returns a dict with success, has_data, avg_price, min_price, max_price,
-    recent_price, num_listings.  Uses the server-side cache.
-    ``pp`` and ``sp`` are lists of [propName, propValue] pairs (PascalCase).
-    """
-    import requests as _requests
-
-    rarity = _normalize_rarity(rarity)
-    cache_key = _build_cache_key(item_name, rarity, pp, sp)
-    now = time.time()
-
-    cached = _market_price_cache.get(cache_key)
-    if cached and (now - cached['timestamp']) < _MARKET_CACHE_DURATION:
-        return cached['data']
-
-    params = {'item': item_name}
-    if rarity:
-        params['rarity'] = rarity
-    for prop_name, prop_value in (pp or []):
-        params[f'primary[{_pascal_to_snake(prop_name)}]'] = prop_value
-    for prop_name, prop_value in (sp or []):
-        params[f'secondary[{_pascal_to_snake(prop_name)}]'] = prop_value
-
-    try:
-        resp = _requests.get(
-            'https://api.darkerdb.com/v1/price-check',
-            params=params,
-            headers={'User-Agent': 'DnDTools-MarketProxy/1.0'},
-            timeout=10,
-        )
-        if not resp.ok:
-            return {'success': False, 'has_data': False, 'item_name': item_name, 'rarity': rarity}
-
-        api_data = resp.json()
-        body = api_data.get('body', {})
-
-        market_price = body.get('market_price')
-        num_sold = body.get('num_similar_sold_recently', 0)
-        has_data = market_price is not None
-
-        result = {
-            'success': True,
-            'has_data': has_data,
-            'item_name': item_name,
-            'rarity': rarity,
-            'avg_price': round(market_price) if has_data else None,
-            'min_price': round(market_price) if has_data else None,
-            'max_price': round(market_price) if has_data else None,
-            'recent_price': round(market_price) if has_data else None,
-            'num_listings': num_sold,
-        }
-
-        _market_price_cache[cache_key] = {'timestamp': now, 'data': result}
-        return result
-
-    except Exception as exc:
-        logger.error("Market price fetch error for %s: %s", item_name, exc)
-        return {'success': False, 'has_data': False, 'item_name': item_name, 'rarity': rarity}
-
-
 @server.route('/api/market/price/<item_name>', methods=['GET', 'POST'])
 def api_market_price(item_name):
     """Proxy a single-item price-check lookup to DarkerDB."""
@@ -3022,10 +2929,15 @@ def api_market_price(item_name):
         payload = request.get_json(silent=True) or {}
         pp = payload.get('pp')
         sp = payload.get('sp')
+        item_id = payload.get('item_id') or payload.get('itemId')
+        archetype = payload.get('archetype')
         if not rarity:
             rarity = payload.get('rarity', '')
-    result = _fetch_market_data(item_name, rarity, pp=pp, sp=sp)
-    status = 200 if result.get('success') else 502
+    else:
+        item_id = request.args.get('item_id') or request.args.get('itemId')
+        archetype = request.args.get('archetype')
+    result = market_service.fetch_price_check(item_name, rarity, pp=pp, sp=sp, item_id=item_id, archetype=archetype)
+    status = 200 if result.get('success') or result.get('error_code') == 'missing_api_key' else 502
     return jsonify(result), status
 
 
@@ -3046,20 +2958,42 @@ def api_market_prices_bulk():
 
         pp = entry.get('pp')
         sp = entry.get('sp')
+        item_id = entry.get('item_id') or entry.get('itemId')
+        archetype = entry.get('archetype')
 
-        # Key the response by the original input so JS can look it up
         original_key = f"{item_name}|{rarity}"
-        normalized_rarity = _normalize_rarity(rarity)
+        normalized_rarity = market_service.normalize_rarity(rarity)
+        cache_key = market_service.build_cache_key(item_name, normalized_rarity, pp, sp)
 
-        result = _fetch_market_data(item_name, rarity, pp=pp, sp=sp)
+        result = market_service.fetch_price_check(item_name, rarity, pp=pp, sp=sp, item_id=item_id, archetype=archetype)
+        result['cache_key'] = cache_key
+        result['simple_key'] = original_key
+        results[cache_key] = result
         results[original_key] = result
 
-        # Small delay between uncached external calls to avoid rate-limiting
-        cache_key = _build_cache_key(item_name, normalized_rarity, pp, sp)
-        if cache_key not in _market_price_cache:
+        if result.get('cache') != 'hit':
             time.sleep(0.05)
 
-    return jsonify({'success': True, 'prices': results})
+    return jsonify({
+        'success': True,
+        'market_status': market_service.summarize_bulk_price_results(results),
+        'prices': results,
+    })
+
+
+@server.route('/api/market/listings', methods=['GET'])
+def api_market_listings():
+    """Proxy recent market listings from the DarkerDB v2 market API."""
+    result = market_service.fetch_market_listings(
+        item_id=(request.args.get('item_id') or '').strip() or None,
+        archetype=(request.args.get('archetype') or '').strip() or None,
+        rarity=(request.args.get('rarity') or '').strip() or None,
+        limit=request.args.get('limit', 10),
+        has_sold=(request.args.get('has_sold') or 'true').strip().lower() not in {'0', 'false', 'no', 'off'},
+        price=(request.args.get('price') or '').strip() or None,
+    )
+    status = 200 if result.get('success') or result.get('error_code') == 'missing_api_key' else 502
+    return jsonify(result), status
 
 
 @server.route('/api/quests', methods=['GET'])
