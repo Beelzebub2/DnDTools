@@ -39,11 +39,25 @@ jobs:
         with urllib.request.urlopen(HEALTH_URL, timeout=15) as resp:
             payload = json.loads(resp.read().decode('utf-8'))
 
-        build = payload.get('build')
-        patch = payload.get('patch')
+        body = payload.get('body') if isinstance(payload.get('body'), dict) else {}
+        build = (
+            payload.get('build')
+            or body.get('build')
+            or body.get('version')
+            or payload.get('version')
+        )
+        patch = (
+            payload.get('patch')
+            or body.get('patch')
+            or body.get('game_patch')
+            or body.get('version')
+            or payload.get('version')
+        )
 
-        if not build or patch is None:
-            raise SystemExit('Missing build or patch fields in health-check response.')
+        if not build:
+            raise SystemExit('Missing build/version field in health-check response.')
+        if patch is None:
+            patch = build
 
         meta_path = Path('UI/assets/darkerdb_health.json')
         if meta_path.exists():
