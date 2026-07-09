@@ -1072,6 +1072,18 @@ class StashManager:
         if success:
             session.update_status("Refreshing stash data...", status="success")
             self._generate_previews(character_id)
+        else:
+            failure_reason = getattr(sorter, "_failure_reason", None)
+            if failure_reason == "planning_move_budget_exceeded":
+                return False, (
+                    "Sort planning generated too many moves and was stopped before any items were moved. "
+                    "Try sorting with more empty inventory space, or disable dense pack mode."
+                ), sorter.get_feedback_summary()
+            if failure_reason == "planning_timeout":
+                return False, (
+                    "Sort planning took too long and was stopped before any items were moved. "
+                    "Refresh character data and try again with pack mode off."
+                ), sorter.get_feedback_summary()
         session_summary = sorter.get_feedback_summary()
         return success, None, session_summary
 

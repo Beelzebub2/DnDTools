@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 # API configuration
 API_BASE_URL = "https://api.darkerdb.com/v1/items"
-API_KEY = os.getenv("API_KEY")  # Use env var
+API_KEY = (os.getenv("API_KEY") or "").strip()  # Use env var
 
 # Resolve important paths relative to the UI root
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -150,8 +150,14 @@ def process_icon(item_id: str, api_item: Dict, record: Dict, headers: Dict, forc
         request_headers.pop('If-Modified-Since', None)
 
     icon_url = ICON_ENDPOINT_TEMPLATE.format(item_id=item_id)
+    auth_params = {"key": API_KEY} if API_KEY else None
     try:
-        response = requests.get(icon_url, headers=request_headers, timeout=ICON_DOWNLOAD_TIMEOUT)
+        response = requests.get(
+            icon_url,
+            headers=request_headers,
+            params=auth_params,
+            timeout=ICON_DOWNLOAD_TIMEOUT,
+        )
     except requests.RequestException as exc:
         logger.error("Failed to fetch icon for %s: %s", item_id, exc)
         return 0, 0, 0, 0
@@ -242,6 +248,10 @@ def refresh_icons(existing_items: Dict, fetched_items: Dict[str, Dict], headers:
 def update_items(force_refresh: bool = False):
     """Fetch item metadata and ensure icon assets stay in sync using hash checks."""
     try:
+        if not API_KEY:
+            logger.error("DARKERDB_API_KEY/API_KEY is required for DarkerDB item updates")
+            return False
+
         # Load existing items
         existing_items = {}
         if ITEMS_FILE.exists():
@@ -252,9 +262,9 @@ def update_items(force_refresh: bool = False):
         logger.info("Fetching new items data from DarkerDB API...")
 
         headers = {
-            "Authorization": f"Bearer {API_KEY}",
             "User-Agent": "DnDTools-Updater/1.0"
         }
+        auth_params = {"key": API_KEY}
 
         all_new_items = []
         next_url = f"{API_BASE_URL}?limit=50"
@@ -263,7 +273,7 @@ def update_items(force_refresh: bool = False):
 
         while page <= max_pages:
             logger.info("Fetching page %s...", page)
-            response = requests.get(next_url, headers=headers, timeout=30)
+            response = requests.get(next_url, headers=headers, params=auth_params, timeout=30)
             response.raise_for_status()
 
             data = response.json()

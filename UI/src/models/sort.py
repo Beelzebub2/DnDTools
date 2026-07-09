@@ -40,6 +40,14 @@ class LayoutPlanError(Exception):
     """Raised when a deterministic plan cannot be created for the stash."""
 
 
+class SortPlanningLimitExceeded(Exception):
+    """Raised when simulated planning exceeds bounded resource limits."""
+
+    def __init__(self, reason: str, message: str) -> None:
+        super().__init__(message)
+        self.reason = reason
+
+
 class GridSnapshot:
     """Lightweight snapshot of a Storage grid for drift detection.
 
@@ -1304,6 +1312,9 @@ class AdaptiveSpeedController:
 
 
 class StashSorter:
+    DEFAULT_MAX_PLANNED_MOVES = 5000
+    DEFAULT_MAX_PLANNING_SECONDS = 45.0
+
     def __init__(
         self,
         stash: Storage,
@@ -1338,6 +1349,9 @@ class StashSorter:
         # ── Simulation (pre-plan all moves before execution) ──────────
         self._simulating = False
         self._planned_moves: List[tuple] = []
+        self._planning_started_at: Optional[float] = None
+        self.max_planned_moves = self.DEFAULT_MAX_PLANNED_MOVES
+        self.max_planning_seconds = self.DEFAULT_MAX_PLANNING_SECONDS
 
         # ── Compose sub-components ────────────────────────────────────
         callbacks = SortCallbacks(
@@ -1491,6 +1505,49 @@ class StashSorter:
     def get_feedback_summary(self) -> Optional[Dict[str, Any]]:
         return self._session_summary
 
+    def _record_planned_move(
+        self,
+        start_stash,
+        start_pos,
+        end_stash,
+        end_pos,
+        start_width=1,
+        start_height=1,
+        end_width=1,
+        end_height=1,
+    ) -> None:
+        elapsed = 0.0
+        if self._planning_started_at is not None:
+            elapsed = time.monotonic() - self._planning_started_at
+
+        if elapsed > float(self.max_planning_seconds):
+            reason = "planning_timeout"
+            message = (
+                "Sort planning took too long and was stopped before any items were moved. "
+                "Refresh character data and try again with pack mode off."
+            )
+            self._record_failure_reason(reason)
+            self._overlay_update("Planning timed out before moving items.", status="error")
+            self._overlay_log(message)
+            raise SortPlanningLimitExceeded(reason, message)
+
+        if len(self._planned_moves) >= int(self.max_planned_moves):
+            reason = "planning_move_budget_exceeded"
+            message = (
+                "Sort planning generated too many moves and was stopped before any items were moved. "
+                "Try sorting with more empty inventory space, or disable dense pack mode."
+            )
+            self._record_failure_reason(reason)
+            self._overlay_update("Planning generated too many moves.", status="error")
+            self._overlay_log(message)
+            raise SortPlanningLimitExceeded(reason, message)
+
+        self._planned_moves.append((
+            start_stash, Point(start_pos.x, start_pos.y),
+            end_stash, Point(end_pos.x, end_pos.y),
+            start_width, start_height, end_width, end_height,
+        ))
+
     def sort(
         self,
         cancel_event=None,
@@ -1518,14 +1575,14 @@ class StashSorter:
 
             def _recording_macro(start_stash, start_pos, end_stash, end_pos,
                                  start_width=1, start_height=1, end_width=1, end_height=1):
-                self._planned_moves.append((
-                    start_stash, Point(start_pos.x, start_pos.y),
-                    end_stash, Point(end_pos.x, end_pos.y),
+                self._record_planned_move(
+                    start_stash, start_pos, end_stash, end_pos,
                     start_width, start_height, end_width, end_height,
-                ))
+                )
 
             macros.move_from_to_reliable = _recording_macro
             self._simulating = True
+            self._planning_started_at = time.monotonic()
 
             try:
                 if self._stacking_engine.has_instructions:
@@ -1600,9 +1657,14 @@ class StashSorter:
                         failure_reason = self._failure_reason or "simulation_failed"
                     self._overlay_log("Move planning failed; aborting sort.")
                     return False
+            except SortPlanningLimitExceeded as exc:
+                failure_reason = failure_reason or exc.reason
+                logger.warning("Sort planning stopped by guard: %s", exc)
+                return False
             finally:
                 macros.move_from_to_reliable = original_macro
                 self._simulating = False
+                self._planning_started_at = None
 
             # ══════════════════════════════════════════════════════════
             #  EXECUTION PHASE — replay the recorded moves via the

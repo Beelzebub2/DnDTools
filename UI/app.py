@@ -42,6 +42,7 @@ from src.models.loot import (
     extract_loot_state_filter,
     format_loot_state_label,
 )
+from src import market_service
 
 sys.path.append(os.path.dirname(__file__))
 from src.quest_service import QuestService, RARITY_ORDER
@@ -51,7 +52,7 @@ version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.9.7"
+APP_VERSION = "3.9.9"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -151,12 +152,6 @@ def _hwnd_to_int(raw) -> Optional[int]:
         return int(raw)
     except Exception:
         return None
-
-
-
-
-
-
 
 def _clear_character_storage() -> dict[str, object]:
     removed_files: list[str] = []
@@ -2921,6 +2916,84 @@ def serve_preview(filename):
 def api_search_items():
     query = request.args.get('query', '')
     return jsonify(api.search_items(query))
+
+
+# ── Market price proxy endpoints ─────────────────────────────────────
+@server.route('/api/market/price/<item_name>', methods=['GET', 'POST'])
+def api_market_price(item_name):
+    """Proxy a single-item price-check lookup to DarkerDB."""
+    rarity = request.args.get('rarity', '')
+    pp = None
+    sp = None
+    if request.method == 'POST':
+        payload = request.get_json(silent=True) or {}
+        pp = payload.get('pp')
+        sp = payload.get('sp')
+        item_id = payload.get('item_id') or payload.get('itemId')
+        archetype = payload.get('archetype')
+        if not rarity:
+            rarity = payload.get('rarity', '')
+    else:
+        item_id = request.args.get('item_id') or request.args.get('itemId')
+        archetype = request.args.get('archetype')
+    result = market_service.fetch_price_check(item_name, rarity, pp=pp, sp=sp, item_id=item_id, archetype=archetype)
+    status = 200 if result.get('success') or result.get('error_code') == 'missing_api_key' else 502
+    return jsonify(result), status
+
+
+@server.route('/api/market/prices/bulk', methods=['POST'])
+def api_market_prices_bulk():
+    """Fetch market prices for multiple items in one request."""
+    payload = request.get_json(silent=True) or {}
+    items = payload.get('items', [])
+    if not isinstance(items, list) or len(items) > 200:
+        return jsonify({'success': False, 'error': 'Invalid or oversized items list'}), 400
+
+    results = {}
+    for entry in items:
+        item_name = entry.get('name', '').strip()
+        rarity = entry.get('rarity', '').strip()
+        if not item_name:
+            continue
+
+        pp = entry.get('pp')
+        sp = entry.get('sp')
+        item_id = entry.get('item_id') or entry.get('itemId')
+        archetype = entry.get('archetype')
+
+        original_key = f"{item_name}|{rarity}"
+        normalized_rarity = market_service.normalize_rarity(rarity)
+        cache_key = market_service.build_cache_key(item_name, normalized_rarity, pp, sp)
+
+        result = market_service.fetch_price_check(item_name, rarity, pp=pp, sp=sp, item_id=item_id, archetype=archetype)
+        result['cache_key'] = cache_key
+        result['simple_key'] = original_key
+        results[cache_key] = result
+        results[original_key] = result
+
+        if result.get('cache') != 'hit':
+            time.sleep(0.05)
+
+    return jsonify({
+        'success': True,
+        'market_status': market_service.summarize_bulk_price_results(results),
+        'prices': results,
+    })
+
+
+@server.route('/api/market/listings', methods=['GET'])
+def api_market_listings():
+    """Proxy recent market listings from the DarkerDB v2 market API."""
+    result = market_service.fetch_market_listings(
+        item_id=(request.args.get('item_id') or '').strip() or None,
+        archetype=(request.args.get('archetype') or '').strip() or None,
+        rarity=(request.args.get('rarity') or '').strip() or None,
+        limit=request.args.get('limit', 10),
+        has_sold=(request.args.get('has_sold') or 'true').strip().lower() not in {'0', 'false', 'no', 'off'},
+        price=(request.args.get('price') or '').strip() or None,
+    )
+    status = 200 if result.get('success') or result.get('error_code') == 'missing_api_key' else 502
+    return jsonify(result), status
 
 
 @server.route('/api/quests', methods=['GET'])

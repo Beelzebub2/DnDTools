@@ -24,7 +24,35 @@
                 <div class="stash-panel-value" id="stashValueToolbar">
                     <span class="material-icons">monetization_on</span>
                     <span id="totalStashValue">0</span>
-                    <span class="stash-value-label">coins</span>
+                    <span class="stash-value-label">vendor</span>
+                    <span class="stash-value-divider">|</span>
+                    <span class="material-icons market-value-icon">storefront</span>
+                    <span id="totalMarketValue" class="market-value-number">--</span>
+                    <span class="stash-value-label">market</span>
+                </div>
+            </div>
+
+            <div id="marketAdvisor" class="market-advisor hidden" aria-live="polite">
+                <div class="market-advisor-main">
+                    <span class="material-icons">analytics</span>
+                    <div>
+                        <div class="market-advisor-title" id="marketAdvisorTitle">Market advisor</div>
+                        <div class="market-advisor-subtitle" id="marketAdvisorSubtitle">Waiting for stash data</div>
+                    </div>
+                </div>
+                <div class="market-advisor-metrics">
+                    <div>
+                        <span class="market-advisor-label">Best item</span>
+                        <strong id="marketAdvisorBest">--</strong>
+                    </div>
+                    <div>
+                        <span class="market-advisor-label">Best density</span>
+                        <strong id="marketAdvisorDensity">--</strong>
+                    </div>
+                    <div>
+                        <span class="market-advisor-label">Warnings</span>
+                        <strong id="marketAdvisorWarnings">--</strong>
+                    </div>
                 </div>
             </div>
 
@@ -237,7 +265,7 @@
                             </div>
                             <div class="sorting-text" id="sortingText">Sorting items...</div>
                             <div class="sorting-overlay-description">
-                                Sit tight while we arrange your stash for peak efficiency.
+                                Planning happens before mouse movement. Keep the game focused; press Esc to request cancel.
                             </div>
                         </div>
                     </div>
