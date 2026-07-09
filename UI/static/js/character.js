@@ -48,6 +48,8 @@ const charId = (() => {
     return segments.length ? decodeURIComponent(segments[segments.length - 1]) : '';
 })();
 let abortController = null;
+let sortingStartedAt = null;
+let sortingElapsedInterval = null;
 let currentStashId = null;  // Track current stash ID
 let requestedStashIdFromUrl = null;
 let pendingSortSessionId = null;
@@ -2796,12 +2798,12 @@ async function executeTransfer() {
 // Animation for sorting text messages
 let sortingTextInterval = null;
 const sortingMessages = [
-    'Having issues? Visit our Discord server!',
-    'Enjoying the app? Star us on GitHub!',
-    'Sorting your awesome loot...',
-    'Finding the perfect spot for everything...',
-    'Optimizing your inventory layout...',
-    'Just a moment longer...'
+    'Planning safe item moves...',
+    'Checking inventory workspace...',
+    'Building the stash layout...',
+    'Preparing mouse actions...',
+    'Keep Dark and Darker focused...',
+    'Press Esc to request cancel...'
 ];
 
 function animateSortingText(start = true) {
@@ -2813,19 +2815,48 @@ function animateSortingText(start = true) {
         clearInterval(sortingTextInterval);
         sortingTextInterval = null;
     }
+    if (sortingElapsedInterval) {
+        clearInterval(sortingElapsedInterval);
+        sortingElapsedInterval = null;
+    }
 
     if (start) {
         let index = 0;
-        sortingText.textContent = sortingMessages[0];
+        sortingStartedAt = Date.now();
+        const renderMessage = () => {
+            const elapsedSeconds = sortingStartedAt
+                ? Math.max(0, Math.floor((Date.now() - sortingStartedAt) / 1000))
+                : 0;
+            const base = sortingMessages[index];
+            const suffix = elapsedSeconds >= 45
+                ? ' Still planning; press Esc if nothing is moving.'
+                : '';
+            sortingText.textContent = `${base} (${elapsedSeconds}s)${suffix}`;
+        };
+        renderMessage();
 
         // Change the message every 2 seconds
         sortingTextInterval = setInterval(() => {
             index = (index + 1) % sortingMessages.length;
-            sortingText.textContent = sortingMessages[index];
+            renderMessage();
         }, 2000);
+        sortingElapsedInterval = setInterval(renderMessage, 1000);
     } else {
+        if (sortingElapsedInterval) {
+            clearInterval(sortingElapsedInterval);
+            sortingElapsedInterval = null;
+        }
+        sortingStartedAt = null;
         // Reset to default message when stopping
         sortingText.textContent = 'Sorting items...';
+    }
+}
+
+async function requestSortCancel() {
+    try {
+        await fetch('/api/cancel_sort', { method: 'POST' });
+    } catch (error) {
+        console.warn('Unable to request backend sort cancellation:', error);
     }
 }
 
@@ -3106,6 +3137,7 @@ function _onKeyDownEscSort(e) {
         e.preventDefault();
         e.stopImmediatePropagation();
 
+        requestSortCancel();
         try { abortController.abort(); } catch (err) { /* noop */ }
         abortController = null;
         setSortingState(false);

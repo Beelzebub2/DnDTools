@@ -1488,6 +1488,9 @@
     letter-spacing: 0.08em;
     text-transform: uppercase;
     text-shadow: 0 3px 12px rgba(0, 0, 0, 0.45);
+    line-height: 1.35;
+    max-width: 100%;
+    overflow-wrap: anywhere;
 }
 
 .sorting-overlay-description {
