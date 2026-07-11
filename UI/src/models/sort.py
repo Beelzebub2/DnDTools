@@ -1672,6 +1672,15 @@ class StashSorter:
             # ══════════════════════════════════════════════════════════
             total_planned = len(self._planned_moves)
             if total_planned == 0:
+                if self._plan_required_moves > 0:
+                    self._restore_grid_state()
+                    failure_reason = failure_reason or "planning_recording_failed"
+                    self._record_failure_reason(failure_reason)
+                    self._overlay_update("Sort planning failed.", status="error")
+                    self._overlay_log(
+                        "Sort planning expected item movement but produced no replayable moves; aborting."
+                    )
+                    return False
                 self._overlay_update("Sorting complete.", status="success")
                 self._overlay_log("All items are already in their correct positions.")
                 return True
