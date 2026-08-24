@@ -7,6 +7,7 @@ option java_outer_classname = "ranking";
 option java_multiple_files = false;
 
 import "_Character.proto";
+import "Shop.proto";
 
 message SC2S_RANKING_INFO_REQ {
 }
@@ -21,6 +22,7 @@ message SRANKING_REWARD_INFO {
 
   string groupId = 1;
   int32 rewardState = 2;
+  string sheetId = 3;
 }
 
 message SRANKING_PERIOD_INFO {
@@ -103,6 +105,7 @@ message SC2S_RANKING_CHARACTER_REQ {
 message SC2S_RANKING_REWARD_GET_REQ {
   string seasonId = 1;
   string groupId = 2;
+  string sheetId = 3;
 }
 
 message SS2C_RANKING_REWARD_GET_RES {
@@ -150,6 +153,11 @@ message SS2C_RANKING_AP_CONFIG_RES {
 
 message SS2C_RANKING_HAS_REWARD_NOT {
   int32 isHasReward = 1;
+}
+
+message SS2C_RANK_AUTOMATIC_REWARD_NOT {
+  uint32 result = 1;
+  repeated .DC.Packet.SREWARD_INFO rewards = 2;
 }
 
 enum RANKING_TYPE {

@@ -179,3 +179,13 @@ message SS2C_INVENTORY_EXPAND_STORAGE_RES {
   uint32 result = 1;
 }
 
+message SC2S_INVENTORY_POSITION_SWAP_REQ {
+  .DC.Packet.SINVENTORY_ITEM_REQ_INFO srcInfo = 1;
+  .DC.Packet.SINVENTORY_ITEM_REQ_INFO dstInfo = 2;
+  uint32 srcNewSlotId = 3;
+  uint32 dstNewSlotId = 4;
+}
+
+message SS2C_INVENTORY_POSITION_SWAP_RES {
+}
+

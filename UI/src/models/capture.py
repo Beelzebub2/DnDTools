@@ -2,8 +2,6 @@ import os
 import sys
 import subprocess
 import asyncio
-import tempfile
-import glob
 import logging
 import socket
 import psutil
@@ -12,10 +10,10 @@ import json
 import threading
 import time
 import importlib
+import uuid
 from datetime import datetime
-from typing import Tuple, Optional, List, Dict, Any, Set
+from typing import Tuple, Optional, List, Dict, Any, Set, Iterable
 from concurrent.futures import TimeoutError as FutureTimeout
-from collections import deque
 from google.protobuf.json_format import MessageToDict
 
 import pyshark
@@ -24,6 +22,12 @@ from .appdirs import get_capture_state_file, is_frozen
 from src.models.settings import settings_manager, resolve_tshark_executable
 from src.models.capture_utils import patch_asyncio, patch_pyshark, finalize_asyncio_subprocess
 from src.models.memory_guard import MemoryGuard
+from src.models.packet_buffers import (
+    BoundedPacketHistory,
+    FramedPacketStreams,
+    estimate_json_size,
+)
+from utils.tshark_cleanup import register_owned_helpers, prune_owned_helper_registry
 
 # Apply patches
 patch_asyncio()
@@ -85,6 +89,10 @@ try:
 except ImportError:
     logger.error("Could not import _PacketCommand_pb2. Ensure protos are generated and path is correct.")
     _PacketCommand_pb2 = None
+
+_PACKET_COMMAND_VALUES = frozenset(
+    _PacketCommand_pb2.PacketCommand.values()
+) if _PacketCommand_pb2 else frozenset()
 
 
 def _build_proto_map() -> Dict[int, Any]:
@@ -180,17 +188,69 @@ def _read_positive_float_env(var_name: str, default: float) -> float:
         return default
     return value
 
+
+def _read_tcp_int_field(layer: Any, *field_names: str) -> Optional[int]:
+    """Read a decimal/hex tshark field without depending on its field class."""
+    for field_name in field_names:
+        try:
+            raw_value = getattr(layer, field_name, None)
+        except Exception:
+            continue
+        if raw_value is None:
+            continue
+        text = str(raw_value).strip()
+        try:
+            return int(text, 0)
+        except (TypeError, ValueError):
+            try:
+                return int(text)
+            except (TypeError, ValueError):
+                continue
+    return None
+
+
+def _tcp_has_field(layer: Any, *field_names: str) -> bool:
+    """Return whether tshark exposed a presence/analysis field on a layer."""
+    try:
+        available = set(getattr(layer, 'field_names', ()) or ())
+    except Exception:
+        available = set()
+
+    for field_name in field_names:
+        if field_name in available:
+            return True
+        try:
+            raw_value = getattr(layer, field_name, None)
+        except Exception:
+            continue
+        if raw_value is None:
+            continue
+        if str(raw_value).strip().lower() not in ('', '0', 'false', 'none'):
+            return True
+    return False
+
 class PacketCapture:
-    DEFAULT_TSHARK_MEMORY_LIMIT_MB = 500.0
+    # Includes this application plus owned tshark/dumpcap helpers. A normal
+    # capture session is roughly 1 GiB, so keep enough headroom for healthy
+    # operation while still restarting far below the reported 20 GiB runaway.
+    DEFAULT_TSHARK_MEMORY_LIMIT_MB = 2048.0
     DEFAULT_TSHARK_MEMORY_CHECK_SEC = 15.0
     DEFAULT_TSHARK_MEMORY_RESTART_COOLDOWN_SEC = 120.0
+    DEFAULT_PACKET_HISTORY_MAX_COUNT = 1000
+    DEFAULT_PACKET_HISTORY_MAX_BYTES = 16 * 1024 * 1024
+    DEFAULT_PACKET_JSON_MAX_BYTES = 512 * 1024
+    DEFAULT_PACKET_JSON_MAX_WIRE_BYTES = 256 * 1024
+    DEFAULT_TCP_REASSEMBLY_MAX_BYTES = 32 * 1024 * 1024
+    DEFAULT_UNPARSED_PREVIEW_BYTES = 256
 
     def __init__(self, interface: str = 'Ethernet', port_range: Tuple[int, int] = (20200, 20300), wireshark_path: Optional[str] = None):
         self.interface = interface
         self.port_range = port_range
+        # Backwards-compatible aliases for callers that inspect the default
+        # stream. Actual framing state is isolated per tcp.stream below.
         self.packet_data = b""
         self.logger = logging.getLogger(__name__)
-        self.MAX_BUFFER_SIZE = 1024 * 1024  # 1MB
+        self.MAX_BUFFER_SIZE = 2 * 1024 * 1024
         self.expected_packet_length = None
         self.expected_proto_type = None
         self.running = False
@@ -202,6 +262,17 @@ class PacketCapture:
         self._cleanup_lock = threading.Lock()
         self._cleanup_complete = threading.Event()
         self._cleanup_complete.set()
+        self._helper_session_id = uuid.uuid4().hex
+        self._helper_owner_pid = os.getpid()
+        try:
+            self._helper_owner_create_time = psutil.Process(
+                self._helper_owner_pid
+            ).create_time()
+        except (psutil.Error, OSError):
+            self._helper_owner_create_time = None
+        self._helper_registry_path = None
+        self._helper_tracker_stop = threading.Event()
+        self._helper_tracker_thread: Optional[threading.Thread] = None
         self.STATE_FILE = get_capture_state_file()
         self.tshark_path = resolve_tshark_executable(wireshark_path) or resolve_tshark_executable(settings_manager.get('wiresharkPath'))
         self._apply_tshark_environment()
@@ -229,8 +300,40 @@ class PacketCapture:
                 except ValueError:
                     self.logger.debug(f"Quest packet {packet_name} not present in PacketCommand enum")
         
-        # Packet viewer storage
-        self.captured_packets = deque(maxlen=1000)
+        # Packet viewer storage. A count-only deque allowed a thousand expanded
+        # multi-megabyte protobuf dictionaries to consume tens of gigabytes.
+        history_count = int(_read_positive_float_env(
+            "DND_PACKET_HISTORY_MAX_COUNT",
+            self.DEFAULT_PACKET_HISTORY_MAX_COUNT,
+        ))
+        history_bytes = int(_read_positive_float_env(
+            "DND_PACKET_HISTORY_MAX_BYTES",
+            self.DEFAULT_PACKET_HISTORY_MAX_BYTES,
+        ))
+        self._packet_json_max_bytes = int(_read_positive_float_env(
+            "DND_PACKET_JSON_MAX_BYTES",
+            self.DEFAULT_PACKET_JSON_MAX_BYTES,
+        ))
+        self._packet_json_max_wire_bytes = int(_read_positive_float_env(
+            "DND_PACKET_JSON_MAX_WIRE_BYTES",
+            self.DEFAULT_PACKET_JSON_MAX_WIRE_BYTES,
+        ))
+        reassembly_bytes = int(_read_positive_float_env(
+            "DND_TCP_REASSEMBLY_MAX_BYTES",
+            self.DEFAULT_TCP_REASSEMBLY_MAX_BYTES,
+        ))
+        self.captured_packets = BoundedPacketHistory(
+            max_packets=history_count,
+            max_bytes=history_bytes,
+        )
+        self._packet_streams = FramedPacketStreams(
+            self.validate_packet_header,
+            self.handle_packet,
+            max_packet_size=self.MAX_BUFFER_SIZE,
+            max_pending_bytes=self.MAX_BUFFER_SIZE,
+            max_total_buffered_bytes=reassembly_bytes,
+            on_desync=self._on_stream_desync,
+        )
         # Monotonic packet id counter for stable UI keys
         self._packet_id_counter = 0
         
@@ -281,7 +384,8 @@ class PacketCapture:
         self._memory_guard = MemoryGuard(
             threshold_mb=threshold_mb,
             check_interval=check_interval,
-            on_threshold_exceeded=self._on_memory_threshold_exceeded
+            on_threshold_exceeded=self._on_memory_threshold_exceeded,
+            usage_provider=self._capture_memory_usage_mb,
         )
 
     def _start_memory_guard(self):
@@ -320,9 +424,16 @@ class PacketCapture:
             return
 
         try:
-            self.stop_capture_switch(persist_running_state=True)
+            if not self.stop_capture_switch(persist_running_state=True):
+                self.logger.error(
+                    "Capture memory restart aborted because the previous capture did not stop cleanly"
+                )
+                return
             time.sleep(1.0)
-            self.start_capture_switch()
+            if not self.start_capture_switch():
+                self.logger.error(
+                    "Capture memory restart could not start a replacement capture"
+                )
         except Exception as exc:
             self.logger.error(f"Failed to restart capture after memory guard stop: {exc}", exc_info=True)
 
@@ -331,22 +442,28 @@ class PacketCapture:
 
     def parse_proto(self, packet_data, proto_type):
         """Deserialize a packet's payload using the pre-built PROTO_MAP."""
+        message, _error = self._parse_proto_with_error(packet_data, proto_type)
+        return message
+
+    def _parse_proto_with_error(self, packet_data, proto_type):
+        """Deserialize a payload and retain a concise diagnostic on failure."""
         message_class = PROTO_MAP.get(proto_type)
         if message_class is None:
-            return None
+            return None, "No generated protobuf class is mapped to this packet type"
 
         data = packet_data[8:]
         try:
             message = message_class()
             message.ParseFromString(data)
-            return message
+            return message, None
         except Exception as e:
             try:
                 name = _PacketCommand_pb2.PacketCommand.Name(proto_type)
             except (ValueError, KeyError):
                 name = str(proto_type)
             self.logger.debug(f"Failed to parse {name} via {message_class.__name__}: {e}")
-            return None
+            detail = f"{type(e).__name__}: {e}".strip()
+            return None, detail[:240]
 
     def get_local_ip(self) -> Optional[str]:
         for interface, addrs in psutil.net_if_addrs().items():
@@ -362,83 +479,59 @@ class PacketCapture:
         valid_packet_range = (8, 2 * 1024 * 1024)
         return (
             valid_packet_range[0] <= length <= valid_packet_range[1] and
-            proto_type in _PacketCommand_pb2.PacketCommand.values() and 
+            proto_type in _PACKET_COMMAND_VALUES and
             padding in [0, 256]
         )
 
-    def process_packet(self, data: bytes) -> Optional[bool]:
-        if len(data) == 0:
+    def process_packet(
+        self,
+        data: bytes,
+        stream_id: Optional[Any] = None,
+        tcp_sequence: Optional[int] = None,
+        tcp_out_of_order: bool = False,
+    ) -> Optional[bool]:
+        """Feed a TCP segment into connection-specific framing state.
+
+        TCP metadata comes from tshark and remains optional for backwards
+        compatibility with ordered byte-stream callers.
+        """
+        if not data:
             return False
 
-        self.packet_data += data
+        self._packet_streams.feed(
+            stream_id,
+            data,
+            tcp_sequence,
+            out_of_order=tcp_out_of_order,
+        )
 
-        # Loop to process all complete game packets in the buffer.
-        # A single TCP segment may contain multiple back-to-back game packets.
-        max_iterations = 50  # safety limit
-        iterations = 0
-        while iterations < max_iterations:
-            iterations += 1
-            current_size = len(self.packet_data)
-
-            if current_size == 0:
-                break
-
-            if current_size > self.MAX_BUFFER_SIZE:
-                self.logger.warning(f"Buffer exceeded max size ({self.MAX_BUFFER_SIZE} bytes)")
-                self.reset_state()
-                return False
-
-            # Parse header if we haven't yet for this game packet
-            if self.expected_packet_length is None and current_size >= 8:
+        # Preserve the legacy state attributes for the default stream.
+        if stream_id is None:
+            self.packet_data = self._packet_streams.get_buffer()
+            self.expected_packet_length = None
+            self.expected_proto_type = None
+            if len(self.packet_data) >= 8:
                 try:
-                    packet_length, proto_type, random_padding = struct.unpack('<IHH', self.packet_data[:8])
-
-                    packet_type_name = "Unknown"
-                    if _PacketCommand_pb2 and proto_type in _PacketCommand_pb2._PACKETCOMMAND.values_by_number:
-                        packet_type_name = _PacketCommand_pb2._PACKETCOMMAND.values_by_number[proto_type].name
-
-                    if not self.validate_packet_header(packet_length, proto_type, random_padding):
-                        self.logger.warning(f"Invalid packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
-                        self.reset_state()
-                        return False
-
-                    self.logger.info(f"New packet: {packet_type_name} (Type={proto_type}, Length={packet_length}, Padding={random_padding})")
-
-                    self.expected_packet_length = packet_length
-                    self.expected_proto_type = proto_type
+                    length, proto_type, padding = struct.unpack(
+                        '<IHH', self.packet_data[:8]
+                    )
+                    if self.validate_packet_header(length, proto_type, padding):
+                        self.expected_packet_length = length
+                        self.expected_proto_type = proto_type
                 except struct.error:
-                    self.reset_state()
-                    return False
-
-            if self.expected_packet_length and self.expected_proto_type:
-                if current_size >= self.expected_packet_length:
-                    # We have enough data — extract this packet and keep the overflow
-                    complete_packet = self.packet_data[:self.expected_packet_length]
-                    overflow = self.packet_data[self.expected_packet_length:]
-
-                    if current_size > self.expected_packet_length:
-                        self.logger.info(f"Splitting segment: {current_size} bytes = {self.expected_packet_length} (packet) + {len(overflow)} (overflow)")
-
-                    self.handle_packet(complete_packet, self.expected_proto_type)
-
-                    # Reset state and continue with overflow data
-                    self.expected_packet_length = None
-                    self.expected_proto_type = None
-                    self.packet_data = overflow
-                    # Continue the loop to process overflow data
-                    continue
-                else:
-                    # Need more data — wait for next TCP segment
-                    if current_size % 8192 == 0:
-                        self.logger.info(f"Accumulating: {current_size}/{self.expected_packet_length}")
-                    break
-            else:
-                # Need more data to parse the header
-                break
-
+                    pass
         return False
 
+    def _on_stream_desync(self, stream_id: str, dropped: int, reason: str) -> None:
+        self.logger.debug(
+            "TCP stream %s dropped %s byte(s): %s",
+            stream_id,
+            dropped,
+            reason,
+        )
+
     def reset_state(self) -> None:
+        self._packet_streams.clear()
         self.packet_data = b""
         self.expected_packet_length = None
         self.expected_proto_type = None
@@ -457,9 +550,107 @@ class PacketCapture:
             except (psutil.Error, OSError):
                 continue
 
-            if 'tshark' in name or 'dumpcap' in name:
+            if name in {'tshark', 'tshark.exe', 'dumpcap', 'dumpcap.exe'}:
                 targets.append(child)
         return targets
+
+    def _record_owned_capture_processes(
+        self,
+        processes: Optional[Iterable[psutil.Process]] = None,
+    ) -> Set[tuple[int, float]]:
+        """Persist exact identities for helpers spawned by this capture."""
+
+        try:
+            targets = list(processes) if processes is not None else self._collect_capture_processes()
+            return register_owned_helpers(
+                targets,
+                owner_pid=getattr(self, "_helper_owner_pid", os.getpid()),
+                owner_create_time=getattr(self, "_helper_owner_create_time", None),
+                session_id=getattr(self, "_helper_session_id", ""),
+                registry_path=getattr(self, "_helper_registry_path", None),
+            )
+        except Exception as exc:
+            self.logger.debug("Unable to record owned capture helper identities: %s", exc)
+            return set()
+
+    def _start_helper_tracker(self) -> None:
+        """Track pyshark helpers even while sniffing is waiting for a packet."""
+
+        existing = getattr(self, "_helper_tracker_thread", None)
+        if existing and existing.is_alive():
+            return
+
+        stop_event = getattr(self, "_helper_tracker_stop", None)
+        if stop_event is None:
+            stop_event = threading.Event()
+            self._helper_tracker_stop = stop_event
+        stop_event.clear()
+
+        def monitor() -> None:
+            self._record_owned_capture_processes()
+            while not stop_event.wait(0.25):
+                self._record_owned_capture_processes()
+
+        self._helper_tracker_thread = threading.Thread(
+            target=monitor,
+            daemon=True,
+            name="DnDToolsCaptureHelperTracker",
+        )
+        self._helper_tracker_thread.start()
+
+    def _stop_helper_tracker(self) -> None:
+        stop_event = getattr(self, "_helper_tracker_stop", None)
+        tracker = getattr(self, "_helper_tracker_thread", None)
+        if stop_event is not None:
+            stop_event.set()
+        if (
+            tracker
+            and tracker.is_alive()
+            and tracker is not threading.current_thread()
+        ):
+            tracker.join(timeout=1.0)
+        self._helper_tracker_thread = None
+
+    def _prune_owned_helper_records(self) -> None:
+        session_id = getattr(self, "_helper_session_id", "")
+        if not session_id:
+            return
+        try:
+            prune_owned_helper_registry(
+                session_id=session_id,
+                registry_path=getattr(self, "_helper_registry_path", None),
+            )
+        except Exception as exc:
+            self.logger.debug("Unable to prune capture helper registry: %s", exc)
+
+    def _capture_memory_usage_mb(self) -> float:
+        """Return RSS for this process and only its owned capture helpers.
+
+        Task Manager can group tshark/dumpcap with the application, so guarding
+        only the Python parent misses the failure mode this monitor is intended
+        to recover from. Process ids are de-duplicated defensively because a
+        recursive child walk may race with helper shutdown.
+        """
+
+        try:
+            processes: List[psutil.Process] = [psutil.Process(os.getpid())]
+        except (psutil.Error, OSError) as err:
+            self.logger.debug(f"Unable to inspect application memory: {err}")
+            processes = []
+
+        processes.extend(self._collect_capture_processes())
+        seen_pids: Set[int] = set()
+        total_rss = 0
+        for proc in processes:
+            try:
+                pid = int(proc.pid)
+                if pid in seen_pids:
+                    continue
+                seen_pids.add(pid)
+                total_rss += max(0, int(proc.memory_info().rss))
+            except (psutil.Error, OSError, TypeError, ValueError):
+                continue
+        return total_rss / (1024 * 1024)
 
     def get_active_helper_pids(self) -> Set[int]:
         """Return the PIDs of any tshark/dumpcap helpers this process spawned."""
@@ -468,7 +659,12 @@ class PacketCapture:
     def _terminate_capture_processes(self, timeout: float = 3.0) -> None:
         targets = self._collect_capture_processes()
         if not targets:
+            self._prune_owned_helper_records()
             return
+
+        # Record ownership before termination. If the app exits midway through
+        # cleanup, the next launch can safely finish only these exact helpers.
+        self._record_owned_capture_processes(targets)
 
         self.logger.info(f"Terminating {len(targets)} capture helper process(es)")
 
@@ -488,6 +684,7 @@ class PacketCapture:
                     proc.kill()
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     pass
+        self._prune_owned_helper_records()
 
     def _save_state(self, running: bool):
         try:
@@ -548,6 +745,7 @@ class PacketCapture:
                         self.logger.debug("LiveCapture configured with keep_packets=False")
                     except Exception as keep_err:
                         self.logger.debug(f"Unable to set keep_packets flag: {keep_err}")
+                self._record_owned_capture_processes()
             except Exception as capture_error:
                 self.logger.error(f"Failed to create LiveCapture: {capture_error}")
                 if "tshark" in str(capture_error).lower():
@@ -557,8 +755,24 @@ class PacketCapture:
             for packet in self._current_capture.sniff_continuously():
                 if self._stop_event.is_set():
                     break
+                self._record_owned_capture_processes()
                 if 'TCP' in packet and hasattr(packet.tcp, 'payload'):
-                    self.process_packet(packet.tcp.payload.binary_value)
+                    stream_id = _read_tcp_int_field(packet.tcp, 'stream')
+                    tcp_sequence = _read_tcp_int_field(
+                        packet.tcp,
+                        'seq_raw',
+                        'seq',
+                    )
+                    tcp_out_of_order = _tcp_has_field(
+                        packet.tcp,
+                        'analysis_out_of_order',
+                    )
+                    self.process_packet(
+                        packet.tcp.payload.binary_value,
+                        stream_id=stream_id,
+                        tcp_sequence=tcp_sequence,
+                        tcp_out_of_order=tcp_out_of_order,
+                    )
         except RuntimeError as e:
             if "Event loop" in str(e) and "stopped" in str(e):
                 self.logger.info("Event loop stopped during capture, exiting cleanly")
@@ -582,6 +796,8 @@ class PacketCapture:
         try:
             capture = getattr(self, '_current_capture', None)
             loop = getattr(self, '_current_loop', None)
+            self._record_owned_capture_processes()
+            self._stop_helper_tracker()
 
             try:
                 if capture:
@@ -672,14 +888,7 @@ class PacketCapture:
 
                 self.reset_state()
                 self._terminate_capture_processes()
-
-                temp_dir = tempfile.gettempdir()
-                for pcap in glob.glob(os.path.join(temp_dir, '*.pcapng')):
-                    try:
-                        os.remove(pcap)
-                        self.logger.info(f"Deleted temp capture file: {pcap}")
-                    except Exception as file_error:
-                        self.logger.warning(f"Could not delete {pcap}: {file_error}")
+                self._prune_owned_helper_records()
         finally:
             self._cleanup_complete.set()
             self._cleanup_lock.release()
@@ -699,10 +908,21 @@ class PacketCapture:
 
     def start_capture_switch(self) -> bool:
         with self._state_lock:
-            if self.running and self.capture_thread and self.capture_thread.is_alive():
-                self.logger.info("Capture already running, ignoring start request")
-                return True
+            if self.capture_thread and self.capture_thread.is_alive():
+                if self.running:
+                    self.logger.info("Capture already running, ignoring start request")
+                    return True
+                self.logger.error(
+                    "Cannot start capture while the previous capture thread is still exiting"
+                )
+                return False
+            if not self._cleanup_complete.is_set():
+                self.logger.error(
+                    "Cannot start capture while previous capture cleanup is incomplete"
+                )
+                return False
 
+            self._force_closing = False
             self.running = True
             self._stop_event.clear()
             self._cleanup_capture_on_exit = True
@@ -711,6 +931,7 @@ class PacketCapture:
 
             self.capture_thread = threading.Thread(target=self.capture_loop, daemon=True)
             self._cleanup_complete.clear()
+            self._start_helper_tracker()
             self.capture_thread.start()
 
         self._start_memory_guard()
@@ -723,6 +944,7 @@ class PacketCapture:
             self._force_closing = True
             if not self.running and not (self.capture_thread and self.capture_thread.is_alive()):
                 self.logger.info("Capture already stopped, ignoring stop request")
+                self._force_closing = False
                 return True
 
             self.running = False
@@ -736,7 +958,8 @@ class PacketCapture:
 
         self._request_capture_shutdown(timeout=6.0)
 
-        if thread and thread.is_alive():
+        thread_still_alive = bool(thread and thread.is_alive())
+        if thread_still_alive:
             for timeout in [1.0, 3.0, 6.0]:
                 self.logger.info(f"Waiting for capture thread to exit (timeout: {timeout}s)...")
                 thread.join(timeout=timeout)
@@ -744,10 +967,25 @@ class PacketCapture:
                     self.logger.info("Capture thread exited cleanly")
                     break
             if thread.is_alive():
-                self.logger.warning("Capture thread still running after timeouts, forcing cleanup")
+                self.logger.warning(
+                    "Capture thread still running after timeouts; terminating owned capture helpers"
+                )
+                self._terminate_capture_processes()
+                thread.join(timeout=3.0)
 
-        if not self._cleanup_complete.wait(timeout=5.0):
+        cleanup_complete = self._cleanup_complete.wait(timeout=5.0)
+        if not cleanup_complete:
             self.logger.warning("Timed out waiting for capture cleanup to finish")
+
+        thread_still_alive = bool(thread and thread.is_alive())
+        if thread_still_alive or not cleanup_complete:
+            # Keep the thread reference and force-closing state. A later stop
+            # can retry cleanup, while start_capture_switch must refuse to
+            # create a second capture over an orphaned first one.
+            self.logger.error(
+                "Capture did not stop cleanly; refusing to forget the active capture thread"
+            )
+            return False
 
         with self._state_lock:
             self.capture_thread = None
@@ -826,26 +1064,46 @@ class PacketCapture:
             name = f"Unknown({proto_type})"
 
         try:
-            message = self.parse_proto(packet_data, proto_type)
+            message, parse_error = self._parse_proto_with_error(
+                packet_data,
+                proto_type,
+            )
 
-            # Store for packet viewer
+            # Store a bounded representation for the packet viewer. Large wire
+            # payloads are still parsed and dispatched to handlers, but are not
+            # expanded into a much larger Python dictionary merely for history.
             json_data = None
-            parsed = False
-            if message:
-                parsed = True
-                try:
-                    json_data = MessageToDict(
-                        message,
-                        preserving_proto_field_name=True,
-                        including_default_value_fields=True
-                    )
-                except TypeError:
-                    json_data = MessageToDict(
-                        message,
-                        preserving_proto_field_name=True
-                    )
-                except Exception as dict_err:
-                    self.logger.debug(f"MessageToDict failed for {name}: {dict_err}")
+            json_size = 0
+            json_omitted_reason = None
+            parsed = message is not None
+            payload_wire_length = max(0, len(packet_data) - 8)
+            if message is not None:
+                if payload_wire_length > self._packet_json_max_wire_bytes:
+                    json_omitted_reason = "wire_payload_too_large"
+                else:
+                    try:
+                        try:
+                            json_data = MessageToDict(
+                                message,
+                                preserving_proto_field_name=True,
+                                including_default_value_fields=True
+                            )
+                        except TypeError:
+                            json_data = MessageToDict(
+                                message,
+                                preserving_proto_field_name=True
+                            )
+
+                        json_size = estimate_json_size(
+                            json_data,
+                            max_bytes=self._packet_json_max_bytes,
+                        )
+                        if json_size > self._packet_json_max_bytes:
+                            json_data = None
+                            json_omitted_reason = "expanded_json_too_large"
+                    except Exception as dict_err:
+                        json_omitted_reason = "json_conversion_failed"
+                        self.logger.debug(f"MessageToDict failed for {name}: {dict_err}")
 
             # Assign a monotonically increasing id so UI can track items across refreshes
             self._packet_id_counter += 1
@@ -860,7 +1118,29 @@ class PacketCapture:
                 'parsed': parsed,
                 'handled': has_handler,
             }
-            self.captured_packets.append(packet_info)
+            if parse_error:
+                packet_info['parse_error'] = parse_error
+                preview = packet_data[8:8 + self.DEFAULT_UNPARSED_PREVIEW_BYTES]
+                packet_info['raw_preview_hex'] = preview.hex()
+                packet_info['raw_preview_truncated'] = (
+                    payload_wire_length > len(preview)
+                )
+            if json_omitted_reason:
+                packet_info['json_omitted'] = True
+                packet_info['json_omitted_reason'] = json_omitted_reason
+                packet_info['json_limit_bytes'] = self._packet_json_max_bytes
+
+            history_size = 512 + json_size
+            if parse_error:
+                history_size += len(packet_info.get('raw_preview_hex', ''))
+            if not self.captured_packets.append(
+                packet_info,
+                size_bytes=history_size,
+            ):
+                self.logger.warning(
+                    "Packet history rejected oversized metadata for %s",
+                    name,
+                )
 
             if proto_type in self._quest_packet_types:
                 self._persist_quest_packet(packet_data, proto_type, name, message)
@@ -868,7 +1148,7 @@ class PacketCapture:
             if self.capture_info:
                 if proto_type in self.capture_info:
                     self.logger.info(f"Parsing: {name} {proto_type}")
-                    if message:
+                    if message is not None:
                         try:
                             self.capture_info[proto_type](message)
                         except Exception as handler_err:

@@ -105,18 +105,21 @@ This command will rebuild the standalone executable with PyInstaller, synchroniz
 ## ⚙️ Configuration
 ### Updating Protobuf Files After a Game Update
 
-After a **Dark and Darker** update, you will need to run:
+After a **Dark and Darker** update, run:
 ```
 UI\networking\extract.bat
 ```
 to grab the fresh `.proto` files from the game binary.
 
-> **Important:**  
-> Before running, update the path inside `extract.bat` if your game is installed somewhere other than the default.  
-> The default path is:
-> ```
-> C:\Program Files\IRONMACE\Dark and Darker\DungeonCrawler\Binaries\Win64\DungeonCrawler.exe
-> ```
+The script checks common IRONMACE and Steam library locations. For any other
+install location, pass the executable explicitly:
+```
+UI\networking\extract.bat "X:\Games\Dark and Darker\DungeonCrawler\Binaries\Win64\DungeonCrawler.exe"
+```
+It uses the repository's bundled `protoc.exe` and does not modify your Python
+environment. Successful runs also write `UI/networking/protos/_source.json`
+with the game version, executable SHA-256, file timestamp, and extraction time,
+so parser builds can be traced back to the exact game binary.
 
 We will try to keep the `.proto` files in the repository updated, but if they are outdated, you can use this script to generate the latest ones yourself.
 

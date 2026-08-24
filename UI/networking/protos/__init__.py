@@ -1,1 +1,1 @@
-# (empty – makes networking.protos a package)
+# Generated package marker for networking.protos.

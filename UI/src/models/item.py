@@ -184,11 +184,11 @@ class Item:
         if fallback:
             return fallback
 
-        left_id = id(left)
-        right_id = id(right)
-        if left_id == right_id:
-            return 0
-        return -1 if left_id < right_id else 1
+        # All requested and fallback fields are equal. Python's sort is stable,
+        # so returning equality preserves the captured item order (matching the
+        # preview) instead of introducing a hidden, process-specific memory-id
+        # tiebreaker that changes after every application restart.
+        return 0
 
     @staticmethod
     def _compare_numeric(a, b, direction):

@@ -7,6 +7,7 @@ option java_outer_classname = "s_gathering_hall";
 option java_multiple_files = false;
 
 import "_Character.proto";
+import "_Item.proto";
 
 message SGATHERING_HALL_INIT_INFO {
   string restUrl = 1;
@@ -51,5 +52,16 @@ message SD2S_GATHERING_HALL_USER_JOIN_REQ {
 message SS2D_GATHERING_HALL_USER_JOIN_RES {
   int32 result = 1;
   .DC.Packet.SGATHERING_HALL_JOIN_USER_INFO userInfo = 2;
+}
+
+message SD2S_GATHERING_HALL_ITEM_SYNC_REQ {
+  repeated .DC.Packet.SGatheringHallItem installedItems = 1;
+  repeated int64 removedInstalledIds = 3;
+  repeated .DC.Packet.SGatheringHallItem droppedItems = 4;
+  repeated int64 removedDroppedIds = 5;
+}
+
+message SS2D_GATHERING_HALL_ITEM_SYNC_RES {
+  int32 result = 1;
 }
 

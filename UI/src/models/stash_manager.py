@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 import glob
 from datetime import datetime
 from .stash_preview import parse_stashes, StashPreviewGenerator, ItemInfo
+from .search_sort import search_result_sort_key
 from .storage import Storage, StashType
 from .sort import StashSorter, LayoutPlanner, LayoutPlanError
 from src.models.game_data import item_data_manager
@@ -23,6 +24,12 @@ logger = logging.getLogger(__name__)
 
 PRIORITY_STASH_IDS: Tuple[str, ...] = ('3', '2')  # equipment first, then bag
 
+
+def _normalize_search_rarity(value: object) -> str:
+    """Normalize UI/asset rarity spelling without weakening exact matching."""
+    normalized = str(value or '').strip().casefold()
+    return 'legendary' if normalized == 'legend' else normalized
+
 class StashManager:
     def __init__(self, resource_dir: str, defer_loading=False):
         self.data_dir = get_characters_dir()
@@ -33,6 +40,7 @@ class StashManager:
         self.characters_cache = {}
         self._is_loaded = False
         self._cache_lock = threading.Lock()
+        self._load_lock = threading.RLock()
         self.resource_dir = resource_dir
         
         # Performance tracking
@@ -52,10 +60,16 @@ class StashManager:
             
     def force_reload(self):
         """Force reload of character data, ignoring the loaded flag"""
+        self._load_data(force=True)
+
+    def _ensure_loaded(self) -> None:
+        """Wait for the initial complete cache snapshot when loading is deferred."""
         with self._cache_lock:
-            self._is_loaded = False
-            self.characters_cache.clear()
-        self._load_data()
+            is_loaded = self._is_loaded
+        if not is_loaded:
+            # _load_data owns the re-entrant load lock and rechecks the flag, so
+            # concurrent deep-link/API requests share one complete initial load.
+            self._load_data()
         
     def _load_data(self, force=False):
         """
@@ -64,12 +78,18 @@ class StashManager:
         Args:
             force: If True, forces a reload even if data is already loaded
         """
-        if self._is_loaded and not force:
-            logger.info("Data already loaded, skipping reload")
-            return
+        with self._load_lock:
+            with self._cache_lock:
+                if self._is_loaded and not force:
+                    logger.info("Data already loaded, skipping reload")
+                    return
+            self._load_data_snapshot()
+
+    def _load_data_snapshot(self):
+        """Build a complete cache off to the side, then publish it atomically."""
 
         start_time = time.time()
-        self.characters_cache.clear()
+        loaded_characters = {}
         logger.info(f"Loading characters from: {self.data_dir}")
         
         # Get all JSON files with cached stat results (single syscall per file)
@@ -147,7 +167,7 @@ class StashManager:
             for result in pool.map(load_file, file_paths):
                 if result:
                     char_id = result['id']
-                    self.characters_cache[char_id] = result['character_data']
+                    loaded_characters[char_id] = result['character_data']
                     loaded_count += 1
                     
                     # Log progress for large loads
@@ -155,23 +175,25 @@ class StashManager:
                         logger.info(f"Loaded {loaded_count}/{len(json_files)} characters...")
         
         load_time = time.time() - start_time
-        self.load_stats.update({
+        next_load_stats = {
             'last_load_time': load_time,
             'characters_loaded': loaded_count,
             'files_processed': len(json_files),
             'average_load_time_per_file': load_time / len(json_files) if json_files else 0
-        })
+        }
         
         logger.info(f"Loaded {loaded_count} characters in {load_time:.2f} seconds")
-        logger.info(f"Average load time per file: {self.load_stats['average_load_time_per_file']:.4f} seconds")
+        logger.info(
+            "Average load time per file: %.4f seconds",
+            next_load_stats['average_load_time_per_file'],
+        )
         
         # Only show character details for small number of characters
-        with self._cache_lock:
-            if loaded_count <= 3:
-                for char_id, char_data in self.characters_cache.items():
-                    logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
-            else:
-                logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
+        if loaded_count <= 3:
+            for char_id, char_data in loaded_characters.items():
+                logger.info(f"Character: {char_data['nickname']} ({char_data['class']}, Level {char_data['level']})")
+        else:
+            logger.info(f"Character details hidden for performance (loaded {loaded_count} characters)")
 
         # Check for corrections based on newly loaded data
         try:
@@ -179,24 +201,26 @@ class StashManager:
             learning_manager = get_sort_learning_manager()
             if learning_manager:
                 all_items = []
-                with self._cache_lock:
-                    for char_data in self.characters_cache.values():
-                        if not char_data:
-                            continue
-                        stashes = char_data.get("stashes", {})
-                        for stash in stashes.values():
-                            if hasattr(stash, "pq"):
-                                 all_items.extend(stash.pq)
-                            elif hasattr(stash, "items"): 
-                                 all_items.extend(stash.items)
+                for char_data in loaded_characters.values():
+                    if not char_data:
+                        continue
+                    stashes = char_data.get("stashes", {})
+                    for stash in stashes.values():
+                        if hasattr(stash, "pq"):
+                             all_items.extend(stash.pq)
+                        elif hasattr(stash, "items"):
+                             all_items.extend(stash.items)
                 
                 if all_items:
                     learning_manager.check_corrections(all_items)
         except Exception as e:
             logger.warning("Failed to check for sort feedback corrections: %s", e)
 
-        # Mark data as loaded
-        self._is_loaded = True
+        # Readers keep seeing the previous complete snapshot until this swap.
+        with self._cache_lock:
+            self.characters_cache = loaded_characters
+            self.load_stats = next_load_stats
+            self._is_loaded = True
 
     @staticmethod
     def _normalize_stash_id(value: Union[str, int, None]) -> Optional[str]:
@@ -316,9 +340,7 @@ class StashManager:
 
     def get_characters(self) -> List[Dict]:
         """Get list of all characters (full data including stash items)."""
-        # Ensure data is loaded before returning characters
-        if not self._is_loaded:
-            self._load_data()
+        self._ensure_loaded()
 
         with self._cache_lock:
             return list(self.characters_cache.values())
@@ -330,8 +352,7 @@ class StashManager:
         id, nickname, class, level, lastUpdate, stash counts, rank.
         Excludes all item data so serialisation is near-instant.
         """
-        if not self._is_loaded:
-            self._load_data()
+        self._ensure_loaded()
 
         with self._cache_lock:
             chars = list(self.characters_cache.values())
@@ -357,6 +378,12 @@ class StashManager:
         return summaries
 
     def update_single_character(self, char_id: str, file_path: str = None) -> bool:
+        # Serialize incremental updates with full snapshot replacement so a
+        # capture arriving mid-reload cannot be silently discarded.
+        with self._load_lock:
+            return self._update_single_character_unlocked(char_id, file_path)
+
+    def _update_single_character_unlocked(self, char_id: str, file_path: str = None) -> bool:
         """Incrementally reload a single character from disk into the cache.
 
         Much faster than force_reload() which re-reads every file.
@@ -415,7 +442,9 @@ class StashManager:
 
     def get_character_stashes(self, character_id: str) -> Dict:
         """Get all stashes for a specific character, ensuring each stash is a list."""
-        char = self.characters_cache.get(character_id)
+        self._ensure_loaded()
+        with self._cache_lock:
+            char = self.characters_cache.get(str(character_id))
         if (char):
             stashes = char.get('stashes', {})
             # Ensure all stash values are lists
@@ -436,7 +465,9 @@ class StashManager:
         
     def get_character_details(self, character_id: str) -> Optional[Dict]:
         """Get detailed information about a specific character"""
-        char = self.characters_cache.get(character_id)
+        self._ensure_loaded()
+        with self._cache_lock:
+            char = self.characters_cache.get(str(character_id))
         if char:
             total_items = 0
             for stash in char['stashes'].values():
@@ -479,8 +510,7 @@ class StashManager:
         if not targets:
             return {}
 
-        if not self._is_loaded:
-            self._load_data()
+        self._ensure_loaded()
 
         target_set = set(targets)
 
@@ -579,17 +609,22 @@ class StashManager:
 
         return {item_id: aggregated.get(item_id, []) for item_id in targets}
 
-    def search_items(self, query: str) -> List[Dict]:
-        """Search for items across all character stashes"""
-        query = (query or '').strip()
-        if not query:
+    def search_items(self, query: str, rarity: Optional[str] = None) -> List[Dict]:
+        """Search all character stashes with optional structured filters.
+
+        ``query`` retains the existing comma-separated substring semantics.
+        ``rarity`` is deliberately separate and uses case-insensitive exact
+        matching so selecting ``Common`` cannot also match ``Uncommon``.
+        """
+        query = str(query or '').strip()
+        rarity_filter = _normalize_search_rarity(rarity)
+        if not query and not rarity_filter:
             return []
 
-        if not self._is_loaded:
-            self._load_data()
+        self._ensure_loaded()
 
-        keywords = [segment.strip().lower() for segment in query.split(',') if segment.strip()]
-        if not keywords:
+        keywords = [segment.strip().casefold() for segment in query.split(',') if segment.strip()]
+        if not keywords and not rarity_filter:
             return []
 
         characters = self.get_characters()
@@ -655,13 +690,18 @@ class StashManager:
                             sp.append((prop_name, prop.get("propertyValue")))
 
                         search_parts = [
-                            str(name).lower(),
-                            str(rarity).lower(),
-                            *[str(prop_name).lower() for prop_name, _ in pp],
-                            *[str(prop_name).lower() for prop_name, _ in sp],
+                            str(name).casefold(),
+                            str(rarity).casefold(),
+                            *[str(prop_name).casefold() for prop_name, _ in pp],
+                            *[str(prop_name).casefold() for prop_name, _ in sp],
                         ]
                         search_str = " ".join(filter(None, search_parts))
-                        if not search_str or not all(keyword in search_str for keyword in keywords):
+                        if keywords and (
+                            not search_str
+                            or not all(keyword in search_str for keyword in keywords)
+                        ):
+                            continue
+                        if rarity_filter and _normalize_search_rarity(rarity) != rarity_filter:
                             continue
 
                         item_count_raw = item.get("itemCount", 1)
@@ -709,6 +749,11 @@ class StashManager:
             with ThreadPool(max_workers=max_workers) as pool:
                 for char_results in pool.map(search_character, characters):
                     output.extend(char_results)
+
+        # Cache insertion order follows character-file modification time, which
+        # changes as packets arrive. Return a stable, user-facing order instead
+        # of letting capture timing determine the Search page layout.
+        output.sort(key=search_result_sort_key)
 
         return output
 
@@ -809,7 +854,9 @@ class StashManager:
         Optionally limit processing to the provided stash IDs to avoid
         regenerating every stash when the UI only needs a subset.
         """
-        char_data = self.characters_cache.get(str(character_id))
+        self._ensure_loaded()
+        with self._cache_lock:
+            char_data = self.characters_cache.get(str(character_id))
         stashes = self.get_character_stashes(character_id)
         preview_paths = {str(stash_id): "/static/img/placeholder.png" for stash_id in stashes.keys()}
         stash_stats = {
@@ -933,7 +980,9 @@ class StashManager:
         session = overlay_session or NullOverlaySession()
 
         session.update_status("Validating inventory data...", status="info")
-        char = self.characters_cache.get(str(character_id))
+        self._ensure_loaded()
+        with self._cache_lock:
+            char = self.characters_cache.get(str(character_id))
         if not char:
             session.update_status("Character not found in cache.", status="error")
             session.add_log("No packet data available for selected character.")
@@ -1669,7 +1718,9 @@ class StashManager:
         from src.models.item import Item
         from src.models.point import Point
 
-        char = self.characters_cache.get(str(character_id))
+        self._ensure_loaded()
+        with self._cache_lock:
+            char = self.characters_cache.get(str(character_id))
         if not char:
             return {"feasible": False, "message": "Character not found", "placeable": 0,
                     "unplaceable": 0, "total": 0, "target_free_cells": 0,

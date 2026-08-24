@@ -162,6 +162,9 @@ message S2C_GameStartServer_Json {
   uint32 dungeonGrade = 35;
   uint32 rankPointRatio = 36;
   .DC.Packet.SS3Info s3HackInfo = 37;
+  string forceArenaMap = 38;
+  uint32 arenaFirstIntermissionTimeSec = 39;
+  uint32 arenaIntermissionTimeSec = 40;
 }
 
 message C2S_GameEndServer_POST {
@@ -221,6 +224,8 @@ message SGameCharacterInfo {
   .DC.Packet.SACCOUNT_NICKNAME nickname = 31;
   uint32 deathPenalty = 32;
   repeated .DC.Packet.SMerchantAffinity affinities = 33;
+  repeated string shapeShiftSkinIds = 34;
+  repeated string monsterSummonSkinIds = 35;
 }
 
 message S2C_GameCharacterInfo_Json {
@@ -316,6 +321,8 @@ message GameResultInfo {
   repeated .DC.Packet.MonsterKillLog monsterKillAssistLogs = 31;
   repeated string faustianMonsterIds = 32;
   repeated .DC.Packet.MonsterKillLog slayerMonsterLogs = 33;
+  uint32 rankPointRatio = 34;
+  uint32 totalPlayerDamage = 35;
 }
 
 message C2S_GameEscapeUser_POST {
@@ -409,6 +416,7 @@ message SDownLog {
   uint32 logType = 1;
   uint32 logNum = 2;
   uint32 logAp = 3;
+  int32 logExp = 4;
 }
 
 message SDownCharacterInfo {
@@ -428,6 +436,8 @@ message SDownCharacterInfo {
   repeated uint64 prevGameIds = 14;
   repeated .DC.Packet.SDownLog downLogs = 15;
   repeated .DC.Packet.MonsterKillLog slayerMonsterLogs = 16;
+  float totalPlayerDamage = 17;
+  int32 partyPingSlotOneBased = 18;
 }
 
 message S2C_ContinuousMatch_CharacterInfo {
@@ -585,7 +595,6 @@ message C2S_Game_Finalize_Session_POST {
   string accountId = 3;
   string characterId = 4;
   repeated .DC.Packet.SItem recoveryItems = 5;
-  repeated .DC.Packet.SItem expressItems = 6;
 }
 
 message C2S_Game_KillCount_Data_Info {
@@ -650,5 +659,12 @@ message C2S_GATHERING_HALL_ENTER_USER {
   string accountId = 2;
   string characterId = 3;
   int32 isSuccess = 4;
+}
+
+message C2S_Game_Express_Info_POST {
+  uint64 gameId = 1;
+  string accountId = 2;
+  string characterId = 3;
+  repeated .DC.Packet.SItem expressItems = 4;
 }
 

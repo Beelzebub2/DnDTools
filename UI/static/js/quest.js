@@ -8,6 +8,27 @@
     const SERVER_SYNC_DEBOUNCE = 400;
     const HOLDINGS_CACHE_TTL = 5 * 60 * 1000;
     const HOLDINGS_BULK_CHUNK_SIZE = 20;
+    let lastQuestDataWarning = '';
+    let questPageDisposed = false;
+    let questFetchGeneration = 0;
+    let itemFetchGeneration = 0;
+    let refreshGeneration = 0;
+    let questFetchController = null;
+    let itemFetchController = null;
+
+    const showQuestDataWarning = (data) => {
+        const warning = data && data.warning ? String(data.warning) : '';
+        if (!warning || warning === lastQuestDataWarning) {
+            return;
+        }
+        lastQuestDataWarning = warning;
+        if (typeof showNotification === 'function') {
+            showNotification(warning, data && data.stale ? 'warning' : 'info', {
+                id: 'quest-data-source-warning',
+                duration: data && data.stale ? 9000 : 6500
+            });
+        }
+    };
 
     const createDefaultProgress = () => ({
         objectives: {},
@@ -40,7 +61,10 @@
     let persistTimeout = null;
     let serverPersistTimeout = null;
     let lastServerSyncPayload = '';
+    let progressSyncRevision = Date.now();
     let progressSyncInFlight = false;
+    let progressSyncRequest = null;
+    let progressSyncNeedsReconcile = false;
     const schedulePersistProgress = (progress) => {
         if (typeof window === 'undefined' || !window.localStorage) {
             return;
@@ -164,11 +188,30 @@
             return;
         }
 
+        // Once the server rejects a stale revision, no later browser snapshot
+        // is safe to publish until the winning state has been read and merged.
+        if (progressSyncNeedsReconcile) {
+            const reconciled = await syncProgressFromServer({ refreshAfterCurrent: true });
+            if (!reconciled) {
+                return;
+            }
+        }
+
         const normalized = progressPayloadForServer();
-        const payload = JSON.stringify({ progress: normalized });
-        if (payload === lastServerSyncPayload) {
+        const activeMerchants = Array.from(state.activeMerchantIds).sort();
+        const syncFingerprint = JSON.stringify({
+            progress: normalized,
+            active_merchants: activeMerchants
+        });
+        if (syncFingerprint === lastServerSyncPayload) {
             return;
         }
+        progressSyncRevision = Math.max(Date.now(), progressSyncRevision + 1);
+        const payload = JSON.stringify({
+            progress: normalized,
+            active_merchants: activeMerchants,
+            revision: progressSyncRevision
+        });
 
         const attemptSendBeacon = () => {
             if (!keepalive || typeof navigator === 'undefined' || typeof navigator.sendBeacon !== 'function') {
@@ -176,11 +219,7 @@
             }
             try {
                 const blob = new Blob([payload], { type: 'application/json' });
-                const sent = navigator.sendBeacon(PROGRESS_SYNC_ENDPOINT, blob);
-                if (sent) {
-                    lastServerSyncPayload = payload;
-                }
-                return sent;
+                return navigator.sendBeacon(PROGRESS_SYNC_ENDPOINT, blob);
             } catch (error) {
                 console.warn('Failed to persist quest progress via sendBeacon', error);
                 return false;
@@ -203,7 +242,26 @@
             if (!response.ok) {
                 throw new Error(`Server responded with ${response.status}`);
             }
-            lastServerSyncPayload = payload;
+            let responseData = null;
+            try {
+                responseData = await response.json();
+            } catch (_error) {
+                // Older/local servers may return an empty success response.
+            }
+            const serverRevision = Number(responseData && responseData.revision);
+            if (Number.isFinite(serverRevision)) {
+                progressSyncRevision = Math.max(progressSyncRevision, serverRevision);
+            }
+            if (responseData && responseData.saved === false) {
+                // A packet-capture update or another page won the revision race.
+                // Refresh and merge the winning snapshot before any retry. Sending
+                // the rejected browser snapshot again with a newer revision would
+                // otherwise erase packet-derived progress stored in the meantime.
+                progressSyncNeedsReconcile = true;
+                await syncProgressFromServer({ refreshAfterCurrent: true });
+                return;
+            }
+            lastServerSyncPayload = syncFingerprint;
         } catch (error) {
             console.warn('Failed to persist quest progress to backend', error);
         }
@@ -385,6 +443,14 @@
         }
     };
 
+    const removeHoldingsElementsFromBody = () => {
+        [elements.itemHoldingsOverlay, elements.itemHoldingsModal].forEach((element) => {
+            if (element && element.parentElement) {
+                element.parentElement.removeChild(element);
+            }
+        });
+    };
+
     ensureHoldingsElementsInBody();
     const updateItemsOwnedToggleUI = () => {
         if (!elements.itemsOwnedFirst) {
@@ -438,11 +504,12 @@
     if (elements.itemHoldingsOverlay) {
         elements.itemHoldingsOverlay.addEventListener('click', hideItemHoldingsModal);
     }
-    document.addEventListener('keydown', (event) => {
+    const _onQuestKeydown = (event) => {
         if (event.key === 'Escape' && state.activeHoldingsItemId && elements.itemHoldingsModal && !elements.itemHoldingsModal.classList.contains('hidden')) {
             hideItemHoldingsModal();
         }
-    });
+    };
+    document.addEventListener('keydown', _onQuestKeydown);
 
     const clampNumber = (value, min, max) => {
         const numeric = Number(value);
@@ -471,6 +538,8 @@
 
     const holdingsPrefetchQueue = new Set();
     let holdingsPrefetchInFlight = false;
+    let holdingsPrefetchController = null;
+    let holdingsPrefetchGeneration = 0;
 
     const getCachedHoldingsTotal = (itemId, allowedLootStates = null) => {
         if (!itemId) {
@@ -549,8 +618,8 @@
     };
 
     const enqueueHoldingsPrefetch = (ids) => {
-        if (!Array.isArray(ids) || !ids.length) {
-            return;
+        if (questPageDisposed || !Array.isArray(ids) || !ids.length) {
+            return Promise.resolve(false);
         }
         ids.forEach((rawId) => {
             const normalized = (rawId || '').toString().trim();
@@ -567,29 +636,40 @@
             holdingsPrefetchQueue.add(normalized);
         });
         if (!holdingsPrefetchInFlight) {
-            processHoldingsPrefetchQueue();
+            return processHoldingsPrefetchQueue();
         }
+        return Promise.resolve(false);
     };
 
     async function processHoldingsPrefetchQueue() {
-        if (holdingsPrefetchInFlight || holdingsPrefetchQueue.size === 0 || typeof fetch !== 'function') {
-            return;
+        if (questPageDisposed || holdingsPrefetchInFlight || holdingsPrefetchQueue.size === 0 || typeof fetch !== 'function') {
+            return false;
         }
+        const requestGeneration = ++holdingsPrefetchGeneration;
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        holdingsPrefetchController = controller;
         let shouldRerenderItems = false;
         holdingsPrefetchInFlight = true;
         try {
-            while (holdingsPrefetchQueue.size) {
+            while (!questPageDisposed && requestGeneration === holdingsPrefetchGeneration && holdingsPrefetchQueue.size) {
                 const batch = Array.from(holdingsPrefetchQueue).slice(0, HOLDINGS_BULK_CHUNK_SIZE);
                 batch.forEach(id => holdingsPrefetchQueue.delete(id));
                 try {
                     const response = await fetch(`/api/quests/items/holdings?ids=${encodeURIComponent(batch.join(','))}`, {
-                        cache: 'no-store'
+                        cache: 'no-store',
+                        ...(controller ? { signal: controller.signal } : {})
                     });
                     let payload = null;
                     try {
                         payload = await response.json();
                     } catch (parseError) {
+                        if (questPageDisposed || requestGeneration !== holdingsPrefetchGeneration || parseError?.name === 'AbortError') {
+                            return false;
+                        }
                         console.warn('Failed to parse holdings response', parseError);
+                    }
+                    if (questPageDisposed || requestGeneration !== holdingsPrefetchGeneration) {
+                        return false;
                     }
                     if (!response.ok || !payload || payload.success === false || !payload.items) {
                         console.warn('Failed to load holdings batch', response.status, payload && payload.error);
@@ -608,19 +688,38 @@
                         }
                     });
                 } catch (error) {
+                    if (questPageDisposed || requestGeneration !== holdingsPrefetchGeneration || error?.name === 'AbortError') {
+                        return false;
+                    }
                     console.warn('Error prefetching holdings batch', error);
                 }
             }
+            return !questPageDisposed && requestGeneration === holdingsPrefetchGeneration;
         } finally {
-            holdingsPrefetchInFlight = false;
-            if (holdingsPrefetchQueue.size) {
-                processHoldingsPrefetchQueue();
+            if (holdingsPrefetchController === controller) {
+                holdingsPrefetchController = null;
             }
-            if (shouldRerenderItems) {
-                renderItemsList();
+            if (requestGeneration === holdingsPrefetchGeneration) {
+                holdingsPrefetchInFlight = false;
+                if (!questPageDisposed && holdingsPrefetchQueue.size) {
+                    processHoldingsPrefetchQueue();
+                }
+                if (!questPageDisposed && shouldRerenderItems) {
+                    renderItemsList();
+                }
             }
         }
     }
+
+    const disposeHoldingsPrefetch = () => {
+        holdingsPrefetchGeneration += 1;
+        holdingsPrefetchQueue.clear();
+        holdingsPrefetchInFlight = false;
+        if (holdingsPrefetchController) {
+            holdingsPrefetchController.abort();
+            holdingsPrefetchController = null;
+        }
+    };
 
     const updateMerchantViewToggle = () => {
         if (!elements.merchantViewToggle || !elements.merchantViewToggle.length) {
@@ -1038,6 +1137,22 @@
             const adj = new Map();
             nodes.forEach(n => { indegree.set(n, 0); adj.set(n, []); });
 
+            const compareQuestKeys = (leftKey, rightKey) => {
+                const leftTitle = String(questTitleIndex.get(leftKey) || leftKey);
+                const rightTitle = String(questTitleIndex.get(rightKey) || rightKey);
+                const titleResult = leftTitle.localeCompare(rightTitle, undefined, {
+                    sensitivity: 'base',
+                    numeric: true
+                });
+                if (titleResult !== 0) {
+                    return titleResult;
+                }
+                return String(leftKey).localeCompare(String(rightKey), undefined, {
+                    sensitivity: 'base',
+                    numeric: true
+                });
+            };
+
             state.quests.forEach(q => {
                 const k = questKeyFor(q);
                 if (!k) return;
@@ -1051,28 +1166,31 @@
 
             const queue = [];
             indegree.forEach((d, node) => { if (!d) queue.push(node); });
+            queue.sort(compareQuestKeys);
 
             const order = [];
+            const processed = new Set();
             while (queue.length) {
                 const node = queue.shift();
                 order.push(node);
-                const neighbors = adj.get(node) || [];
+                processed.add(node);
+                const neighbors = (adj.get(node) || []).slice().sort(compareQuestKeys);
                 neighbors.forEach(nbr => {
                     indegree.set(nbr, (indegree.get(nbr) || 0) - 1);
                     if (indegree.get(nbr) === 0) {
                         queue.push(nbr);
                     }
                 });
+                // More than one quest can become eligible at once. Keep the
+                // frontier sorted so API pagination/insertion order never
+                // changes the quest list while preserving every dependency.
+                queue.sort(compareQuestKeys);
             }
 
             // If there are cycles or disconnected nodes not processed, append
             // them in a stable order by title so UI remains deterministic.
-            const remaining = Array.from(nodes).filter(n => !order.includes(n));
-            remaining.sort((a, b) => {
-                const ta = (questTitleIndex.get(a) || a).toLowerCase();
-                const tb = (questTitleIndex.get(b) || b).toLowerCase();
-                if (ta < tb) return -1; if (ta > tb) return 1; return 0;
-            });
+            const remaining = Array.from(nodes).filter(n => !processed.has(n));
+            remaining.sort(compareQuestKeys);
             const finalOrder = order.concat(remaining);
 
             // create a quick lookup map
@@ -1235,7 +1353,9 @@
                     // fallback to title
                     const at = (a.quest.title || ak).toLowerCase();
                     const bt = (b.quest.title || bk).toLowerCase();
-                    if (at < bt) return -1; if (at > bt) return 1; return 0;
+                    if (at < bt) return -1;
+                    if (at > bt) return 1;
+                    return ak.localeCompare(bk, undefined, { sensitivity: 'base', numeric: true });
                 });
             }
         } catch (e) {
@@ -3172,6 +3292,12 @@
     }
 
     async function fetchQuests({ force = false, silent = false } = {}) {
+        const requestGeneration = ++questFetchGeneration;
+        if (questFetchController) {
+            questFetchController.abort();
+        }
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        questFetchController = controller;
         const isFirstLoad = !state.questsLoaded;
         if (isFirstLoad) {
             toggleLoading(elements.questLoading, true);
@@ -3180,11 +3306,18 @@
         }
         showProgressBar();
         try {
-            const response = await fetch(force ? '/api/quests?refresh=1' : '/api/quests');
+            const response = await fetch(
+                force ? '/api/quests?refresh=1' : '/api/quests',
+                controller ? { signal: controller.signal, cache: 'no-store' } : { cache: 'no-store' }
+            );
             const data = await response.json();
+            if (questPageDisposed || requestGeneration !== questFetchGeneration) {
+                return false;
+            }
             if (!response.ok || data.success === false) {
                 throw new Error(data.error || 'Failed to fetch quest data');
             }
+            showQuestDataWarning(data);
 
             const rawQuests = Array.isArray(data.quests) ? data.quests : [];
             // Archive any completed quests that were present previously but are now missing
@@ -3255,7 +3388,11 @@
             renderMerchantOptions();
             renderMerchantGallery();
             renderMerchantView();
+            return true;
         } catch (error) {
+            if (questPageDisposed || requestGeneration !== questFetchGeneration || error?.name === 'AbortError') {
+                return false;
+            }
             console.error(error);
             if (!state.questsLoaded) {
                 state.questsLoaded = false;
@@ -3263,36 +3400,68 @@
             } else if (typeof showNotification === 'function') {
                 showNotification('Failed to refresh quests: ' + (error.message || 'Unknown error'), 'error');
             }
+            return false;
         } finally {
-            toggleLoading(elements.questLoading, false);
-            toggleLoading(elements.galleryLoading, false);
-            setRefreshing(elements.questList, false);
-            hideProgressBar();
+            if (questFetchController === controller) {
+                questFetchController = null;
+            }
+            if (!questPageDisposed && requestGeneration === questFetchGeneration) {
+                toggleLoading(elements.questLoading, false);
+                toggleLoading(elements.galleryLoading, false);
+                setRefreshing(elements.questList, false);
+                hideProgressBar();
+            }
         }
     }
 
-    async function syncProgressFromServer() {
-        if (progressSyncInFlight || typeof fetch !== 'function') {
-            return;
+    async function syncProgressFromServer({ refreshAfterCurrent = false } = {}) {
+        if (typeof fetch !== 'function') {
+            return false;
+        }
+        if (progressSyncRequest) {
+            const currentResult = await progressSyncRequest;
+            return refreshAfterCurrent ? syncProgressFromServer() : currentResult;
         }
 
         progressSyncInFlight = true;
+        const request = (async () => {
         try {
             const response = await fetch(PROGRESS_SYNC_ENDPOINT, { cache: 'no-store' });
             if (!response.ok) {
-                return;
+                return false;
             }
             const data = await response.json();
             if (!data || data.success === false || !data.progress) {
-                return;
+                return false;
             }
 
             const incoming = sanitizeProgressData(data.progress);
+            const serverMerchants = Array.isArray(data.active_merchants)
+                ? Array.from(new Set(data.active_merchants.map(id => String(id).trim()).filter(Boolean))).sort()
+                : [];
+            const serverFingerprint = JSON.stringify({
+                progress: incoming,
+                active_merchants: serverMerchants
+            });
+            const serverRevision = Number(data.revision);
+            if (Number.isFinite(serverRevision)) {
+                progressSyncRevision = Math.max(progressSyncRevision, serverRevision);
+            }
             const merged = mergeProgressData(state.progress, incoming);
             const normalized = sanitizeProgressData(merged);
             state.progress = normalized;
-            lastServerSyncPayload = JSON.stringify({ progress: normalized });
+            serverMerchants.forEach(id => state.activeMerchantIds.add(id));
+            lastServerSyncPayload = serverFingerprint;
+            progressSyncNeedsReconcile = false;
             schedulePersistProgress(state.progress);
+
+            const mergedFingerprint = JSON.stringify({
+                progress: normalized,
+                active_merchants: Array.from(state.activeMerchantIds).sort()
+            });
+            if (mergedFingerprint !== serverFingerprint) {
+                scheduleServerPersistProgress();
+            }
 
             if (state.questsLoaded) {
                 renderMerchantView();
@@ -3300,14 +3469,30 @@
             if (state.itemsLoaded) {
                 renderItemsList();
             }
+            return true;
         } catch (error) {
             console.warn('Failed to synchronize quest progress from backend', error);
+            return false;
+        }
+        })();
+        progressSyncRequest = request;
+        try {
+            return await request;
         } finally {
-            progressSyncInFlight = false;
+            if (progressSyncRequest === request) {
+                progressSyncRequest = null;
+                progressSyncInFlight = false;
+            }
         }
     }
 
     async function fetchItems({ force = false } = {}) {
+        const requestGeneration = ++itemFetchGeneration;
+        if (itemFetchController) {
+            itemFetchController.abort();
+        }
+        const controller = typeof AbortController === 'function' ? new AbortController() : null;
+        itemFetchController = controller;
         const isFirstLoad = !state.itemsLoaded;
         if (isFirstLoad) {
             ensureItemsLoaderAttached();
@@ -3317,16 +3502,27 @@
         }
         showProgressBar();
         try {
-            const response = await fetch(force ? '/api/quests/items?refresh=1' : '/api/quests/items');
+            const response = await fetch(
+                force ? '/api/quests/items?refresh=1' : '/api/quests/items',
+                controller ? { signal: controller.signal, cache: 'no-store' } : { cache: 'no-store' }
+            );
             const data = await response.json();
+            if (questPageDisposed || requestGeneration !== itemFetchGeneration) {
+                return false;
+            }
             if (!response.ok || data.success === false) {
                 throw new Error(data.error || 'Failed to fetch quest requirements');
             }
+            showQuestDataWarning(data);
 
             state.aggregatedItems = data.items || [];
             state.itemsLoaded = true;
             renderItemsList();
+            return true;
         } catch (error) {
+            if (questPageDisposed || requestGeneration !== itemFetchGeneration || error?.name === 'AbortError') {
+                return false;
+            }
             console.error(error);
             if (!state.itemsLoaded) {
                 state.itemsLoaded = false;
@@ -3338,22 +3534,33 @@
             } else if (typeof showNotification === 'function') {
                 showNotification('Failed to refresh items: ' + (error.message || 'Unknown error'), 'error');
             }
+            return false;
         } finally {
-            toggleLoading(elements.itemsLoading, false);
-            setRefreshing(elements.itemsList, false);
-            hideProgressBar();
+            if (itemFetchController === controller) {
+                itemFetchController = null;
+            }
+            if (!questPageDisposed && requestGeneration === itemFetchGeneration) {
+                toggleLoading(elements.itemsLoading, false);
+                setRefreshing(elements.itemsList, false);
+                hideProgressBar();
+            }
         }
     }
 
     async function refreshAll({ force = false } = {}) {
+        const requestGeneration = ++refreshGeneration;
         const results = await Promise.allSettled([
             fetchQuests({ force, silent: force }),
             fetchItems({ force })
         ]);
-        const anyFailed = results.some(r => r.status === 'rejected');
-        if (force && typeof showNotification === 'function' && !anyFailed) {
+        if (questPageDisposed || requestGeneration !== refreshGeneration) {
+            return false;
+        }
+        const succeeded = results.every(result => result.status === 'fulfilled' && result.value === true);
+        if (force && typeof showNotification === 'function' && succeeded) {
             showNotification('Quest data refreshed', 'success');
         }
+        return succeeded;
     }
 
     function switchView(view) {
@@ -3680,16 +3887,29 @@
 
             // Helper: normalise an identifier for fuzzy comparison.
             // "Skeleton Champion" / "SkeletonChampion" / "skeleton_champion" → "skeletonchampion"
-            const normId = (s) => String(s || '').toLowerCase().replace(/[\s_\-]+/g, '');
+            const normId = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+            const matchKeys = (s) => {
+                const normalized = normId(s);
+                if (!normalized) return [];
+                const keys = [normalized];
+                // V2 objectives identify the family ("Bandage"), while game
+                // packets identify a concrete grade ("Bandage_4001").
+                const family = normalized.replace(/[1-8]001$/, '');
+                if (family && family !== normalized) keys.push(family);
+                return keys;
+            };
 
             // Pre-build a lookup of normalised objective fields → objective index
             // so we can match packet content_ids to DarkerDB monster/item/interact fields.
-            const objFieldIndex = new Map(); // normId → first objective index
+            const objFieldIndex = new Map(); // match key → objective indices
             objectives.forEach((obj, idx) => {
                 [obj.item_id, obj.monster, obj.monster_type, obj.interact, obj.module].forEach(f => {
                     if (f) {
-                        const k = normId(f);
-                        if (!objFieldIndex.has(k)) objFieldIndex.set(k, idx);
+                        matchKeys(f).forEach(k => {
+                            if (!objFieldIndex.has(k)) objFieldIndex.set(k, []);
+                            const indices = objFieldIndex.get(k);
+                            if (!indices.includes(idx)) indices.push(idx);
+                        });
                     }
                 });
             });
@@ -3697,6 +3917,14 @@
             // Track which objective indices have been claimed by a mission
             // to avoid two missions matching the same objective.
             const claimedObjectives = new Set();
+            const firstUnclaimedIndex = (value) => {
+                for (const key of matchKeys(value)) {
+                    const indices = objFieldIndex.get(key) || [];
+                    const candidate = indices.find(idx => !claimedObjectives.has(idx));
+                    if (candidate !== undefined) return candidate;
+                }
+                return undefined;
+            };
 
             // Strategy: match captured missions to objectives by content-based
             // matching first, positional second.  Content-based matching normalises
@@ -3712,17 +3940,15 @@
 
                 // 1. Content-based: try normalised contentId against objective fields
                 if (contentId) {
-                    const normContent = normId(contentId);
-                    const idx = objFieldIndex.get(normContent);
-                    if (idx !== undefined && !claimedObjectives.has(idx)) {
+                    const idx = firstUnclaimedIndex(contentId);
+                    if (idx !== undefined) {
                         matchedObj = objectives[idx];
                         matchedIndex = idx;
                     }
                     // If exact lookup missed, try against raw contentId as well
                     if (!matchedObj) {
-                        const normRaw = normId(rawContentId);
-                        const idxRaw = objFieldIndex.get(normRaw);
-                        if (idxRaw !== undefined && !claimedObjectives.has(idxRaw)) {
+                        const idxRaw = firstUnclaimedIndex(rawContentId);
+                        if (idxRaw !== undefined) {
                             matchedObj = objectives[idxRaw];
                             matchedIndex = idxRaw;
                         }
@@ -3954,11 +4180,19 @@
     // Start polling once quests are loaded
     const originalRefreshAll = refreshAll;
     refreshAll = async function (opts) {
-        await originalRefreshAll(opts);
+        const refreshPromise = originalRefreshAll(opts);
+        const requestGeneration = refreshGeneration;
+        const succeeded = await refreshPromise;
+        if (questPageDisposed || requestGeneration !== refreshGeneration) {
+            return false;
+        }
         if (state.questsLoaded) {
             restoreCapturedFlags();
             // Merge server-persisted active merchants (survives app restarts)
             const serverAdded = await loadActiveMerchantsFromServer();
+            if (questPageDisposed || requestGeneration !== refreshGeneration) {
+                return false;
+            }
             renderMerchantGallery();
             renderMerchantOptions();
             renderMerchantView();
@@ -3967,6 +4201,7 @@
             }
             startAutoTrackPolling();
         }
+        return succeeded;
     };
 
     function _onQuestDataCleared() {
@@ -4000,7 +4235,6 @@
     function _onQuestBeforeUnload() {
         stopAutoTrackPolling();
         saveCapturedFlags();
-        sendActiveMerchantsToServer({ keepalive: true });
         scheduleServerPersistProgress({ immediate: true });
     }
 
@@ -4010,10 +4244,32 @@
     // Register cleanup for AJAX router
     window.__pageCleanup = window.__pageCleanup || [];
     window.__pageCleanup.push(function () {
+        questPageDisposed = true;
+        questFetchGeneration += 1;
+        itemFetchGeneration += 1;
+        refreshGeneration += 1;
+        if (questFetchController) {
+            questFetchController.abort();
+            questFetchController = null;
+        }
+        if (itemFetchController) {
+            itemFetchController.abort();
+            itemFetchController = null;
+        }
+        disposeHoldingsPrefetch();
+
+        if (elements.itemHoldingsClose) {
+            elements.itemHoldingsClose.removeEventListener('click', hideItemHoldingsModal);
+        }
+        if (elements.itemHoldingsOverlay) {
+            elements.itemHoldingsOverlay.removeEventListener('click', hideItemHoldingsModal);
+        }
+        hideItemHoldingsModal();
+        removeHoldingsElementsFromBody();
+
         // Persist data before leaving
         stopAutoTrackPolling();
         saveCapturedFlags();
-        sendActiveMerchantsToServer({ keepalive: true });
         scheduleServerPersistProgress({ immediate: true });
 
         // Clear all timers
@@ -4028,6 +4284,7 @@
         window.removeEventListener('scroll', scheduleHoldingsPositionUpdate, true);
         window.removeEventListener('questDataCleared', _onQuestDataCleared);
         window.removeEventListener('beforeunload', _onQuestBeforeUnload);
+        document.removeEventListener('keydown', _onQuestKeydown);
 
         // Clean globals
         window.onQuestPacketEvent = undefined;

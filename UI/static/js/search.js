@@ -1,6 +1,12 @@
-let searchTimeout;
-let globalTooltip;
-let tooltipHideTimeout;
+(function () {
+'use strict';
+
+// The AJAX router re-evaluates this file whenever Search is revisited. Keep
+// lexical declarations scoped to this execution so route re-entry cannot fail
+// with "Identifier has already been declared".
+let searchTimeout = null;
+let globalTooltip = null;
+let tooltipHideTimeout = null;
 
 const rarityColors = {
     'None': '#808080',      // Gray
@@ -14,6 +20,21 @@ const rarityColors = {
     'Legendary': '#FF8000', // Orange (alternate name)
     'Unique': '#FFD700',    // Gold
     'Artifact': '#FF0000'   // Red
+};
+
+const rarityRanks = {
+    'none': 0,
+    'poor': 1,
+    'common': 2,
+    'unknown': 2,
+    'uncommon': 3,
+    'rare': 4,
+    'epic': 5,
+    'legend': 6,
+    'legendary': 6,
+    'unique': 7,
+    'mythic': 8,
+    'artifact': 9
 };
 
 // Global tooltip functions - same as character page
@@ -332,6 +353,29 @@ function getStashTypeDisplay(stashId) {
         const resultsCount = document.getElementById('resultsCount');
         const filterRarity = document.getElementById('filterRarity');
 
+        // A route can change while its script is still loading. Do not bind a
+        // detached Search controller to whatever page replaced it.
+        if (!searchInput || !searchResults || !clearSearch || !searchMeta || !resultsCount) {
+            return;
+        }
+
+        let disposed = false;
+        let requestVersion = 0;
+        let searchAbortController = null;
+        let preloadAbortController = null;
+
+        const cancelPendingSearch = () => {
+            requestVersion += 1;
+            if (searchTimeout !== null) {
+                window.clearTimeout(searchTimeout);
+                searchTimeout = null;
+            }
+            if (searchAbortController) {
+                searchAbortController.abort();
+                searchAbortController = null;
+            }
+        };
+
         // Show initial loading if data hasn't been loaded yet
         let isInitialLoad = true;
 
@@ -341,13 +385,20 @@ function getStashTypeDisplay(stashId) {
                 if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.get_characters === 'function') {
                     await window.pywebview.api.get_characters();
                 } else {
-                    const response = await fetch('/api/characters');
+                    preloadAbortController = new AbortController();
+                    const response = await fetch('/api/characters', { signal: preloadAbortController.signal });
                     await response.json();
                 }
-                isInitialLoad = false;
+                if (!disposed) {
+                    isInitialLoad = false;
+                }
             } catch (error) {
-                console.warn('Failed to preload character data:', error);
-                isInitialLoad = false;
+                if (!disposed && error.name !== 'AbortError') {
+                    console.warn('Failed to preload character data:', error);
+                    isInitialLoad = false;
+                }
+            } finally {
+                preloadAbortController = null;
             }
         };
 
@@ -356,17 +407,12 @@ function getStashTypeDisplay(stashId) {
 
         // ── Filter helpers ─────────────────────────────────────────────
 
-        /** Build the final API query string from text input + rarity dropdown. */
-        function buildCompositeQuery() {
-            const parts = [];
-            const textValue = searchInput.value.trim();
-            if (textValue) parts.push(textValue);
-
-            if (filterRarity && filterRarity.value) {
-                parts.push(filterRarity.value);
-            }
-
-            return parts.join(', ');
+        /** Keep free text and exact-match filters separate across both APIs. */
+        function getSearchCriteria() {
+            return {
+                query: searchInput.value.trim(),
+                rarity: filterRarity ? filterRarity.value.trim() : ''
+            };
         }
 
         /** Update the visual state of the rarity dropdown. */
@@ -376,20 +422,22 @@ function getStashTypeDisplay(stashId) {
             }
         }
 
-        /** Trigger a search using the composite query (text + rarity filter). */
+        /** Trigger a search using the current text and structured filters. */
         function triggerFilteredSearch() {
             updateFilterUI();
-            const compositeQuery = buildCompositeQuery();
-            if (compositeQuery) {
-                performSearch(compositeQuery);
+            const criteria = getSearchCriteria();
+            if (criteria.query || criteria.rarity) {
+                performSearch(criteria.query, criteria.rarity);
             } else {
+                cancelPendingSearch();
                 showEmptyState();
                 updateResultsCount(0, '');
             }
         }
 
         // ── Clear search ────────────────────────────────────────────────
-        clearSearch.addEventListener('click', () => {
+        const handleClearSearch = () => {
+            cancelPendingSearch();
             searchInput.value = '';
             if (filterRarity) filterRarity.value = '';
             clearSearch.style.display = 'none';
@@ -398,10 +446,11 @@ function getStashTypeDisplay(stashId) {
             updateFilterUI();
             showEmptyState();
             searchInput.focus();
-        });
+        };
+        clearSearch.addEventListener('click', handleClearSearch);
 
         // Show/hide clear button based on input
-        searchInput.addEventListener('input', (e) => {
+        const handleSearchInput = (e) => {
             const value = e.target.value.trim();
             clearSearch.style.display = value ? 'flex' : 'none';
 
@@ -409,11 +458,13 @@ function getStashTypeDisplay(stashId) {
                 searchMeta.textContent = '';
                 resultsCount.textContent = '';
             }
-        });
+        };
+        searchInput.addEventListener('input', handleSearchInput);
 
         // ── Filter event handler ────────────────────────────────────────
+        const handleRarityChange = () => triggerFilteredSearch();
         if (filterRarity) {
-            filterRarity.addEventListener('change', () => triggerFilteredSearch());
+            filterRarity.addEventListener('change', handleRarityChange);
         }
 
         const showEmptyState = () => {
@@ -451,9 +502,33 @@ function getStashTypeDisplay(stashId) {
 
         const displayResults = (results, query = '') => {
             const container = document.getElementById('searchResults');
+            if (!container || disposed) {
+                return;
+            }
             container.innerHTML = '';
 
             const groupedResults = groupItems(results);
+            // Character files are loaded newest-first and searched in worker
+            // threads, neither of which is a useful display order. Keep the
+            // grouped result list stable and predictable for every search.
+            groupedResults.sort((left, right) => {
+                const leftItem = normalizeItem(left.item);
+                const rightItem = normalizeItem(right.item);
+                const nameResult = leftItem.name.localeCompare(rightItem.name, undefined, {
+                    sensitivity: 'base',
+                    numeric: true
+                });
+                if (nameResult !== 0) {
+                    return nameResult;
+                }
+                const leftRarity = rarityRanks[leftItem.rarity.toLowerCase()] ?? -1;
+                const rightRarity = rarityRanks[rightItem.rarity.toLowerCase()] ?? -1;
+                const rarityResult = rightRarity - leftRarity;
+                if (rarityResult !== 0) {
+                    return rarityResult;
+                }
+                return sanitizeCount(right.itemCount, 0) - sanitizeCount(left.itemCount, 0);
+            });
             updateResultsCount(groupedResults.length, query);
 
             if (groupedResults.length === 0) {
@@ -694,30 +769,54 @@ function getStashTypeDisplay(stashId) {
             });
         };
 
-        const performSearch = async (query) => {
-            const trimmedQuery = query.trim();
+        const performSearch = async (query, rarity = '') => {
+            const trimmedQuery = String(query || '').trim();
+            const selectedRarity = String(rarity || '').trim();
+            const resultLabel = [trimmedQuery, selectedRarity].filter(Boolean).join(' · ');
 
-            if (!trimmedQuery) {
+            if (!trimmedQuery && !selectedRarity) {
+                cancelPendingSearch();
                 showEmptyState();
                 updateResultsCount(0, '');
                 return;
             }
 
+            const thisRequest = ++requestVersion;
+            if (searchAbortController) {
+                searchAbortController.abort();
+                searchAbortController = null;
+            }
             showLoadingState();
-            console.log('Performing search for:', trimmedQuery);
+            console.log('Performing search for:', { query: trimmedQuery, rarity: selectedRarity });
 
             try {
                 let details;
                 if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.search_items === 'function') {
                     console.log('Using pywebview API for search');
-                    details = await window.pywebview.api.search_items(trimmedQuery);
+                    details = await window.pywebview.api.search_items(trimmedQuery, selectedRarity);
                 } else {
                     console.log('Using fetch API for search');
-                    const res = await fetch(`/api/search_items?query=${encodeURIComponent(trimmedQuery)}`);
+                    searchAbortController = new AbortController();
+                    const params = new URLSearchParams();
+                    if (trimmedQuery) params.set('query', trimmedQuery);
+                    if (selectedRarity) params.set('rarity', selectedRarity);
+                    const res = await fetch(`/api/search_items?${params.toString()}`, {
+                        signal: searchAbortController.signal
+                    });
                     if (!res.ok) {
                         throw new Error(`HTTP ${res.status}: ${res.statusText}`);
                     }
                     details = await res.json();
+                }
+
+                // pywebview calls cannot be aborted, so also guard every
+                // completion with a generation token. A slow old query must
+                // never overwrite the results from a newer query or page.
+                if (disposed || thisRequest !== requestVersion) {
+                    return;
+                }
+                if (!Array.isArray(details)) {
+                    throw new Error('Search returned an invalid response');
                 }
 
                 // Mark initial load as complete after first successful search
@@ -726,21 +825,38 @@ function getStashTypeDisplay(stashId) {
                 }
 
                 console.log('Search results:', details.length, 'items found');
-                displayResults(details, trimmedQuery);
+                displayResults(details, resultLabel);
             } catch (error) {
+                if (disposed || thisRequest !== requestVersion || error.name === 'AbortError') {
+                    return;
+                }
                 console.error('Search error:', error);
                 searchResults.innerHTML = `
                 <div class="empty-search-state">
                     <span class="material-icons">error_outline</span>
                     <h3>Search Error</h3>
-                    <p>There was an error searching your items: ${error.message}</p>
+                    <p>There was an error searching your items: ${escapeHtml(error.message)}</p>
                     <p>Please try again or check the console for more details.</p>
                 </div>
             `;
-                updateResultsCount(0, trimmedQuery);
+                updateResultsCount(0, resultLabel);
+            } finally {
+                if (thisRequest === requestVersion) {
+                    searchAbortController = null;
+                }
             }
-        };    // Debounced search with improved timing — uses composite query (text + filters)
-        const debouncedSearch = debounce(() => triggerFilteredSearch(), 200);
+        };    // Debounced search with improved timing and structured filters
+        const debouncedSearch = () => {
+            if (searchTimeout !== null) {
+                window.clearTimeout(searchTimeout);
+            }
+            searchTimeout = window.setTimeout(() => {
+                searchTimeout = null;
+                if (!disposed) {
+                    triggerFilteredSearch();
+                }
+            }, 200);
+        };
         searchInput.addEventListener('input', debouncedSearch);
 
         // Initial filter UI state
@@ -755,8 +871,22 @@ function getStashTypeDisplay(stashId) {
         // Register cleanup for AJAX router
         window.__pageCleanup = window.__pageCleanup || [];
         window.__pageCleanup.push(function () {
-            clearTimeout(searchTimeout);
-            clearTimeout(tooltipHideTimeout);
+            disposed = true;
+            cancelPendingSearch();
+            if (preloadAbortController) {
+                preloadAbortController.abort();
+                preloadAbortController = null;
+            }
+            if (tooltipHideTimeout !== null) {
+                window.clearTimeout(tooltipHideTimeout);
+                tooltipHideTimeout = null;
+            }
+            searchInput.removeEventListener('input', debouncedSearch);
+            searchInput.removeEventListener('input', handleSearchInput);
+            clearSearch.removeEventListener('click', handleClearSearch);
+            if (filterRarity) {
+                filterRarity.removeEventListener('change', handleRarityChange);
+            }
             if (globalTooltip && globalTooltip.parentNode) {
                 globalTooltip.parentNode.removeChild(globalTooltip);
                 globalTooltip = null;
@@ -764,9 +894,10 @@ function getStashTypeDisplay(stashId) {
         });
     }
 
-    if (document.readyState === 'complete') {
+    if (document.readyState !== 'loading') {
         searchPageInit();
     } else {
-        window.addEventListener('load', searchPageInit, { once: true });
+        document.addEventListener('DOMContentLoaded', searchPageInit, { once: true });
     }
+})();
 })();

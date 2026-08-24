@@ -77,6 +77,7 @@ message SSHOP_RED_STONE_SHARD_INFO {
   string redirectionUrl = 5;
   string customData = 6;
   string productName = 7;
+  uint32 bonusCount = 8;
 }
 
 message SS2C_SHOP_RED_STONE_SHARD_INFO_RES {

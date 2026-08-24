@@ -28,14 +28,54 @@
     window.clearError = clearError;
     window.escapeHtml = escapeHtml;
 
+    function loadExpandedIds() {
+        try {
+            const raw = localStorage.getItem('packetViewerExpanded');
+            if (!raw) return new Set();
+
+            const parsed = JSON.parse(raw);
+            if (!Array.isArray(parsed)) {
+                throw new TypeError('packetViewerExpanded must be an array');
+            }
+
+            return new Set(parsed.filter(function (id) {
+                return Number.isFinite(Number(id));
+            }));
+        } catch (error) {
+            // A partial/corrupt browser-storage write must never prevent the
+            // packet viewer from loading for the rest of the app session.
+            try { localStorage.removeItem('packetViewerExpanded'); } catch (storageError) { /* ignore */ }
+            return new Set();
+        }
+    }
+
+    function saveExpandedIds(expandedIds) {
+        try {
+            localStorage.setItem('packetViewerExpanded', JSON.stringify(Array.from(expandedIds)));
+        } catch (error) {
+            // Expansion state is optional. Browsing packets must continue when
+            // storage is unavailable, disabled, or over quota.
+        }
+    }
+
     /* ── State ── */
     let allPacketTypes = [];
-    let knownTypes = new Set();       // tracks all types we've ever seen, to detect truly new ones
+    let knownTypes = new Set();       // tracks the previous recent-type snapshot
     let selectedTypes = new Set();
     let hiddenTypes = new Set();
-    let expandedIds = new Set(JSON.parse(localStorage.getItem('packetViewerExpanded') || '[]'));
+    let expandedIds = loadExpandedIds();
     let filtersCollapsed = false;
     let initialLoadDone = false;
+    let packetCache = new Map();
+    let lastSeenPacketId = null;
+    let packetsRequestInFlight = false;
+    let packetsReloadPending = false;
+    let typesRequestInFlight = false;
+    let disposed = false;
+    let packetPollId = null;
+    let typePollId = null;
+    const activeControllers = new Set();
+    const MAX_RENDERED_PACKETS = 250;
 
     /* ── Filter Panel Toggle ── */
     function setupFilterToggle() {
@@ -55,16 +95,20 @@
 
     /* ── Load Packet Types ── */
     async function loadPacketTypes() {
+        if (disposed || typesRequestInFlight) return false;
+        typesRequestInFlight = true;
+        var controller = new AbortController();
+        activeControllers.add(controller);
         try {
             const [typesRes, hiddenRes] = await Promise.all([
-                fetch('/api/packet_viewer/types'),
-                fetch('/api/packet_viewer/hidden')
+                fetch('/api/packet_viewer/types', { signal: controller.signal, cache: 'no-store' }),
+                fetch('/api/packet_viewer/hidden', { signal: controller.signal, cache: 'no-store' })
             ]);
 
             if (!typesRes.ok) {
-                if (typesRes.status === 403) { showError('Developer mode required to view packet types.'); return; }
+                if (typesRes.status === 403) { showError('Developer mode required to view packet types.'); return false; }
                 showError('Failed to load packet types: ' + typesRes.status);
-                return;
+                return false;
             }
 
             if (!hiddenRes.ok) {
@@ -76,6 +120,7 @@
 
             const newTypes = await typesRes.json();
             const incomingTypes = newTypes.filter(function (name) { return /^[A-Z0-9_]+$/.test(name); });
+            var selectionChanged = false;
 
             if (!initialLoadDone) {
                 // First load: select everything that isn't hidden
@@ -83,9 +128,10 @@
                 knownTypes = new Set(incomingTypes);
                 selectedTypes = new Set(incomingTypes.filter(function (t) { return !hiddenTypes.has(t); }));
                 initialLoadDone = true;
+                selectionChanged = true;
                 renderTypeFilters();
             } else {
-                // Subsequent refreshes: only auto-select truly NEW types we haven't seen before
+                // Subsequent refreshes: auto-select types new to this snapshot.
                 var needsRerender = false;
                 for (var i = 0; i < incomingTypes.length; i++) {
                     var t = incomingTypes[i];
@@ -95,22 +141,35 @@
                             selectedTypes.add(t);
                         }
                         needsRerender = true;
+                        selectionChanged = true;
                     }
                 }
                 // Remove types that no longer exist from our lists
                 selectedTypes.forEach(function (s) {
-                    if (!incomingTypes.includes(s)) { selectedTypes.delete(s); needsRerender = true; }
+                    if (!incomingTypes.includes(s)) {
+                        selectedTypes.delete(s);
+                        needsRerender = true;
+                        selectionChanged = true;
+                    }
                 });
                 allPacketTypes = incomingTypes;
+                // Recent packet types come from bounded history, so a type can
+                // disappear and later return. Forget absent types so returning
+                // ones are rendered and selected again.
+                knownTypes = new Set(incomingTypes);
                 if (needsRerender) {
                     renderTypeFilters();
                 }
             }
-
-            await loadPackets();
+            return selectionChanged;
         } catch (error) {
+            if (error && error.name === 'AbortError') return false;
             console.error('Failed to load packet types:', error);
             showError('Failed to load packet types. See console for details.');
+            return false;
+        } finally {
+            activeControllers.delete(controller);
+            typesRequestInFlight = false;
         }
     }
 
@@ -119,7 +178,7 @@
         if (selectedTypes.has(type)) selectedTypes.delete(type);
         else selectedTypes.add(type);
         updateChipStates();
-        loadPackets();
+        loadPackets({ reset: true });
     }
 
     function hideType(type, event) {
@@ -148,7 +207,7 @@
             if (res.ok) {
                 hiddenTypes = new Set(types);
                 renderTypeFilters();
-                await loadPackets();
+                await loadPackets({ reset: true });
             } else {
                 var text = await res.text();
                 showError('Failed to update hidden types: ' + text);
@@ -231,7 +290,7 @@
                 e.stopPropagation();
                 selectedTypes = new Set(allPacketTypes.filter(function (t) { return !hiddenTypes.has(t); }));
                 updateChipStates();
-                loadPackets();
+                loadPackets({ reset: true });
             };
         }
         if (deselBtn) {
@@ -239,38 +298,88 @@
                 e.stopPropagation();
                 selectedTypes.clear();
                 updateChipStates();
-                loadPackets();
+                loadPackets({ reset: true });
             };
         }
     }
 
     /* ── Load Packets ── */
-    async function loadPackets() {
-        clearError();
+    async function loadPackets(options) {
+        options = options || {};
+        var reset = options.reset === true;
+        if (disposed) return;
+        if (packetsRequestInFlight) {
+            if (reset) packetsReloadPending = true;
+            return;
+        }
+
+        packetsRequestInFlight = true;
+        var controller = new AbortController();
+        activeControllers.add(controller);
         try {
             var types = Array.from(selectedTypes);
 
             // Nothing selected → show empty state immediately, no fetch needed
             if (types.length === 0) {
+                packetCache.clear();
+                lastSeenPacketId = null;
                 renderPackets([]);
                 return;
             }
 
-            // Always pass explicit types so the backend only returns what's selected
-            var url = '/api/packets?' + types.map(function (t) { return 'types=' + encodeURIComponent(t); }).join('&');
+            // Initial/filter reads are capped snapshots. Polls only request ids
+            // newer than the latest record already rendered.
+            var params = types.map(function (t) { return 'types=' + encodeURIComponent(t); });
+            params.push('limit=' + MAX_RENDERED_PACKETS);
+            if (!reset && lastSeenPacketId !== null) {
+                params.push('after_id=' + encodeURIComponent(lastSeenPacketId));
+            }
+            var url = '/api/packets?' + params.join('&');
 
-            var response = await fetch(url);
+            var response = await fetch(url, {
+                signal: controller.signal,
+                cache: 'no-store'
+            });
             if (response.ok) {
                 var packets = await response.json();
-                renderPackets(packets);
+                if (reset) {
+                    packetCache.clear();
+                    lastSeenPacketId = null;
+                }
+
+                packets.forEach(function (packet) {
+                    var id = Number(packet.id);
+                    if (!Number.isFinite(id)) return;
+                    packetCache.set(id, packet);
+                    if (lastSeenPacketId === null || id > lastSeenPacketId) {
+                        lastSeenPacketId = id;
+                    }
+                });
+
+                while (packetCache.size > MAX_RENDERED_PACKETS) {
+                    packetCache.delete(packetCache.keys().next().value);
+                }
+
+                clearError();
+                renderPackets(Array.from(packetCache.values()).sort(function (a, b) {
+                    return Number(a.id) - Number(b.id);
+                }));
             } else if (response.status === 403) {
                 showError('Developer mode required to view packets.');
             } else {
                 showError('Failed to load packets: ' + response.status);
             }
         } catch (error) {
+            if (error && error.name === 'AbortError') return;
             console.error('Failed to load packets:', error);
             showError('Failed to load packets. See console for details.');
+        } finally {
+            activeControllers.delete(controller);
+            packetsRequestInFlight = false;
+            if (packetsReloadPending && !disposed) {
+                packetsReloadPending = false;
+                loadPackets({ reset: true });
+            }
         }
     }
 
@@ -293,46 +402,44 @@
         var noPacketsEl = container.querySelector('.no-packets');
         if (noPacketsEl) noPacketsEl.remove();
 
-        var incomingIds = packets.map(function (p) { return p.id; });
+        var incomingIds = new Set(packets.map(function (p) { return Number(p.id); }));
         var existingNodes = Array.from(container.querySelectorAll('.packet-item'));
+        var existingById = new Map();
 
         // Remove nodes no longer present
         existingNodes.forEach(function (node) {
             var id = Number(node.dataset.packetId);
-            if (!incomingIds.includes(id)) node.remove();
+            if (!incomingIds.has(id)) node.remove();
+            else existingById.set(id, node);
         });
 
-        // Insert/update nodes
+        // Expanded ids used to grow for the entire process lifetime. Keep only
+        // ids that can still be rendered.
+        var expandedChanged = false;
+        expandedIds.forEach(function (id) {
+            if (!incomingIds.has(Number(id))) {
+                expandedIds.delete(id);
+                expandedChanged = true;
+            }
+        });
+        if (expandedChanged) {
+            saveExpandedIds(expandedIds);
+        }
+
+        // Packet records are immutable. Reuse existing nodes and only format
+        // JSON for newly arrived packets.
         for (var idx = 0; idx < packets.length; idx++) {
             var packet = packets[idx];
-            var id = packet.id;
-            var existing = container.querySelector('.packet-item[data-packet-id="' + id + '"]');
+            var id = Number(packet.id);
+            var node = existingById.get(id);
+            if (!node) {
+                node = createPacketNode(packet, idx);
+                existingById.set(id, node);
+            }
 
-            if (existing) {
-                // Update timestamp
-                var tsEl = existing.querySelector('.packet-timestamp');
-                if (tsEl && tsEl.textContent !== packet.timestamp) tsEl.textContent = packet.timestamp;
-
-                // Update JSON content
-                var jsonEl = existing.querySelector('.packet-json');
-                var newContent = formatJsonContent(packet);
-                if (jsonEl && jsonEl.innerHTML !== newContent) jsonEl.innerHTML = newContent;
-
-                // Update expanded state
-                if (jsonEl) {
-                    var isExpanded = expandedIds.has(id);
-                    jsonEl.classList.toggle('expanded', isExpanded);
-                    existing.classList.toggle('expanded', isExpanded);
-                }
-
-                // Maintain order
-                var children = container.children;
-                if (children[idx] !== existing) {
-                    if (children.length > idx) container.insertBefore(existing, children[idx]);
-                    else container.appendChild(existing);
-                }
-            } else {
-                container.insertBefore(createPacketNode(packet, idx), container.children[idx] || null);
+            var currentAtIndex = container.children[idx];
+            if (currentAtIndex !== node) {
+                container.insertBefore(node, currentAtIndex || null);
             }
         }
     }
@@ -474,8 +581,27 @@
             }
             return '<pre>' + escapeHtml(jsonStr) + '</pre>';
         }
+        if (packet.json_omitted) {
+            var omittedReasons = {
+                wire_payload_too_large: 'Wire payload is too large to expand safely',
+                expanded_json_too_large: 'Expanded JSON exceeds the packet viewer memory limit',
+                json_conversion_failed: 'Parsed message could not be converted to JSON'
+            };
+            var reason = omittedReasons[packet.json_omitted_reason] ||
+                'Packet JSON was omitted to protect memory';
+            return '<div class="packet-json-empty packet-json-empty--warn"><span class="material-icons">data_usage</span> ' +
+                escapeHtml(reason) + ' (' + formatBytes(packet.raw_length || 0) + ')</div>';
+        }
         if (packet.parsed === false) {
-            return '<div class="packet-json-empty packet-json-empty--warn"><span class="material-icons">warning</span> Could not parse proto message (raw_length: ' + (packet.raw_length || '?') + ' bytes)</div>';
+            var diagnostic = packet.parse_error
+                ? '<br><small>' + escapeHtml(packet.parse_error) + '</small>'
+                : '';
+            var preview = packet.raw_preview_hex
+                ? '<details><summary>Raw payload preview</summary><pre>' + escapeHtml(packet.raw_preview_hex) +
+                    (packet.raw_preview_truncated ? '…' : '') + '</pre></details>'
+                : '';
+            return '<div class="packet-json-empty packet-json-empty--warn"><span class="material-icons">warning</span> Could not parse proto message (raw_length: ' +
+                (packet.raw_length || '?') + ' bytes)' + diagnostic + preview + '</div>';
         }
         return '<div class="packet-json-empty"><span class="material-icons">info</span> No parsed JSON available</div>';
     }
@@ -529,7 +655,7 @@
         if (isExpanded) expandedIds.add(id);
         else expandedIds.delete(id);
 
-        localStorage.setItem('packetViewerExpanded', JSON.stringify(Array.from(expandedIds)));
+        saveExpandedIds(expandedIds);
     }
     window.toggleJsonId = toggleJsonId;
 
@@ -565,19 +691,44 @@
     }
 
     /* ── Auto-refresh ── */
-    var _packetPollId = setInterval(loadPackets, 2000);
-    var _typePollId = setInterval(loadPacketTypes, 2000);
+    function pollPackets() {
+        if (disposed || document.hidden || !document.getElementById('packets-list')) return;
+        loadPackets();
+    }
+
+    async function pollTypes() {
+        if (disposed || document.hidden) return;
+        var selectionChanged = await loadPacketTypes();
+        if (selectionChanged) loadPackets({ reset: true });
+    }
+
+    function onVisibilityChange() {
+        if (!document.hidden && !disposed) {
+            pollTypes();
+            pollPackets();
+        }
+    }
 
     /* ── Init ── */
     function packetViewerInit() {
         setupFilterToggle();
-        loadPacketTypes();
+        loadPacketTypes().then(function () {
+            if (!disposed) loadPackets({ reset: true });
+        });
+        packetPollId = setInterval(pollPackets, 2000);
+        typePollId = setInterval(pollTypes, 15000);
+        document.addEventListener('visibilitychange', onVisibilityChange);
 
         // Register cleanup for AJAX router
         window.__pageCleanup = window.__pageCleanup || [];
         window.__pageCleanup.push(function () {
-            clearInterval(_packetPollId);
-            clearInterval(_typePollId);
+            disposed = true;
+            clearInterval(packetPollId);
+            clearInterval(typePollId);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
+            activeControllers.forEach(function (controller) { controller.abort(); });
+            activeControllers.clear();
+            packetCache.clear();
             window.showError = undefined;
             window.clearError = undefined;
             window.escapeHtml = undefined;

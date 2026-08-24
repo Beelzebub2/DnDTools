@@ -163,6 +163,7 @@ message SS2C_ARENA_STAT_NOT {
   int32 kill = 2;
   int32 death = 3;
   int32 assist = 4;
+  uint32 gameType = 5;
 }
 
 message SLOBBY_MMR_INFO {
@@ -192,6 +193,7 @@ message SS2C_LAST_GAME_RESULT_RES {
 
 message SC2S_ARENA_RECENT_MATCH_REQ {
   optional int32 pageIndex = 1;
+  optional uint32 gameType = 2;
 }
 
 message SARENA_GAME_HISTORY {
@@ -220,6 +222,7 @@ message SS2C_ARENA_RECENT_MATCH_RES {
 
 message SC2S_ARENA_RECENT_MATCH_DETAIL_REQ {
   optional int32 historyIndex = 1;
+  optional uint32 gameType = 2;
 }
 
 message SS2C_ARENA_RECENT_MATCH_DETAIL_RES {
@@ -228,6 +231,7 @@ message SS2C_ARENA_RECENT_MATCH_DETAIL_RES {
   int32 winningTeamType = 3;
   repeated .DC.Packet.SArenaGameResultRecord users = 4;
   uint64 characterId = 5;
+  uint32 gameType = 6;
 }
 
 message SS2C_REPORT_ACCURACY_STAT_NOT {
@@ -277,6 +281,8 @@ message SS2C_LAST_GAME_ADVENTURE_RESULT_RES {
   uint32 gender = 12;
   repeated .DC.Packet.AttackInfo attackInfos = 13;
   string dungeonIdTag = 14;
+  uint32 rankPointRatio = 15;
+  uint32 totalPlayerDamage = 16;
 }
 
 message SS2C_DUNGEON_CARD_INFO_NOT {
@@ -296,5 +302,29 @@ message SS2C_DUNGEON_CARD_UNLOCK_FEE_RES {
   uint32 result = 1;
   string dungeonCardId = 2;
   .DC.Packet.SINVENTORY_RESULT_INFO dungeonCardResult = 3;
+}
+
+message SS2C_SQUIRE_ROYALE_STAT_NOT {
+  int32 survival = 1;
+  int32 kill = 2;
+}
+
+message SC2S_ITEM_QUICK_READY_REQ {
+  string itemQuickReadyPackId = 1;
+  int32 count = 2;
+}
+
+message SS2C_ITEM_QUICK_READY_RES {
+  int32 result = 1;
+}
+
+message SITEM_QUICK_READY_INFO {
+  uint64 stockBuyUniqueId = 1;
+  uint32 finalPrice = 2;
+}
+
+message SS2C_ITEM_QUICK_READY_INFO_NOT {
+  string packId = 1;
+  repeated .DC.Packet.SITEM_QUICK_READY_INFO infos = 2;
 }
 

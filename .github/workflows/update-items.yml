@@ -1,15 +1,27 @@
-name: Update Items and Icons
+name: Update DarkerDB Assets
 
 on:
   workflow_dispatch:
     inputs:
+      force_refresh:
+        description: 'Force item/icon refresh even when the patch is unchanged'
+        required: false
+        default: false
+        type: boolean
       skip_patch_check:
-        description: 'Skip patch version check and force update'
+        description: 'Deprecated alias for force_refresh'
         required: false
         default: false
         type: boolean
   schedule:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
+
+permissions:
+  contents: write
+
+concurrency:
+  group: darkerdb-assets-${{ github.repository }}
+  cancel-in-progress: false
 
 jobs:
   check-darkerdb-version:
@@ -23,10 +35,15 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
+      with:
+        ref: main
+        fetch-depth: 0
 
     - name: Detect DarkerDB build changes
       id: detect
       env:
+        DARKERDB_API_KEY: ${{ secrets.DARKERDB_API_KEY }}
+        FORCE_REFRESH: ${{ github.event.inputs.force_refresh }}
         SKIP_CHECK: ${{ github.event.inputs.skip_patch_check }}
       run: |
         python - <<'PY'
@@ -35,29 +52,31 @@ jobs:
         import urllib.request
         from pathlib import Path
 
-        HEALTH_URL = "https://api.darkerdb.com/v1/health-check"
-        with urllib.request.urlopen(HEALTH_URL, timeout=15) as resp:
+        api_key = (os.environ.get("DARKERDB_API_KEY") or "").strip()
+        if not api_key:
+            raise SystemExit("DARKERDB_API_KEY is required for patch detection.")
+
+        PATCH_URL = "https://api.darkerdb.com/v2/patches/current"
+        request = urllib.request.Request(
+            PATCH_URL,
+            headers={
+                "User-Agent": "DnDTools-Assets-CI/2.0",
+                "X-API-Version": "2026-08-03",
+                "X-Api-Key": api_key,
+            },
+        )
+        with urllib.request.urlopen(request, timeout=15) as resp:
             payload = json.loads(resp.read().decode('utf-8'))
 
-        body = payload.get('body') if isinstance(payload.get('body'), dict) else {}
-        build = (
-            payload.get('build')
-            or body.get('build')
-            or body.get('version')
-            or payload.get('version')
-        )
-        patch = (
-            payload.get('patch')
-            or body.get('patch')
-            or body.get('game_patch')
-            or body.get('version')
-            or payload.get('version')
-        )
+        if not isinstance(payload, dict):
+            raise SystemExit('DarkerDB patch response was not a JSON object.')
+        build = payload.get('build')
+        patch = payload.get('patch')
 
         if not build:
-            raise SystemExit('Missing build/version field in health-check response.')
+            raise SystemExit('Missing top-level build field in patch response.')
         if patch is None:
-            patch = build
+            raise SystemExit('Missing top-level patch field in patch response.')
 
         meta_path = Path('UI/assets/darkerdb_health.json')
         if meta_path.exists():
@@ -76,7 +95,11 @@ jobs:
             or str(previous.get('patch', '')).strip() != str(patch).strip()
         )
 
-        if os.environ.get('SKIP_CHECK') == 'true':
+        force_refresh = (
+            os.environ.get('FORCE_REFRESH', '').strip().lower() == 'true'
+            or os.environ.get('SKIP_CHECK', '').strip().lower() == 'true'
+        )
+        if force_refresh:
             print("Manual override: forcing update regardless of version change.")
             changed = True
 
@@ -94,16 +117,22 @@ jobs:
 
     - name: Log up-to-date status
       if: steps.detect.outputs.changed != 'true'
-      run: echo "DarkerDB build/patch unchanged; skipping asset refresh."
+      run: echo "DarkerDB build/patch unchanged; skipping item/icon refresh. The quest snapshot will still refresh."
 
   refresh-assets:
     needs: check-darkerdb-version
-    if: needs.check-darkerdb-version.outputs.changed == 'true'
+    # Quest data changes independently of game build/patch metadata. Run this
+    # job every day (and even if the health probe fails), then gate only the
+    # expensive item/icon work on the build-change output.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v6
+      with:
+        ref: main
+        fetch-depth: 0
 
     - name: Set up Python
       uses: actions/setup-python@v6
@@ -114,9 +143,10 @@ jobs:
     - name: Prepare filtered requirements (remove platform-only packages)
       run: |
         python - <<'PY'
+        import os
         from pathlib import Path
         p = Path('UI/requirements.txt')
-        out = p.with_name('requirements.filtered.txt')
+        out = Path(os.environ['RUNNER_TEMP']) / 'dndtools-requirements.txt'
         if p.exists():
             lines = [l for l in p.read_text().splitlines() if l.strip() and not l.strip().lower().startswith('pywin32')]
             out.write_text('\n'.join(lines) + '\n')
@@ -128,28 +158,46 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        if [ -f UI/requirements.filtered.txt ]; then
-          python -m pip install -r UI/requirements.filtered.txt
+        if [ -f "$RUNNER_TEMP/dndtools-requirements.txt" ]; then
+          python -m pip install -r "$RUNNER_TEMP/dndtools-requirements.txt"
         elif [ -f UI/requirements.txt ]; then
           python -m pip install -r UI/requirements.txt
         fi
 
-    - name: Update items data
+    - name: Update quest snapshot
+      id: update_quests
       env:
-        API_KEY: ${{ secrets.DARKERDB_API_KEY }}
+        DARKERDB_API_KEY: ${{ secrets.DARKERDB_API_KEY }}
+      working-directory: UI
+      run: python scripts/update_quests.py
+
+    - name: Update items data
+      id: update_items
+      if: needs.check-darkerdb-version.outputs.changed == 'true'
+      continue-on-error: true
+      env:
+        DARKERDB_API_KEY: ${{ secrets.DARKERDB_API_KEY }}
       working-directory: UI
       run: python scripts/update_items.py
 
     - name: Rebuild icon pack
+      id: rebuild_icons
+      if: needs.check-darkerdb-version.outputs.changed == 'true' && steps.update_items.outcome == 'success'
+      continue-on-error: true
       working-directory: UI
       run: python scripts/build_icons_pak.py
 
     - name: Verify icon pack manifest
+      id: verify_icons
+      if: needs.check-darkerdb-version.outputs.changed == 'true' && steps.rebuild_icons.outcome == 'success'
+      continue-on-error: true
       working-directory: UI
       run: python scripts/build_icons_pak.py --check --skip-convert
 
     - name: Summarize item and icon changes
-      id: summarize-items
+      id: summarize_items
+      if: needs.check-darkerdb-version.outputs.changed == 'true' && steps.verify_icons.outcome == 'success'
+      continue-on-error: true
       run: |
         python - <<'PY'
         import json
@@ -287,6 +335,9 @@ jobs:
         PY
 
     - name: Update DarkerDB health metadata
+      id: update_health
+      if: needs.check-darkerdb-version.outputs.changed == 'true' && steps.verify_icons.outcome == 'success'
+      continue-on-error: true
       run: |
         python - <<'PY'
         import json
@@ -311,7 +362,22 @@ jobs:
         print(f"Wrote {path} -> {data}")
         PY
 
+    - name: Discard incomplete item and icon refresh
+      if: >-
+        always() &&
+        needs.check-darkerdb-version.outputs.changed == 'true' &&
+        (steps.update_items.outcome == 'failure' ||
+         steps.rebuild_icons.outcome == 'failure' ||
+         steps.verify_icons.outcome == 'failure' ||
+         steps.summarize_items.outcome == 'failure' ||
+         steps.update_health.outcome == 'failure')
+      run: |
+        git restore --source=HEAD -- UI/assets/items.json UI/assets/icons UI/assets/icons.pak UI/assets/changelog.json UI/assets/darkerdb_health.json
+        git clean -fd -- UI/assets/icons
+
     - name: Compute asset checksums
+      id: compute_checksums
+      if: always() && steps.update_quests.outcome == 'success'
       run: |
         python - <<'PY'
         import hashlib
@@ -321,44 +387,153 @@ jobs:
         assets = {
             "icons.pak": "UI/assets/icons.pak",
             "items.json": "UI/assets/items.json",
+            "quests.json": "UI/assets/quests.json",
             "changelog.json": "UI/assets/changelog.json",
             "darkerdb_health.json": "UI/assets/darkerdb_health.json",
         }
 
         checksums = {}
+        missing = []
         for name, filepath in assets.items():
             p = Path(filepath)
-            if p.exists():
-                sha256 = hashlib.sha256(p.read_bytes()).hexdigest()
-                checksums[name] = sha256
-                print(f"{name}: {sha256}")
-            else:
-                print(f"Warning: {filepath} not found, skipping")
+            if not p.is_file() or p.stat().st_size <= 0:
+                missing.append(filepath)
+                continue
+            payload = p.read_bytes()
+            if p.suffix == ".json":
+                try:
+                    json.loads(payload)
+                except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                    raise SystemExit(f"Required asset {filepath} is not valid JSON: {exc}")
+            sha256 = hashlib.sha256(payload).hexdigest()
+            checksums[name] = sha256
+            print(f"{name}: {sha256}")
+
+        if missing:
+            raise SystemExit("Required release assets are missing or empty: " + ", ".join(missing))
+        if set(checksums) != set(assets):
+            raise SystemExit("Checksum set does not match the required release asset set")
 
         out = Path("UI/assets/checksums.json")
-        out.write_text(json.dumps(checksums, indent=2))
+        out.write_text(json.dumps(checksums, indent=2) + "\n", encoding="utf-8")
         print(f"Wrote {out}")
         PY
 
-    - name: Install jq
-      if: runner.os == 'Linux'
+    - name: Verify jq
+      id: install_jq
+      if: always() && steps.update_quests.outcome == 'success' && steps.compute_checksums.outcome == 'success' && runner.os == 'Linux'
       run: |
-        sudo apt-get update -y
-        sudo apt-get install -y jq
+        command -v jq
+        jq --version
+
+    - name: Commit and push checked asset sources
+      id: persist_assets
+      if: always() && steps.update_quests.outcome == 'success' && steps.compute_checksums.outcome == 'success'
+      run: |
+        set -euo pipefail
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+
+        # Stage only source assets produced by this workflow. In particular,
+        # never let an unrelated generated/temp file hitch a ride via `-A` at
+        # repository scope.
+        git add -A -- \
+          UI/assets/items.json \
+          UI/assets/quests.json \
+          UI/assets/icons.pak \
+          UI/assets/icons \
+          UI/assets/changelog.json \
+          UI/assets/darkerdb_health.json
+
+        python - <<'PY'
+        import subprocess
+
+        exact = {
+            "UI/assets/items.json",
+            "UI/assets/quests.json",
+            "UI/assets/icons.pak",
+            "UI/assets/changelog.json",
+            "UI/assets/darkerdb_health.json",
+        }
+        output = subprocess.check_output(
+            ["git", "diff", "--cached", "--name-only", "-z"]
+        ).decode("utf-8")
+        staged = [path for path in output.split("\0") if path]
+        unexpected = [
+            path for path in staged
+            if path not in exact and not path.startswith("UI/assets/icons/")
+        ]
+        if unexpected:
+            raise SystemExit("Refusing to commit unexpected staged paths: " + ", ".join(unexpected))
+        print(f"Checked {len(staged)} staged asset path(s)")
+        PY
+
+        if git diff --cached --quiet; then
+          echo "No checked asset source changes to commit."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          git commit -m "Update DarkerDB item and quest assets"
+          git push origin HEAD:main
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi
 
     - name: Publish assets-latest release (create or update)
+      id: publish_assets
+      if: always() && steps.persist_assets.outcome == 'success' && steps.install_jq.outcome == 'success'
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         GITHUB_REPOSITORY: ${{ github.repository }}
-        RELEASE_SUMMARY: ${{ steps.summarize-items.outputs.release_summary }}
+        RELEASE_SUMMARY: ${{ steps.summarize_items.outputs.release_summary }}
       run: |
         set -euo pipefail
         TAG="assets-latest"
         REPO="$GITHUB_REPOSITORY"
         TOKEN="$GITHUB_TOKEN"
+        API_ROOT="https://api.github.com/repos/$REPO"
+        RUN_TOKEN="${GITHUB_RUN_ID:-local}.${GITHUB_RUN_ATTEMPT:-0}"
+        ASSET_PATHS=(
+          "UI/assets/icons.pak"
+          "UI/assets/items.json"
+          "UI/assets/quests.json"
+          "UI/assets/changelog.json"
+          "UI/assets/darkerdb_health.json"
+          "UI/assets/checksums.json"
+        )
+
+        api_curl() {
+          curl -fsS \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "$@"
+        }
+
+        # Refuse to mutate the release unless the exact checked asset set is
+        # present and the source files match checksums.json.
+        for path in "${ASSET_PATHS[@]}"; do
+          if [ ! -s "$path" ]; then
+            echo "Required release asset $path is missing or empty" >&2
+            exit 1
+          fi
+          name=$(basename "$path")
+          actual_sha=$(sha256sum "$path" | awk '{print $1}')
+          if [ "$name" != "checksums.json" ]; then
+            expected_sha=$(jq -er --arg name "$name" '.[$name] // empty' UI/assets/checksums.json)
+            if [ "$actual_sha" != "$expected_sha" ]; then
+              echo "Checksum mismatch before publication for $name" >&2
+              exit 1
+            fi
+          fi
+        done
 
         echo "Checking for existing release with tag $TAG"
-        release_json=$(curl -s -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/tags/$TAG") || true
+        release_response=$(mktemp)
+        trap 'rm -f "$release_response"' EXIT
+        release_status=$(curl -sS -o "$release_response" -w "%{http_code}" \
+          -H "Authorization: Bearer $TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "$API_ROOT/releases/tags/$TAG")
 
         # Prefer the summarized release body if available; otherwise fall back to current date
         if [ -n "${RELEASE_SUMMARY:-}" ]; then
@@ -368,75 +543,291 @@ jobs:
         fi
         echo "Release body will be: $RELEASE_BODY"
 
-        if echo "$release_json" | jq -e '.id' >/dev/null 2>&1; then
-          release_id=$(echo "$release_json" | jq -r .id)
+        if [ "$release_status" = "200" ]; then
+          release_id=$(jq -er '.id // empty' "$release_response")
+          if [[ ! "$release_id" =~ ^[0-9]+$ ]]; then
+            echo "Release lookup returned an invalid id" >&2
+            exit 1
+          fi
           echo "Found existing release: id=$release_id"
-          # Update the existing release body to current date and keep it as prerelease so it won't become the repo's latest release
-          update_payload=$(jq -n --arg body "$RELEASE_BODY" '{ body: $body, prerelease: true, draft: false }')
-          curl -s -X PATCH -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" -d "$update_payload" "https://api.github.com/repos/$REPO/releases/$release_id"
-          echo "Updated release body to current date (prerelease)"
-        else
+        elif [ "$release_status" = "404" ]; then
           echo "Release not found, creating release $TAG"
           create_payload=$(jq -n --arg tag "$TAG" --arg name "$TAG" --arg body "$RELEASE_BODY" '{ tag_name: $tag, name: $name, body: $body, draft: false, prerelease: true }')
-          release_json=$(curl -s -X POST -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" -d "$create_payload" "https://api.github.com/repos/$REPO/releases")
-          release_id=$(echo "$release_json" | jq -r .id)
+          created_release=$(api_curl -X POST -H "Content-Type: application/json" -d "$create_payload" "$API_ROOT/releases")
+          release_id=$(echo "$created_release" | jq -er '.id // empty')
+          if [[ ! "$release_id" =~ ^[0-9]+$ ]]; then
+            echo "Release creation returned an invalid id" >&2
+            exit 1
+          fi
           echo "Created release: id=$release_id"
+        else
+          echo "Release lookup failed with HTTP $release_status" >&2
+          sed -n '1,20p' "$release_response" >&2
+          exit 1
         fi
 
         upload_url="https://uploads.github.com/repos/$REPO/releases/$release_id/assets"
+        declare -A STAGED_IDS=()
+        declare -A ROLLBACK_IDS=()
+        declare -A PROMOTED_IDS=()
+        declare -A EXPECTED_SIZES=()
+        declare -A EXPECTED_DIGESTS=()
 
-        upload_asset() {
-          local path="$1"
-          local name
-          name=$(basename "$path")
-          if [ ! -f "$path" ]; then
-            echo "Warning: asset $path not found, skipping"
-            return
-          fi
-
-          # Delete existing asset with same name if present
-          assets_json=$(curl -s -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/$release_id/assets")
-          asset_id=$(echo "$assets_json" | jq -r --arg name "$name" '.[] | select(.name==$name) | .id' || true)
-          if [ -n "$asset_id" ] && [ "$asset_id" != "null" ]; then
-            echo "Deleting existing asset $name (id=$asset_id)"
-            curl -s -X DELETE -H "Authorization: token $TOKEN" -H "Accept: application/vnd.github.v3+json" "https://api.github.com/repos/$REPO/releases/assets/$asset_id"
-          fi
-
-          echo "Uploading $name"
-          curl -s -X POST -H "Authorization: token $TOKEN" -H "Content-Type: application/octet-stream" --data-binary @"$path" "$upload_url?name=$name"
+        release_assets() {
+          local page=1
+          local payload
+          local count
+          local combined='[]'
+          while :; do
+            payload=$(api_curl "$API_ROOT/releases/$release_id/assets?per_page=100&page=$page")
+            jq -e 'type == "array"' <<<"$payload" >/dev/null
+            combined=$(jq -cn --argjson prior "$combined" --argjson current "$payload" '$prior + $current')
+            count=$(jq 'length' <<<"$payload")
+            if [ "$count" -lt 100 ]; then
+              break
+            fi
+            page=$((page + 1))
+            if [ "$page" -gt 20 ]; then
+              echo "Release asset listing exceeded the safety page limit" >&2
+              return 1
+            fi
+          done
+          printf '%s' "$combined"
         }
 
-        # List of assets to publish (relative to repo root)
-        upload_asset "UI/assets/icons.pak"
-        upload_asset "UI/assets/items.json"
-        upload_asset "UI/assets/changelog.json"
-        upload_asset "UI/assets/darkerdb_health.json"
-        upload_asset "UI/assets/checksums.json"
+        # Recover any interrupted prior run before creating new staging names.
+        # Concurrency serialization means no other active run can own them.
+        assets_json=$(release_assets)
+        for path in "${ASSET_PATHS[@]}"; do
+          name=$(basename "$path")
+          canonical_id=$(jq -r --arg name "$name" '[.[] | select(.name == $name)][0].id // empty' <<<"$assets_json")
+          rollback_prefix="${name}.rollback."
 
-    - name: Check for changes
-      id: verify-changed-files
-      run: |
-        if [ -n "$(git status --porcelain)" ]; then
-          echo "changed=true" >> $GITHUB_OUTPUT
-        else
-          echo "changed=false" >> $GITHUB_OUTPUT
+          if [ -z "$canonical_id" ]; then
+            restore_id=$(jq -r --arg prefix "$rollback_prefix" '[.[] | select(.name | startswith($prefix))] | max_by(.id).id // empty' <<<"$assets_json")
+            if [ -n "$restore_id" ]; then
+              echo "Restoring stale rollback for missing canonical asset $name"
+              restore_payload=$(jq -n --arg name "$name" '{name: $name}')
+              restored=$(api_curl -X PATCH -H "Content-Type: application/json" -d "$restore_payload" "$API_ROOT/releases/assets/$restore_id")
+              jq -e --arg name "$name" --argjson id "$restore_id" '.id == $id and .name == $name' <<<"$restored" >/dev/null
+              canonical_id="$restore_id"
+              assets_json=$(release_assets)
+            fi
+          fi
+
+          # Staged uploads are never consumed by the app. Rollback aliases are
+          # removable only when a canonical asset is present (or after the
+          # missing canonical was restored above).
+          while IFS= read -r stale_id; do
+            [ -z "$stale_id" ] || api_curl -X DELETE "$API_ROOT/releases/assets/$stale_id" >/dev/null
+          done < <(jq -r --arg prefix "${name}.staged." '.[] | select(.name | startswith($prefix)) | .id' <<<"$assets_json")
+          if [ -n "$canonical_id" ]; then
+            while IFS= read -r rollback_id; do
+              [ -z "$rollback_id" ] || api_curl -X DELETE "$API_ROOT/releases/assets/$rollback_id" >/dev/null
+            done < <(jq -r --arg prefix "$rollback_prefix" '.[] | select(.name | startswith($prefix)) | .id' <<<"$assets_json")
+          fi
+          assets_json=$(release_assets)
+        done
+
+        cleanup_unpromoted() {
+          set +e
+          for path in "${ASSET_PATHS[@]}"; do
+            name=$(basename "$path")
+            staged_id="${STAGED_IDS[$name]:-}"
+            if [ -n "$staged_id" ]; then
+              api_curl -X DELETE "$API_ROOT/releases/assets/$staged_id" >/dev/null 2>&1 || true
+            fi
+          done
+          rm -f "$release_response"
+        }
+        trap cleanup_unpromoted EXIT
+
+        # Upload and cryptographically verify the entire batch before any
+        # canonical name is touched.
+        for path in "${ASSET_PATHS[@]}"; do
+          name=$(basename "$path")
+          staged_name="${name}.staged.${RUN_TOKEN}"
+          expected_size=$(stat -c%s "$path")
+          expected_digest="sha256:$(sha256sum "$path" | awk '{print $1}')"
+          EXPECTED_SIZES[$name]="$expected_size"
+          EXPECTED_DIGESTS[$name]="$expected_digest"
+
+          echo "Staging $name as $staged_name"
+          staged_json=$(api_curl -X POST \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"$path" \
+            "$upload_url?name=$staged_name")
+          staged_id=$(jq -er '.id // empty' <<<"$staged_json")
+          STAGED_IDS[$name]="$staged_id"
+          if ! jq -e \
+            --arg name "$staged_name" \
+            --arg digest "$expected_digest" \
+            --argjson size "$expected_size" \
+            '.name == $name and .state == "uploaded" and .size == $size and .digest == $digest and (.id | type == "number")' \
+            <<<"$staged_json" >/dev/null; then
+            echo "Staged upload for $name failed name/size/digest verification" >&2
+            exit 1
+          fi
+        done
+
+        rollback_promotions() {
+          local rollback_failed=0
+          for ((idx=${#ASSET_PATHS[@]}-1; idx>=0; idx--)); do
+            name=$(basename "${ASSET_PATHS[$idx]}")
+            new_id="${PROMOTED_IDS[$name]:-}"
+            old_id="${ROLLBACK_IDS[$name]:-}"
+            if [ -n "$new_id" ] && [ -n "$old_id" ]; then
+              failed_name="${name}.staged.rollback.${RUN_TOKEN}"
+              payload=$(jq -n --arg name "$failed_name" '{name: $name}')
+              if moved=$(api_curl -X PATCH -H "Content-Type: application/json" -d "$payload" "$API_ROOT/releases/assets/$new_id") \
+                && jq -e --arg name "$failed_name" '.name == $name' <<<"$moved" >/dev/null; then
+                STAGED_IDS[$name]="$new_id"
+                unset "PROMOTED_IDS[$name]"
+                payload=$(jq -n --arg name "$name" '{name: $name}')
+                if ! restored=$(api_curl -X PATCH -H "Content-Type: application/json" -d "$payload" "$API_ROOT/releases/assets/$old_id") \
+                  || ! jq -e --arg name "$name" '.name == $name' <<<"$restored" >/dev/null; then
+                  rollback_failed=1
+                fi
+              else
+                rollback_failed=1
+              fi
+            elif [ -n "$new_id" ]; then
+              if ! api_curl -X DELETE "$API_ROOT/releases/assets/$new_id" >/dev/null; then
+                rollback_failed=1
+              else
+                unset "PROMOTED_IDS[$name]"
+              fi
+            elif [ -n "$old_id" ]; then
+              payload=$(jq -n --arg name "$name" '{name: $name}')
+              if ! restored=$(api_curl -X PATCH -H "Content-Type: application/json" -d "$payload" "$API_ROOT/releases/assets/$old_id") \
+                || ! jq -e --arg name "$name" '.name == $name' <<<"$restored" >/dev/null; then
+                rollback_failed=1
+              fi
+            fi
+          done
+          return "$rollback_failed"
+        }
+
+        assets_json=$(release_assets)
+        for path in "${ASSET_PATHS[@]}"; do
+          name=$(basename "$path")
+          staged_id="${STAGED_IDS[$name]}"
+          old_id=$(jq -r --arg name "$name" '[.[] | select(.name == $name)][0].id // empty' <<<"$assets_json")
+
+          if [ -n "$old_id" ]; then
+            rollback_name="${name}.rollback.${RUN_TOKEN}"
+            payload=$(jq -n --arg name "$rollback_name" '{name: $name}')
+            if ! renamed_old=$(api_curl -X PATCH -H "Content-Type: application/json" -d "$payload" "$API_ROOT/releases/assets/$old_id"); then
+              rollback_promotions || true
+              echo "Failed to preserve canonical $name under its rollback alias" >&2
+              exit 1
+            fi
+            ROLLBACK_IDS[$name]="$old_id"
+            if ! jq -e --arg name "$rollback_name" --argjson id "$old_id" '.id == $id and .name == $name' <<<"$renamed_old" >/dev/null; then
+              rollback_promotions || true
+              echo "Rollback alias verification failed for $name" >&2
+              exit 1
+            fi
+          fi
+
+          payload=$(jq -n --arg name "$name" '{name: $name}')
+          if ! promoted=$(api_curl -X PATCH -H "Content-Type: application/json" -d "$payload" "$API_ROOT/releases/assets/$staged_id"); then
+            rollback_promotions || true
+            echo "Canonical promotion failed for $name; prior assets were restored" >&2
+            exit 1
+          fi
+          PROMOTED_IDS[$name]="$staged_id"
+          STAGED_IDS[$name]=""
+          if ! jq -e \
+            --arg name "$name" \
+            --arg digest "${EXPECTED_DIGESTS[$name]}" \
+            --argjson size "${EXPECTED_SIZES[$name]}" \
+            '.name == $name and .state == "uploaded" and .size == $size and .digest == $digest and (.id | type == "number")' \
+            <<<"$promoted" >/dev/null; then
+            rollback_promotions || true
+            echo "Canonical promotion verification failed for $name; prior assets were restored" >&2
+            exit 1
+          fi
+        done
+
+        final_assets=$(release_assets)
+        final_ok=true
+        for path in "${ASSET_PATHS[@]}"; do
+          name=$(basename "$path")
+          if ! jq -e \
+            --arg name "$name" \
+            --arg digest "${EXPECTED_DIGESTS[$name]}" \
+            --argjson size "${EXPECTED_SIZES[$name]}" \
+            '[.[] | select(.name == $name and .state == "uploaded" and .size == $size and .digest == $digest)] | length == 1' \
+            <<<"$final_assets" >/dev/null; then
+            final_ok=false
+          fi
+        done
+        if [ "$final_ok" != "true" ]; then
+          rollback_promotions || true
+          echo "Final canonical release verification failed; prior assets were restored" >&2
+          exit 1
         fi
 
-    - name: Commit updated assets
-      if: steps.verify-changed-files.outputs.changed == 'true'
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add -A
-        git commit -m "Update items data and icon pack"
-
-    - name: Push changes to main
-      if: steps.verify-changed-files.outputs.changed == 'true'
-      run: git push origin HEAD:main
+        # The complete canonical batch is verified. Retire rollback aliases,
+        # then update release metadata as the final commit marker.
+        for path in "${ASSET_PATHS[@]}"; do
+          name=$(basename "$path")
+          old_id="${ROLLBACK_IDS[$name]:-}"
+          [ -z "$old_id" ] || api_curl -X DELETE "$API_ROOT/releases/assets/$old_id" >/dev/null
+        done
+        update_payload=$(jq -n --arg body "$RELEASE_BODY" '{body: $body, prerelease: true, draft: false}')
+        updated_release=$(api_curl -X PATCH -H "Content-Type: application/json" -d "$update_payload" "$API_ROOT/releases/$release_id")
+        jq -e --argjson id "$release_id" '.id == $id and .prerelease == true and .draft == false' <<<"$updated_release" >/dev/null
+        trap - EXIT
+        rm -f "$release_response"
+        echo "Published and verified ${#ASSET_PATHS[@]} canonical assets"
 
     - name: Notify website of asset update
-      run: |
-        HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "https://dndtools.rrmtools.uk/api/assets-notify" -H "Authorization: Bearer ${SECRET}" -H "Content-Type: application/json" -H "User-Agent: Mozilla/5.0 (compatible; DnDTools-CI/1.0)" -d '{"source": "update-items"}')
-        if [ "$HTTP_CODE" = "200" ]; then echo "Website notified (HTTP ${HTTP_CODE})"; else echo "Warning: Failed to notify website (HTTP ${HTTP_CODE})"; fi
+      if: always() && steps.publish_assets.outcome == 'success'
       env:
         SECRET: ${{ secrets.RELEASE_WEBHOOK_SECRET }}
+      run: |
+        set -euo pipefail
+        if [ -z "${SECRET:-}" ]; then
+          echo "RELEASE_WEBHOOK_SECRET is not configured" >&2
+          exit 1
+        fi
+        response_file=$(mktemp)
+        trap 'rm -f "$response_file"' EXIT
+        if ! HTTP_CODE=$(curl -sS \
+          --retry 3 \
+          --retry-all-errors \
+          --connect-timeout 10 \
+          --max-time 30 \
+          -o "$response_file" \
+          -w "%{http_code}" \
+          -X POST \
+          "https://dndtools.rrmtools.uk/api/assets-notify" \
+          -H "Authorization: Bearer ${SECRET}" \
+          -H "Content-Type: application/json" \
+          -H "User-Agent: DnDTools-CI/2.0" \
+          -d '{"source":"update-items","release":"assets-latest"}'); then
+          echo "Website notification request failed" >&2
+          exit 1
+        fi
+        if [[ ! "$HTTP_CODE" =~ ^2[0-9][0-9]$ ]]; then
+          echo "Website notification failed with HTTP ${HTTP_CODE}" >&2
+          sed -n '1,20p' "$response_file" >&2
+          exit 1
+        fi
+        echo "Website notified (HTTP ${HTTP_CODE})"
+
+    - name: Report item refresh failure
+      if: >-
+        always() &&
+        steps.update_quests.outcome == 'success' &&
+        needs.check-darkerdb-version.outputs.changed == 'true' &&
+        (steps.update_items.outcome == 'failure' ||
+         steps.rebuild_icons.outcome == 'failure' ||
+         steps.verify_icons.outcome == 'failure' ||
+         steps.summarize_items.outcome == 'failure' ||
+         steps.update_health.outcome == 'failure')
+      run: |
+        echo "The DarkerDB item/icon refresh failed and will be retried; it did not block the independent quest publication path."
+        exit 1

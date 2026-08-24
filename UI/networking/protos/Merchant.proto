@@ -55,6 +55,7 @@ message SMERCHANT_QUEST_INFO {
   int32 questFlag = 4;
   int32 alreadyGetAffinity = 5;
   repeated .DC.Packet.SMERCHANT_QUEST_CONTENT_INFO missions = 6;
+  string requiredQuestMerchantId = 7;
 }
 
 message SS2C_MERCHANT_QUEST_REPEAT_NOT {
@@ -363,6 +364,15 @@ message SS2C_MERCHANT_RECOVERY_CHECK_RES {
   uint32 recoveryFlag = 1;
 }
 
+message SMERCHANT_RECOVERY_RATIO_INFO {
+  uint32 gameType = 1;
+  uint32 recoveryRatio = 2;
+}
+
+message SS2C_MERCHANT_RECOVERY_RATIO_NOT {
+  repeated .DC.Packet.SMERCHANT_RECOVERY_RATIO_INFO recoveryRatioInfos = 1;
+}
+
 message SC2S_MERCHANT_EXPRESS_LIST_REQ {
 }
 
@@ -503,7 +513,7 @@ message SS2C_MERCHANT_GEAR_SET_LIST_RES {
 }
 
 message SPARCEL_REWARD_INFO {
-  int32 rewardType = 1;
+  string rewardType = 1;
   string rewardId = 2;
   int32 rewardCount = 3;
   .DC.Packet.SItem item = 4;

@@ -1,0 +1,147 @@
+syntax = "proto3";
+
+package DC.Packet;
+
+option java_package = "com.packets.party_finder";
+option java_outer_classname = "party_finder";
+option java_multiple_files = false;
+
+import "_Character.proto";
+
+message SPARTY_FINDER_FILTER_INFO {
+  uint32 filterType = 1;
+  uint32 filter = 2;
+}
+
+message SPARTY_FINDER_SLOT_INFO {
+  uint32 slotIndex = 1;
+  uint32 isLocked = 2;
+  uint32 isOccupied = 3;
+  .DC.Packet.SCHARACTER_PARTY_FINDER_INFO member = 4;
+}
+
+message SPARTY_FINDER_ROOM_INFO {
+  uint64 partyIdx = 1;
+  string partyName = 2;
+  repeated string maps = 3;
+  repeated string modes = 4;
+  repeated string objectives = 5;
+  uint32 language = 6;
+  uint32 isPrivate = 7;
+  repeated .DC.Packet.SPARTY_FINDER_SLOT_INFO slots = 8;
+  uint32 region = 9;
+  uint32 titleIndex = 10;
+}
+
+message SC2S_PARTY_FINDER_LIST_REQ {
+  int32 currentPage = 1;
+  int32 perPage = 2;
+  repeated .DC.Packet.SPARTY_FINDER_FILTER_INFO filterInfos = 3;
+  string searchName = 4;
+}
+
+message SS2C_PARTY_FINDER_LIST_RES {
+  uint32 result = 1;
+  int32 currentPage = 2;
+  int32 maxPage = 3;
+  repeated .DC.Packet.SPARTY_FINDER_ROOM_INFO partyInfos = 4;
+}
+
+message SC2S_PARTY_FINDER_CREATE_REQ {
+  string partyName = 1;
+  uint32 isPrivate = 2;
+  repeated string maps = 3;
+  repeated string modes = 4;
+  repeated string objectives = 5;
+  uint32 language = 6;
+  uint32 region = 7;
+  uint32 titleIndex = 8;
+}
+
+message SS2C_PARTY_FINDER_CREATE_RES {
+  uint32 result = 1;
+}
+
+message SC2S_PARTY_FINDER_JOIN_REQ {
+  uint64 partyIdx = 1;
+  uint32 requiredSlots = 2;
+}
+
+message SS2C_PARTY_FINDER_JOIN_RES {
+  uint32 result = 1;
+}
+
+message SC2S_PARTY_FINDER_SLOT_LOCK_REQ {
+  uint32 slotIndex = 1;
+  uint32 isLocked = 2;
+}
+
+message SS2C_PARTY_FINDER_SLOT_LOCK_RES {
+  uint32 result = 1;
+}
+
+message SC2S_PARTY_FINDER_EDIT_REQ {
+  string partyName = 1;
+  uint32 isPrivate = 2;
+  repeated string maps = 3;
+  repeated string modes = 4;
+  repeated string objectives = 5;
+  uint32 language = 6;
+  uint32 region = 7;
+  uint32 titleIndex = 8;
+}
+
+message SS2C_PARTY_FINDER_EDIT_RES {
+  uint32 result = 1;
+}
+
+message SS2C_PARTY_FINDER_SLOT_UPDATE_NOT {
+  repeated .DC.Packet.SPARTY_FINDER_SLOT_INFO slots = 1;
+}
+
+message SS2C_PARTY_FINDER_INFO_UPDATE_NOT {
+  .DC.Packet.SPARTY_FINDER_ROOM_INFO partyInfo = 1;
+}
+
+message SC2S_PARTY_FINDER_MERGE_REQ {
+  uint64 dstPartyIdx = 1;
+}
+
+message SS2C_PARTY_FINDER_MERGE_RES {
+  uint32 result = 1;
+}
+
+enum PARTY_FINDER_FILTER_TYPE {
+  PF_FILTER_TYPE_NONE = 0;
+  PF_FT_SIZE_DUO = 100;
+  PF_FT_SIZE_TRIO = 101;
+  PF_FT_LANG_EN = 200;
+  PF_FT_LANG_KO = 201;
+  PF_FT_LANG_JA = 202;
+  PF_FT_LANG_ZH_S = 203;
+  PF_FT_LANG_ZH_T = 204;
+  PF_FT_LANG_FR = 205;
+  PF_FT_LANG_DE = 206;
+  PF_FT_LANG_PT = 207;
+  PF_FT_LANG_RU = 208;
+  PF_FT_LANG_ES = 209;
+  PF_FT_MAP_FORGOTTEN_CASTLE = 300;
+  PF_FT_MAP_ASHEN_RANGE = 301;
+  PF_FT_MAP_FROST_MOUNTAINS = 302;
+  PF_FT_MAP_BLUE_MAELSTROM = 303;
+  PF_FT_MODE_PVE = 400;
+  PF_FT_MODE_NORMAL = 401;
+  PF_FT_MODE_HIGH_ROLLER = 402;
+  PF_FT_MODE_SQUIRE_TO_RICHES = 403;
+  PF_FT_MODE_ARENA = 404;
+  PF_FT_OBJ_ADVENTURING = 500;
+  PF_FT_OBJ_QUESTING = 501;
+  PF_FT_OBJ_PLAYER_COMBAT = 502;
+  PF_FT_OBJ_BOSS = 503;
+}
+
+enum PARTY_FINDER_FILTER {
+  PF_FILTER_NONE = 0;
+  PF_FILTER_CHECK = 1;
+  PF_FILTER_UNCHECK = 2;
+}

@@ -62,3 +62,20 @@ message SS2C_CUSTOMIZE_UPDATE_SKIN_ICON_TYPE_RES {
   uint32 result = 1;
 }
 
+message SC2S_CUSTOMIZE_ARENA_RANK_CONTENT_TOGGLE_REQ {
+  enum CONTENT {
+    NONE = 0;
+    PORTRAIT = 1;
+    NAMEPLATE_FRAME = 2;
+  }
+
+  uint32 contentType = 1;
+  uint32 toggleStatus = 2;
+}
+
+message SS2C_CUSTOMIZE_ARENA_RANK_CONTENT_TOGGLE_RES {
+  uint32 result = 1;
+  uint32 contentType = 2;
+  uint32 toggleStatus = 3;
+}
+

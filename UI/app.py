@@ -45,14 +45,14 @@ from src.models.loot import (
 from src import market_service
 
 sys.path.append(os.path.dirname(__file__))
-from src.quest_service import QuestService, RARITY_ORDER
+from src.quest_service import QuestService, QuestServiceError, RARITY_ORDER
 
 # Global cache for version check
 version_cache = None
 version_cache_timestamp = 0
 VERSION_CACHE_DURATION = 6 * 60 * 60  # 6 hours in seconds
 
-APP_VERSION = "3.9.10"
+APP_VERSION = "3.9.11"
 UPDATE_MANIFEST_URL = os.environ.get(
     "DND_UPDATE_MANIFEST",
     "https://github.com/Beelzebub2/DnDTools/releases/latest/download/update-manifest.json",
@@ -1364,6 +1364,11 @@ class Api:
         except Exception as exc:  # pragma: no cover - defensive safeguard
             logger.warning("Failed to refresh quest item index after asset update: %s", exc, exc_info=True)
 
+        try:
+            quest_service.refresh_snapshot()
+        except Exception as exc:  # pragma: no cover - defensive safeguard
+            logger.warning("Failed to refresh quest snapshot after asset update: %s", exc, exc_info=True)
+
         if not self.window or self._shutting_down:
             return
 
@@ -2080,8 +2085,8 @@ class Api:
         """Return current packet capture settings"""
         return self.capture_settings
 
-    def search_items(self, query):
-        return self.stash_manager.search_items(query)
+    def search_items(self, query, rarity=None):
+        return self.stash_manager.search_items(query, rarity=rarity)
 
     def set_capture_settings(self, interface, port_low, port_high):
         state = self.capture_controller.update_settings(interface, port_low, port_high)
@@ -2506,15 +2511,31 @@ class Api:
     def get_stack_mode(self):
         return bool(getattr(self, '_current_stack_mode', False))
 
-    def get_packets(self, packet_types=None):
-        all_packets = list(self.capture_controller.packet_capture.captured_packets)
-        if packet_types:
-            # Frontend controls which types to show — filter to only those
-            allowed = set(packet_types)
-            return [p for p in all_packets if p.get('type') in allowed]
-        # No explicit filter — exclude user-hidden types
+    def get_packets(self, packet_types=None, after_id=None, limit=None):
+        history = self.capture_controller.packet_capture.captured_packets
+        allowed = set(packet_types) if packet_types else None
+
+        if hasattr(history, 'snapshot'):
+            packets = history.snapshot(
+                after_id=after_id,
+                packet_types=allowed,
+                limit=limit,
+            )
+        else:
+            packets = list(history)
+            if after_id is not None:
+                packets = [p for p in packets if int(p.get('id', 0)) > after_id]
+            if allowed is not None:
+                packets = [p for p in packets if p.get('type') in allowed]
+            if limit is not None:
+                packets = packets[-limit:] if after_id is None else packets[:limit]
+
+        if allowed is not None:
+            return packets
+
+        # No explicit filter — exclude user-hidden types.
         hidden = set(self.get_hidden_packet_types())
-        return [p for p in all_packets if p.get('type') not in hidden]
+        return [p for p in packets if p.get('type') not in hidden]
 
     def get_packet_types(self):
         try:
@@ -2535,9 +2556,11 @@ class Api:
     def get_recent_packet_types(self):
         # Return types that have actually been captured recently
         try:
-            packets = list(self.capture_controller.packet_capture.captured_packets)
-            names = sorted({p.get('type') for p in packets if p.get('type')})
-            return names
+            history = self.capture_controller.packet_capture.captured_packets
+            if hasattr(history, 'packet_types'):
+                return history.packet_types()
+            packets = list(history)
+            return sorted({p.get('type') for p in packets if p.get('type')})
         except Exception:
             return []
     def submit_sort_feedback(self, session_id: str, success: bool, note: Optional[str] = None) -> bool:
@@ -2915,7 +2938,8 @@ def serve_preview(filename):
 @server.route('/api/search_items')
 def api_search_items():
     query = request.args.get('query', '')
-    return jsonify(api.search_items(query))
+    rarity = request.args.get('rarity', '')
+    return jsonify(api.search_items(query, rarity=rarity))
 
 
 # ── Market price proxy endpoints ─────────────────────────────────────
@@ -2927,12 +2951,17 @@ def api_market_price(item_name):
     sp = None
     if request.method == 'POST':
         payload = request.get_json(silent=True) or {}
-        pp = payload.get('pp')
-        sp = payload.get('sp')
-        item_id = payload.get('item_id') or payload.get('itemId')
-        archetype = payload.get('archetype')
+        if not isinstance(payload, dict):
+            return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
+        try:
+            pp = market_service.normalize_market_properties(payload.get('pp'))
+            sp = market_service.normalize_market_properties(payload.get('sp'))
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+        item_id = str(payload.get('item_id') or payload.get('itemId') or '').strip()[:256] or None
+        archetype = str(payload.get('archetype') or '').strip()[:256] or None
         if not rarity:
-            rarity = payload.get('rarity', '')
+            rarity = str(payload.get('rarity') or '').strip()[:64]
     else:
         item_id = request.args.get('item_id') or request.args.get('itemId')
         archetype = request.args.get('archetype')
@@ -2951,23 +2980,41 @@ def api_market_prices_bulk():
 
     results = {}
     for entry in items:
-        item_name = entry.get('name', '').strip()
-        rarity = entry.get('rarity', '').strip()
+        if not isinstance(entry, dict):
+            return jsonify({'success': False, 'error': 'Each item must be an object'}), 400
+        item_name = str(entry.get('name') or '').strip()[:256]
+        rarity = str(entry.get('rarity') or '').strip()[:64]
         if not item_name:
             continue
 
-        pp = entry.get('pp')
-        sp = entry.get('sp')
-        item_id = entry.get('item_id') or entry.get('itemId')
-        archetype = entry.get('archetype')
+        try:
+            pp = market_service.normalize_market_properties(entry.get('pp'))
+            sp = market_service.normalize_market_properties(entry.get('sp'))
+        except ValueError as exc:
+            return jsonify({'success': False, 'error': str(exc)}), 400
+        item_id = str(entry.get('item_id') or entry.get('itemId') or '').strip()[:256] or None
+        archetype = str(entry.get('archetype') or '').strip()[:256] or None
+        client_key = str(entry.get('client_key') or '').strip()
+        if len(client_key) > 2048:
+            client_key = ''
 
         original_key = f"{item_name}|{rarity}"
         normalized_rarity = market_service.normalize_rarity(rarity)
-        cache_key = market_service.build_cache_key(item_name, normalized_rarity, pp, sp)
+        cache_key = market_service.build_cache_key(
+            item_name,
+            normalized_rarity,
+            pp,
+            sp,
+            item_id=item_id,
+            archetype=archetype,
+        )
 
         result = market_service.fetch_price_check(item_name, rarity, pp=pp, sp=sp, item_id=item_id, archetype=archetype)
         result['cache_key'] = cache_key
         result['simple_key'] = original_key
+        if client_key:
+            result['client_key'] = client_key
+            results[client_key] = result
         results[cache_key] = result
         results[original_key] = result
 
@@ -3005,6 +3052,9 @@ def api_quests_list():
     import requests as _requests
     try:
         quests = quest_service.fetch_quests(force=force_refresh)
+    except QuestServiceError as exc:
+        logger.warning("Quest catalog is unavailable: %s", exc)
+        return jsonify({'success': False, 'error': str(exc)}), 503
     except _requests.exceptions.RequestException as exc:
         logger.error("Failed to contact DarkerDB quests API: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
@@ -3012,6 +3062,7 @@ def api_quests_list():
         logger.error("Unexpected error retrieving quests: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to load quests'}), 500
 
+    fetch_status = quest_service.get_fetch_status()
     items_index = quest_service.load_items_index()
     merchant_filter_normalized = quest_service.normalize_merchant_name(merchant_filter)
     merchant_filter_lower = merchant_filter_normalized.lower() if merchant_filter_normalized else None
@@ -3063,8 +3114,17 @@ def api_quests_list():
                         objective_payload['loot_state_value'] = values_list[0]
                         objective_payload['loot_state_label'] = objective_payload['loot_state_labels'][0]
             if objective.get('item_id'):
+                item_info = items_index.get(objective['item_id']) or {
+                    'item_id': objective['item_id'],
+                    'name': quest_service.normalize_item_name(objective['item_id']),
+                    'rarity': objective.get('rarity') or 'Unknown',
+                    'type': objective.get('item_type'),
+                    'icon': objective.get('icon'),
+                    'icon_url': objective.get('icon_url'),
+                    'archetype': objective['item_id'],
+                }
                 objective_payload['item'] = quest_service.build_item_payload(
-                    items_index.get(objective['item_id']),
+                    item_info,
                     icon_builder,
                 )
             objectives_payload.append(objective_payload)
@@ -3074,8 +3134,17 @@ def api_quests_list():
             reward_payload = dict(reward)
             item_id = reward.get('item_id')
             if item_id:
+                item_info = items_index.get(item_id) or {
+                    'item_id': item_id,
+                    'name': quest_service.normalize_item_name(item_id),
+                    'rarity': reward.get('rarity') or 'Unknown',
+                    'type': reward.get('item_type'),
+                    'icon': reward.get('icon'),
+                    'icon_url': reward.get('icon_url'),
+                    'archetype': item_id,
+                }
                 reward_payload['item'] = quest_service.build_item_payload(
-                    items_index.get(item_id),
+                    item_info,
                     icon_builder,
                 )
             rewards_payload.append(reward_payload)
@@ -3102,13 +3171,22 @@ def api_quests_list():
             **(({'unreleased': True}) if is_unreleased else {}),
         })
 
+    last_updated_timestamp = fetch_status.get('timestamp')
+    last_updated = (
+        datetime.utcfromtimestamp(last_updated_timestamp).isoformat() + 'Z'
+        if isinstance(last_updated_timestamp, (int, float))
+        else None
+    )
     return jsonify({
         'success': True,
         'quests': enriched_quests,
         'merchants': merchants,
-        'last_updated': datetime.utcnow().isoformat() + 'Z',
+        'last_updated': last_updated,
         'total': len(enriched_quests),
-        'cached': not force_refresh,
+        'cached': bool(fetch_status.get('cached')),
+        'stale': bool(fetch_status.get('stale')),
+        'warning': fetch_status.get('warning'),
+        'cache_status': fetch_status,
     })
 
 
@@ -3120,6 +3198,9 @@ def api_quests_item_requirements():
 
     try:
         quests = quest_service.fetch_quests(force=force_refresh)
+    except QuestServiceError as exc:
+        logger.warning("Quest item catalog is unavailable: %s", exc)
+        return jsonify({'success': False, 'error': str(exc)}), 503
     except _requests.exceptions.RequestException as exc:
         logger.error("Failed to contact DarkerDB quests API for item requirements: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Unable to reach DarkerDB quests API'}), 502
@@ -3127,6 +3208,7 @@ def api_quests_item_requirements():
         logger.error("Unexpected error retrieving quest requirements: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to load quest requirements'}), 500
 
+    fetch_status = quest_service.get_fetch_status()
     items_index = quest_service.load_items_index()
     normalize_merchant = quest_service.normalize_merchant_name
     icon_builder = lambda rel: url_for('serve_file', filename=rel)
@@ -3157,6 +3239,10 @@ def api_quests_item_requirements():
                 'merchant_counts': {},
                 'dungeons': set(),
                 'loot_state_values': set(),
+                'rarity': objective.get('rarity'),
+                'type': objective.get('item_type'),
+                'icon': objective.get('icon'),
+                'icon_url': objective.get('icon_url'),
             })
             entry['total_required'] += count
 
@@ -3192,7 +3278,15 @@ def api_quests_item_requirements():
 
     items_payload: list[dict] = []
     for item_id, entry in aggregated.items():
-        item_meta = items_index.get(item_id)
+        item_meta = items_index.get(item_id) or {
+            'item_id': item_id,
+            'name': quest_service.normalize_item_name(item_id),
+            'rarity': entry.get('rarity') or 'Unknown',
+            'type': entry.get('type'),
+            'icon': entry.get('icon'),
+            'icon_url': entry.get('icon_url'),
+            'archetype': item_id,
+        }
         meta_payload = quest_service.build_item_payload(item_meta, icon_builder)
         result_payload = {
             **meta_payload,
@@ -3226,12 +3320,21 @@ def api_quests_item_requirements():
         )
     )
 
+    last_updated_timestamp = fetch_status.get('timestamp')
+    last_updated = (
+        datetime.utcfromtimestamp(last_updated_timestamp).isoformat() + 'Z'
+        if isinstance(last_updated_timestamp, (int, float))
+        else None
+    )
     return jsonify({
         'success': True,
         'items': items_payload,
         'total': len(items_payload),
-        'last_updated': datetime.utcnow().isoformat() + 'Z',
-        'cached': not force_refresh,
+        'last_updated': last_updated,
+        'cached': bool(fetch_status.get('cached')),
+        'stale': bool(fetch_status.get('stale')),
+        'warning': fetch_status.get('warning'),
+        'cache_status': fetch_status,
     })
 
 
@@ -3245,15 +3348,28 @@ def api_quests_item_holdings():
     if not item_ids:
         return jsonify({'success': False, 'error': 'No valid item ids provided'}), 400
 
+    requested_to_concrete = {
+        item_id: quest_service.get_concrete_item_ids(item_id)
+        for item_id in item_ids
+    }
+    concrete_item_ids = list(dict.fromkeys(
+        concrete_id
+        for resolved_ids in requested_to_concrete.values()
+        for concrete_id in resolved_ids
+    ))
+
     try:
-        holdings_map = api.stash_manager.get_item_holdings(item_ids)
+        holdings_map = api.stash_manager.get_item_holdings(concrete_item_ids)
     except Exception as exc:
         logger.error("Failed to aggregate quest item holdings: %s", exc, exc_info=True)
         return jsonify({'success': False, 'error': 'Failed to calculate holdings'}), 500
 
     sanitized: dict[str, dict] = {}
     for item_id in item_ids:
-        entries = holdings_map.get(item_id, []) or []
+        entries = quest_service.merge_item_family_holdings(
+            holdings_map,
+            requested_to_concrete[item_id],
+        )
         characters: list[dict] = []
         total_owned = 0
 
@@ -3278,7 +3394,8 @@ def api_quests_item_holdings():
                     'stash_id': stash.get('stash_id'),
                     'count': count_value,
                     'slot_id': stash.get('slot_id'),
-                    'loot_state': stash.get('loot_state')
+                    'loot_state': stash.get('loot_state'),
+                    'item_id': stash.get('item_id'),
                 })
 
             characters.append({
@@ -3305,7 +3422,7 @@ def api_quests_item_holdings():
 @server.route('/api/quests/progress', methods=['GET', 'POST', 'DELETE'])
 def api_quests_progress():
     if request.method == 'GET':
-        progress, timestamp = quest_service.load_progress()
+        progress, timestamp, revision, active_merchants = quest_service.load_progress_sync_state()
         last_updated = None
         if timestamp:
             try:
@@ -3316,6 +3433,8 @@ def api_quests_progress():
             'success': True,
             'progress': progress,
             'last_updated': last_updated,
+            'revision': revision,
+            'active_merchants': active_merchants,
         })
 
     if request.method == 'DELETE':
@@ -3341,8 +3460,30 @@ def api_quests_progress():
     if not isinstance(progress_payload, dict):
         return jsonify({'success': False, 'error': 'Progress payload must be an object'}), 400
 
-    quest_service.save_progress(progress_payload)
-    return jsonify({'success': True})
+    active_merchants = payload.get('active_merchants')
+    if active_merchants is not None and not isinstance(active_merchants, list):
+        return jsonify({'success': False, 'error': 'active_merchants must be an array'}), 400
+
+    revision = payload.get('revision')
+    if revision is not None:
+        try:
+            revision = int(revision)
+        except (TypeError, ValueError, OverflowError):
+            return jsonify({'success': False, 'error': 'revision must be an integer'}), 400
+        if revision < 0:
+            return jsonify({'success': False, 'error': 'revision must be non-negative'}), 400
+
+    saved = quest_service.save_progress(
+        progress_payload,
+        active_merchants=active_merchants,
+        revision=revision,
+    )
+    _progress, _timestamp, current_revision, _merchants = quest_service.load_progress_sync_state()
+    return jsonify({
+        'success': True,
+        'saved': saved,
+        'revision': current_revision,
+    })
 
 
 @server.route('/api/quests/cache', methods=['DELETE'])
@@ -3978,8 +4119,17 @@ def api_packets():
     if not api._developer_mode_enabled:
         return jsonify({'error': 'Developer mode required'}), 403
     packet_types = request.args.getlist('types')
-    packets = api.get_packets(packet_types if packet_types else None)
-    return jsonify(packets)
+    after_id = request.args.get('after_id', default=None, type=int)
+    limit = request.args.get('limit', default=250, type=int)
+    limit = max(1, min(limit or 250, 500))
+    packets = api.get_packets(
+        packet_types if packet_types else None,
+        after_id=max(0, after_id) if after_id is not None else None,
+        limit=limit,
+    )
+    response = jsonify(packets)
+    response.headers['Cache-Control'] = 'no-store'
+    return response
 
 @server.route('/api/packet_types')
 def api_packet_types():
@@ -4081,7 +4231,9 @@ def background_init():
                     except Exception:
                         pass
                 
-                # Clean up any lingering tshark instances after data is loaded
+                # Clean only stale helpers whose PID + creation-time identities
+                # were persisted by a previous DnDTools capture session. The
+                # cleanup service never scans/kills unrelated tshark processes.
                 protected_pids = ()
                 try:
                     capture = getattr(api.capture_controller, 'packet_capture', None)

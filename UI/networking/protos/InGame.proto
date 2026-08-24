@@ -15,6 +15,8 @@ message SS2C_ENTER_GAME_SERVER_NOT {
   string accountId = 4;
   .DC.Packet.SACCOUNT_NICKNAME nickName = 5;
   string serviceUrl = 6;
+  int32 perfReportStartDelaySec = 7;
+  uint32 perfReportEnabled = 8;
 }
 
 message SC2S_AUTO_MATCH_REG_REQ {
@@ -68,6 +70,8 @@ message SS2C_AUTO_MATCH_REG_RES {
     FAIL_CONTENT_NOT_ALLOWED_FOR_MATCHING = 32;
     FAIL_TA_OUTLAW_LIMIT = 33;
     FAIL_ARENA_SOLO_THRESHOLD_REACHED = 34;
+    FAIL_SECURITY_SETTING_REQUIRED = 35;
+    FAIL_INVENTORY_FULL = 36;
   }
 
   uint32 result = 1;
@@ -123,5 +127,172 @@ message SC2S_INGAME_REPORT_REQ {
 
 message SS2C_INGAME_REPORT_RES {
   uint32 result = 1;
+}
+
+message SPERF_HARDWARE_INFO {
+  string gpu = 1;
+  string gpuDriver = 2;
+  int32 cpuCores = 3;
+  int32 ramMB = 4;
+  string osVersion = 5;
+  int32 hvciState = 6;
+  int32 secureBootState = 7;
+  int32 tpmState = 8;
+}
+
+message SPERF_GRAPHICS_SETTINGS {
+  string resolution = 1;
+  int32 preset = 2;
+  uint32 vsync = 3;
+  string upscaler = 4;
+  int32 renderScale = 5;
+}
+
+message SPERF_LOADING_INFO {
+  float mapLoadSec = 1;
+  int32 streamLevels = 2;
+  int32 flushCount = 3;
+}
+
+message SPERF_NET {
+  uint64 inPackets = 1;
+  uint64 outPackets = 2;
+  uint64 inBytes = 3;
+  uint64 outBytes = 4;
+  uint32 inPacketsLost = 5;
+  uint32 outPacketsLost = 6;
+  uint32 inBunches = 7;
+  uint32 outBunches = 8;
+}
+
+message SPERF_SUMMARY {
+  int32 durationSec = 1;
+  int32 totalFrames = 2;
+  repeated int32 ftHist = 3;
+  repeated int32 gtHist = 4;
+  repeated int32 rtHist = 5;
+  repeated int32 gpuHist = 6;
+  repeated int32 hitch = 7;
+  repeated int32 hitchCause = 8;
+  int32 gcCount = 10;
+  float gcMaxMS = 11;
+  int32 psoMiss = 12;
+  float ftVariance = 13;
+  float inputAvgMS = 14;
+  float inputMaxMS = 15;
+  float memPeakMB = 20;
+  float memFreeMinMB = 21;
+  float vramUsedMB = 22;
+  float vramBudgetMB = 23;
+  int32 texOverCount = 24;
+  int32 drawMax = 30;
+  int32 actorMax = 31;
+  float pingAvgMS = 40;
+  float pingP95MS = 41;
+  float pingMaxMS = 42;
+  float jitterMS = 43;
+  int32 pktLoss = 44;
+  int32 svGap100 = 50;
+  int32 svGap200 = 51;
+  int32 svGap500 = 52;
+  int32 svGapMaxMS = 53;
+  int32 svBurstMax = 54;
+  int32 svHitchCorr = 55;
+  float gtTickAvgMS = 60;
+  float gtPhysicsAvgMS = 61;
+  float gtNetAvgMS = 62;
+  float gtUIAvgMS = 63;
+  float gtTickP95MS = 64;
+  float gtPhysicsP95MS = 65;
+  float gtNetP95MS = 66;
+  float gtUIP95MS = 67;
+  .DC.Packet.SPERF_NET net = 70;
+  int32 psoPrecompiled = 81;
+  int32 skelMeshAvg = 82;
+  int32 skelMeshMax = 83;
+  int32 skelBonesAvg = 84;
+  int32 skelBonesMax = 85;
+}
+
+message SPERF_SLOT {
+  int32 startSec = 1;
+  repeated int32 ft = 2;
+  repeated int32 gt = 3;
+  repeated int32 hitch = 4;
+  repeated int32 hc = 5;
+  float varianceMS = 6;
+  float pingAvgMS = 7;
+  int32 actorAvg = 8;
+  int32 drawAvg = 9;
+  float memMB = 10;
+  int32 svGap100 = 11;
+  repeated int32 rtHist = 12;
+  repeated int32 gpuHist = 13;
+  float gtTickAvgMS = 14;
+  float gtPhysicsAvgMS = 15;
+  float gtNetAvgMS = 16;
+  float gtUIAvgMS = 17;
+}
+
+message SPERF_HITCH_SAMPLE {
+  enum HitchCause {
+    HC_SPAWN = 0;
+    HC_NET = 1;
+    HC_GC = 2;
+    HC_STREAM = 3;
+    HC_PSO = 4;
+    HC_GPU_BOUND = 5;
+    HC_DRIVER_PRESENT = 6;
+    HC_RT_BOUND = 7;
+    HC_OTHER = 8;
+    HC_GT_TICK = 9;
+    HC_GT_PHYSICS = 10;
+    HC_GT_UI = 11;
+  }
+
+  enum Flags {
+    FLAG_NONE = 0;
+    FLAG_FOCUS_LOST = 1;
+    FLAG_FULLSCREEN_TRANSITION = 2;
+    FLAG_FIRST_LOAD_PHASE = 4;
+  }
+
+  float tSec = 1;
+  float ftMS = 2;
+  float gtMS = 3;
+  float rtMS = 4;
+  float gpuMS = 5;
+  float presentMS = 6;
+  uint32 cause = 7;
+  int32 actorCount = 8;
+  int32 drawCalls = 9;
+  int32 memMB = 10;
+  int32 pingMS = 11;
+  float ftPrevMS = 12;
+  int32 actorDelta = 13;
+  float memDeltaMB = 14;
+  uint32 flags = 15;
+  float gtTickMS = 16;
+  float gtPhysicsMS = 17;
+  float gtNetMS = 18;
+  float gtUIMS = 19;
+}
+
+message SC2S_CLIENT_PERF_REPORT_REQ {
+  string buildVersion = 3;
+  int64 clientTimeMS = 4;
+  .DC.Packet.SPERF_HARDWARE_INFO hw = 10;
+  .DC.Packet.SPERF_GRAPHICS_SETTINGS gfx = 11;
+  .DC.Packet.SPERF_LOADING_INFO load = 12;
+  .DC.Packet.SPERF_SUMMARY summary = 20;
+  repeated .DC.Packet.SPERF_SLOT timeline = 21;
+  repeated .DC.Packet.SPERF_HITCH_SAMPLE hitchSamples = 22;
+}
+
+message SS2C_CLIENT_PERF_REPORT_RES {
+  uint32 result = 1;
+}
+
+message SS2C_CLIENT_PERF_REPORT_REQUEST_NOT {
 }
 

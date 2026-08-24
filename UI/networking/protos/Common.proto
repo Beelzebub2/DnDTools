@@ -194,6 +194,7 @@ message SDLC_INFO {
   int32 saleStatus = 2;
   int64 beginDateMS = 3;
   int64 endDateMS = 4;
+  int64 expireDateMs = 5;
 }
 
 message SS2C_DLC_INFO_NOT {
@@ -325,6 +326,7 @@ message SOPEN_DUNGEON_INFO {
   repeated .DC.Packet.SOPEN_DUNGEON_POOL_INFO dungeonPoolInfos = 4;
   string dungeonIdTag = 5;
   string rankLimit = 6;
+  uint32 rankPointRatio = 7;
 }
 
 message SS2C_OPEN_DUNGEON_INFO_NOT {
@@ -367,5 +369,13 @@ message SACCOUNT_DLC_INSTALL_INFO {
 }
 
 message SS2C_REPORT_TARGET_NOT {
+}
+
+message SC2S_TUTORIAL_PROGRESS_REQ {
+  uint32 eventType = 1;
+  string stepId = 2;
+  uint32 checkpointOrder = 3;
+  string tutorialVersion = 4;
+  uint32 stepsTotal = 5;
 }
 

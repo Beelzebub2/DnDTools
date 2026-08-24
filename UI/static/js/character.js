@@ -3300,20 +3300,63 @@ async function _characterPageInit1() {
 const priceCache = {};
 const priceFetchPromises = {};
 const PRICE_CACHE_EXPIRY = 300000; // 5 minutes (matches server cache)
+const PRICE_CACHE_MAX_ENTRIES = 500;
 const MAX_CONCURRENT_REQUESTS = 3;
 let activeRequests = 0;
 
 function _marketCacheKey(item) {
-    let key = `${item.name || ''}|${item.rarity || ''}`;
+    const normalizeRarity = value => {
+        const text = String(value || '').trim();
+        const known = {
+            poor: 'Poor', common: 'Common', uncommon: 'Uncommon', rare: 'Rare',
+            epic: 'Epic', legend: 'Legendary', legendary: 'Legendary',
+            unique: 'Unique', mythic: 'Mythic', artifact: 'Artifact'
+        };
+        return known[text.toLowerCase()] || text;
+    };
+    const attributeKey = value => String(value || '')
+        .trim()
+        .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+        .replace(/[\s-]+/g, '_')
+        .replace(/[^a-zA-Z0-9_]/g, '')
+        .toLowerCase();
+    let key = `${item.name || ''}|${normalizeRarity(item.rarity)}`;
+    const itemId = item.item_id || item.itemId || item.id || '';
+    const archetype = item.archetype || '';
+    if (itemId) {
+        key += `|id:${String(itemId).trim().toLowerCase()}`;
+    } else if (archetype) {
+        key += `|archetype:${String(archetype).trim().toLowerCase()}`;
+    }
     if (item.pp && item.pp.length) {
-        const sorted = [...item.pp].sort((a, b) => a[0].localeCompare(b[0]));
-        key += '|p:' + sorted.map(p => `${p[0]}=${p[1]}`).join(',');
+        const sorted = [...item.pp].sort((a, b) => attributeKey(a[0]).localeCompare(attributeKey(b[0])));
+        key += sorted.map(p => `|p:${attributeKey(p[0])}=${p[1]}`).join('');
     }
     if (item.sp && item.sp.length) {
-        const sorted = [...item.sp].sort((a, b) => a[0].localeCompare(b[0]));
-        key += '|s:' + sorted.map(p => `${p[0]}=${p[1]}`).join(',');
+        const sorted = [...item.sp].sort((a, b) => attributeKey(a[0]).localeCompare(attributeKey(b[0])));
+        key += sorted.map(p => `|s:${attributeKey(p[0])}=${p[1]}`).join('');
     }
     return key;
+}
+
+function _getCachedMarketPrice(cacheKey, now = Date.now()) {
+    const cached = priceCache[cacheKey];
+    if (!cached) return null;
+    if (now - cached.timestamp >= PRICE_CACHE_EXPIRY) {
+        delete priceCache[cacheKey];
+        return null;
+    }
+    return cached.data;
+}
+
+function _setCachedMarketPrice(cacheKey, data, now = Date.now()) {
+    priceCache[cacheKey] = { timestamp: now, data };
+    const keys = Object.keys(priceCache);
+    if (keys.length <= PRICE_CACHE_MAX_ENTRIES) return;
+    keys.sort((left, right) => priceCache[left].timestamp - priceCache[right].timestamp);
+    keys.slice(0, keys.length - PRICE_CACHE_MAX_ENTRIES).forEach(key => {
+        delete priceCache[key];
+    });
 }
 
 async function getMostRecentPrice(item) {
@@ -3321,8 +3364,9 @@ async function getMostRecentPrice(item) {
 
     // Check client-side cache first
     const now = Date.now();
-    if (priceCache[cacheKey] && now - priceCache[cacheKey].timestamp < PRICE_CACHE_EXPIRY) {
-        return priceCache[cacheKey].data;
+    const cachedPrice = _getCachedMarketPrice(cacheKey, now);
+    if (cachedPrice) {
+        return cachedPrice;
     }
 
     // If there's already a fetch in progress for this key, reuse that promise
@@ -3365,7 +3409,7 @@ async function getMostRecentPrice(item) {
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 if (data && data.success) {
-                    priceCache[cacheKey] = { timestamp: now, data: data };
+                    _setCachedMarketPrice(cacheKey, data, now);
                     return data;
                 }
                 return { success: true, has_data: false };
@@ -3394,7 +3438,7 @@ async function fetchBulkMarketPrices(items) {
             seen.add(key);
             // Skip if already cached on the client
             const now = Date.now();
-            if (priceCache[key] && now - priceCache[key].timestamp < PRICE_CACHE_EXPIRY) {
+            if (_getCachedMarketPrice(key, now)) {
                 continue;
             }
             uniqueItems.push({
@@ -3405,6 +3449,7 @@ async function fetchBulkMarketPrices(items) {
                 item_id: item.item_id || item.itemId || item.id || '',
                 itemId: item.itemId || item.item_id || item.id || '',
                 archetype: item.archetype || '',
+                client_key: key,
             });
         }
     }
@@ -3414,8 +3459,9 @@ async function fetchBulkMarketPrices(items) {
         const result = {};
         for (const item of items) {
             const key = _marketCacheKey(item);
-            if (priceCache[key]) {
-                result[key] = priceCache[key].data;
+            const cached = _getCachedMarketPrice(key);
+            if (cached) {
+                result[key] = cached;
             }
         }
         return result;
@@ -3447,14 +3493,18 @@ async function fetchBulkMarketPrices(items) {
             itemsByFullKey[_marketCacheKey(item)] = item;
         }
         for (const [serverKey, priceData] of Object.entries(data.prices || {})) {
+            if (priceData && priceData.client_key && itemsByFullKey[priceData.client_key]) {
+                _setCachedMarketPrice(priceData.client_key, priceData, now);
+                continue;
+            }
             if (priceData && priceData.cache_key && itemsByFullKey[priceData.cache_key]) {
-                priceCache[priceData.cache_key] = { timestamp: now, data: priceData };
+                _setCachedMarketPrice(priceData.cache_key, priceData, now);
                 continue;
             }
             const matching = itemsBySimpleKey[serverKey] || [];
             for (const it of matching) {
                 const fullKey = _marketCacheKey(it);
-                priceCache[fullKey] = { timestamp: now, data: priceData };
+                _setCachedMarketPrice(fullKey, priceData, now);
             }
         }
 
@@ -3466,10 +3516,11 @@ async function fetchBulkMarketPrices(items) {
         }
         for (const item of items) {
             const key = _marketCacheKey(item);
-            if (priceCache[key]) {
-                result[key] = priceCache[key].data;
+            const cached = _getCachedMarketPrice(key);
+            if (cached) {
+                result[key] = cached;
                 const simpleKey = `${item.name || ''}|${item.rarity || ''}`;
-                if (!result[simpleKey]) result[simpleKey] = priceCache[key].data;
+                if (!result[simpleKey]) result[simpleKey] = cached;
             }
         }
         return result;

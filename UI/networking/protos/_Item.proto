@@ -146,3 +146,14 @@ message SFriendItemRecoveryInfo {
   repeated .DC.Packet.SItem recoveryItemList = 3;
 }
 
+message SGatheringHallItem {
+  .DC.Packet.SItem origin = 1;
+  float posX = 2;
+  float posY = 3;
+  float posZ = 4;
+  float rotPitch = 5;
+  float rotYaw = 6;
+  float rotRoll = 7;
+  int32 hallStatus = 8;
+}
+

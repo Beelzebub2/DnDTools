@@ -519,48 +519,44 @@ class QuestPacketHandler:
             if not captured_quests:
                 return
 
-            # Load existing progress to merge
-            existing_progress, _ = self._quest_service.load_progress()
-            objectives = dict(existing_progress.get("objectives", {}))
+            def merge_captured_progress(existing_progress: dict) -> dict:
+                objectives = dict(existing_progress.get("objectives", {}))
 
-            for quest_id, quest_data in captured_quests.items():
-                flag = quest_data.get("quest_flag", 0)
-                is_complete = flag in (QUEST_FLAG_SUCCESS, QUEST_FLAG_COMPLETE)
-                missions = quest_data.get("missions", [])
+                for quest_id, quest_data in captured_quests.items():
+                    flag = quest_data.get("quest_flag", 0)
+                    is_complete = flag in (QUEST_FLAG_SUCCESS, QUEST_FLAG_COMPLETE)
+                    missions = quest_data.get("missions", [])
 
-                for idx, mission in enumerate(missions):
-                    content_id = mission.get("content_id", "")
-                    current_value = mission.get("current_value", 0)
+                    for idx, mission in enumerate(missions):
+                        content_id = mission.get("content_id", "")
+                        try:
+                            current_value = max(0, int(mission.get("current_value", 0)))
+                        except (TypeError, ValueError):
+                            current_value = 0
 
-                    # Build a key that can be matched by the frontend
-                    # Format: captured::<questId>::<idx>::<contentId>
-                    # The frontend will reconcile these with its own keys
-                    key = f"captured::{quest_id}::{idx}::{content_id}"
+                        # Build a key that can be matched by the frontend.
+                        key = f"captured::{quest_id}::{idx}::{content_id}"
+                        existing = objectives.get(key, {})
+                        try:
+                            existing_submitted = int(existing.get("submitted", 0))
+                        except (TypeError, ValueError):
+                            existing_submitted = 0
 
-                    existing = objectives.get(key, {})
-                    existing_submitted = 0
-                    try:
-                        existing_submitted = int(existing.get("submitted", 0))
-                    except (TypeError, ValueError):
-                        pass
+                        objectives[key] = {
+                            "quest_id": quest_id,
+                            "objective_index": idx,
+                            "type": "captured",
+                            "item_id": content_id,
+                            "submitted": max(existing_submitted, current_value),
+                            "completed": bool(existing.get("completed")) or is_complete,
+                        }
 
-                    # Only update if captured value is higher (never regress)
-                    new_submitted = max(existing_submitted, current_value)
+                return {
+                    "objectives": objectives,
+                    "items": existing_progress.get("items", {}),
+                }
 
-                    objectives[key] = {
-                        "quest_id": quest_id,
-                        "objective_index": idx,
-                        "type": "captured",
-                        "item_id": content_id,
-                        "submitted": new_submitted,
-                        "completed": is_complete,
-                    }
-
-            merged = {
-                "objectives": objectives,
-                "items": existing_progress.get("items", {}),
-            }
-            self._quest_service.save_progress(merged)
+            self._quest_service.update_progress(merge_captured_progress)
         except Exception as exc:
             logger.warning("Failed to sync captured quest progress to service: %s", exc, exc_info=True)
 

@@ -10,13 +10,26 @@ class MemoryGuard:
     """
     Monitors system memory usage and triggers a callback if usage exceeds a threshold.
     """
-    def __init__(self, threshold_mb: int = 500, check_interval: float = 2.0, on_threshold_exceeded: Optional[Callable[[], None]] = None):
+    def __init__(
+        self,
+        threshold_mb: int = 500,
+        check_interval: float = 2.0,
+        on_threshold_exceeded: Optional[Callable[[], None]] = None,
+        usage_provider: Optional[Callable[[], float]] = None,
+    ):
         self.threshold_mb = threshold_mb
         self.check_interval = check_interval
         self.on_threshold_exceeded = on_threshold_exceeded
+        self.usage_provider = usage_provider or self._current_process_usage_mb
         self._stop_event = threading.Event()
         self._thread: Optional[threading.Thread] = None
         self._is_running = False
+
+    @staticmethod
+    def _current_process_usage_mb() -> float:
+        """Return resident memory for the current process in MiB."""
+
+        return psutil.Process().memory_info().rss / (1024 * 1024)
 
     def start(self):
         if self._is_running:
@@ -37,11 +50,9 @@ class MemoryGuard:
         logger.info("MemoryGuard stopped.")
 
     def _loop(self):
-        process = psutil.Process()
         while not self._stop_event.is_set():
             try:
-                mem_info = process.memory_info()
-                rss_mb = mem_info.rss / (1024 * 1024)
+                rss_mb = max(0.0, float(self.usage_provider()))
                 if rss_mb > self.threshold_mb:
                     logger.warning(f"Memory usage {rss_mb:.2f} MB exceeded threshold {self.threshold_mb} MB.")
                     if self.on_threshold_exceeded:

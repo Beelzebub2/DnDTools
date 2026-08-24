@@ -53,6 +53,7 @@ message SC2S_ACCOUNT_LOGIN_REQ {
   string buildVersion = 8;
   string eulaHash = 9;
   .DC.Packet.SFINGER_PRINT_INFO fingerPrint = 10;
+  uint32 securityEnabled = 11;
 }
 
 message SS2C_ACCOUNT_LOGIN_RES {
@@ -81,6 +82,12 @@ message SS2C_ACCOUNT_LOGIN_RES {
     DISAGREE = 2;
   }
 
+  enum SecurityStatus {
+    SECURITY_NONE = 0;
+    SECURITY_INACTIVE = 1;
+    SECURITY_ACTIVE = 2;
+  }
+
   uint32 Result = 1;
   .DC.Packet.SLOGIN_ACCOUNT_INFO AccountInfo = 2;
   uint32 isReconnect = 3;
@@ -106,6 +113,7 @@ message SS2C_ACCOUNT_LOGIN_RES {
   int32 eulaAgreementStatus = 23;
   int32 permission = 24;
   repeated .DC.Packet.SACCOUNT_DLC_INSTALL_INFO dlcInstallInfos = 25;
+  uint32 enterTutorial = 26;
 }
 
 message SC2S_ACCOUNT_CHARACTER_CREATE_REQ {
@@ -201,6 +209,7 @@ message ACCOUNT_REDIRECTION_INFO {
   string officialDiscordUrl = 8;
   string bugReportUrl = 9;
   string reportPlayerUrl = 10;
+  string securitySettingsFaqUrl = 11;
 }
 
 message SC2S_ACCOUNT_SELECT_PLATFORM_LINK_REQ {

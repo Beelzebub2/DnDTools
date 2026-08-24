@@ -23,9 +23,10 @@ _sym_db = _symbol_database.Default()
 
 
 import _Character_pb2 as __Character__pb2
+import _Item_pb2 as __Item__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15S_GatheringHall.proto\x12\tDC.Packet\x1a\x10_Character.proto\",\n\x19SGATHERING_HALL_INIT_INFO\x12\x0f\n\x07restUrl\x18\x01 \x01(\t\"R\n\x1cSS2D_GATHERING_HALL_INIT_NOT\x12\x32\n\x04info\x18\x01 \x01(\x0b\x32$.DC.Packet.SGATHERING_HALL_INIT_INFO\"\x91\x01\n\x1fSGATHERING_HALL_JOIN_PARTY_INFO\x12\x11\n\taccountId\x18\x01 \x01(\t\x12.\n\x08nickname\x18\x02 \x01(\x0b\x32\x1c.DC.Packet.SACCOUNT_NICKNAME\x12\x13\n\x0bkarmaRating\x18\x03 \x01(\x05\x12\x16\n\x0e\x63haracterClass\x18\x04 \x01(\t\"\xaf\x02\n\x1eSGATHERING_HALL_JOIN_USER_INFO\x12\x0f\n\x07restUrl\x18\x01 \x01(\t\x12\x11\n\taccountId\x18\x02 \x01(\t\x12\x13\n\x0b\x63haracterId\x18\x03 \x01(\t\x12.\n\x08nickname\x18\x04 \x01(\x0b\x32\x1c.DC.Packet.SACCOUNT_NICKNAME\x12\x16\n\x0e\x63haracterClass\x18\x05 \x01(\t\x12\x0e\n\x06gender\x18\x06 \x01(\r\x12\r\n\x05level\x18\x07 \x01(\r\x12\x0f\n\x07partyId\x18\x08 \x01(\t\x12\x13\n\x0bkarmaRating\x18\t \x01(\x05\x12G\n\x13reservedPartyMember\x18\n \x03(\x0b\x32*.DC.Packet.SGATHERING_HALL_JOIN_PARTY_INFO\"3\n\x1eSD2S_GATHERING_HALL_ACTIVE_REQ\x12\x11\n\tsessionId\x18\x01 \x01(\x04\"0\n\x1eSS2D_GATHERING_HALL_ACTIVE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\"<\n!SD2S_GATHERING_HALL_USER_JOIN_REQ\x12\x17\n\x0fuserTempSession\x18\x01 \x01(\t\"p\n!SS2D_GATHERING_HALL_USER_JOIN_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12;\n\x08userInfo\x18\x02 \x01(\x0b\x32).DC.Packet.SGATHERING_HALL_JOIN_USER_INFOB+\n\x15\x63om.packets.s_sessionB\x10s_gathering_hallP\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x15S_GatheringHall.proto\x12\tDC.Packet\x1a\x10_Character.proto\x1a\x0b_Item.proto\",\n\x19SGATHERING_HALL_INIT_INFO\x12\x0f\n\x07restUrl\x18\x01 \x01(\t\"R\n\x1cSS2D_GATHERING_HALL_INIT_NOT\x12\x32\n\x04info\x18\x01 \x01(\x0b\x32$.DC.Packet.SGATHERING_HALL_INIT_INFO\"\x91\x01\n\x1fSGATHERING_HALL_JOIN_PARTY_INFO\x12\x11\n\taccountId\x18\x01 \x01(\t\x12.\n\x08nickname\x18\x02 \x01(\x0b\x32\x1c.DC.Packet.SACCOUNT_NICKNAME\x12\x13\n\x0bkarmaRating\x18\x03 \x01(\x05\x12\x16\n\x0e\x63haracterClass\x18\x04 \x01(\t\"\xaf\x02\n\x1eSGATHERING_HALL_JOIN_USER_INFO\x12\x0f\n\x07restUrl\x18\x01 \x01(\t\x12\x11\n\taccountId\x18\x02 \x01(\t\x12\x13\n\x0b\x63haracterId\x18\x03 \x01(\t\x12.\n\x08nickname\x18\x04 \x01(\x0b\x32\x1c.DC.Packet.SACCOUNT_NICKNAME\x12\x16\n\x0e\x63haracterClass\x18\x05 \x01(\t\x12\x0e\n\x06gender\x18\x06 \x01(\r\x12\r\n\x05level\x18\x07 \x01(\r\x12\x0f\n\x07partyId\x18\x08 \x01(\t\x12\x13\n\x0bkarmaRating\x18\t \x01(\x05\x12G\n\x13reservedPartyMember\x18\n \x03(\x0b\x32*.DC.Packet.SGATHERING_HALL_JOIN_PARTY_INFO\"3\n\x1eSD2S_GATHERING_HALL_ACTIVE_REQ\x12\x11\n\tsessionId\x18\x01 \x01(\x04\"0\n\x1eSS2D_GATHERING_HALL_ACTIVE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\"<\n!SD2S_GATHERING_HALL_USER_JOIN_REQ\x12\x17\n\x0fuserTempSession\x18\x01 \x01(\t\"p\n!SS2D_GATHERING_HALL_USER_JOIN_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12;\n\x08userInfo\x18\x02 \x01(\x0b\x32).DC.Packet.SGATHERING_HALL_JOIN_USER_INFO\"\xc7\x01\n!SD2S_GATHERING_HALL_ITEM_SYNC_REQ\x12\x35\n\x0einstalledItems\x18\x01 \x03(\x0b\x32\x1d.DC.Packet.SGatheringHallItem\x12\x1b\n\x13removedInstalledIds\x18\x03 \x03(\x03\x12\x33\n\x0c\x64roppedItems\x18\x04 \x03(\x0b\x32\x1d.DC.Packet.SGatheringHallItem\x12\x19\n\x11removedDroppedIds\x18\x05 \x03(\x03\"3\n!SS2D_GATHERING_HALL_ITEM_SYNC_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x42+\n\x15\x63om.packets.s_sessionB\x10s_gathering_hallP\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,20 +34,24 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'S_GatheringHall_pb2', _glob
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\025com.packets.s_sessionB\020s_gathering_hallP\000'
-  _globals['_SGATHERING_HALL_INIT_INFO']._serialized_start=54
-  _globals['_SGATHERING_HALL_INIT_INFO']._serialized_end=98
-  _globals['_SS2D_GATHERING_HALL_INIT_NOT']._serialized_start=100
-  _globals['_SS2D_GATHERING_HALL_INIT_NOT']._serialized_end=182
-  _globals['_SGATHERING_HALL_JOIN_PARTY_INFO']._serialized_start=185
-  _globals['_SGATHERING_HALL_JOIN_PARTY_INFO']._serialized_end=330
-  _globals['_SGATHERING_HALL_JOIN_USER_INFO']._serialized_start=333
-  _globals['_SGATHERING_HALL_JOIN_USER_INFO']._serialized_end=636
-  _globals['_SD2S_GATHERING_HALL_ACTIVE_REQ']._serialized_start=638
-  _globals['_SD2S_GATHERING_HALL_ACTIVE_REQ']._serialized_end=689
-  _globals['_SS2D_GATHERING_HALL_ACTIVE_RES']._serialized_start=691
-  _globals['_SS2D_GATHERING_HALL_ACTIVE_RES']._serialized_end=739
-  _globals['_SD2S_GATHERING_HALL_USER_JOIN_REQ']._serialized_start=741
-  _globals['_SD2S_GATHERING_HALL_USER_JOIN_REQ']._serialized_end=801
-  _globals['_SS2D_GATHERING_HALL_USER_JOIN_RES']._serialized_start=803
-  _globals['_SS2D_GATHERING_HALL_USER_JOIN_RES']._serialized_end=915
+  _globals['_SGATHERING_HALL_INIT_INFO']._serialized_start=67
+  _globals['_SGATHERING_HALL_INIT_INFO']._serialized_end=111
+  _globals['_SS2D_GATHERING_HALL_INIT_NOT']._serialized_start=113
+  _globals['_SS2D_GATHERING_HALL_INIT_NOT']._serialized_end=195
+  _globals['_SGATHERING_HALL_JOIN_PARTY_INFO']._serialized_start=198
+  _globals['_SGATHERING_HALL_JOIN_PARTY_INFO']._serialized_end=343
+  _globals['_SGATHERING_HALL_JOIN_USER_INFO']._serialized_start=346
+  _globals['_SGATHERING_HALL_JOIN_USER_INFO']._serialized_end=649
+  _globals['_SD2S_GATHERING_HALL_ACTIVE_REQ']._serialized_start=651
+  _globals['_SD2S_GATHERING_HALL_ACTIVE_REQ']._serialized_end=702
+  _globals['_SS2D_GATHERING_HALL_ACTIVE_RES']._serialized_start=704
+  _globals['_SS2D_GATHERING_HALL_ACTIVE_RES']._serialized_end=752
+  _globals['_SD2S_GATHERING_HALL_USER_JOIN_REQ']._serialized_start=754
+  _globals['_SD2S_GATHERING_HALL_USER_JOIN_REQ']._serialized_end=814
+  _globals['_SS2D_GATHERING_HALL_USER_JOIN_RES']._serialized_start=816
+  _globals['_SS2D_GATHERING_HALL_USER_JOIN_RES']._serialized_end=928
+  _globals['_SD2S_GATHERING_HALL_ITEM_SYNC_REQ']._serialized_start=931
+  _globals['_SD2S_GATHERING_HALL_ITEM_SYNC_REQ']._serialized_end=1130
+  _globals['_SS2D_GATHERING_HALL_ITEM_SYNC_RES']._serialized_start=1132
+  _globals['_SS2D_GATHERING_HALL_ITEM_SYNC_RES']._serialized_end=1183
 # @@protoc_insertion_point(module_scope)

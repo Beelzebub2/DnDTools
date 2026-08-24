@@ -22,10 +22,11 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+import _Item_pb2 as __Item__pb2
 import Inventory_pb2 as Inventory__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0eWorkshop.proto\x12\tDC.Packet\x1a\x0fInventory.proto\"w\n\"SWORKSHOP_UPGRADE_REQUIREMENT_INFO\x12\x13\n\x0btargetLevel\x18\x01 \x01(\x05\x12\x15\n\rrequirementId\x18\x02 \x01(\t\x12\x10\n\x08progress\x18\x03 \x01(\x05\x12\x13\n\x0bmaxProgress\x18\x04 \x01(\x05\"\x98\x01\n\x0eSWORKSHOP_INFO\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x15\n\rworkshopLevel\x18\x02 \x01(\x05\x12\x12\n\nneedUnlock\x18\x03 \x01(\x05\x12G\n\x10requirementInfos\x18\x04 \x03(\x0b\x32-.DC.Packet.SWORKSHOP_UPGRADE_REQUIREMENT_INFO\"t\n$SWORKSHOP_UPGRADE_STACK_REQUEST_INFO\x12\x15\n\rrequirementId\x18\x01 \x01(\t\x12\x35\n\titemInfos\x18\x02 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"F\n\x16SS2C_WORKSHOP_INFO_NOT\x12,\n\tworkshops\x18\x01 \x03(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\".\n\x18SC2S_WORKSHOP_UNLOCK_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\"\x92\x01\n\x18SS2C_WORKSHOP_UNLOCK_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12/\n\x0cworkshopInfo\x18\x02 \x01(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\x12\x35\n\nitemResult\x18\x03 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"/\n\x19SC2S_WORKSHOP_UPGRADE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\"\\\n\x19SS2C_WORKSHOP_UPGRADE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12/\n\x0cworkshopInfo\x18\x02 \x01(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\"\x88\x01\n+SC2S_WORKSHOP_UPGRADE_REQUIREMENT_STACK_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x45\n\x0crequestInfos\x18\x02 \x03(\x0b\x32/.DC.Packet.SWORKSHOP_UPGRADE_STACK_REQUEST_INFO\"\xa5\x01\n+SS2C_WORKSHOP_UPGRADE_REQUIREMENT_STACK_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12/\n\x0cworkshopInfo\x18\x02 \x01(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\x12\x35\n\nitemResult\x18\x03 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\x84\x01\n+SS2C_WORKSHOP_UPGRADE_REQUIREMENT_VALUE_NOT\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x41\n\nchangeInfo\x18\x02 \x01(\x0b\x32-.DC.Packet.SWORKSHOP_UPGRADE_REQUIREMENT_INFO\"\x8e\x01\n!SC2S_WORKSHOP_ENHANCE_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x1a\n\x12targetItemUniqueId\x18\x02 \x01(\x03\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"j\n!SS2C_WORKSHOP_ENHANCE_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\x8e\x01\n!SC2S_WORKSHOP_REBUILD_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x1a\n\x12targetItemUniqueId\x18\x02 \x01(\x03\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"j\n!SS2C_WORKSHOP_REBUILD_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\xa9\x01\n\x1fSC2S_WORKSHOP_SCRAP_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x37\n\x0btargetInfos\x18\x02 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"h\n\x1fSS2C_WORKSHOP_SCRAP_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\x81\x01\n\x1fSC2S_WORKSHOP_CRAFT_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x0f\n\x07\x63raftId\x18\x02 \x01(\t\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"h\n\x1fSS2C_WORKSHOP_CRAFT_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFOB\"\n\x14\x63om.packets.workshopB\x08workshopP\x00\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0eWorkshop.proto\x12\tDC.Packet\x1a\x0b_Item.proto\x1a\x0fInventory.proto\"w\n\"SWORKSHOP_UPGRADE_REQUIREMENT_INFO\x12\x13\n\x0btargetLevel\x18\x01 \x01(\x05\x12\x15\n\rrequirementId\x18\x02 \x01(\t\x12\x10\n\x08progress\x18\x03 \x01(\x05\x12\x13\n\x0bmaxProgress\x18\x04 \x01(\x05\"\x98\x01\n\x0eSWORKSHOP_INFO\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x15\n\rworkshopLevel\x18\x02 \x01(\x05\x12\x12\n\nneedUnlock\x18\x03 \x01(\x05\x12G\n\x10requirementInfos\x18\x04 \x03(\x0b\x32-.DC.Packet.SWORKSHOP_UPGRADE_REQUIREMENT_INFO\"I\n\x15SWORKSHOP_REWARD_INFO\x12\x10\n\x08rewardId\x18\x01 \x01(\t\x12\x1e\n\x04item\x18\x02 \x01(\x0b\x32\x10.DC.Packet.SItem\"t\n$SWORKSHOP_UPGRADE_STACK_REQUEST_INFO\x12\x15\n\rrequirementId\x18\x01 \x01(\t\x12\x35\n\titemInfos\x18\x02 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"F\n\x16SS2C_WORKSHOP_INFO_NOT\x12,\n\tworkshops\x18\x01 \x03(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\".\n\x18SC2S_WORKSHOP_UNLOCK_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\"\x92\x01\n\x18SS2C_WORKSHOP_UNLOCK_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12/\n\x0cworkshopInfo\x18\x02 \x01(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\x12\x35\n\nitemResult\x18\x03 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"/\n\x19SC2S_WORKSHOP_UPGRADE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\"\\\n\x19SS2C_WORKSHOP_UPGRADE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12/\n\x0cworkshopInfo\x18\x02 \x01(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\"\x88\x01\n+SC2S_WORKSHOP_UPGRADE_REQUIREMENT_STACK_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x45\n\x0crequestInfos\x18\x02 \x03(\x0b\x32/.DC.Packet.SWORKSHOP_UPGRADE_STACK_REQUEST_INFO\"\xa5\x01\n+SS2C_WORKSHOP_UPGRADE_REQUIREMENT_STACK_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12/\n\x0cworkshopInfo\x18\x02 \x01(\x0b\x32\x19.DC.Packet.SWORKSHOP_INFO\x12\x35\n\nitemResult\x18\x03 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\x84\x01\n+SS2C_WORKSHOP_UPGRADE_REQUIREMENT_VALUE_NOT\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x41\n\nchangeInfo\x18\x02 \x01(\x0b\x32-.DC.Packet.SWORKSHOP_UPGRADE_REQUIREMENT_INFO\"\x8e\x01\n!SC2S_WORKSHOP_ENHANCE_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x1a\n\x12targetItemUniqueId\x18\x02 \x01(\x03\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"j\n!SS2C_WORKSHOP_ENHANCE_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\x8e\x01\n!SC2S_WORKSHOP_REBUILD_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x1a\n\x12targetItemUniqueId\x18\x02 \x01(\x03\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"j\n!SS2C_WORKSHOP_REBUILD_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\xa9\x01\n\x1fSC2S_WORKSHOP_SCRAP_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x37\n\x0btargetInfos\x18\x02 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"h\n\x1fSS2C_WORKSHOP_SCRAP_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"\x81\x01\n\x1fSC2S_WORKSHOP_CRAFT_SERVICE_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x0f\n\x07\x63raftId\x18\x02 \x01(\t\x12\x39\n\rmaterialInfos\x18\x03 \x03(\x0b\x32\".DC.Packet.SINVENTORY_REQUEST_INFO\"h\n\x1fSS2C_WORKSHOP_CRAFT_SERVICE_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x35\n\nitemResult\x18\x02 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\"@\n*SC2S_WORKSHOP_REWARD_SERVICE_ITEM_LIST_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\"\x83\x01\n*SS2C_WORKSHOP_REWARD_SERVICE_ITEM_LIST_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x12\n\nworkshopId\x18\x02 \x01(\t\x12\x31\n\x07rewards\x18\x03 \x03(\x0b\x32 .DC.Packet.SWORKSHOP_REWARD_INFO\"[\n2SC2S_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_REQ\x12\x12\n\nworkshopId\x18\x01 \x01(\t\x12\x11\n\trewardIds\x18\x02 \x03(\t\"\xc8\x01\n2SS2C_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_RES\x12\x0e\n\x06result\x18\x01 \x01(\x05\x12\x12\n\nworkshopId\x18\x02 \x01(\t\x12\x35\n\nitemResult\x18\x03 \x01(\x0b\x32!.DC.Packet.SINVENTORY_RESULT_INFO\x12\x37\n\rremainRewards\x18\x04 \x03(\x0b\x32 .DC.Packet.SWORKSHOP_REWARD_INFOB\"\n\x14\x63om.packets.workshopB\x08workshopP\x00\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,42 +34,52 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'Workshop_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\024com.packets.workshopB\010workshopP\000'
-  _globals['_SWORKSHOP_UPGRADE_REQUIREMENT_INFO']._serialized_start=46
-  _globals['_SWORKSHOP_UPGRADE_REQUIREMENT_INFO']._serialized_end=165
-  _globals['_SWORKSHOP_INFO']._serialized_start=168
-  _globals['_SWORKSHOP_INFO']._serialized_end=320
-  _globals['_SWORKSHOP_UPGRADE_STACK_REQUEST_INFO']._serialized_start=322
-  _globals['_SWORKSHOP_UPGRADE_STACK_REQUEST_INFO']._serialized_end=438
-  _globals['_SS2C_WORKSHOP_INFO_NOT']._serialized_start=440
-  _globals['_SS2C_WORKSHOP_INFO_NOT']._serialized_end=510
-  _globals['_SC2S_WORKSHOP_UNLOCK_REQ']._serialized_start=512
-  _globals['_SC2S_WORKSHOP_UNLOCK_REQ']._serialized_end=558
-  _globals['_SS2C_WORKSHOP_UNLOCK_RES']._serialized_start=561
-  _globals['_SS2C_WORKSHOP_UNLOCK_RES']._serialized_end=707
-  _globals['_SC2S_WORKSHOP_UPGRADE_REQ']._serialized_start=709
-  _globals['_SC2S_WORKSHOP_UPGRADE_REQ']._serialized_end=756
-  _globals['_SS2C_WORKSHOP_UPGRADE_RES']._serialized_start=758
-  _globals['_SS2C_WORKSHOP_UPGRADE_RES']._serialized_end=850
-  _globals['_SC2S_WORKSHOP_UPGRADE_REQUIREMENT_STACK_REQ']._serialized_start=853
-  _globals['_SC2S_WORKSHOP_UPGRADE_REQUIREMENT_STACK_REQ']._serialized_end=989
-  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_STACK_RES']._serialized_start=992
-  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_STACK_RES']._serialized_end=1157
-  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_VALUE_NOT']._serialized_start=1160
-  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_VALUE_NOT']._serialized_end=1292
-  _globals['_SC2S_WORKSHOP_ENHANCE_SERVICE_REQ']._serialized_start=1295
-  _globals['_SC2S_WORKSHOP_ENHANCE_SERVICE_REQ']._serialized_end=1437
-  _globals['_SS2C_WORKSHOP_ENHANCE_SERVICE_RES']._serialized_start=1439
-  _globals['_SS2C_WORKSHOP_ENHANCE_SERVICE_RES']._serialized_end=1545
-  _globals['_SC2S_WORKSHOP_REBUILD_SERVICE_REQ']._serialized_start=1548
-  _globals['_SC2S_WORKSHOP_REBUILD_SERVICE_REQ']._serialized_end=1690
-  _globals['_SS2C_WORKSHOP_REBUILD_SERVICE_RES']._serialized_start=1692
-  _globals['_SS2C_WORKSHOP_REBUILD_SERVICE_RES']._serialized_end=1798
-  _globals['_SC2S_WORKSHOP_SCRAP_SERVICE_REQ']._serialized_start=1801
-  _globals['_SC2S_WORKSHOP_SCRAP_SERVICE_REQ']._serialized_end=1970
-  _globals['_SS2C_WORKSHOP_SCRAP_SERVICE_RES']._serialized_start=1972
-  _globals['_SS2C_WORKSHOP_SCRAP_SERVICE_RES']._serialized_end=2076
-  _globals['_SC2S_WORKSHOP_CRAFT_SERVICE_REQ']._serialized_start=2079
-  _globals['_SC2S_WORKSHOP_CRAFT_SERVICE_REQ']._serialized_end=2208
-  _globals['_SS2C_WORKSHOP_CRAFT_SERVICE_RES']._serialized_start=2210
-  _globals['_SS2C_WORKSHOP_CRAFT_SERVICE_RES']._serialized_end=2314
+  _globals['_SWORKSHOP_UPGRADE_REQUIREMENT_INFO']._serialized_start=59
+  _globals['_SWORKSHOP_UPGRADE_REQUIREMENT_INFO']._serialized_end=178
+  _globals['_SWORKSHOP_INFO']._serialized_start=181
+  _globals['_SWORKSHOP_INFO']._serialized_end=333
+  _globals['_SWORKSHOP_REWARD_INFO']._serialized_start=335
+  _globals['_SWORKSHOP_REWARD_INFO']._serialized_end=408
+  _globals['_SWORKSHOP_UPGRADE_STACK_REQUEST_INFO']._serialized_start=410
+  _globals['_SWORKSHOP_UPGRADE_STACK_REQUEST_INFO']._serialized_end=526
+  _globals['_SS2C_WORKSHOP_INFO_NOT']._serialized_start=528
+  _globals['_SS2C_WORKSHOP_INFO_NOT']._serialized_end=598
+  _globals['_SC2S_WORKSHOP_UNLOCK_REQ']._serialized_start=600
+  _globals['_SC2S_WORKSHOP_UNLOCK_REQ']._serialized_end=646
+  _globals['_SS2C_WORKSHOP_UNLOCK_RES']._serialized_start=649
+  _globals['_SS2C_WORKSHOP_UNLOCK_RES']._serialized_end=795
+  _globals['_SC2S_WORKSHOP_UPGRADE_REQ']._serialized_start=797
+  _globals['_SC2S_WORKSHOP_UPGRADE_REQ']._serialized_end=844
+  _globals['_SS2C_WORKSHOP_UPGRADE_RES']._serialized_start=846
+  _globals['_SS2C_WORKSHOP_UPGRADE_RES']._serialized_end=938
+  _globals['_SC2S_WORKSHOP_UPGRADE_REQUIREMENT_STACK_REQ']._serialized_start=941
+  _globals['_SC2S_WORKSHOP_UPGRADE_REQUIREMENT_STACK_REQ']._serialized_end=1077
+  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_STACK_RES']._serialized_start=1080
+  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_STACK_RES']._serialized_end=1245
+  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_VALUE_NOT']._serialized_start=1248
+  _globals['_SS2C_WORKSHOP_UPGRADE_REQUIREMENT_VALUE_NOT']._serialized_end=1380
+  _globals['_SC2S_WORKSHOP_ENHANCE_SERVICE_REQ']._serialized_start=1383
+  _globals['_SC2S_WORKSHOP_ENHANCE_SERVICE_REQ']._serialized_end=1525
+  _globals['_SS2C_WORKSHOP_ENHANCE_SERVICE_RES']._serialized_start=1527
+  _globals['_SS2C_WORKSHOP_ENHANCE_SERVICE_RES']._serialized_end=1633
+  _globals['_SC2S_WORKSHOP_REBUILD_SERVICE_REQ']._serialized_start=1636
+  _globals['_SC2S_WORKSHOP_REBUILD_SERVICE_REQ']._serialized_end=1778
+  _globals['_SS2C_WORKSHOP_REBUILD_SERVICE_RES']._serialized_start=1780
+  _globals['_SS2C_WORKSHOP_REBUILD_SERVICE_RES']._serialized_end=1886
+  _globals['_SC2S_WORKSHOP_SCRAP_SERVICE_REQ']._serialized_start=1889
+  _globals['_SC2S_WORKSHOP_SCRAP_SERVICE_REQ']._serialized_end=2058
+  _globals['_SS2C_WORKSHOP_SCRAP_SERVICE_RES']._serialized_start=2060
+  _globals['_SS2C_WORKSHOP_SCRAP_SERVICE_RES']._serialized_end=2164
+  _globals['_SC2S_WORKSHOP_CRAFT_SERVICE_REQ']._serialized_start=2167
+  _globals['_SC2S_WORKSHOP_CRAFT_SERVICE_REQ']._serialized_end=2296
+  _globals['_SS2C_WORKSHOP_CRAFT_SERVICE_RES']._serialized_start=2298
+  _globals['_SS2C_WORKSHOP_CRAFT_SERVICE_RES']._serialized_end=2402
+  _globals['_SC2S_WORKSHOP_REWARD_SERVICE_ITEM_LIST_REQ']._serialized_start=2404
+  _globals['_SC2S_WORKSHOP_REWARD_SERVICE_ITEM_LIST_REQ']._serialized_end=2468
+  _globals['_SS2C_WORKSHOP_REWARD_SERVICE_ITEM_LIST_RES']._serialized_start=2471
+  _globals['_SS2C_WORKSHOP_REWARD_SERVICE_ITEM_LIST_RES']._serialized_end=2602
+  _globals['_SC2S_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_REQ']._serialized_start=2604
+  _globals['_SC2S_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_REQ']._serialized_end=2695
+  _globals['_SS2C_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_RES']._serialized_start=2698
+  _globals['_SS2C_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_RES']._serialized_end=2898
 # @@protoc_insertion_point(module_scope)

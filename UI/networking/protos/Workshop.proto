@@ -6,6 +6,7 @@ option java_package = "com.packets.workshop";
 option java_outer_classname = "workshop";
 option java_multiple_files = false;
 
+import "_Item.proto";
 import "Inventory.proto";
 
 message SWORKSHOP_UPGRADE_REQUIREMENT_INFO {
@@ -20,6 +21,11 @@ message SWORKSHOP_INFO {
   int32 workshopLevel = 2;
   int32 needUnlock = 3;
   repeated .DC.Packet.SWORKSHOP_UPGRADE_REQUIREMENT_INFO requirementInfos = 4;
+}
+
+message SWORKSHOP_REWARD_INFO {
+  string rewardId = 1;
+  .DC.Packet.SItem item = 2;
 }
 
 message SWORKSHOP_UPGRADE_STACK_REQUEST_INFO {
@@ -108,5 +114,27 @@ message SC2S_WORKSHOP_CRAFT_SERVICE_REQ {
 message SS2C_WORKSHOP_CRAFT_SERVICE_RES {
   int32 result = 1;
   .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 2;
+}
+
+message SC2S_WORKSHOP_REWARD_SERVICE_ITEM_LIST_REQ {
+  string workshopId = 1;
+}
+
+message SS2C_WORKSHOP_REWARD_SERVICE_ITEM_LIST_RES {
+  int32 result = 1;
+  string workshopId = 2;
+  repeated .DC.Packet.SWORKSHOP_REWARD_INFO rewards = 3;
+}
+
+message SC2S_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_REQ {
+  string workshopId = 1;
+  repeated string rewardIds = 2;
+}
+
+message SS2C_WORKSHOP_REWARD_SERVICE_RECEIVE_ITEM_LIST_RES {
+  int32 result = 1;
+  string workshopId = 2;
+  .DC.Packet.SINVENTORY_RESULT_INFO itemResult = 3;
+  repeated .DC.Packet.SWORKSHOP_REWARD_INFO remainRewards = 4;
 }
 
