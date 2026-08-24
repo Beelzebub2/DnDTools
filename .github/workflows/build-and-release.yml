@@ -15,6 +15,10 @@ on:
         options:
           - stable
           - dev
+      release_notes:
+        description: 'Release notes/news summary'
+        required: false
+        default: ''
 
 permissions:
   contents: write
@@ -82,7 +86,8 @@ jobs:
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: ${{ github.event.inputs.channel == 'dev' && 'Test-Release' || 'Release' }} ${{ github.event.inputs.tag }}
-          generate_release_notes: true
+          body: ${{ github.event.inputs.release_notes }}
+          generate_release_notes: ${{ github.event.inputs.release_notes == '' }}
           files: |
             dist/DnDTools-Setup-*.exe
             dist/update-manifest.json
