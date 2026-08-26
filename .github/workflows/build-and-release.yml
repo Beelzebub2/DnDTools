@@ -82,7 +82,7 @@ jobs:
           python scripts/generate_update_manifest.py --release-tag "${{ github.event.inputs.tag }}" --version "${{ github.event.inputs.tag }}" --channel "${{ github.event.inputs.channel }}"
 
       - name: Create GitHub Pre-Release and Upload installer
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: ${{ github.event.inputs.channel == 'dev' && 'Test-Release' || 'Release' }} ${{ github.event.inputs.tag }}
