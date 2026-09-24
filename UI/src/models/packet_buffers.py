@@ -362,6 +362,11 @@ class FramedPacketStreams:
         if (not state.pending_segments or state.gap_started is None
                 or time.monotonic() - state.gap_started < self.gap_timeout):
             return None
+        # The frame budget may have left complete packets buffered. Preserve
+        # those packets and defer recovery if another bounded drain is needed.
+        emitted = self._feed_contiguous(key, state, b"")
+        if emitted == self.max_frames_per_feed:
+            return emitted
         # Resume only from captured bytes. The normal frame validator handles
         # a first available segment that starts in the middle of a frame.
         self._notify_desync(key, len(state.frame_buffer), "pending TCP gap timed out")
@@ -369,7 +374,7 @@ class FramedPacketStreams:
         state.next_sequence = min(state.pending_segments)
         state.sequence_anchor = state.next_sequence
         state.gap_started = time.monotonic()
-        return self._drain_pending(key, state)
+        return emitted + self._drain_pending(key, state)
 
     def _store_pending(
         self,

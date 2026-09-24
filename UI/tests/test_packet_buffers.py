@@ -472,6 +472,27 @@ def test_gap_timeout_never_recovers_before_twenty_seconds(monkeypatch):
     assert desyncs == [('game', 0, 'pending TCP gap timed out')]
 
 
+def test_gap_recovery_preserves_complete_frames_left_by_frame_budget(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch, max_frames_per_feed=1)
+    frame = _frame(1401)
+    incomplete = _frame(1352, b'unfinished')[:9]
+    payload = frame * 3 + incomplete
+    streams.feed('game', payload, sequence=100)
+    pending_start = 100 + len(payload) + 8
+    streams.feed('game', frame, sequence=pending_start)
+    now[0] = 20
+    streams.feed('game', frame, sequence=pending_start)
+    assert captured == [frame] * 2
+    assert not desyncs
+    streams.feed('game', frame, sequence=pending_start)
+    assert captured == [frame] * 3
+    assert not desyncs
+    streams.feed('game', frame, sequence=pending_start)
+    assert captured == [frame] * 4
+    assert streams.buffered_bytes == 0
+    assert desyncs == [('game', len(incomplete), 'pending TCP gap timed out')]
+
+
 def test_observed_eight_byte_gap_recovers_on_next_feed_after_deadline(monkeypatch):
     streams, now, captured, _ = _timed_stream(monkeypatch)
     frame = _frame(1401)
