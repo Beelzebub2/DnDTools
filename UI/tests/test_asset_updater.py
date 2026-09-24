@@ -50,6 +50,34 @@ class _DownloadSession:
         return _DownloadResponse(self._chunks)
 
 
+def test_download_closes_staging_descriptor_when_request_fails(tmp_path, monkeypatch):
+    captured_fd = None
+    real_mkstemp = __import__("tempfile").mkstemp
+
+    def capture_mkstemp(*args, **kwargs):
+        nonlocal captured_fd
+        captured_fd, path = real_mkstemp(*args, **kwargs)
+        return captured_fd, path
+
+    class FailingSession:
+        headers = {}
+
+        def get(self, *_args, **_kwargs):
+            import requests
+
+            raise requests.ConnectionError("offline")
+
+    monkeypatch.setattr("utils.asset_updater.tempfile.mkstemp", capture_mkstemp)
+    updater = AssetUpdater(tmp_path / "assets", session=FailingSession())
+
+    with pytest.raises(RuntimeError, match="Failed to download items.json"):
+        updater._download_asset(_manifest_entry("items.json"))
+
+    assert captured_fd is not None
+    with pytest.raises(OSError):
+        os.fstat(captured_fd)
+
+
 @pytest.mark.parametrize(
     "manifest_path",
     [

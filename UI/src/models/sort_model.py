@@ -109,11 +109,26 @@ def validate_model_payload(payload: Dict[str, Any], expected_features: List[str]
     coefficients = payload.get("coefficients")
     if not isinstance(coefficients, list) or len(coefficients) != len(expected_features):
         return False
-    if "intercept" not in payload:
+    if any(
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(float(value))
+        for value in coefficients
+    ):
+        return False
+    intercept = payload.get("intercept")
+    if (
+        isinstance(intercept, bool)
+        or not isinstance(intercept, (int, float))
+        or not math.isfinite(float(intercept))
+    ):
         return False
     feature_names = payload.get("feature_names")
-    if feature_names and list(feature_names) != expected_features:
-        return False
+    if feature_names is not None:
+        if not isinstance(feature_names, (list, tuple)):
+            return False
+        if list(feature_names) != expected_features:
+            return False
     return True
 
 
@@ -168,7 +183,7 @@ class SortAdaptiveModel:
             "total_item_samples_seen": 0,
         }
 
-        self._training_thread: Optional[threading.Thread] = None
+        self._training_threads: Dict[str, threading.Thread] = {}
         self._load()
 
     # ── Public API: prediction ───────────────────────────────────────
@@ -324,13 +339,14 @@ class SortAdaptiveModel:
 
     def _schedule_train(self, head: str, events: List[Dict[str, Any]]) -> None:
         with self._lock:
-            if self._training_thread and self._training_thread.is_alive():
+            existing = self._training_threads.get(head)
+            if existing and existing.is_alive():
                 return
             target = self._do_train_risk if head == "risk" else self._do_train_items
             thread = threading.Thread(
                 target=target, args=(events,), name=f"SortModelTrain-{head}", daemon=True
             )
-            self._training_thread = thread
+            self._training_threads[head] = thread
             thread.start()
 
     def _do_train_risk(self, events: List[Dict[str, Any]]) -> None:
@@ -545,12 +561,14 @@ class SortAdaptiveModel:
     def _save_risk_payload(self, payload: Dict[str, Any]) -> None:
         with self._lock:
             self._risk_payload = payload
+            self._risk_estimator = None
             self._meta["risk_version"] = payload.get("version")
             self._write_json(self._risk_model_path, payload)
 
     def _save_item_payload(self, payload: Dict[str, Any]) -> None:
         with self._lock:
             self._item_payload = payload
+            self._item_estimator = None
             self._meta["item_version"] = payload.get("version")
             self._write_json(self._item_model_path, payload)
 
@@ -559,11 +577,27 @@ class SortAdaptiveModel:
             self._write_json(self._meta_path, self._meta)
 
     def _load(self) -> None:
-        self._risk_payload = self._read_json(self._risk_model_path)
-        self._item_payload = self._read_json(self._item_model_path)
+        risk_payload = self._read_json(self._risk_model_path)
+        item_payload = self._read_json(self._item_model_path)
+        self._risk_payload = (
+            risk_payload
+            if risk_payload and validate_model_payload(risk_payload, RISK_FEATURE_NAMES)
+            else None
+        )
+        self._item_payload = (
+            item_payload
+            if item_payload and validate_model_payload(item_payload, ITEM_FEATURE_NAMES)
+            else None
+        )
         meta = self._read_json(self._meta_path)
         if meta:
             self._meta.update(meta)
+        self._meta["risk_version"] = (
+            self._risk_payload.get("version") if self._risk_payload else None
+        )
+        self._meta["item_version"] = (
+            self._item_payload.get("version") if self._item_payload else None
+        )
 
     @staticmethod
     def _write_json(path: Path, data: Dict[str, Any]) -> None:

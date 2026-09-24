@@ -171,12 +171,18 @@ def _parse_timestamp(value):
     if not value:
         return None
     if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(value, tz=timezone.utc)
+        try:
+            return datetime.fromtimestamp(value, tz=timezone.utc)
+        except (OSError, OverflowError, ValueError):
+            return None
     text = str(value).strip()
     if not text:
         return None
     try:
-        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed
     except ValueError:
         try:
             return datetime.strptime(text, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)

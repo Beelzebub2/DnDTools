@@ -488,7 +488,20 @@ class _WindowsHotkeyBackend:
                     self._user32.TranslateMessage(ctypes.byref(msg))
                     self._user32.DispatchMessageW(ctypes.byref(msg))
         finally:
+            # A message-loop failure must not leave stale bindings behind.
+            # RegisterHotKey registrations are tied to this listener thread;
+            # if a later apply() starts a replacement thread while _bindings
+            # still claims the same canonical hotkeys are active, it will skip
+            # re-registering them and the shortcuts silently stop working.
+            try:
+                self._teardown_bindings()
+            except Exception:
+                self._logger.debug(
+                    "Failed to tear down hotkeys while listener thread exited",
+                    exc_info=True,
+                )
             self._thread_id = None
+            self._ready.clear()
 
     def _get_pending_command(self, command_id: int) -> Optional[Dict[str, object]]:
         with self._lock:

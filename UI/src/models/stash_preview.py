@@ -431,6 +431,8 @@ def parse_stashes(packet_data):
         for item in items:
             if "slotId" not in item:
                 slot_id = 0
+                while slot_id in used_slots:
+                    slot_id += 1
                 used_slots.add(slot_id)
                 design_str = item.get("itemId", "")
                 item_id = item_data_manager.get_item_id_from_design_str(design_str)
@@ -452,8 +454,17 @@ def parse_stashes(packet_data):
         inventory_id = item.get("inventoryId")
         if inventory_id not in stashes:
             stashes[inventory_id] = []
-        # Assign slotId = 0 if missing, otherwise use the provided slotId
-        slot_id = item.get("slotId", 0)
+        # Assign a distinct free slot if the packet omitted slotId.
+        slot_id = item.get("slotId")
+        if slot_id is None:
+            used_slots = {
+                existing.get("slotId")
+                for existing in stashes[inventory_id]
+                if isinstance(existing, dict) and existing.get("slotId") is not None
+            }
+            slot_id = 0
+            while slot_id in used_slots:
+                slot_id += 1
         design_str = item.get("itemId", "")
         item_id = item_data_manager.get_item_id_from_design_str(design_str)
         name = item_data_manager.get_item_name_from_id(item_id)

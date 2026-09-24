@@ -153,6 +153,17 @@ class SortLearningManager:
             if not self._pending_plans:
                 return 0
 
+            cutoff = time.time() - 3600
+            expired = [
+                sid for sid, data in self._pending_plans.items()
+                if data.get("timestamp", 0) < cutoff
+            ]
+            for sid in expired:
+                self._pending_plans.pop(sid, None)
+                self._pending_features.pop(sid, None)
+            if not self._pending_plans:
+                return 0
+
             # Find most recent session
             latest_session_id = None
             latest_ts = 0.0
@@ -172,10 +183,20 @@ class SortLearningManager:
             plan_map = plan_data.get("map", {})
             feature_map = self._pending_features.get(latest_session_id, {})
 
+        items_by_id: Dict[str, List[Any]] = {}
         for item in items:
             item_id = str(getattr(item, "item_id", "") or "")
-            if item_id not in plan_map:
+            if item_id in plan_map:
+                items_by_id.setdefault(item_id, []).append(item)
+
+        for item_id, matching_items in items_by_id.items():
+            # The pending-plan format is keyed by design item id, so multiple
+            # copies of the same item are ambiguous. Recording any one copy as
+            # a correction would create false training samples.
+            if len(matching_items) != 1:
                 continue
+
+            item = matching_items[0]
 
             pos = getattr(item, "position", None)
             if not pos:
@@ -213,6 +234,15 @@ class SortLearningManager:
                     )
                 except Exception as exc:
                     logger.debug("Failed to record correction for %s: %s", item_id, exc, exc_info=True)
+                else:
+                    # Advance the pending baseline after a recorded correction
+                    # so subsequent data reloads do not record the same manual
+                    # move repeatedly.
+                    with self._lock:
+                        current_plan = self._pending_plans.get(latest_session_id)
+                        if current_plan and current_plan.get("map") is plan_map:
+                            plan_map[item_id] = (current_x, current_y)
+                            feature_map[item_id] = corrected_features
 
         if corrections_found > 0:
             logger.info("Recorded %d corrections for session %s", corrections_found, latest_session_id)

@@ -1,6 +1,7 @@
 import os
 import json
 import copy
+import uuid
 from datetime import datetime
 from pathlib import Path
 from google.protobuf.json_format import MessageToJson
@@ -19,6 +20,22 @@ SHARED_STASH_ID_STRINGS = {str(stash_id) for stash_id in SHARED_STASH_IDS}
 
 data_dir = get_characters_dir()
 os.makedirs(data_dir, exist_ok=True)
+
+
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Replace a snapshot only after its complete contents are on disk."""
+    temp_path = path.with_name(f".{path.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temp_path.open("w", encoding="utf-8") as handle:
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, path)
+    finally:
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def _normalize_inventory_id(value):
@@ -154,8 +171,8 @@ def _sync_shared_stashes(source_char_id, payload):
 
         if _apply_shared_stash_to_payload(other_payload, shared_storages, shared_item_lists):
             try:
-                with candidate.open("w", encoding="utf-8") as handle:
-                    json.dump(other_payload, handle, ensure_ascii=False)
+                serialized = json.dumps(other_payload, ensure_ascii=False)
+                _atomic_write_text(candidate, serialized)
                 if original_stat is not None:
                     try:
                         os.utime(
@@ -180,9 +197,8 @@ def save_packet_data(message) -> bool:
         if '"result": 1' in json_data and '"characterDataBase": {' in json_data:
             char_data = message.characterDataBase
             char_id = str(char_data.characterId)
-            data_file = os.path.join(data_dir, f"{char_id}.json")
-            with open(data_file, "w", encoding='utf-8') as f:
-                f.write(json_data)
+            data_file = Path(data_dir) / f"{char_id}.json"
+            _atomic_write_text(data_file, json_data)
             try:
                 payload = json.loads(json_data)
             except json.JSONDecodeError as exc:
@@ -194,9 +210,8 @@ def save_packet_data(message) -> bool:
 
         # Save other packets to timestamped files as before
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-        data_file = os.path.join(data_dir, f"{timestamp}.json")
-        with open(data_file, "w", encoding='utf-8') as f:
-            f.write(json_data)
+        data_file = Path(data_dir) / f"{timestamp}_{uuid.uuid4().hex}.json"
+        _atomic_write_text(data_file, json_data)
         logger.info(f"Successfully saved packet data to {data_file}")
         return False
 

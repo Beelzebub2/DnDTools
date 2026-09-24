@@ -68,7 +68,7 @@ class Item:
 
     def __hash__(self):
         pos = (self.position.x, self.position.y) if self.position else (None, None)
-        return hash((self.item_id, self.rarity, pos))
+        return hash((self.name, self.rarity, pos))
 
     def __repr__(self):
         return f"{self.rarity} {self.name} {self.position} {self.width}X{self.height}"
@@ -118,7 +118,11 @@ class Item:
     @classmethod
     def build_sort_comparator(cls, sort_order=None):
         if sort_order:
-            directives = sort_order if isinstance(sort_order, list) else cls.normalize_sort_order(sort_order)
+            directives = (
+                sort_order
+                if isinstance(sort_order, list) and all(isinstance(value, dict) for value in sort_order)
+                else cls.normalize_sort_order(sort_order)
+            )
         else:
             directives = cls.sort_order
 
@@ -130,7 +134,11 @@ class Item:
     @classmethod
     def compare_items(cls, left, right, sort_order=None):
         if sort_order:
-            directives = sort_order if isinstance(sort_order, list) else cls.normalize_sort_order(sort_order)
+            directives = (
+                sort_order
+                if isinstance(sort_order, list) and all(isinstance(value, dict) for value in sort_order)
+                else cls.normalize_sort_order(sort_order)
+            )
         else:
             directives = cls.sort_order
 

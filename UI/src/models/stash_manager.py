@@ -114,7 +114,8 @@ class StashManager:
                 char_data = packet_data.get("characterDataBase", {})
                 if not char_data:
                     return None
-                char_id = str(char_data.get("characterId"))
+                raw_char_id = char_data.get("characterId")
+                char_id = str(raw_char_id).strip() if raw_char_id is not None else ""
                 if not char_id:
                     logger.warning(f"No characterId in {file_path}")
                     return None
@@ -988,12 +989,19 @@ class StashManager:
             session.add_log("No packet data available for selected character.")
             logger.warning("Character %s not found in cache", character_id)
             return False, "Character not found", session_summary
-        stash_items = char.get('stashes', {}).get(str(stash_id))
-        if not stash_items:
+        character_stashes = char.get('stashes') or {}
+        stash_key = str(stash_id)
+        if not isinstance(character_stashes, dict) or stash_key not in character_stashes:
             session.update_status("Selected stash is empty or missing.", status="error")
             session.add_log(f"Stash {stash_id} could not be found for this character.")
             logger.warning("Stash %s not found for character %s", stash_id, character_id)
             return False, "Stash not found", session_summary
+        stash_items = character_stashes.get(stash_key)
+        if not isinstance(stash_items, list):
+            session.update_status("Selected stash data is invalid.", status="error")
+            session.add_log(f"Stash {stash_id} contains invalid captured data.")
+            logger.warning("Stash %s has invalid data for character %s", stash_id, character_id)
+            return False, "Invalid stash data", session_summary
         session.update_status("Loading character inventory...", status="info")
         file_path = os.path.join(self.data_dir, f"{character_id}.json")
         stashes = {}

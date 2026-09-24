@@ -146,6 +146,7 @@ class QuestPacketHandler:
             self._merchant_flags.clear()
             self._quest_completions.clear()
             self._captured_quest_log = None
+            self._data_hashes.clear()
             self._last_update = 0.0
 
     # ------------------------------------------------------------------
@@ -440,8 +441,9 @@ class QuestPacketHandler:
         """Return True if *data* differs from the last value stored under *key*.
 
         Uses a SHA-256 hash of the JSON representation so we don't keep full
-        copies of previous payloads in memory.  Must be called while holding
-        ``self._lock``.
+        copies of previous payloads in memory. The hash cache is protected
+        internally because packet handlers call this helper after releasing
+        their mutation lock.
         """
         try:
             digest = hashlib.sha256(
@@ -449,11 +451,12 @@ class QuestPacketHandler:
             ).hexdigest()
         except Exception:
             return True  # can't hash → assume changed
-        previous = self._data_hashes.get(key)
-        if previous == digest:
-            return False
-        self._data_hashes[key] = digest
-        return True
+        with self._lock:
+            previous = self._data_hashes.get(key)
+            if previous == digest:
+                return False
+            self._data_hashes[key] = digest
+            return True
 
     def _build_auto_progress(self) -> dict:
         """Build a progress dict from captured packet data.

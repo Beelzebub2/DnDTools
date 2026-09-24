@@ -171,7 +171,14 @@ class AppOverlayManager:
             if not self._ready_event.wait(timeout=3.0):
                 logger.debug("Overlay ready signal timed out — showing anyway")
 
-        self._visible = True
+        # Creation can fail (server not ready, pywebview error) or shutdown can
+        # destroy the window while we are waiting for the ready signal. Do not
+        # publish a visible state unless there is still a real window to show.
+        with self._lock:
+            if self._window is None:
+                self._visible = False
+                return
+            self._visible = True
         self._apply_opacity()
         self._bring_to_front()
         logger.info("Overlay shown")
@@ -193,6 +200,7 @@ class AppOverlayManager:
         """Permanently destroy the overlay window (called on app shutdown)."""
         with self._lock:
             self._visible = False
+            self._enabled = False
             window = self._window
             self._window = None
             self._hwnd = None
@@ -261,7 +269,19 @@ class AppOverlayManager:
                 hidden=True,
             )
 
-            self._window = window
+            with self._lock:
+                if not self._enabled:
+                    discard_window = True
+                else:
+                    self._window = window
+                    discard_window = False
+
+            if discard_window:
+                try:
+                    window.destroy()
+                except Exception:
+                    logger.debug("Failed to discard overlay created during shutdown", exc_info=True)
+                return
 
             # Cache HWND on Windows for SetLayeredWindowAttributes
             if sys.platform.startswith("win"):

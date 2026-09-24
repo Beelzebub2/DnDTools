@@ -1,4 +1,5 @@
 import time
+from datetime import timezone
 
 from src import market_service
 
@@ -113,6 +114,14 @@ def test_price_check_normalizes_body_confidence_and_price_fields(monkeypatch):
     assert result["freshness"] == "fresh"
     assert result["source"] == "DarkerDB"
     assert result["rate_limit"]["remaining"] == "57"
+
+
+def test_timestamp_parser_treats_naive_upstream_times_as_utc_and_rejects_overflow():
+    parsed = market_service._parse_timestamp("2026-07-09T12:00:00")
+
+    assert parsed is not None
+    assert parsed.tzinfo == timezone.utc
+    assert market_service._parse_timestamp(10**100) is None
 
 
 def test_price_check_caches_successful_results(monkeypatch):

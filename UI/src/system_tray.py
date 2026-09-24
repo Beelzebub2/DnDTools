@@ -161,7 +161,10 @@ class SystemTray:
             return
 
         with self._lock:
-            if self._running:
+            if self._running or (
+                self._icon_thread
+                and self._icon_thread.is_alive()
+            ):
                 return
 
             icon_image = self._load_icon()
@@ -188,22 +191,44 @@ class SystemTray:
         except Exception as e:
             logger.error(f"System tray crashed: {e}", exc_info=True)
         finally:
-            self._running = False
+            with self._lock:
+                self._running = False
+                if self._icon_thread is threading.current_thread():
+                    self._icon_thread = None
 
     def stop(self):
         """Stop the system tray icon."""
+        thread = None
         with self._lock:
             if not self._running or not self._icon:
                 return
-            
+
             logger.info("Stopping system tray...")
+            thread = self._icon_thread
+            timer = self._notification_timer
+            self._notification_timer = None
+            if timer and timer.is_alive():
+                timer.cancel()
             try:
                 self._icon.stop()
             except Exception as e:
                 logger.error(f"Error stopping tray: {e}")
-            
+
             self._running = False
             self._icon = None
+
+        if (
+            thread
+            and thread.is_alive()
+            and thread is not threading.current_thread()
+        ):
+            thread.join(timeout=2.0)
+
+        with self._lock:
+            if self._icon_thread is thread and (
+                thread is None or not thread.is_alive()
+            ):
+                self._icon_thread = None
 
     def notify(self, message: str, title: str = "DnDTools"):
         """Show a system notification."""

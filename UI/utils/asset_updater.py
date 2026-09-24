@@ -360,11 +360,11 @@ class AssetUpdater:
         path = Path(temp_path)
 
         try:
-            with self.session.get(url, stream=True, timeout=60) as response:
-                response.raise_for_status()
-                digest = hashlib.sha256()
-                downloaded_size = 0
-                with os.fdopen(fd, "wb") as handle:
+            with os.fdopen(fd, "wb") as handle:
+                with self.session.get(url, stream=True, timeout=60) as response:
+                    response.raise_for_status()
+                    digest = hashlib.sha256()
+                    downloaded_size = 0
                     for chunk in response.iter_content(chunk_size=1024 * 256):
                         if not chunk:
                             continue

@@ -76,6 +76,8 @@ class CalibrationOverlay:
     HIGHLIGHT: Tuple[int, int, int] = (255, 255, 255)
     BORDER_WIDTH = 3
     OVERLAY_ALPHA = 210
+    OPEN_TIMEOUT_SECONDS = 300.0
+    CLOSE_TIMEOUT_SECONDS = 2.0
 
     def __init__(self) -> None:
         self._enabled = sys.platform.startswith("win") and win32gui is not None
@@ -83,6 +85,7 @@ class CalibrationOverlay:
         self._done = threading.Event()
         self._ready = threading.Event()
         self._result: dict = {"saved": False}
+        self._thread: Optional[threading.Thread] = None
 
         # Current positions (mutated during drag)
         self._stash_x = 0
@@ -132,6 +135,8 @@ class CalibrationOverlay:
         """Open the calibration overlay.  **Blocks** until Save or Cancel."""
         if not self._enabled:
             return {"saved": False, "error": "Win32 overlay not available on this platform"}
+        if self._thread and self._thread.is_alive():
+            return {"saved": False, "error": "Calibration overlay is already open"}
 
         # Snapshot current detected positions
         try:
@@ -190,11 +195,25 @@ class CalibrationOverlay:
         self._result = {"saved": False}
 
         thread = threading.Thread(target=self._run, daemon=True, name="CalibrationOverlay")
+        self._thread = thread
         thread.start()
         self._ready.wait(timeout=3.0)
-        self._done.wait(timeout=300.0)  # generous timeout (5 min)
+        if not self._done.wait(timeout=self.OPEN_TIMEOUT_SECONDS):
+            # Do not return while leaving a live, topmost Win32 overlay behind.
+            # A timed-out caller may immediately offer calibration again, which
+            # would otherwise create a second window over the orphaned first.
+            self._request_close()
+            self._done.wait(timeout=self.CLOSE_TIMEOUT_SECONDS)
 
         return self._result
+
+    def _request_close(self) -> None:
+        hwnd = self._hwnd
+        if hwnd and win32gui:
+            try:
+                win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+            except Exception:
+                logger.debug("Failed to close calibration overlay", exc_info=True)
 
     # ------------------------------------------------------------- internals
 
@@ -275,6 +294,13 @@ class CalibrationOverlay:
         except Exception:
             logger.debug("Calibration overlay failed", exc_info=True)
         finally:
+            hwnd = self._hwnd
+            if hwnd and win32gui:
+                try:
+                    if not hasattr(win32gui, "IsWindow") or win32gui.IsWindow(hwnd):
+                        win32gui.DestroyWindow(hwnd)
+                except Exception:
+                    logger.debug("Failed to destroy calibration overlay window", exc_info=True)
             self._cleanup_fonts()
             self._hwnd = None
             self._done.set()

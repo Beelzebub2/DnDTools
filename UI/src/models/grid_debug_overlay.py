@@ -58,6 +58,8 @@ class GridDebugOverlay:
         self._enabled = sys.platform.startswith("win") and win32gui is not None
         self._hwnd: Optional[int] = None
         self._thread: Optional[threading.Thread] = None
+        self._lifecycle_lock = threading.RLock()
+        self._generation = 0
         self._ready = threading.Event()
         self._close_event = threading.Event()
         self._font: Optional[int] = None
@@ -75,25 +77,33 @@ class GridDebugOverlay:
         if not self._enabled:
             return
 
-        # Snapshot current positions so the paint handler uses consistent data
-        try:
-            self._positions = macros.get_screen_positions()
-            self._resolution = macros.get_current_resolution()
-        except Exception:
-            logger.debug("Failed to read screen positions for grid overlay", exc_info=True)
-            return
+        with self._lifecycle_lock:
+            # The singleton stores HWND/font state on itself, so two live window
+            # threads would corrupt each other's handles during cleanup.
+            if self._thread and self._thread.is_alive():
+                return
 
-        self._close_event.clear()
-        self._ready.clear()
+            # Snapshot current positions so the paint handler uses consistent data
+            try:
+                self._positions = macros.get_screen_positions()
+                self._resolution = macros.get_current_resolution()
+            except Exception:
+                logger.debug("Failed to read screen positions for grid overlay", exc_info=True)
+                return
 
-        thread = threading.Thread(
-            target=self._run,
-            args=(duration,),
-            daemon=True,
-            name="GridDebugOverlay",
-        )
-        self._thread = thread
-        thread.start()
+            self._generation += 1
+            generation = self._generation
+            self._close_event.clear()
+            self._ready.clear()
+
+            thread = threading.Thread(
+                target=self._run,
+                args=(duration, generation),
+                daemon=True,
+                name="GridDebugOverlay",
+            )
+            self._thread = thread
+            thread.start()
         # Wait briefly so the window is created before we return
         self._ready.wait(timeout=2.0)
 
@@ -113,7 +123,7 @@ class GridDebugOverlay:
 
     # --------------------------------------------------------------- internals
 
-    def _run(self, duration: float) -> None:  # pragma: no cover - GUI thread
+    def _run(self, duration: float, generation: int) -> None:  # pragma: no cover - GUI thread
         try:
             cls_name = "DnDToolsGridDebug"
 
@@ -172,15 +182,12 @@ class GridDebugOverlay:
             self._ready.set()
 
             # Schedule auto-close after *duration* seconds
-            def _auto_close() -> None:
-                time.sleep(max(0.1, duration))
-                if self._hwnd:
-                    try:
-                        win32gui.PostMessage(self._hwnd, win32con.WM_CLOSE, 0, 0)
-                    except Exception:
-                        pass
-
-            threading.Thread(target=_auto_close, daemon=True).start()
+            threading.Thread(
+                target=self._auto_close_after,
+                args=(duration, generation, hwnd),
+                daemon=True,
+                name="GridDebugOverlayAutoClose",
+            ).start()
             win32gui.PumpMessages()
         except Exception:
             logger.debug("Grid debug overlay failed", exc_info=True)
@@ -188,6 +195,17 @@ class GridDebugOverlay:
             self._cleanup_fonts()
             self._hwnd = None
             self._close_event.set()
+
+    def _auto_close_after(self, duration: float, generation: int, hwnd: int) -> None:
+        time.sleep(max(0.1, duration))
+        # An earlier preview can be closed manually while its timer is still
+        # sleeping. Never let that stale timer act on a later singleton window.
+        if generation != self._generation or self._hwnd != hwnd:
+            return
+        try:
+            win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
+        except Exception:
+            pass
 
     def _create_font(self, height: int, weight: int) -> Optional[int]:
         if not win32gui:

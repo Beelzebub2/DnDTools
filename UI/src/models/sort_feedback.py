@@ -217,15 +217,15 @@ class SortObserver:
         if not session_id:
             return False
         try:
-            self.event_store.record_sort_completed(
-                session_id=session_id,
-                features={},
+            accepted = self.event_store.apply_user_feedback(
+                session_id,
                 success=success,
-                failure_reason=note if (not success and note) else None,
-                metrics={"user_feedback": 1.0, "user_success": 1.0 if success else 0.0},
-                duration_ms=None,
+                note=note,
             )
+            if not accepted:
+                return False
             logger.info("Recorded user feedback for session %s: success=%s", session_id, success)
+            self._schedule_risk_training()
             return True
         except Exception as exc:
             logger.debug("Failed to record user feedback: %s", exc, exc_info=True)

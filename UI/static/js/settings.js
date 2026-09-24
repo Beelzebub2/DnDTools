@@ -50,6 +50,7 @@
         let autosaveTimerId = null;
         let autoSaveInFlight = false;
         let autoSaveQueued = false;
+        const hotkeyRecordingCleanups = [];
         const QUEST_PROGRESS_STORAGE_KEY = 'dndtools.questProgress.v1';
         const FIELD_LABELS = {
             interface: 'Network Interface',
@@ -877,6 +878,9 @@
 
         // Enhanced hotkey recording functionality
         function setupHotkeyRecording(input) {
+            if (!input) {
+                return () => {};
+            }
             let pressedKeys = new Set();
             let isRecording = false;
             let recordingTimeout = null;
@@ -1131,6 +1135,12 @@
                     e.preventDefault();
                 }
             });
+
+            return () => {
+                pressedKeys.clear();
+                stopRecording();
+                removeFeedbackElement();
+            };
         }    // Enhanced save settings with animations
         async function saveSettings(options = {}) {
             const {
@@ -1655,9 +1665,9 @@
         }
 
         // Setup hotkey recording
-        setupHotkeyRecording(sortHotkeyInput);
-        setupHotkeyRecording(cancelHotkeyInput);
-        setupHotkeyRecording(overlayHotkeyInput);
+        hotkeyRecordingCleanups.push(setupHotkeyRecording(sortHotkeyInput));
+        hotkeyRecordingCleanups.push(setupHotkeyRecording(cancelHotkeyInput));
+        hotkeyRecordingCleanups.push(setupHotkeyRecording(overlayHotkeyInput));
 
         // Form validation
         noDelayCheckbox?.addEventListener('change', () => {
@@ -1819,6 +1829,7 @@
         window.__pageCleanup = window.__pageCleanup || [];
         window.__pageCleanup.push(function () {
             clearAutosaveTimer();
+            hotkeyRecordingCleanups.forEach((cleanup) => cleanup());
             window.unsavedChangesGuard = null;
             window.hasUnsavedChanges = false;
             window.developerModeEnabled = undefined;

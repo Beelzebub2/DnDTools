@@ -1,5 +1,9 @@
 from pathlib import Path
 
+import pytest
+
+from update import UpdateError, UpdateManager
+
 
 WORKFLOW_PATH = Path(__file__).resolve().parents[2] / ".github" / "workflows" / "update-items.yml"
 
@@ -103,3 +107,20 @@ def test_webhook_failure_is_reported_as_workflow_failure():
     assert "Website notification failed" in webhook
     assert "exit 1" in webhook
     assert "Warning: Failed to notify" not in webhook
+
+
+def test_start_update_clears_in_progress_when_manifest_fetch_raises(monkeypatch):
+    manager = UpdateManager("1.0.0", "https://updates.example/manifest.json")
+
+    def fail_fetch(*_args, **_kwargs):
+        raise UpdateError("manifest is invalid")
+
+    monkeypatch.setattr(manager, "fetch_manifest", fail_fetch)
+
+    with pytest.raises(UpdateError, match="manifest is invalid"):
+        manager.start_update()
+
+    assert manager.snapshot_state() == {
+        "in_progress": False,
+        "last_error": "manifest is invalid",
+    }

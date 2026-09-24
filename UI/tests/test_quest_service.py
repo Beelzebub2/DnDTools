@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 import src.models.appdirs as appdirs
+from src.models.loot import collect_item_loot_state_requirements
 
 
 # The shared test harness replaces appdirs with a minimal stub.
@@ -380,3 +381,74 @@ def test_progress_sync_snapshot_includes_revision_and_merchants(tmp_path):
     assert timestamp is not None
     assert revision == 321
     assert merchants == ["Alchemist", "Armourer"]
+
+
+def test_clear_cache_removes_each_file_while_owning_its_state_lock(tmp_path, monkeypatch):
+    service = QuestService(logging.getLogger("test"), data_dir=tmp_path)
+    service._cache_file.write_text("{}", encoding="utf-8")
+    service._progress_file.write_text("{}", encoding="utf-8")
+
+    removed = []
+    real_remove = quest_service_module.os.remove
+
+    def checked_remove(path):
+        if path == service._cache_file:
+            assert service._quests_lock._is_owned()
+        elif path == service._progress_file:
+            assert service._progress_lock._is_owned()
+        removed.append(path)
+        real_remove(path)
+
+    monkeypatch.setattr(quest_service_module.os, "remove", checked_remove)
+
+    result = service.clear_cache()
+
+    assert result == {"quests_cache_removed": True, "progress_removed": True}
+    assert removed == [service._cache_file, service._progress_file]
+
+
+def test_packet_handler_clear_resets_change_detection_hashes():
+    from src.quest_packet_handler import QuestPacketHandler
+
+    class QuestServiceStub:
+        def update_progress(self, updater):
+            updater({"objectives": {}, "items": {}})
+            return True
+
+    handler = QuestPacketHandler(QuestServiceStub())
+    payload = {"merchant": "Alchemist", "flag": 1}
+
+    assert handler._has_data_changed("merchant_flags", payload) is True
+    assert handler._has_data_changed("merchant_flags", payload) is False
+
+    handler.clear()
+
+    assert handler._has_data_changed("merchant_flags", payload) is True
+
+
+def test_numeric_zero_loot_state_remains_a_restricted_requirement():
+    requirements = collect_item_loot_state_requirements([
+        {
+            "objectives": [
+                {"item_id": "quest-item", "loot_state": 0},
+            ]
+        }
+    ])
+
+    assert requirements == {"quest-item": {0}}
+
+
+def test_none_snake_case_loot_state_falls_back_to_camel_case_value():
+    requirements = collect_item_loot_state_requirements([
+        {
+            "objectives": [
+                {
+                    "item_id": "quest-item",
+                    "loot_state": None,
+                    "lootState": 2,
+                },
+            ]
+        }
+    ])
+
+    assert requirements == {"quest-item": {2}}

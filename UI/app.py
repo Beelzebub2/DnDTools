@@ -32,6 +32,7 @@ from utils.sort_learning_trainer import SortLearningTrainer
 
 from src.models.game_data import item_data_manager
 from src.models.icon_pak import icon_store, canonical_icon_path
+from src.models import macros
 
 from src.models.character import save_packet_data
 from src.models.item import Item
@@ -613,6 +614,7 @@ class Api:
         self.original_size = None
         self.original_position = None
         self.current_sort_event = None
+        self._sort_state_lock = threading.RLock()
         self._app_overlay = AppOverlayManager()
         self._current_char_id = None
         self._current_stash_id = None
@@ -1917,8 +1919,6 @@ class Api:
 
         if not success and sys.platform.startswith('win'):
             try:
-                import ctypes
-
                 user32 = ctypes.windll.user32
                 hwnd = getattr(self.window, 'hwnd', None)
 
@@ -1952,17 +1952,6 @@ class Api:
             current_stash_id = '2'
             logger.info("Combined character view active — overriding sort target to bag (stash 2)")
 
-        if self.current_sort_event and not self.current_sort_event.is_set():
-            logger.info("Sort hotkey pressed while a sort is already running; ignoring duplicate trigger")
-            if self.window:
-                try:
-                    self.window.evaluate_js(
-                        "showNotification('A sort is already running. Press the cancel hotkey to stop it.', 'info');"
-                    )
-                except Exception:
-                    logger.debug("Unable to surface duplicate sort warning to UI", exc_info=True)
-            return
-
         if not (current_char_id and current_stash_id):
             logger.warning("Sort hotkey pressed with no active character/stash context")
             if self.window:
@@ -1976,13 +1965,37 @@ class Api:
 
         logger.info(f"Scheduling sort for character {current_char_id}, stash {current_stash_id}")
         cancel_event = threading.Event()
-        self.current_sort_event = cancel_event
+        if not self._claim_sort_event(cancel_event):
+            logger.info("Sort hotkey pressed while a sort is already running; ignoring duplicate trigger")
+            if self.window:
+                try:
+                    self.window.evaluate_js(
+                        "showNotification('A sort is already running. Press the cancel hotkey to stop it.', 'info');"
+                    )
+                except Exception:
+                    logger.debug("Unable to surface duplicate sort warning to UI", exc_info=True)
+            return
         threading.Thread(target=self._sort_worker, args=(cancel_event, current_char_id, current_stash_id), daemon=True).start()
+
+    def _claim_sort_event(self, cancel_event: threading.Event) -> bool:
+        """Claim the single active sort slot for *cancel_event*."""
+        with self._sort_state_lock:
+            if self.current_sort_event is not None and self.current_sort_event is not cancel_event:
+                return False
+            self.current_sort_event = cancel_event
+            return True
+
+    def _release_sort_event(self, cancel_event: threading.Event) -> None:
+        """Release the active sort slot only when *cancel_event* still owns it."""
+        with self._sort_state_lock:
+            if self.current_sort_event is cancel_event:
+                self.current_sort_event = None
 
     def _sort_worker(self, cancel_event: threading.Event, char_id: str = None, stash_id: str = None):
         """Background worker for sorting current stash"""
         if cancel_event.is_set():
             logger.info("Sort worker aborted before start because cancel was requested")
+            self._release_sort_event(cancel_event)
             return
 
         # Use provided IDs (from hotkey with combined-view override) or fall back to current state
@@ -2139,9 +2152,11 @@ class Api:
         if cancel_event is None:
             cancel_event = threading.Event()
 
-        self.current_sort_event = cancel_event
+        if not self._claim_sort_event(cancel_event):
+            return {"success": False, "error": "A sort operation is already running"}
         success = False
         error_msg: Optional[str] = None
+        overlay_session = None
 
         # Resolve context information for overlay heading
         overlay_context = {
@@ -2157,15 +2172,15 @@ class Api:
         except Exception as exc:
             logger.debug(f"Unable to resolve character details for overlay: {exc}")
 
-        # Show calibration overlay so user can verify grid positions
-        self._run_calibration_before_sort()
-
-        overlay_session = self.overlay_manager.begin_sort_session(
-            countdown_seconds=1.0,
-            context=overlay_context,
-        )
-
         try:
+            # Show calibration overlay so user can verify grid positions
+            self._run_calibration_before_sort()
+
+            overlay_session = self.overlay_manager.begin_sort_session(
+                countdown_seconds=1.0,
+                context=overlay_context,
+            )
+
             if cancel_event.is_set():
                 return {"success": False, "error": "Sort cancelled"}
 
@@ -2222,8 +2237,9 @@ class Api:
             logger.error(f"Error in sort_stash: {error_msg}", exc_info=True)
             return {"success": False, "error": error_msg}
         finally:
-            overlay_session.finish(success, error_msg)
-            self.current_sort_event = None
+            if overlay_session is not None:
+                overlay_session.finish(success, error_msg)
+            self._release_sort_event(cancel_event)
 
     def transfer_items(self, character_id, source_stash_id, target_stash_id,
                        pack_mode=False, stack_mode=False):
@@ -2247,7 +2263,12 @@ class Api:
 
         # 2. Prepare overlay / cancel support
         cancel_event = threading.Event()
-        self.current_sort_event = cancel_event
+        if not self._claim_sort_event(cancel_event):
+            return {
+                "success": False,
+                "error": "A sort operation is already running",
+                "check": check,
+            }
 
         overlay_context = {
             "character": None,
@@ -2262,17 +2283,18 @@ class Api:
         except Exception:
             pass
 
-        # Show calibration overlay so user can verify grid positions
-        self._run_calibration_before_sort()
-
-        overlay_session = self.overlay_manager.begin_sort_session(
-            countdown_seconds=1.0,
-            context=overlay_context,
-        )
-
         success = False
         error_msg = None
+        overlay_session = None
         try:
+            # Show calibration overlay so user can verify grid positions
+            self._run_calibration_before_sort()
+
+            overlay_session = self.overlay_manager.begin_sort_session(
+                countdown_seconds=1.0,
+                context=overlay_context,
+            )
+
             if pack_mode is not None:
                 self.set_pack_mode(pack_mode)
             if stack_mode is not None:
@@ -2308,8 +2330,9 @@ class Api:
         except Exception as exc:
             return {"success": False, "error": str(exc), "check": check}
         finally:
-            overlay_session.finish(success, error_msg)
-            self.current_sort_event = None
+            if overlay_session is not None:
+                overlay_session.finish(success, error_msg)
+            self._release_sort_event(cancel_event)
 
 
     def close_window(self):
@@ -2974,6 +2997,8 @@ def api_market_price(item_name):
 def api_market_prices_bulk():
     """Fetch market prices for multiple items in one request."""
     payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
     items = payload.get('items', [])
     if not isinstance(items, list) or len(items) > 200:
         return jsonify({'success': False, 'error': 'Invalid or oversized items list'}), 400
@@ -3455,6 +3480,8 @@ def api_quests_progress():
         payload = request.get_json(force=True) or {}
     except Exception:
         return jsonify({'success': False, 'error': 'Invalid JSON payload'}), 400
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
 
     progress_payload = payload.get('progress')
     if not isinstance(progress_payload, dict):
@@ -3510,6 +3537,8 @@ def api_quests_active_merchants():
         payload = request.get_json(force=True) or {}
     except Exception:
         return jsonify({'success': False, 'error': 'Invalid JSON payload'}), 400
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
 
     merchant_ids = payload.get('active_merchants')
     if not isinstance(merchant_ids, list):
@@ -3559,7 +3588,11 @@ def api_capture_settings():
         return jsonify(api.get_capture_settings())
     
     try:
-        data = request.get_json() or {}
+        data = request.get_json(silent=True)
+        if data is None:
+            return jsonify({'success': False, 'error': 'Invalid JSON payload'}), 400
+        if not isinstance(data, dict):
+            return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
         
         # Validate input data
         interface = data.get('interface', '').strip()
@@ -3690,6 +3723,8 @@ def api_transfer_check(character_id):
         return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
 
     payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
     source_stash_id = str(payload.get('sourceStashId', '')).strip()
     target_stash_id = str(payload.get('targetStashId', '')).strip()
 
@@ -3729,6 +3764,8 @@ def api_transfer_execute(character_id):
         return jsonify({'success': False, 'error': 'Invalid character ID'}), 400
 
     payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
     source_stash_id = str(payload.get('sourceStashId', '')).strip()
     target_stash_id = str(payload.get('targetStashId', '')).strip()
 
@@ -3761,6 +3798,8 @@ def api_sort_feedback():
         payload = request.get_json(force=True) or {}
     except Exception:
         return jsonify({'success': False, 'error': 'Invalid JSON payload'}), 400
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
 
     session_id = str(payload.get('sessionId') or '').strip()
     if not session_id:
@@ -3808,11 +3847,14 @@ def api_set_current_stash(character_id, stash_id):
     if stash_id is None:
         return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
 
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
+
     try:
         api._current_char_id = character_id
         api._current_stash_id = stash_id
         # Track combined character view state for hotkey sort override
-        data = request.get_json(silent=True) or {}
         api._is_combined_view = bool(data.get('combinedView', False))
         session[f'{character_id}_current_stash_id'] = stash_id
         logger.info(f"Current stash updated to character {character_id}, stash {stash_id}, combined={api._is_combined_view}")
@@ -3906,7 +3948,9 @@ def feedback():
 def api_settings():
     if request.method == 'GET':
         return jsonify(api.settings_manager.data)
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
     return jsonify(api._save_settings(data))
 
 
@@ -3979,6 +4023,8 @@ def api_sort_order():
             return jsonify({'success': False, 'error': 'Failed to fetch sort order'}), 500
 
     payload = request.get_json(silent=True) or {}
+    if not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Request body must be an object'}), 400
     order = payload.get('order')
     if order is None:
         return jsonify({'success': False, 'error': 'Missing order payload'}), 400
@@ -4145,6 +4191,8 @@ def api_packet_viewer_hidden():
     if request.method == 'GET':
         return jsonify(api.get_hidden_packet_types())
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Request body must be an object'}), 400
     types = data.get('types')
     if types is None or not isinstance(types, list):
         return jsonify({'error': 'Missing or invalid "types" list'}), 400

@@ -278,6 +278,69 @@ def test_capture_uses_kernel_bpf_filter(tmp_path, monkeypatch):
     assert "display_filter" not in kwargs
 
 
+def test_capture_closes_event_loop_when_interface_has_no_ip(tmp_path, monkeypatch):
+    capture_module = _load_capture_module(tmp_path, monkeypatch)
+    capture = capture_module.PacketCapture.__new__(capture_module.PacketCapture)
+    capture.logger = logging.getLogger("test.capture.no-ip-loop-cleanup")
+    capture.interface = "Missing Interface"
+    capture.running = True
+    capture._stop_event = threading.Event()
+    capture._state_lock = threading.Lock()
+    capture._cleanup_complete = threading.Event()
+    capture._cleanup_lock = threading.Lock()
+    capture._packet_streams = Mock()
+    capture.packet_data = b""
+    capture.expected_packet_length = None
+    capture.expected_proto_type = None
+    capture._record_owned_capture_processes = Mock()
+    capture._stop_helper_tracker = Mock()
+    capture._terminate_capture_processes = Mock()
+    capture._prune_owned_helper_records = Mock()
+    capture.get_local_ip = Mock(return_value=None)
+
+    loop = capture_module.asyncio.new_event_loop()
+    monkeypatch.setattr(capture_module.asyncio, "new_event_loop", lambda: loop)
+
+    capture.capture_loop()
+
+    assert loop.is_closed()
+    assert capture._current_loop is None
+
+
+def test_memory_guard_can_stop_from_threshold_callback_and_restart():
+    callback_completed = threading.Event()
+    callback_threads = []
+    guard = None
+
+    def on_threshold():
+        callback_threads.append(threading.current_thread())
+        guard.stop()
+        callback_completed.set()
+
+    guard = MemoryGuard(
+        threshold_mb=1,
+        check_interval=0.01,
+        on_threshold_exceeded=on_threshold,
+        usage_provider=lambda: 2,
+    )
+    guard.start()
+
+    assert callback_completed.wait(timeout=1.0)
+    first_thread = callback_threads[0]
+    first_thread.join(timeout=1.0)
+    assert not first_thread.is_alive()
+    assert guard._is_running is False
+
+    guard.on_threshold_exceeded = None
+    guard.usage_provider = lambda: 0
+    guard.start()
+    second_thread = guard._thread
+    assert second_thread is not None
+    assert second_thread is not first_thread
+    assert second_thread.is_alive()
+    guard.stop()
+
+
 def test_capture_memory_usage_includes_owned_helpers_once(tmp_path, monkeypatch):
     capture_module = _load_capture_module(tmp_path, monkeypatch)
 

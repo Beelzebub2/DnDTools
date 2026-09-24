@@ -432,9 +432,11 @@ class GameWindowWatcherProcess(mp.Process):
             return False
         return (
             s1.get('hwnd') == s2.get('hwnd')
+            and s1.get('pid') == s2.get('pid')
             and s1.get('visible') == s2.get('visible')
             and s1.get('focused') == s2.get('focused')
             and s1.get('title') == s2.get('title')
+            and s1.get('rect') == s2.get('rect')
         )
 
     # ----- helpers -------------------------------------------------------

@@ -32,7 +32,7 @@ class MemoryGuard:
         return psutil.Process().memory_info().rss / (1024 * 1024)
 
     def start(self):
-        if self._is_running:
+        if self._is_running or (self._thread and self._thread.is_alive()):
             return
         self._stop_event.clear()
         self._is_running = True
@@ -41,31 +41,41 @@ class MemoryGuard:
         logger.info("MemoryGuard started.")
 
     def stop(self):
-        if not self._is_running:
+        thread = self._thread
+        if not self._is_running and not (thread and thread.is_alive()):
             return
         self._stop_event.set()
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=2.0)
+        if (
+            thread
+            and thread.is_alive()
+            and thread is not threading.current_thread()
+        ):
+            thread.join(timeout=2.0)
         self._is_running = False
         logger.info("MemoryGuard stopped.")
 
     def _loop(self):
-        while not self._stop_event.is_set():
-            try:
-                rss_mb = max(0.0, float(self.usage_provider()))
-                if rss_mb > self.threshold_mb:
-                    logger.warning(f"Memory usage {rss_mb:.2f} MB exceeded threshold {self.threshold_mb} MB.")
-                    if self.on_threshold_exceeded:
-                        try:
-                            self.on_threshold_exceeded()
-                        except Exception as e:
-                            logger.error(f"Error in MemoryGuard callback: {e}")
-                    # Longer cooldown after triggering; check stop event for responsive shutdown
-                    if self._stop_event.wait(10):
-                        break
-                    continue
-            except Exception as e:
-                logger.error(f"Error in MemoryGuard loop: {e}")
-            
-            if self._stop_event.wait(self.check_interval):
-                break
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    rss_mb = max(0.0, float(self.usage_provider()))
+                    if rss_mb > self.threshold_mb:
+                        logger.warning(f"Memory usage {rss_mb:.2f} MB exceeded threshold {self.threshold_mb} MB.")
+                        if self.on_threshold_exceeded:
+                            try:
+                                self.on_threshold_exceeded()
+                            except Exception as e:
+                                logger.error(f"Error in MemoryGuard callback: {e}")
+                        # Longer cooldown after triggering; check stop event for responsive shutdown
+                        if self._stop_event.wait(10):
+                            break
+                        continue
+                except Exception as e:
+                    logger.error(f"Error in MemoryGuard loop: {e}")
+
+                if self._stop_event.wait(self.check_interval):
+                    break
+        finally:
+            self._is_running = False
+            if self._thread is threading.current_thread():
+                self._thread = None

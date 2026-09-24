@@ -91,6 +91,7 @@ class SortSyncService:
         self._stop_event = threading.Event()
         self._sync_event = threading.Event()
         self._worker: Optional[threading.Thread] = None
+        self._enabled_state = self._enabled()
 
     @property
     def client_id(self) -> str:
@@ -121,11 +122,21 @@ class SortSyncService:
             pass
 
     def apply_settings(self, settings: Dict[str, Any]) -> None:
-        was_enabled = self._enabled()
-        if "sortFeedbackSyncEnabled" in settings or "sortLearningAutoTrain" in settings:
-            if self._enabled() and not was_enabled:
-                logger.info("Sync re-enabled; queueing immediate sync")
-                self.start()
+        if "sortFeedbackSyncEnabled" not in settings:
+            return
+
+        enabled = bool(settings.get("sortFeedbackSyncEnabled"))
+        with self._lock:
+            was_enabled = self._enabled_state
+            self._enabled_state = enabled
+
+        if enabled and not was_enabled:
+            logger.info("Sync re-enabled; queueing immediate sync")
+            self._ensure_worker()
+            self.trigger_sync(immediate=True)
+        elif not enabled and was_enabled:
+            logger.info("Sync disabled; pausing network uploads and model downloads")
+            self._sync_event.clear()
 
     def trigger_sync(self, *, immediate: bool = False) -> None:
         if not self._enabled():
@@ -138,9 +149,7 @@ class SortSyncService:
 
     def _enabled(self) -> bool:
         try:
-            sync_enabled = bool(self._settings.get("sortFeedbackSyncEnabled", False))
-            train_enabled = bool(self._settings.get("sortLearningAutoTrain", True))
-            return sync_enabled or train_enabled
+            return bool(self._settings.get("sortFeedbackSyncEnabled", False))
         except Exception:
             return False
 

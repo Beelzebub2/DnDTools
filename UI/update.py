@@ -431,7 +431,11 @@ class UpdateManager:
             self._state.in_progress = True
             self._state.last_error = None
 
-        manifest = self.fetch_manifest(force=force, channel=normalized_channel)
+        try:
+            manifest = self.fetch_manifest(force=force, channel=normalized_channel)
+        except Exception as exc:
+            self._set_state(in_progress=False, last_error=str(exc))
+            raise
         if manifest is None:
             message = "No Test releases are currently available" if normalized_channel == "dev" else "Unable to retrieve update manifest"
             self._set_state(in_progress=False, last_error=message)

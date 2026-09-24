@@ -699,10 +699,7 @@ class QuestService:
     def clear_cache(self) -> dict[str, bool]:
         results: dict[str, bool] = {"quests_cache_removed": False, "progress_removed": False}
 
-        for path_key, path in (
-            ("quests_cache_removed", self._cache_file),
-            ("progress_removed", self._progress_file),
-        ):
+        def remove_path(path_key: str, path: Path) -> None:
             try:
                 os.remove(path)
                 results[path_key] = True
@@ -713,9 +710,12 @@ class QuestService:
                 results[path_key] = False
 
         with self._quests_lock:
+            remove_path("quests_cache_removed", self._cache_file)
             self._quests_cache = None
             self._quests_cache_timestamp = 0.0
             self._next_refresh_timestamp = 0.0
+        with self._progress_lock:
+            remove_path("progress_removed", self._progress_file)
 
         return results
 

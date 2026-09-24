@@ -101,9 +101,10 @@ def collect_item_loot_state_requirements(
             if filtered_items is not None and item_id not in filtered_items:
                 continue
 
-            values = extract_loot_state_filter(
-                objective.get("loot_state") or objective.get("lootState")
-            )
+            raw_loot_state = objective.get("loot_state")
+            if raw_loot_state is None:
+                raw_loot_state = objective.get("lootState")
+            values = extract_loot_state_filter(raw_loot_state)
 
             if values is None:
                 requirements[item_id] = None

@@ -715,6 +715,10 @@ class PacketCapture:
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
+            # Publish the loop immediately so every early-return path can close
+            # it through _cleanup_capture(). Interface/IP discovery can fail
+            # before LiveCapture is created, which previously leaked this loop.
+            self._current_loop = loop
 
             local_ip = self.get_local_ip()
             if not local_ip:
@@ -729,7 +733,6 @@ class PacketCapture:
             self.logger.info(f"Starting capture on interface: {self.interface}, IP: {local_ip}")
             self.logger.info(f"BPF capture filter: {bpf_filter}")
 
-            self._current_loop = loop
             try:
                 self._current_capture = pyshark.LiveCapture(
                     interface=self.interface,

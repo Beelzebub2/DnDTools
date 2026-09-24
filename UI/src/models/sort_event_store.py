@@ -312,6 +312,69 @@ class SortEventStore:
             with self._cursor() as cur:
                 cur.execute(sql, event_ids)
 
+    def apply_user_feedback(
+        self,
+        session_id: str,
+        *,
+        success: bool,
+        note: Optional[str] = None,
+    ) -> bool:
+        """Override the latest completed-session label with explicit user feedback.
+
+        Manual feedback belongs to the actual completed session sample. Updating
+        that row preserves its feature vector instead of creating a second
+        zero-feature training record. Requeue the event for sync so a correction
+        made after an earlier upload is sent again.
+        """
+        if not session_id:
+            return False
+
+        with self._write_lock:
+            with self._cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, metadata
+                    FROM events
+                    WHERE event_type = ? AND session_id = ?
+                    ORDER BY timestamp DESC, id DESC
+                    LIMIT 1
+                    """,
+                    (SORT_COMPLETED, session_id),
+                )
+                row = cur.fetchone()
+                if row is None:
+                    return False
+
+                try:
+                    metadata = json.loads(row["metadata"]) if row["metadata"] else {}
+                except (TypeError, ValueError):
+                    metadata = {}
+                if not isinstance(metadata, dict):
+                    metadata = {}
+                metadata["user_feedback"] = True
+                metadata["user_success"] = bool(success)
+                if note:
+                    metadata["user_note"] = str(note)[:500]
+                else:
+                    metadata.pop("user_note", None)
+
+                label = 0 if success else 1
+                weight = 1.0 if success else self._failure_weight()
+                cur.execute(
+                    """
+                    UPDATE events
+                    SET label = ?, weight = ?, metadata = ?, synced = 0
+                    WHERE id = ?
+                    """,
+                    (
+                        label,
+                        weight,
+                        json.dumps(metadata, separators=(",", ":")),
+                        row["id"],
+                    ),
+                )
+                return cur.rowcount == 1
+
     def count_events(self, event_type: Optional[str] = None) -> int:
         if event_type:
             sql = "SELECT COUNT(*) FROM events WHERE event_type = ?"

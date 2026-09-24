@@ -122,6 +122,8 @@ class SingleInstanceGuard:
             try:
                 while not self._stop_event.is_set():
                     result = kernel32.WaitForSingleObject(evt, 500)  # 500ms poll
+                    if self._stop_event.is_set():
+                        break
                     if result == _WAIT_OBJECT_0:
                         logger.info("Restore signal received from another instance.")
                         kernel32.ResetEvent(evt)
@@ -140,25 +142,51 @@ class SingleInstanceGuard:
     def release(self) -> None:
         """Release the mutex and stop the listener."""
         self._stop_event.set()
+
+        if sys.platform != "win32":
+            self._listener_thread = None
+            self._event_handle = None
+            self._mutex_handle = None
+            return
+
         kernel32 = ctypes.windll.kernel32
 
-        if self._event_handle:
+        # Wake WaitForSingleObject before joining the listener. Closing a
+        # handle while another thread is waiting on it has undefined Win32
+        # behaviour, so the event must stay valid until that wait has ended.
+        event_handle = self._event_handle
+        if event_handle:
             try:
-                kernel32.CloseHandle(self._event_handle)
+                kernel32.SetEvent(event_handle)
+            except Exception:
+                pass
+
+        listener = self._listener_thread
+        if (
+            listener
+            and listener.is_alive()
+            and listener is not threading.current_thread()
+        ):
+            listener.join(timeout=2.0)
+
+        listener_alive = bool(listener and listener.is_alive())
+        if not listener_alive or listener is threading.current_thread():
+            self._listener_thread = None
+
+        if event_handle and (not listener_alive or listener is threading.current_thread()):
+            try:
+                kernel32.CloseHandle(event_handle)
             except Exception:
                 pass
             self._event_handle = None
+        elif listener_alive:
+            logger.warning("Single-instance listener did not stop; preserving restore event handle.")
 
         if self._mutex_handle:
             try:
-                kernel32.ReleaseMutex(self._mutex_handle)
                 kernel32.CloseHandle(self._mutex_handle)
             except Exception:
                 pass
             self._mutex_handle = None
-
-        if self._listener_thread and self._listener_thread.is_alive():
-            self._listener_thread.join(timeout=2.0)
-            self._listener_thread = None
 
         logger.info("Single-instance guard released.")

@@ -21,18 +21,26 @@ class ItemDataManager:
             with self._lock:
                 if not self._loaded:  # Double-check pattern
                     with open(self._file_path, "r", encoding="utf-8") as file:
-                        self._data = json.load(file)
+                        loaded = json.load(file)
+                    if not isinstance(loaded, dict):
+                        raise ValueError("items.json root must be a JSON object")
+                    self._data = loaded
                     self._loaded = True
 
     def reload(self) -> None:
         """Force the item data cache to reload from disk."""
-        with self._lock:
-            self._data = None
-            self._loaded = False
         try:
-            self._ensure_loaded()
+            with open(self._file_path, "r", encoding="utf-8") as file:
+                refreshed = json.load(file)
+            if not isinstance(refreshed, dict):
+                raise ValueError("items.json root must be a JSON object")
         except Exception as exc:  # pragma: no cover - defensive safeguard
             logger.warning("Failed to reload items.json: %s", exc, exc_info=True)
+            return
+
+        with self._lock:
+            self._data = refreshed
+            self._loaded = True
 
     def get_item_dimensions_from_id(self, item_id):
         self._ensure_loaded()

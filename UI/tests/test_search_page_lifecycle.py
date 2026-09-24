@@ -66,6 +66,207 @@ print(json.dumps(manager.calls))
     assert result.returncode == 0, result.stderr or result.stdout
 
 
+def test_app_runtime_names_support_settings_reload_and_windows_foreground() -> None:
+    harness = r"""
+import sys
+import types
+
+sys.path.insert(0, sys.argv[1])
+import app
+
+assert callable(app.macros.load_tab_mapping)
+
+calls = []
+
+class User32:
+    def ShowWindow(self, hwnd, mode):
+        calls.append(("show", hwnd, mode))
+        return 1
+
+    def SetForegroundWindow(self, hwnd):
+        calls.append(("foreground", hwnd))
+        return 1
+
+class Window:
+    native = types.SimpleNamespace(Handle=123)
+    title = "Dark and Darker Stash Organizer"
+
+    def restore(self):
+        calls.append(("restore",))
+
+    def show(self):
+        calls.append(("window-show",))
+
+api = object.__new__(app.Api)
+api.window = Window()
+app.sys.platform = "win32"
+app.ctypes = types.SimpleNamespace(
+    windll=types.SimpleNamespace(user32=User32())
+)
+
+assert api.bring_window_to_front() is True
+assert ("show", 123, 9) in calls
+assert ("foreground", 123) in calls
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", harness, str(UI_DIR)],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_object_json_routes_reject_non_object_payloads_with_400() -> None:
+    harness = r"""
+import sys
+import types
+
+sys.path.insert(0, sys.argv[1])
+import app
+
+app.api = types.SimpleNamespace(_developer_mode_enabled=True)
+client = app.server.test_client()
+
+routes = [
+    "/api/market/prices/bulk",
+    "/api/quests/progress",
+    "/api/quests/active-merchants",
+    "/api/capture/settings",
+    "/api/character/hero/stash/transfer/check",
+    "/api/character/hero/stash/transfer/execute",
+    "/api/sort-feedback",
+    "/api/settings",
+    "/api/sort_order",
+    "/api/packet_viewer/hidden",
+]
+
+for route in routes:
+    response = client.post(route, json=[{"unexpected": "array"}])
+    assert response.status_code == 400, (route, response.status_code, response.get_data(as_text=True))
+
+response = client.post(
+    "/api/capture/settings",
+    data="{",
+    content_type="application/json",
+)
+assert response.status_code == 400, response.get_data(as_text=True)
+
+# Rejected bodies must not partially change the current stash selection.
+app.api._current_char_id = "before"
+app.api._current_stash_id = 9
+response = client.post("/api/character/hero/current-stash/4", json=[{"unexpected": "array"}])
+assert response.status_code == 400
+assert app.api._current_char_id == "before"
+assert app.api._current_stash_id == 9
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", harness, str(UI_DIR)],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
+def test_sort_operation_ownership_blocks_overlap_and_releases_early_cancel() -> None:
+    harness = r"""
+import sys
+import threading
+import types
+
+sys.path.insert(0, sys.argv[1])
+import app
+
+api = object.__new__(app.Api)
+api.settings_manager = types.SimpleNamespace(get=lambda _key, default=None: default)
+api._current_char_id = "hero"
+api._current_stash_id = "4"
+api._is_combined_view = False
+api.window = None
+api._sort_state_lock = threading.RLock()
+
+cancelled_but_unwinding = threading.Event()
+cancelled_but_unwinding.set()
+api.current_sort_event = cancelled_but_unwinding
+
+started = []
+class FailThread:
+    def __init__(self, *args, **kwargs):
+        started.append((args, kwargs))
+    def start(self):
+        raise AssertionError("a second sort must not start while cancellation is unwinding")
+
+original_thread = app.threading.Thread
+app.threading.Thread = FailThread
+try:
+    api._trigger_sort_current()
+finally:
+    app.threading.Thread = original_thread
+
+assert started == []
+assert api.current_sort_event is cancelled_but_unwinding
+
+# Cancellation can win before the worker starts. Its early return must release
+# ownership so a later sort is not blocked forever.
+api._sort_worker(cancelled_but_unwinding, "hero", "4")
+assert api.current_sort_event is None
+
+old_event = threading.Event()
+replacement_event = threading.Event()
+
+class Session:
+    def wait_for_countdown(self): return False
+    def update_status(self, *args, **kwargs): pass
+    def finish(self, *args, **kwargs): pass
+
+class Manager:
+    def get_character_details(self, _character_id): return None
+    def check_transfer_feasibility(self, *_args, **_kwargs): return {"feasible": True}
+    def sort_stash(self, *args, **kwargs):
+        # Simulate a newer owner appearing before the old call unwinds. Cleanup
+        # must never erase another operation's event.
+        api.current_sort_event = replacement_event
+        return True, None, None
+
+api.stash_manager = Manager()
+api.overlay_manager = types.SimpleNamespace(begin_sort_session=lambda **_kwargs: Session())
+api._run_calibration_before_sort = lambda: None
+api.get_pack_mode = lambda: False
+api.get_stack_mode = lambda: False
+api.set_pack_mode = lambda _value: True
+api.set_stack_mode = lambda _value: True
+
+result = api.sort_stash("hero", "4", cancel_event=old_event)
+assert result["success"] is True
+assert api.current_sort_event is replacement_event
+
+blocked = api.sort_stash("hero", "4", cancel_event=threading.Event())
+assert blocked["success"] is False
+assert "already running" in blocked["error"].lower()
+
+transfer_blocked = api.transfer_items("hero", "2", "4")
+assert transfer_blocked["success"] is False
+assert "already running" in transfer_blocked["error"].lower()
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", harness, str(UI_DIR)],
+        capture_output=True,
+        text=True,
+        timeout=20,
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr or result.stdout
+
+
 @pytest.mark.skipif(NODE is None, reason="Node.js is required for browser-script regression tests")
 def test_search_rebinds_after_router_cleanup_and_script_reload() -> None:
     """The same script can be evaluated twice and binds only the active page."""
