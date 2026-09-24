@@ -443,3 +443,164 @@ def test_json_size_estimation_stops_after_limit_is_exceeded():
 
     assert 512 < limited <= exact
     assert exact > 20_000
+
+# Gap recovery must remain independent of wall-clock time and real sleeping.
+def _timed_stream(monkeypatch, **kwargs):
+    import UI.src.models.packet_buffers as buffers
+    now = [0.0]
+    monkeypatch.setattr(buffers.time, 'monotonic', lambda: now[0])
+    captured, desyncs = [], []
+    streams = FramedPacketStreams(_validator, lambda packet, proto: captured.append(packet),
+        on_desync=lambda *event: desyncs.append(event), **kwargs)
+    return streams, now, captured, desyncs
+
+
+def test_gap_timeout_never_recovers_before_twenty_seconds(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    frame = _frame(1401)
+    streams.feed('game', frame, sequence=100)
+    streams.feed('game', frame, sequence=116)  # Missing [108, 116).
+    now[0] = 19.999
+    streams.feed('game', frame, sequence=124)
+    assert captured == [frame]
+    assert streams.buffered_bytes == 16
+    assert not desyncs
+    now[0] = 20.0
+    streams.feed('game', frame, sequence=132)
+    assert captured == [frame] * 4
+    assert streams.buffered_bytes == 0
+    assert desyncs == [('game', 0, 'pending TCP gap timed out')]
+
+
+def test_observed_eight_byte_gap_recovers_on_next_feed_after_deadline(monkeypatch):
+    streams, now, captured, _ = _timed_stream(monkeypatch)
+    frame = _frame(1401)
+    # Same eight-byte spacing as the natural incident; synthetic sequence IDs.
+    streams.feed('game', frame, sequence=1000)
+    now[0] = 7
+    streams.feed('game', frame, sequence=1016)
+    now[0] = 28
+    assert captured == [frame]  # Time alone does not run recovery.
+    streams.feed('game', frame, sequence=1024)
+    assert captured == [frame] * 3
+    assert streams.buffered_bytes == 0
+    streams.feed('game', frame, sequence=1008)  # Late missing bytes cannot replay.
+    streams.feed('game', frame, sequence=1024)  # Nor can a duplicate.
+    streams.feed('game', frame[4:] + frame, sequence=1028)  # Overlap + new bytes.
+    assert captured == [frame] * 4
+
+
+def test_gap_filled_before_deadline_preserves_partial_frame(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    frame = _frame(1352, b'complete')
+    streams.feed('game', frame[:8], sequence=100)
+    streams.feed('game', frame[10:], sequence=110)
+    now[0] = 19.999
+    streams.feed('game', frame[8:10], sequence=108)
+    assert captured == [frame]
+    assert streams.buffered_bytes == 0
+    assert not desyncs
+
+
+def test_legitimate_slow_partial_frame_has_no_gap_timeout(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    frame = _frame(1352, b'slow-but-contiguous')
+    streams.feed('game', frame[:8], sequence=100)
+    now[0] = 100
+    streams.feed('game', frame[8:], sequence=108)
+    assert captured == [frame]
+    assert not desyncs
+
+
+def test_gap_recovery_discards_incomplete_frame_and_resynchronizes(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    incomplete = _frame(1352, b'abcdefghijk')
+    fresh = _frame(1354, b'confirmed')
+    streams.feed('game', incomplete[:9], sequence=100)
+    tail = incomplete[12:] + fresh
+    streams.feed('game', tail, sequence=112)
+    now[0] = 20
+    streams.feed('game', _frame(1401), sequence=112 + len(tail))
+    assert captured == [fresh, _frame(1401)]
+    assert streams.buffered_bytes == 0
+    assert any(event[2] == 'pending TCP gap timed out' for event in desyncs)
+
+
+def test_new_gap_gets_full_timeout_after_first_gap_fills(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    frame = _frame(1401)
+    streams.feed('game', frame, sequence=100)
+    streams.feed('game', frame, sequence=116)
+    streams.feed('game', frame, sequence=132)
+    now[0] = 19
+    streams.feed('game', frame, sequence=108)  # Drains 116, exposes missing 124.
+    now[0] = 20
+    streams.feed('game', frame, sequence=140)
+    assert captured == [frame] * 3
+    assert not desyncs
+    now[0] = 39
+    streams.feed('game', frame, sequence=148)
+    assert captured == [frame] * 6
+    assert streams.buffered_bytes == 0
+
+
+def test_gap_timeout_is_per_stream(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    frame = _frame(1401)
+    streams.feed('a', frame, sequence=100)
+    streams.feed('a', frame, sequence=116)
+    now[0] = 19
+    streams.feed('b', frame, sequence=100)
+    streams.feed('b', frame, sequence=116)
+    now[0] = 20
+    streams.feed('a', frame, sequence=124)
+    streams.feed('b', frame, sequence=124)
+    assert captured == [frame] * 4
+    assert streams.buffered_bytes == 16
+    assert all(event[0] == 'a' for event in desyncs)
+
+
+def test_gap_timeout_rejects_values_below_minimum_and_nonfinite():
+    import pytest
+    for value in (0, 10, 19.999, float('nan'), float('inf')):
+        with pytest.raises(ValueError, match='at least 20'):
+            FramedPacketStreams(_validator, lambda *args: None, gap_timeout=value)
+
+
+def test_partial_gap_progress_does_not_postpone_original_deadline(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    partial = _frame(1352, b'12345678')
+    fresh = _frame(1401)
+    streams.feed('game', partial[:8], sequence=100)
+    streams.feed('game', fresh, sequence=116)
+    now[0] = 19
+    streams.feed('game', partial[8:12], sequence=108)
+    assert captured == [] and not desyncs
+    now[0] = 20
+    streams.feed('game', partial[12:14], sequence=112)
+    assert captured == [fresh]
+    assert streams.buffered_bytes == 0
+    assert desyncs[0][2] == 'pending TCP gap timed out'
+
+
+def test_retransmission_feed_checks_gap_deadline(monkeypatch):
+    streams, now, captured, desyncs = _timed_stream(monkeypatch)
+    frame = _frame(1401)
+    streams.feed('game', frame, sequence=100)
+    streams.feed('game', frame, sequence=116)
+    now[0] = 19.999
+    streams.feed('game', frame, sequence=100)
+    assert captured == [frame] and not desyncs
+    now[0] = 20
+    streams.feed('game', frame, sequence=100)
+    assert captured == [frame] * 2
+    assert streams.buffered_bytes == 0
+
+
+def test_evicting_empty_stream_does_not_report_desynchronization(monkeypatch):
+    streams, _, captured, desyncs = _timed_stream(monkeypatch, max_streams=1)
+    frame = _frame(1401)
+    streams.feed('one', frame, sequence=100)
+    streams.feed('two', frame, sequence=100)
+    assert captured == [frame] * 2
+    assert not desyncs
