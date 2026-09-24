@@ -275,6 +275,8 @@ class FramedPacketStreams:
             state.sequence_anchor = state.next_sequence
             emitted = self._feed_contiguous(key, state, payload)
             emitted += self._drain_pending(key, state)
+            if emitted:
+                return self._finish_feed(emitted)
             return self._finish_feed(emitted + (self._recover_expired_gap(key, state) or 0))
 
         # A gap remains. Keep the segment until the missing sequence arrives.
@@ -365,7 +367,7 @@ class FramedPacketStreams:
         # The frame budget may have left complete packets buffered. Preserve
         # those packets and defer recovery if another bounded drain is needed.
         emitted = self._feed_contiguous(key, state, b"")
-        if emitted == self.max_frames_per_feed:
+        if emitted:
             return emitted
         # Resume only from captured bytes. The normal frame validator handles
         # a first available segment that starts in the middle of a frame.
