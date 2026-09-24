@@ -721,20 +721,19 @@ class PacketCapture:
                 self.logger.error(f"Could not find IP address for interface {self.interface}")
                 return
 
-            display_filter = (
-                f'ip.dst == {local_ip} and '
-                f'tcp.srcport >= {self.port_range[0]} and '
-                f'tcp.srcport <= {self.port_range[1]}'
+            bpf_filter = (
+                f'tcp src portrange {self.port_range[0]}-{self.port_range[1]} and '
+                f'dst host {local_ip}'
             )
 
             self.logger.info(f"Starting capture on interface: {self.interface}, IP: {local_ip}")
-            self.logger.info(f"Display filter: {display_filter}")
+            self.logger.info(f"BPF capture filter: {bpf_filter}")
 
             self._current_loop = loop
             try:
                 self._current_capture = pyshark.LiveCapture(
                     interface=self.interface,
-                    display_filter=display_filter,
+                    bpf_filter=bpf_filter,
                     eventloop=loop,
                     tshark_path=self.tshark_path
                 )

@@ -238,6 +238,46 @@ def test_capture_cleanup_does_not_delete_unrelated_temp_pcaps(tmp_path, monkeypa
     assert unrelated.read_bytes() == b"unrelated"
 
 
+def test_capture_uses_kernel_bpf_filter(tmp_path, monkeypatch):
+    capture_module = _load_capture_module(tmp_path, monkeypatch)
+    live_capture_calls = []
+
+    class FakeLiveCapture:
+        def __init__(self, **kwargs):
+            live_capture_calls.append(kwargs)
+
+        def sniff_continuously(self):
+            return iter(())
+
+    monkeypatch.setattr(
+        capture_module.pyshark,
+        "LiveCapture",
+        FakeLiveCapture,
+        raising=False,
+    )
+
+    capture = capture_module.PacketCapture.__new__(capture_module.PacketCapture)
+    capture.logger = logging.getLogger("test.capture.bpf-filter")
+    capture.interface = "Ethernet"
+    capture.port_range = (20200, 20300)
+    capture.tshark_path = None
+    capture.running = True
+    capture._stop_event = threading.Event()
+    capture._state_lock = threading.Lock()
+    capture._record_owned_capture_processes = Mock()
+    capture._cleanup_capture = Mock()
+    capture.get_local_ip = Mock(return_value="192.0.2.10")
+
+    capture.capture_loop()
+
+    assert len(live_capture_calls) == 1
+    kwargs = live_capture_calls[0]
+    assert kwargs["bpf_filter"] == (
+        "tcp src portrange 20200-20300 and dst host 192.0.2.10"
+    )
+    assert "display_filter" not in kwargs
+
+
 def test_capture_memory_usage_includes_owned_helpers_once(tmp_path, monkeypatch):
     capture_module = _load_capture_module(tmp_path, monkeypatch)
 
