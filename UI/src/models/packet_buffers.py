@@ -154,11 +154,16 @@ class _TCPStreamState:
     sequence_anchor: Optional[int] = None
     pending_segments: Dict[int, bytes] = field(default_factory=dict)
     pending_bytes: int = 0
+    gap_started: Optional[float] = None
     last_seen: float = field(default_factory=time.monotonic)
 
 
 class FramedPacketStreams:
-    """Reassemble sequence-aware TCP streams into length-prefixed packets."""
+    """Reassemble sequence-aware TCP streams into length-prefixed packets.
+
+    Missing-sequence recovery is feed-driven after at least 20 seconds;
+    contiguous partial frames are not timed out. Memory limits still apply.
+    """
 
     def __init__(
         self,
@@ -171,6 +176,7 @@ class FramedPacketStreams:
         max_streams: int = 64,
         idle_timeout: float = 300.0,
         max_frames_per_feed: int = 4096,
+        gap_timeout: float = 20.0,
         on_desync: Optional[Callable[[str, int, str], None]] = None,
     ):
         self._validate_header = validate_header
@@ -181,6 +187,7 @@ class FramedPacketStreams:
         self.max_streams = int(max_streams)
         self.idle_timeout = float(idle_timeout)
         self.max_frames_per_feed = int(max_frames_per_feed)
+        self.gap_timeout = float(gap_timeout)
         if min(
             self.max_packet_size,
             self.max_pending_bytes,
@@ -191,6 +198,8 @@ class FramedPacketStreams:
             raise ValueError("packet stream limits must be positive")
         if self.idle_timeout <= 0:
             raise ValueError("idle_timeout must be positive")
+        if not 20.0 <= self.gap_timeout < float("inf"):
+            raise ValueError("gap_timeout must be finite and at least 20 seconds")
         self._on_desync = on_desync
         self._streams: "OrderedDict[str, _TCPStreamState]" = OrderedDict()
         self._feed_count = 0
@@ -257,7 +266,7 @@ class FramedPacketStreams:
         if segment_start < state.next_sequence:
             overlap = state.next_sequence - segment_start
             if overlap >= len(payload):
-                return self._finish_feed(0)
+                return self._finish_feed(self._recover_expired_gap(key, state) or 0)
             payload = payload[overlap:]
             segment_start = state.next_sequence
 
@@ -265,7 +274,10 @@ class FramedPacketStreams:
             state.next_sequence += len(payload)
             state.sequence_anchor = state.next_sequence
             emitted = self._feed_contiguous(key, state, payload)
-            return self._finish_feed(emitted + self._drain_pending(key, state))
+            emitted += self._drain_pending(key, state)
+            if emitted:
+                return self._finish_feed(emitted)
+            return self._finish_feed(emitted + (self._recover_expired_gap(key, state) or 0))
 
         # A gap remains. Keep the segment until the missing sequence arrives.
         return self._finish_feed(
@@ -303,11 +315,9 @@ class FramedPacketStreams:
 
         while len(self._streams) > self.max_streams:
             evicted_key, evicted = self._streams.popitem(last=False)
-            self._notify_desync(
-                evicted_key,
-                len(evicted.frame_buffer) + evicted.pending_bytes,
-                "too many active TCP streams",
-            )
+            dropped = len(evicted.frame_buffer) + evicted.pending_bytes
+            if dropped:
+                self._notify_desync(evicted_key, dropped, "too many active TCP streams")
         return state
 
     def _expire_idle_streams(self, now: float) -> None:
@@ -321,6 +331,7 @@ class FramedPacketStreams:
 
     def _drain_pending(self, key: str, state: _TCPStreamState) -> int:
         emitted = 0
+        initial_pending = min(state.pending_segments, default=None)
         while state.pending_segments and state.next_sequence is not None:
             progressed = False
             for start in sorted(state.pending_segments):
@@ -341,7 +352,31 @@ class FramedPacketStreams:
                 break
             if not progressed:
                 break
+        if not state.pending_segments:
+            state.gap_started = None
+        elif min(state.pending_segments) != initial_pending:
+            # Progress exposed a different missing interval. Give that gap its
+            # own full timeout instead of inheriting the previous gap's age.
+            state.gap_started = time.monotonic()
         return emitted
+
+    def _recover_expired_gap(self, key: str, state: _TCPStreamState) -> Optional[int]:
+        if (not state.pending_segments or state.gap_started is None
+                or time.monotonic() - state.gap_started < self.gap_timeout):
+            return None
+        # The frame budget may have left complete packets buffered. Preserve
+        # those packets and defer recovery if another bounded drain is needed.
+        emitted = self._feed_contiguous(key, state, b"")
+        if emitted:
+            return emitted
+        # Resume only from captured bytes. The normal frame validator handles
+        # a first available segment that starts in the middle of a frame.
+        self._notify_desync(key, len(state.frame_buffer), "pending TCP gap timed out")
+        state.frame_buffer.clear()
+        state.next_sequence = min(state.pending_segments)
+        state.sequence_anchor = state.next_sequence
+        state.gap_started = time.monotonic()
+        return emitted + self._drain_pending(key, state)
 
     def _store_pending(
         self,
@@ -350,6 +385,9 @@ class FramedPacketStreams:
         segment_start: int,
         payload: bytes,
     ) -> int:
+        now = time.monotonic()
+        if state.gap_started is None:
+            state.gap_started = now
         previous = state.pending_segments.get(segment_start)
         if previous is None or len(payload) > len(previous):
             if previous is not None:
@@ -360,7 +398,9 @@ class FramedPacketStreams:
                 state.sequence_anchor = segment_start
 
         if state.pending_bytes <= self.max_pending_bytes:
-            return 0
+            # Traffic prevents idle expiry. Recover a permanent gap on a feed
+            # at/after the timeout even when the memory budget has not filled.
+            return self._recover_expired_gap(key, state) or 0
 
         # Do not let a permanently missing TCP segment grow memory without
         # bound. Resume from the newest segment and let framing resynchronize.
@@ -373,6 +413,7 @@ class FramedPacketStreams:
         newest = state.pending_segments[newest_start]
         state.pending_segments.clear()
         state.pending_bytes = 0
+        state.gap_started = None
         state.frame_buffer.clear()
         state.next_sequence = newest_start + len(newest)
         state.sequence_anchor = state.next_sequence
@@ -468,5 +509,5 @@ class FramedPacketStreams:
         return None
 
     def _notify_desync(self, stream_id: str, dropped: int, reason: str) -> None:
-        if self._on_desync and dropped:
+        if self._on_desync:
             self._on_desync(stream_id, dropped, reason)
