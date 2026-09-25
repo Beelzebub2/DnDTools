@@ -2,10 +2,10 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-08-23T22:50:24.349089Z",
-  "timestamp": 1787525424.349089,
-  "build": "0.17.151.9472",
-  "patch": 132,
+  "generated_at": "2026-09-25T20:19:07.749623Z",
+  "timestamp": 1790367547.749623,
+  "build": "0.17.153.9762",
+  "patch": 134,
   "quests": [
     {
       "id": "Alchemist_01",
@@ -949,8 +949,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Axeman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         },
         {
           "type": "Kill",
@@ -1092,8 +1092,8 @@
           "type": "Kill",
           "count": 7,
           "monster": "Ice Kobold Axeman",
-          "icon": "c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d",
-          "icon_url": "https://cdn.darkerdb.com/codex/c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d"
+          "icon": "7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0",
+          "icon_url": "https://cdn.darkerdb.com/codex/7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0"
         },
         {
           "type": "Kill",
@@ -1199,8 +1199,8 @@
           "count": 1,
           "item_id": "CrystalBall",
           "rarity": "Rare",
-          "icon": "18a64b32c8e8bc353f0862bdcbd13a3aabfdd548217c887b311111078095ec7c",
-          "icon_url": "https://cdn.darkerdb.com/codex/18a64b32c8e8bc353f0862bdcbd13a3aabfdd548217c887b311111078095ec7c"
+          "icon": "8506f596b66a705cd169b27380c5c695d2d704c4baabd20fafcf2be19e505a5c",
+          "icon_url": "https://cdn.darkerdb.com/codex/8506f596b66a705cd169b27380c5c695d2d704c4baabd20fafcf2be19e505a5c"
         },
         {
           "type": "Fetch",
@@ -1427,7 +1427,7 @@
           "type": "Use Item",
           "count": 2,
           "item_id": "LuckPotionLarge",
-          "rarity": "Epic",
+          "rarity": "Rare",
           "icon": "f8fea9d7c1b3871659a4fa5a485e90f01c19f0d08efed9f27a70a3725ed9579c",
           "icon_url": "https://cdn.darkerdb.com/codex/f8fea9d7c1b3871659a4fa5a485e90f01c19f0d08efed9f27a70a3725ed9579c"
         },
@@ -4430,17 +4430,24 @@
       "chapter": "Blessings Upon You!",
       "chapter_id": "Armourer_18",
       "prerequisite": "Armourer_18",
-      "dungeons": [],
+      "dungeons": [
+        "Goblin"
+      ],
       "merchant": "Armourer",
       "text": "I’ve heard that the winged creatures in the Firedeep have been quite a nuisance. They say fighting enemies that strike from above is no easy task. Just thinking about it makes me uneasy. I’d never have the courage to face such creatures myself, of course. If you have it in you to put a few of them down, bring me something to prove it.",
       "completion_text": null,
       "objectives": [
         {
           "type": "Fetch",
+          "count": 2,
+          "item_id": "HardenedBeak",
+          "icon": "24f408f08b4d73a9c1967aea71f3546dba427fde87b4d30f3dcfbd8b3c4db3ec",
+          "icon_url": "https://cdn.darkerdb.com/codex/24f408f08b4d73a9c1967aea71f3546dba427fde87b4d30f3dcfbd8b3c4db3ec"
+        },
+        {
+          "type": "Kill",
           "count": 3,
-          "item_id": "SulfurSaliva",
-          "icon": "98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307",
-          "icon_url": "https://cdn.darkerdb.com/codex/98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307"
+          "monster": "Emberwing"
         }
       ],
       "rewards": [
@@ -4522,17 +4529,17 @@
       "chapter": "The Beast of Firedeep",
       "chapter_id": "Armourer_20",
       "prerequisite": "Armourer_20",
-      "dungeons": [],
+      "dungeons": [
+        "Goblin"
+      ],
       "merchant": "Armourer",
       "text": "I still can hardly believe the Magma Wyvern was real. And there were even signs that the dwarves once tried to hunt it? If so, it may be a foe that even they could not bring down. Should you manage to slay such a creature, your name would surely become known far and wide. Would you be willing to take on the challenge?",
       "completion_text": null,
       "objectives": [
         {
-          "type": "Fetch",
-          "count": 3,
-          "item_id": "SulfurSaliva",
-          "icon": "98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307",
-          "icon_url": "https://cdn.darkerdb.com/codex/98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307"
+          "type": "Kill",
+          "count": 1,
+          "monster": "Magma Wyvern"
         }
       ],
       "rewards": [
@@ -4605,8 +4612,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 304,
@@ -4660,8 +4667,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 305,
@@ -4715,8 +4722,8 @@
           "type": "Affinity",
           "count": 15,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 306,
@@ -4763,8 +4770,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 307,
@@ -4811,8 +4818,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 308,
@@ -4859,8 +4866,8 @@
           "type": "Affinity",
           "count": 15,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 309,
@@ -4907,8 +4914,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 310,
@@ -4955,8 +4962,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 311,
@@ -5003,8 +5010,8 @@
           "type": "Affinity",
           "count": 15,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 312,
@@ -5051,8 +5058,8 @@
           "type": "Affinity",
           "count": 25,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         },
         {
           "type": "Item",
@@ -5079,8 +5086,8 @@
           "type": "Item",
           "count": 1,
           "item_id": "Emerald_4001",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         },
         {
           "type": "Item",
@@ -5134,8 +5141,8 @@
           "type": "Affinity",
           "count": 25,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         }
       ],
       "order": 314,
@@ -5182,8 +5189,8 @@
           "type": "Affinity",
           "count": 25,
           "merchant": "Cockatrice",
-          "icon": "408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f",
-          "icon_url": "https://cdn.darkerdb.com/codex/408a505d2a79b765f0c2d684c2a37728baab711ad8535261376f951e19955c9f"
+          "icon": "4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd",
+          "icon_url": "https://cdn.darkerdb.com/codex/4f31cabe2624ada9e30ce0f42db3988511d70e897f807074a8bbe727d84364dd"
         },
         {
           "type": "Item",
@@ -5210,8 +5217,8 @@
           "type": "Item",
           "count": 1,
           "item_id": "Emerald_5001",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         },
         {
           "type": "Item",
@@ -6639,9 +6646,9 @@
           "count": 1000
         },
         {
-          "type": "Emote",
+          "type": "Item Skin",
           "count": 1,
-          "emote_id": "id.emote.hearty_laughter"
+          "item_skin_id": "id.item_skin.ceremonial_torch"
         }
       ],
       "order": 131,
@@ -6683,8 +6690,8 @@
           "count": 1,
           "item_id": "Emerald",
           "rarity": "Common",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         },
         {
           "type": "Fetch",
@@ -6754,8 +6761,8 @@
           "count": 1,
           "item_id": "Emerald",
           "rarity": "Uncommon",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         },
         {
           "type": "Fetch",
@@ -6825,8 +6832,8 @@
           "count": 2,
           "item_id": "Emerald",
           "rarity": "Rare",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         },
         {
           "type": "Fetch",
@@ -7144,8 +7151,8 @@
           "count": 3,
           "item_id": "Emerald",
           "rarity": "Epic",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         }
       ],
       "rewards": [
@@ -7459,8 +7466,8 @@
           "count": 5,
           "item_id": "Emerald",
           "rarity": "Legend",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         }
       ],
       "rewards": [
@@ -9491,8 +9498,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Axeman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         }
       ],
       "rewards": [
@@ -11061,8 +11068,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Ice Kobold Axeman",
-          "icon": "c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d",
-          "icon_url": "https://cdn.darkerdb.com/codex/c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d"
+          "icon": "7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0",
+          "icon_url": "https://cdn.darkerdb.com/codex/7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0"
         }
       ],
       "rewards": [
@@ -12468,8 +12475,8 @@
           "type": "Fetch",
           "count": 3,
           "item_id": "Emerald",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         }
       ],
       "rewards": [
@@ -15110,8 +15117,8 @@
           "count": 3,
           "item_id": "Emerald",
           "rarity": "Rare",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         }
       ],
       "rewards": [
@@ -19560,8 +19567,8 @@
           "count": 2,
           "item_id": "Emerald",
           "rarity": "Rare",
-          "icon": "e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca",
-          "icon_url": "https://cdn.darkerdb.com/codex/e3dee3b65296c038b418e47a7da896522e9fec9a3c4a04565d0595e3d7d339ca"
+          "icon": "6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449",
+          "icon_url": "https://cdn.darkerdb.com/codex/6fd2a0e0a3d4f5206a55e6f89e30a283dab99dd5713e433afc58f6638f29c449"
         },
         {
           "type": "Fetch",
@@ -19660,21 +19667,28 @@
     {
       "id": "SkeletonFootman_01",
       "source_id": "id.quest.skeleton_footman_01",
-      "title": "Bone and Blood",
+      "title": "Keeping It Together",
       "chapter": null,
       "chapter_id": null,
       "prerequisite": null,
       "dungeons": [],
       "merchant": "Skeleton Footman",
-      "text": "Greetings, adventurer. I’ve got a bone to pick with you. Your constant skirmishes have left some of my companions somewhat disassembled. After enduring a year of relentless battles, I'm taking a well-deserved break and seeking a capable adventurer like you to aid us.",
+      "text": "It's been a while, Adventurer. Every time we cross blades, my companions end up scattered throughout the dungeon. It's hard to believe it's been three years of the same thing. If you still have even a shred of pity left for us, would you bring me a few usable bones and an intact skull? It's rather difficult to maintain one's dignity when one is scattered into pieces.",
       "completion_text": null,
       "objectives": [
         {
           "type": "Fetch",
-          "count": 30,
+          "count": 10,
           "item_id": "Bone",
           "icon": "9fa8184c28d94115c81cf2b291a24b8f152670151debb6280a151598b80eb1e4",
           "icon_url": "https://cdn.darkerdb.com/codex/9fa8184c28d94115c81cf2b291a24b8f152670151debb6280a151598b80eb1e4"
+        },
+        {
+          "type": "Fetch",
+          "count": 10,
+          "item_id": "IntactSkull",
+          "icon": "8fbc7331a00bbaa6a69bbacbb5a951717c96a4e6902ec6e79cf4629a2b1c8b6b",
+          "icon_url": "https://cdn.darkerdb.com/codex/8fbc7331a00bbaa6a69bbacbb5a951717c96a4e6902ec6e79cf4629a2b1c8b6b"
         }
       ],
       "rewards": [
@@ -19713,30 +19727,35 @@
     {
       "id": "SkeletonFootman_02",
       "source_id": "id.quest.skeleton_footman_02",
-      "title": "Graveyard Shifts",
-      "chapter": "Bone and Blood",
+      "title": "Kind Regards",
+      "chapter": "Keeping It Together",
       "chapter_id": "SkeletonFootman_01",
       "prerequisite": "SkeletonFootman_01",
       "dungeons": [
-        "Goblin",
+        "Ship Graveyard",
         "Crypts",
-        "Ice Cavern"
+        "Ice Cavern",
+        "Goblin"
       ],
       "merchant": "Skeleton Footman",
-      "text": "Ever wonder what a skeleton's day job is like? Try surviving these places. It's not all rattling bones and eerie moans. Try surviving where we reign; it might just chill your marrow.",
+      "text": "Come to think of it, few lives are as simple as ours. Adventurers arrive, we fight, we fall, then we wait again. I've lost count of how many years it's been... Yet in the end, I can't deny that facing you is the greatest joy we have. Since we're on the subject, do give my companions in the other dungeons my regards.",
       "completion_text": null,
       "objectives": [
         {
           "type": "Survive",
-          "count": 3
+          "count": 2
         },
         {
           "type": "Survive",
-          "count": 3
+          "count": 2
         },
         {
           "type": "Survive",
-          "count": 3
+          "count": 2
+        },
+        {
+          "type": "Survive",
+          "count": 2
         }
       ],
       "rewards": [
@@ -19775,21 +19794,28 @@
     {
       "id": "SkeletonFootman_03",
       "source_id": "id.quest.skeleton_footman_03",
-      "title": "Etched in Bone",
-      "chapter": "Graveyard Shifts",
+      "title": "Bone Appétit",
+      "chapter": "Kind Regards",
       "chapter_id": "SkeletonFootman_02",
       "prerequisite": "SkeletonFootman_02",
       "dungeons": [],
       "merchant": "Skeleton Footman",
-      "text": "Lately, I've heard whispers that my comrades are falling far too easily. As proud skeletons, we must show we're not just hollow-boned fools. Bring me their skulls. As many as you can. I'll make sure the lesson sticks.",
+      "text": "As the years pass, our bones gradually wear away. But gold teeth never lose their shine. Those with plenty of them are the envy of our kind. Since we're on the subject, would you bring me a few gold teeth and some moldy bread? I'd like to enjoy a proper delicacy for the first time in a while.",
       "completion_text": null,
       "objectives": [
         {
           "type": "Fetch",
+          "count": 5,
+          "item_id": "GoldenTeeth",
+          "icon": "5d7f149467bf86f45ae7723b225b6dcce05f1d6f5925905833f339fe6b71b44a",
+          "icon_url": "https://cdn.darkerdb.com/codex/5d7f149467bf86f45ae7723b225b6dcce05f1d6f5925905833f339fe6b71b44a"
+        },
+        {
+          "type": "Fetch",
           "count": 10,
-          "item_id": "IntactSkull",
-          "icon": "8fbc7331a00bbaa6a69bbacbb5a951717c96a4e6902ec6e79cf4629a2b1c8b6b",
-          "icon_url": "https://cdn.darkerdb.com/codex/8fbc7331a00bbaa6a69bbacbb5a951717c96a4e6902ec6e79cf4629a2b1c8b6b"
+          "item_id": "MoldyBread",
+          "icon": "0cea4e8c7acddedd24801adcd551c49b3d5a80a7ac1cd2f8b5b032f75a38f90e",
+          "icon_url": "https://cdn.darkerdb.com/codex/0cea4e8c7acddedd24801adcd551c49b3d5a80a7ac1cd2f8b5b032f75a38f90e"
         }
       ],
       "rewards": [
@@ -19799,10 +19825,14 @@
         },
         {
           "type": "Item",
-          "count": 1,
-          "item_id": "GoldCoinBag",
-          "icon": "ba4e3211be8f694eaa1327962c33ad2b459dfbc8a1c0a65b5e61463aba0f78be",
-          "icon_url": "https://cdn.darkerdb.com/codex/ba4e3211be8f694eaa1327962c33ad2b459dfbc8a1c0a65b5e61463aba0f78be"
+          "count": 2,
+          "item_id": "ArcaneEssence_5001",
+          "icon": "1b44cf41ebbccb98ca12b012ea60c58e095b941b3ed3b4cc561b2d4aef732658",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b44cf41ebbccb98ca12b012ea60c58e095b941b3ed3b4cc561b2d4aef732658"
+        },
+        {
+          "type": "Lobby Emote",
+          "count": 1
         }
       ],
       "order": 303,
@@ -22543,8 +22573,8 @@
           "type": "Kill",
           "count": 5,
           "monster": "Skeleton Axeman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         },
         {
           "type": "Kill",
@@ -23119,8 +23149,8 @@
           "type": "Kill",
           "count": 8,
           "monster": "Skeleton Axeman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         },
         {
           "type": "Kill",
@@ -25112,9 +25142,9 @@
           "count": 1000
         },
         {
-          "type": "Item Skin",
+          "type": "Emote",
           "count": 1,
-          "item_skin_id": "id.item_skin.campfire_kit_holylight"
+          "emote_id": "id.emote.bodyof_iron"
         }
       ],
       "order": 66,
@@ -26239,6 +26269,13 @@
           "type": "Kill",
           "count": 5,
           "monster": "Molten Bat"
+        },
+        {
+          "type": "Fetch",
+          "count": 3,
+          "item_id": "MoltenWing",
+          "icon": "e1949209dd935d7b3e4d910cb733f4366bd0978dd31fa6bfa6cdff1f43afffde",
+          "icon_url": "https://cdn.darkerdb.com/codex/e1949209dd935d7b3e4d910cb733f4366bd0978dd31fa6bfa6cdff1f43afffde"
         }
       ],
       "rewards": [
@@ -26285,6 +26322,13 @@
           "type": "Kill",
           "count": 10,
           "monster": "Blaze Toad"
+        },
+        {
+          "type": "Fetch",
+          "count": 2,
+          "item_id": "ToadVocalSac",
+          "icon": "d627011aaafa229a83faff08802ed1ae0eb375ab98a45a97c0311ea14c7007b8",
+          "icon_url": "https://cdn.darkerdb.com/codex/d627011aaafa229a83faff08802ed1ae0eb375ab98a45a97c0311ea14c7007b8"
         }
       ],
       "rewards": [
@@ -26316,21 +26360,26 @@
     {
       "id": "TheCollector_21",
       "source_id": "id.quest.the_collector_21",
-      "title": "More Than a Rumor",
+      "title": "Between Scales and Shells",
       "chapter": "The Secret of the Croak",
       "chapter_id": "TheCollector_20",
       "prerequisite": "TheCollector_20",
-      "dungeons": [],
+      "dungeons": [
+        "Goblin"
+      ],
       "merchant": "The Collector",
-      "text": "There have been rumors of a butterfly in Firedeep with wings like living flames. They say its wings are wreathed in fire, yet never burn away. If the stories are true, it would make a truly valuable addition to my collection. Bring me one of those wings.",
+      "text": "Much about the creatures that inhabit Firedeep remains unknown. Among them, the relationship between Emberwings and Fire Lizards is particularly fascinating. From what I have heard from adventurers, opinions differ on which of the two preys on the other. I would appreciate it if you could investigate the matter for me.",
       "completion_text": null,
       "objectives": [
         {
-          "type": "Fetch",
+          "type": "Kill",
           "count": 3,
-          "item_id": "SulfurSaliva",
-          "icon": "98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307",
-          "icon_url": "https://cdn.darkerdb.com/codex/98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307"
+          "monster": "Emberwing"
+        },
+        {
+          "type": "Kill",
+          "count": 3,
+          "monster": "Fire Lizard"
         }
       ],
       "rewards": [
@@ -26363,7 +26412,7 @@
       "id": "TheCollector_22",
       "source_id": "id.quest.the_collector_22",
       "title": "Unusual Find",
-      "chapter": "More Than a Rumor",
+      "chapter": "Between Scales and Shells",
       "chapter_id": "TheCollector_21",
       "prerequisite": "TheCollector_21",
       "dungeons": [],
@@ -26519,7 +26568,9 @@
         {
           "type": "Fetch",
           "count": 5,
-          "item_id": "SealofDominion"
+          "item_id": "MagmaWyvernHeart",
+          "icon": "d28c23cfbabecbf1d6513c8eded7815c8ccf6ef2abe9b4846819fd0f3d7a0db7",
+          "icon_url": "https://cdn.darkerdb.com/codex/d28c23cfbabecbf1d6513c8eded7815c8ccf6ef2abe9b4846819fd0f3d7a0db7"
         }
       ],
       "rewards": [
@@ -26530,7 +26581,7 @@
         {
           "type": "Action",
           "count": 1,
-          "action_skin_id": "id.action_skin.consultingthe_map_rest"
+          "action_skin_id": "id.action_skin.dejected_rest"
         }
       ],
       "order": 91,
@@ -27650,6 +27701,13 @@
           "item_id": "SulfurSaliva",
           "icon": "98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307",
           "icon_url": "https://cdn.darkerdb.com/codex/98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307"
+        },
+        {
+          "type": "Fetch",
+          "count": 3,
+          "item_id": "SearingSlime",
+          "icon": "90b91ebaf02ba14d2c068185571d726b8ac00dc2cfe3c55aa9bf8198ae0d5ef3",
+          "icon_url": "https://cdn.darkerdb.com/codex/90b91ebaf02ba14d2c068185571d726b8ac00dc2cfe3c55aa9bf8198ae0d5ef3"
         }
       ],
       "rewards": [
@@ -27743,10 +27801,17 @@
       "objectives": [
         {
           "type": "Fetch",
-          "count": 3,
-          "item_id": "SulfurSaliva",
-          "icon": "98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307",
-          "icon_url": "https://cdn.darkerdb.com/codex/98a932675b3a4bbcb759239e05d2bc3143fd2a49e639ca9d77fdce0fe0f49307"
+          "count": 2,
+          "item_id": "MagmaWyvernScale",
+          "icon": "a0d328754aff96a32d4d5b41c063bee412f0f6cb48a573d4321aafad55dbf732",
+          "icon_url": "https://cdn.darkerdb.com/codex/a0d328754aff96a32d4d5b41c063bee412f0f6cb48a573d4321aafad55dbf732"
+        },
+        {
+          "type": "Fetch",
+          "count": 2,
+          "item_id": "MagmaWyvernTalon",
+          "icon": "7b8cf929b47665d7bc8e7e714f03afb68d1ba94e281a1c90934a293e2369f45f",
+          "icon_url": "https://cdn.darkerdb.com/codex/7b8cf929b47665d7bc8e7e714f03afb68d1ba94e281a1c90934a293e2369f45f"
         }
       ],
       "rewards": [
