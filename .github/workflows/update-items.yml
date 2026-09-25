@@ -49,6 +49,7 @@ jobs:
         python - <<'PY'
         import json
         import os
+        import urllib.error
         import urllib.request
         from pathlib import Path
 
@@ -65,8 +66,22 @@ jobs:
                 "X-Api-Key": api_key,
             },
         )
-        with urllib.request.urlopen(request, timeout=15) as resp:
-            payload = json.loads(resp.read().decode('utf-8'))
+        try:
+            with urllib.request.urlopen(request, timeout=15) as resp:
+                payload = json.loads(resp.read().decode('utf-8'))
+        except urllib.error.HTTPError as exc:
+            if exc.code == 401:
+                raise SystemExit(
+                    "DarkerDB rejected DARKERDB_API_KEY (HTTP 401). "
+                    "Rotate the GitHub Actions secret using a current DarkerDB API key "
+                    "with the darkerdb.data scope."
+                ) from None
+            if exc.code == 403:
+                raise SystemExit(
+                    "DARKERDB_API_KEY is not authorized for DarkerDB data (HTTP 403). "
+                    "Replace it with a key that includes the darkerdb.data scope."
+                ) from None
+            raise
 
         if not isinstance(payload, dict):
             raise SystemExit('DarkerDB patch response was not a JSON object.')
@@ -122,9 +137,9 @@ jobs:
   refresh-assets:
     needs: check-darkerdb-version
     # Quest data changes independently of game build/patch metadata. Run this
-    # job every day (and even if the health probe fails), then gate only the
-    # expensive item/icon work on the build-change output.
-    if: ${{ !cancelled() }}
+    # job every day after the authenticated DarkerDB preflight succeeds, then
+    # gate only the expensive item/icon work on the build-change output.
+    if: ${{ needs.check-darkerdb-version.result == 'success' }}
     runs-on: ubuntu-latest
 
     steps:

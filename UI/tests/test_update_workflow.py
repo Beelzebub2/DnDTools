@@ -76,6 +76,18 @@ def test_patch_detection_uses_authenticated_current_patch_and_force_inputs():
     assert "FORCE_REFRESH: ${{ github.event.inputs.force_refresh }}" in detect
     assert "changed = True" in detect
     assert "print(api_key)" not in detect
+    assert "urllib.error.HTTPError" in detect
+    assert "DarkerDB rejected DARKERDB_API_KEY (HTTP 401)" in detect
+    assert "darkerdb.data scope" in detect
+
+
+def test_asset_refresh_requires_successful_authenticated_preflight():
+    text = _workflow_text()
+    job_header = text.split("  refresh-assets:", 1)[1].split("    steps:", 1)[0]
+
+    assert "needs: check-darkerdb-version" in job_header
+    assert "needs.check-darkerdb-version.result == 'success'" in job_header
+    assert "!cancelled()" not in job_header
 
 
 def test_checksums_fail_closed_and_commit_stages_only_allowed_assets():
