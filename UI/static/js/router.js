@@ -25,6 +25,7 @@
         '/record': '/static/js/record.js',
         '/search': '/static/js/search.js',
         '/quests': '/static/js/quest.js',
+        '/market': '/static/js/market_lister.js',
         '/settings': '/static/js/settings.js',
         '/faq': null,
         '/feedback': null,

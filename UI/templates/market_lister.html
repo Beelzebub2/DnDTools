@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/market_lister.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="ml-container">
+    <div class="ml-header">
+        <div class="ml-header-icon" aria-hidden="true"><span class="material-icons">storefront</span></div>
+        <div class="ml-header-text">
+            <h1>Market Lister</h1>
+            <p>Price items from DarkerDB and list them on the Marketplace automatically.</p>
+        </div>
+    </div>
+
+    <div class="ml-warning" role="note">
+        <span class="material-icons" aria-hidden="true">warning</span>
+        <span>This moves your mouse and clicks in the game. Automated input may break Dark and Darker's Terms of Service — use at your own risk. Press <kbd>Ctrl</kbd>+<kbd>F12</kbd> to stop at any time.</span>
+    </div>
+
+    <div class="ml-status" id="mlListingStatus">Open Trade → Marketplace → My Listings in the game so DnDTools can see your listing spots.</div>
+
+    <section class="ml-card">
+        <h2>Rules</h2>
+        <div class="ml-rules">
+            <label>Character <select id="mlCharacter"></select></label>
+            <label>Min rarity
+                <select id="mlMinRarity">
+                    <option value="2">Common</option><option value="3">Uncommon</option>
+                    <option value="4">Rare</option><option value="5">Epic</option>
+                    <option value="6">Legendary</option><option value="7">Unique</option>
+                </select>
+            </label>
+            <label>Min price (g) <input type="number" id="mlMinPrice" min="0"></label>
+            <label>Undercut % <input type="number" id="mlUndercut" min="0" max="90"></label>
+            <label>Max items per run <input type="number" id="mlMaxItems" min="1" max="40"></label>
+            <fieldset class="ml-sources">
+                <legend>List from</legend>
+                <label><input type="checkbox" value="2" class="mlSource"> Inventory</label>
+                <label><input type="checkbox" value="4" class="mlSource"> Storage</label>
+                <label><input type="checkbox" value="5" class="mlSource"> Purchased 1</label>
+                <label><input type="checkbox" value="6" class="mlSource"> Purchased 2</label>
+                <label><input type="checkbox" value="7" class="mlSource"> Purchased 3</label>
+                <label><input type="checkbox" value="8" class="mlSource"> Purchased 4</label>
+                <label><input type="checkbox" value="9" class="mlSource"> Purchased 5</label>
+                <label><input type="checkbox" value="30" class="mlSource"> Shared Stash</label>
+                <label><input type="checkbox" value="20" class="mlSource"> Shared Seasonal</label>
+            </fieldset>
+        </div>
+        <div class="ml-actions">
+            <button type="button" class="ml-btn" id="mlBuildPlan"><span class="material-icons">playlist_add_check</span>Build plan</button>
+        </div>
+    </section>
+
+    <section class="ml-card" id="mlPlanCard" hidden>
+        <h2>Review plan</h2>
+        <ul class="ml-warnings" id="mlWarnings"></ul>
+        <table class="ml-table">
+            <thead><tr><th></th><th>Item</th><th>From</th><th>Price (g)</th><th>Fee</th></tr></thead>
+            <tbody id="mlPlanRows"></tbody>
+        </table>
+        <details class="ml-skipped"><summary id="mlSkippedSummary">Skipped</summary><ul id="mlSkipped"></ul></details>
+        <div class="ml-actions">
+            <button type="button" class="ml-btn ml-btn-secondary" id="mlDryRun"><span class="material-icons">visibility</span>Dry run</button>
+            <button type="button" class="ml-btn" id="mlStart"><span class="material-icons">sell</span>Start listing</button>
+            <button type="button" class="ml-btn ml-btn-danger" id="mlCancel" hidden><span class="material-icons">stop</span>Stop</button>
+        </div>
+        <ol class="ml-results" id="mlResults"></ol>
+    </section>
+
+    <section class="ml-card">
+        <details>
+            <summary><h2 class="ml-inline">Calibration</h2></summary>
+            <p class="ml-muted">Hover test moves the mouse (no clicks) over each Marketplace spot for 1 second. If a point is off, nudge it here and test again. Saved for <span id="mlResolution"></span>.</p>
+            <div class="ml-calibration" id="mlCalibration"></div>
+            <div class="ml-actions">
+                <button type="button" class="ml-btn ml-btn-secondary" id="mlHoverTest"><span class="material-icons">ads_click</span>Hover test</button>
+                <button type="button" class="ml-btn" id="mlSaveCalibration"><span class="material-icons">save</span>Save offsets</button>
+            </div>
+        </details>
+    </section>
+</div>
+{% endblock %}
