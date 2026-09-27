@@ -686,6 +686,7 @@ class Api:
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_REGISTER_RES: marketplace_state.handle_register_res,
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_LIST_RES: _on_item_list,
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_TRANSFER_ITEMS_RES: marketplace_state.handle_transfer_res,
+            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_HAS_SOLD_NOT: _on_item_sold,
         }
         self._capture_controller = CaptureController(
             self._capture_settings, capture_info, wireshark_path=self._wireshark_path
@@ -2800,6 +2801,22 @@ def _lister_extra_roll_share():
         return min(max(float(factor), 0.0), 1.0) if factor is not None else EXTRA_ROLL_SHARE
     except (OSError, ValueError, TypeError):
         return EXTRA_ROLL_SHARE
+
+
+SOLD_NOTIFICATION_JS = (
+    "if(typeof showNotification==='function')showNotification("
+    "'An item sold on the Marketplace — open Market and press Collect to get your gold "
+    "(uncollected gold is destroyed after 7 days).','success',{id:'market-item-sold',duration:10000});"
+)
+
+
+def _on_item_sold(message):
+    """S2C_MARKETPLACE_ITEM_HAS_SOLD_NOT: tell the player a listing sold."""
+    try:
+        if api is not None and api.window and int(getattr(message, "isSold", 1)):
+            api.window.evaluate_js(SOLD_NOTIFICATION_JS)
+    except Exception:
+        logger.debug("Couldn't show the item-sold notification", exc_info=True)
 
 
 def _on_my_item_list(message):

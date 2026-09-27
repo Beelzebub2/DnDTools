@@ -148,3 +148,12 @@ def test_transfer_result_wait():
     assert state.wait_for_transfer(0.05) is None
     state.handle_transfer_res(MarketPlace_pb2.SS2C_MARKETPLACE_TRANSFER_ITEMS_RES(result=1))
     assert state.wait_for_transfer(0.05) == 1
+
+
+def test_listed_ids_only_counts_items_still_for_sale():
+    msg = _my_list(3, unique_ids=[555, 777])
+    msg.myItemInfos[0].myItemState = 1   # listing
+    msg.myItemInfos[1].myItemState = 2   # expired -> back to the stash, may be relisted
+    state = MarketplaceState()
+    state.handle_my_item_list(msg)
+    assert state.listed_ids() == frozenset({"555"})

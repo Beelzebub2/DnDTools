@@ -69,6 +69,7 @@ class MarketplaceState:
         self._cond = threading.Condition()
         self._snapshot = None
         self._listed_at = {}  # itemUniqueId(str) -> last received_at seen
+        self._listing_state = {}  # itemUniqueId(str) -> latest myItemState
         self._register_result = None
         self._item_list = None  # (received_at, [MarketRow])
         self._transfer_result = None
@@ -89,7 +90,9 @@ class MarketplaceState:
                     for info in message.myItemInfos if int(info.myItemState) in PAYOUT_STATES),
             )
             for info in message.myItemInfos:
-                self._listed_at[str(info.itemInfo.item.itemUniqueId)] = received
+                key = str(info.itemInfo.item.itemUniqueId)
+                self._listed_at[key] = received
+                self._listing_state[key] = int(info.myItemState) or MY_ITEM_LISTING
             self._cond.notify_all()
 
     def handle_item_list(self, message) -> None:
@@ -141,7 +144,8 @@ class MarketplaceState:
 
     def listed_ids(self) -> frozenset:
         with self._cond:
-            return frozenset(self._listed_at)
+            # Only items still up for sale; expired items come back to the stash and can be relisted.
+            return frozenset(k for k, state in self._listing_state.items() if state == MY_ITEM_LISTING)
 
     def begin_register(self) -> None:
         with self._cond:
