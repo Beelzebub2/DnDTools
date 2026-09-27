@@ -1,0 +1,88 @@
+"""Tracks Marketplace packets so the lister can confirm each listing."""
+import threading
+import time
+from dataclasses import dataclass
+
+REGISTER_SUCCESS = 1
+ITEM_LEVEL_FAIL_CODES = frozenset({662, 666})
+FAIL_CODE_MESSAGES = {
+    650: "Marketplace general error",
+    655: "Maximum number of listings reached",
+    656: "Price was not set (typing may have failed)",
+    657: "Not enough gold for the listing fee",
+    660: "Price is above the maximum allowed",
+    662: "Item was looted in a raid and can't be traded",
+    663: "Squires can't list items",
+    664: "Not enough play time to list items",
+    665: "Can't list while matchmaking",
+    666: "Item is not tradable",
+}
+
+
+def describe_fail_code(code: int) -> str:
+    return FAIL_CODE_MESSAGES.get(code, f"Marketplace error {code}")
+
+
+@dataclass(frozen=True)
+class ListingsSnapshot:
+    received_at: float
+    used: int
+    available: tuple
+
+
+@dataclass(frozen=True)
+class RegisterOutcome:
+    status: str
+    fail_code: int | None = None
+
+
+class MarketplaceState:
+    def __init__(self, clock=time.monotonic):
+        self._clock = clock
+        self._cond = threading.Condition()
+        self._snapshot = None
+        self._listed_at = {}  # itemUniqueId(str) -> last received_at seen
+        self._register_result = None
+
+    def now(self) -> float:
+        return self._clock()
+
+    def handle_my_item_list(self, message) -> None:
+        received = self._clock()
+        with self._cond:
+            self._snapshot = ListingsSnapshot(
+                received_at=received,
+                used=int(message.totalItemCount),
+                available=tuple(int(i) for i in message.availableOrderIndexes),
+            )
+            for info in message.myItemInfos:
+                self._listed_at[str(info.itemInfo.item.itemUniqueId)] = received
+            self._cond.notify_all()
+
+    def handle_register_res(self, message) -> None:
+        with self._cond:
+            self._register_result = int(message.result)
+            self._cond.notify_all()
+
+    def snapshot(self):
+        with self._cond:
+            return self._snapshot
+
+    def begin_register(self) -> None:
+        with self._cond:
+            self._register_result = None
+
+    def wait_for_register(self, timeout: float) -> RegisterOutcome:
+        with self._cond:
+            self._cond.wait_for(lambda: self._register_result is not None, timeout)
+            result = self._register_result
+        if result is None:
+            return RegisterOutcome("timeout")
+        if result == REGISTER_SUCCESS:
+            return RegisterOutcome("ok")
+        return RegisterOutcome("failed", result)
+
+    def wait_for_listing(self, unique_id: str, since: float, timeout: float) -> bool:
+        key = str(unique_id)
+        with self._cond:
+            return self._cond.wait_for(lambda: self._listed_at.get(key, float("-inf")) > since, timeout)

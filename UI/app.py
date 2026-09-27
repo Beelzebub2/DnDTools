@@ -681,6 +681,9 @@ class Api:
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_SELECT_RES: self._quest_packet_handler.handle_quest_select,
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_COMPLETE_RES: self._quest_packet_handler.handle_quest_complete,
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_CONTENT_VALUE_STACK_RES: self._quest_packet_handler.handle_quest_content_value_stack,
+            # Market lister confirmation handlers
+            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_MY_ITEM_LIST_RES: marketplace_state.handle_my_item_list,
+            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_REGISTER_RES: marketplace_state.handle_register_res,
         }
         self._capture_controller = CaptureController(
             self._capture_settings, capture_info, wireshark_path=self._wireshark_path
@@ -2717,6 +2720,11 @@ class Api:
             self._calibration_result = None  # consume once
             return result
         return {'running': False, 'saved': False}
+
+# ── Market lister ──
+from src.models.marketplace_state import MarketplaceState
+
+marketplace_state = MarketplaceState()
 
 @server.route('/api/download_update')
 def download_update():

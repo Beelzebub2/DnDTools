@@ -25,6 +25,7 @@ UI/assets/checksums.json
 !/UI/tests/test_market_service.py
 !/UI/tests/test_market_rules.py
 !/UI/tests/test_marketplace_layout.py
+!/UI/tests/test_marketplace_state.py
 website/
 githelp.md
 TODO
