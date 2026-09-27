@@ -3,45 +3,37 @@
     {
       "content_type": "application/octet-stream",
       "path": "changelog.json",
-      "sha256": "a10cf163aea2ee80a81310261facd5b5a2f127c95006a722541dc64c9b75f289",
-      "size": 15035,
-      "updated_at": "2026-09-27T01:56:53Z",
+      "sha256": "869a636ed435d3fde59c3b58bc741880888ec9feaacc6da0941bbbad695146dc",
+      "size": 344,
+      "updated_at": "2026-08-02T01:28:11Z",
       "url": "https://dndtools.rrmtools.uk/assets/changelog.json"
     },
     {
       "content_type": "application/octet-stream",
       "path": "darkerdb_health.json",
-      "sha256": "4eefaa4dc8e4ba8a07711e660ece809bd5c2ca3e0b5e1681e01f4a24db809f5e",
-      "size": 46,
-      "updated_at": "2026-09-27T01:56:54Z",
+      "sha256": "3aa8b3d51646c686b0f230b6650c2aea731aa4e5e8273a6e13487842087dc7f1",
+      "size": 56,
+      "updated_at": "2026-08-02T01:28:12Z",
       "url": "https://dndtools.rrmtools.uk/assets/darkerdb_health.json"
     },
     {
       "content_type": "application/octet-stream",
       "path": "icons.pak",
-      "sha256": "48b79a99c592aac32819a00a3246e40c331d1fbfdc3ec4ec447843bfaaaa897e",
-      "size": 18293366,
-      "updated_at": "2026-09-27T01:56:51Z",
+      "sha256": "da0435bc3059bc602fc27efff4f25a4111a7072b0aec2958c3cd8166cc5cb169",
+      "size": 18196691,
+      "updated_at": "2026-08-02T01:28:08Z",
       "url": "https://dndtools.rrmtools.uk/assets/icons.pak"
     },
     {
       "content_type": "application/octet-stream",
       "path": "items.json",
-      "sha256": "0148a99150d7f842e24399266099451a3bd41378edf2f57c758f57053d322d27",
-      "size": 5222374,
-      "updated_at": "2026-09-27T01:56:52Z",
+      "sha256": "467e858b219c3a26f2f94d1031737c6d35f36c46d0823fe21e653f9fb36fb06d",
+      "size": 12069633,
+      "updated_at": "2026-08-02T01:28:10Z",
       "url": "https://dndtools.rrmtools.uk/assets/items.json"
-    },
-    {
-      "content_type": "application/octet-stream",
-      "path": "quests.json",
-      "sha256": "4c94679c6edf3955bfbc212d77900607a7e83dc2975669ba5f6a8c51a7d59f5a",
-      "size": 1094702,
-      "updated_at": "2026-09-27T01:56:53Z",
-      "url": "https://dndtools.rrmtools.uk/assets/quests.json"
     }
   ],
-  "generated_at": "2026-09-27T01:57:01.496Z",
+  "generated_at": "2026-08-02T01:28:16.444Z",
   "release_tag": "assets-latest",
   "release_url": "https://github.com/Beelzebub2/DnDTools/releases/tag/assets-latest",
   "version": "assets-latest"
