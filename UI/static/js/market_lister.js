@@ -15,6 +15,7 @@
     const listingFee = (price) => Math.max(LISTING_FEE_MIN, Math.ceil(price * LISTING_FEE_RATE));
     const $ = (id) => document.getElementById(id);
     let plan = null;
+    let characterStashes = {};
     let needsGamePricing = false; // no DarkerDB key: prices come from the in-game market
     let pollTimer = null;
     let disposed = false;
@@ -54,9 +55,7 @@
         $('mlMinPrice').value = rules.min_price;
         $('mlUndercut').value = rules.undercut_pct;
         $('mlMaxItems').value = rules.max_items_per_run;
-        document.querySelectorAll('.mlSource').forEach((c) => {
-            c.checked = rules.source_stash_ids.includes(c.value);
-        });
+        renderSources(rules.source_stash_ids);
     };
 
     const loadCharacters = async () => {
@@ -67,6 +66,24 @@
             const option = text('option', `${c.nickname} (${c.class} ${c.level})`);
             option.value = c.id;
             return option;
+        }));
+        characterStashes = Object.fromEntries(characters.map((c) => [c.id, Object.keys(c.stashes || {})]));
+    };
+
+    // One checkbox per tab this character actually has (inventory + stash tabs; not equipment).
+    const renderSources = (selected) => {
+        const ids = (characterStashes[$('mlCharacter').value] || [])
+            .filter((id) => id === '2' || (Number(id) >= 4 && Number(id) < 100))
+            .sort((a, b) => Number(a) - Number(b));
+        $('mlSources').replaceChildren(...ids.map((id) => {
+            const label = document.createElement('label');
+            const box = document.createElement('input');
+            box.type = 'checkbox';
+            box.value = id;
+            box.className = 'mlSource';
+            box.checked = selected.includes(id);
+            label.append(box, ` ${STASH_NAMES[id] || `Stash tab ${id}`}`);
+            return label;
         }));
     };
 
@@ -277,6 +294,7 @@
             notify(error.message, 'error');
         }
         $('mlBuildPlan').addEventListener('click', buildPlan);
+        $('mlCharacter').addEventListener('change', () => renderSources(readRules().source_stash_ids));
         $('mlPriceGame').addEventListener('click', priceFromGame);
         $('mlDryRun').addEventListener('click', () => start(true));
         $('mlStart').addEventListener('click', () => start(false));
