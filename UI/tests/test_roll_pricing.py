@@ -65,3 +65,17 @@ def test_same_attribute_search_results_are_used_too():
     same = [_row(900, rolls=(("Luck", 18), ("MagicalPower", 2)))]
     result = _price([_row(300, rolls=(("Strength", 2),))], same=same)
     assert (result.price, result.flag) == (810, "")
+
+
+def test_a_lone_lowball_listing_does_not_set_the_price():
+    # Live example: an axe listed at 100g while the rest start at 199g.
+    rows = [_row(p, rolls=(("Strength", 1),)) for p in (100, 199, 222, 290, 300, 300, 311, 311, 350, 350)]
+    result = _price(rows)
+    assert result.price == 179  # 199 * 0.9 — the 100g outlier is ignored
+    assert "cheapest 199g" in result.compared
+
+
+def test_duplicate_rows_from_both_searches_are_counted_once():
+    row = _row(400, rolls=(("Luck", 17), ("MagicalPower", 3)))
+    result = _price([row], same=[_row(400, rolls=(("Luck", 17), ("MagicalPower", 3)))])
+    assert result.compared.startswith("1 listings with the same rolls")
