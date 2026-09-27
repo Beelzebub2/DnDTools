@@ -10,6 +10,9 @@
     const POINT_KEYS = ['spot_row_origin', 'next_page_arrow', 'tab_icon_origin', 'inv_grid_origin',
         'stash_grid_origin', 'price_field', 'create_listing_button'];
     const LENGTH_KEYS = ['spot_row_spacing', 'tab_icon_spacing', 'cell'];
+    const LISTING_FEE_RATE = 0.05; // keep in sync with market_rules.LISTING_FEE_RATE
+    const LISTING_FEE_MIN = 15;
+    const listingFee = (price) => Math.max(LISTING_FEE_MIN, Math.ceil(price * LISTING_FEE_RATE));
     const $ = (id) => document.getElementById(id);
     let plan = null;
     let pollTimer = null;
@@ -94,8 +97,13 @@
             price.value = entry.price;
             price.dataset.index = index;
             price.className = 'mlPrice';
+            const fee = text('span', `${entry.fee}g`);
+            price.addEventListener('input', () => {
+                const value = Number(price.value);
+                fee.textContent = Number.isFinite(value) && value > 0 ? `${listingFee(value)}g` : '—';
+            });
             const cells = [include, text('span', entry.name), text('span', STASH_NAMES[entry.stash_id] || entry.stash_id),
-                price, text('span', `${entry.fee}g`)];
+                price, fee];
             row.replaceChildren(...cells.map((c) => { const td = document.createElement('td'); td.append(c); return td; }));
             return row;
         }));
