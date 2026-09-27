@@ -1,6 +1,7 @@
 from pathlib import Path
 import json
 import os
+import re
 import time
 from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 import glob
@@ -476,11 +477,12 @@ class StashManager:
 
     def get_character_data_age(self, character_id: str) -> Optional[float]:
         """Seconds since this character's capture file was last written."""
-        self._ensure_loaded()
-        with self._cache_lock:
-            char = self.characters_cache.get(str(character_id))
-        path = (char or {}).get('file_path')
-        if not path or not os.path.exists(path):
+        # The cached character payload doesn't keep its file path; capture files are
+        # always <characters dir>/<characterId>.json.
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', str(character_id or '')):
+            return None
+        path = os.path.join(self.data_dir, f"{character_id}.json")
+        if not os.path.exists(path):
             return None
         return max(0.0, time.time() - os.path.getmtime(path))
 
