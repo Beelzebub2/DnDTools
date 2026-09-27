@@ -14,6 +14,13 @@ class InputDriver(Protocol):
     def clear_and_type(self, text: str) -> None: ...
 
 
+class Safety(Protocol):
+    reason: str | None
+
+    def checkpoint(self) -> bool: ...
+    def snapshot_position(self) -> None: ...
+
+
 class _NullSafety:
     reason = None
 
@@ -34,7 +41,7 @@ class ItemResult:
 
 @dataclass(frozen=True)
 class RunReport:
-    results: tuple
+    results: tuple[ItemResult, ...]
     stopped_reason: str | None
 
     def to_dict(self) -> dict:
@@ -66,14 +73,25 @@ class MarketplaceRunner:
         results, used, self._page = [], snapshot.used, 0
         try:
             for entry in entries:
-                result = self._list_one(entry, used, dry_run)
+                result = self._list_one(entry, used, snapshot.available, dry_run)
                 results.append(result)
                 if on_progress:
                     on_progress(result)
                 if result.status in ("listed", "dry_run"):
                     used += 1
         except _Stop as stop:
-            return RunReport(tuple(results + getattr(stop, "results", [])), str(stop))
+            stop_results = list(results) + getattr(stop, "results", [])
+            for r in getattr(stop, "results", []):
+                if on_progress:
+                    on_progress(r)
+            return RunReport(tuple(stop_results), str(stop))
+        except Exception as exc:
+            # Catch unexpected exceptions to preserve already-listed results
+            failed = ItemResult("", "", "failed", str(exc))
+            results.append(failed)
+            if on_progress:
+                on_progress(failed)
+            return RunReport(tuple(results), f"Stopped: {exc}")
         return RunReport(tuple(results), None)
 
     def _check(self):
@@ -86,10 +104,12 @@ class MarketplaceRunner:
         self._driver.click(*point)
         self._pause()
 
-    def _go_to_spot(self, index):
+    def _go_to_spot(self, index, available):
         page, row = spot_location(index)
         if page >= MAX_PAGES:
             raise _Stop("No free listing spots left.")
+        if available and index not in available:
+            raise _Stop("Listing spots are not laid out as expected — check My Listings.")
         while self._page < page:
             self._click(self._layout.point("next_page_arrow"))
             self._page += 1
@@ -118,7 +138,7 @@ class MarketplaceRunner:
         self._driver.click(*self._layout.point("create_listing_button"))
         outcome = self._state.wait_for_register(self._register_timeout)
         if outcome.status == "timeout":
-            fail = ItemResult(entry.unique_id, entry.name, "failed", "no response")
+            fail = ItemResult(entry.unique_id, entry.name, "unconfirmed", "no response — may be listed, fee may have been charged")
             raise self._stop_with(fail, "Listing not confirmed by the game — check the Marketplace.")
         if outcome.status == "failed":
             message = describe_fail_code(outcome.fail_code)
@@ -127,16 +147,16 @@ class MarketplaceRunner:
                 return fail
             raise self._stop_with(fail, message)
         if not self._state.wait_for_listing(entry.unique_id, since, self._confirm_timeout):
-            fail = ItemResult(entry.unique_id, entry.name, "failed", "not seen in My Listings")
+            fail = ItemResult(entry.unique_id, entry.name, "unconfirmed", "not seen in My Listings — fee may have been charged")
             raise self._stop_with(
                 fail, f"Listed something but couldn't confirm it was {entry.name} — check My Listings and recalibrate.")
         self._pause()
         return ItemResult(entry.unique_id, entry.name, "listed", f"{entry.price}g")
 
-    def _list_one(self, entry, used, dry_run) -> ItemResult:
+    def _list_one(self, entry, used, available, dry_run) -> ItemResult:
         if not self._safety.checkpoint():
             raise _Stop(f"Stopped for safety: {self._safety.reason or 'game lost focus'}")
-        self._go_to_spot(used)
+        self._go_to_spot(used, available)
         self._fill_form(entry)
         self._safety.snapshot_position()
         if dry_run:

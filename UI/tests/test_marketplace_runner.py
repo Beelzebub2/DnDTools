@@ -38,9 +38,9 @@ class FakeDriver:
 class ScriptedState(MarketplaceState):
     """Answers register / listing waits from a script instead of packets."""
 
-    def __init__(self, used=2, outcomes=(), confirm=True):
+    def __init__(self, used=2, outcomes=(), confirm=True, available=()):
         super().__init__()
-        msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=used)
+        msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=used, availableOrderIndexes=available)
         self.handle_my_item_list(msg)
         self.outcomes = list(outcomes)
         self.confirm = confirm
@@ -102,10 +102,15 @@ def test_run_refuses_without_listings_snapshot():
 
 
 def test_run_stops_on_timeout_and_general_failure():
-    for outcome, text in ((RegisterOutcome("timeout"), "not confirmed"), (RegisterOutcome("failed", 657), "gold")):
-        report = _runner(FakeDriver(), ScriptedState(outcomes=[outcome])).run([_entry("a"), _entry("b", slot=1)])
-        assert len(report.results) == 1 and report.results[0].status == "failed"
-        assert text in report.stopped_reason.lower()
+    # Timeout results in "unconfirmed" status
+    report = _runner(FakeDriver(), ScriptedState(outcomes=[RegisterOutcome("timeout")])).run([_entry("a"), _entry("b", slot=1)])
+    assert len(report.results) == 1 and report.results[0].status == "unconfirmed"
+    assert "not confirmed" in report.stopped_reason.lower()
+
+    # General failure (657) results in "failed" status
+    report = _runner(FakeDriver(), ScriptedState(outcomes=[RegisterOutcome("failed", 657)])).run([_entry("a"), _entry("b", slot=1)])
+    assert len(report.results) == 1 and report.results[0].status == "failed"
+    assert "gold" in report.stopped_reason.lower()
 
 
 def test_run_continues_after_item_level_failure():
@@ -118,6 +123,7 @@ def test_run_continues_after_item_level_failure():
 def test_run_stops_when_listing_not_confirmed():
     report = _runner(FakeDriver(), ScriptedState(confirm=False)).run([_entry("a"), _entry("b", slot=1)])
     assert len(report.results) == 1
+    assert report.results[0].status == "unconfirmed"
     assert "couldn't confirm" in report.stopped_reason
 
 
@@ -131,5 +137,94 @@ def test_run_stops_when_cancelled():
 
 
 def test_run_stops_when_no_free_spots():
-    report = _runner(FakeDriver(), ScriptedState(used=40)).run([_entry("a")])
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=40)).run([_entry("a")])
     assert "No free listing spots" in report.stopped_reason
+    assert report.results == ()
+    assert driver.actions == []
+
+
+def test_run_stops_when_driver_click_raises():
+    driver = FakeDriver()
+    original_click = driver.click
+    call_count = [0]
+
+    def raising_click(x, y):
+        call_count[0] += 1
+        if call_count[0] > 6:  # First item completes (6 clicks), second item fails
+            raise ValueError("Driver crashed")
+        original_click(x, y)
+
+    driver.click = raising_click
+    report = _runner(driver, ScriptedState(outcomes=[RegisterOutcome("ok"), RegisterOutcome("ok")])).run([_entry("a"), _entry("b", slot=1)])
+    assert len(report.results) == 2
+    assert report.results[0].status == "listed"
+    assert report.results[1].status == "failed"
+    assert report.results[1].message == "Driver crashed"
+    assert "Stopped:" in report.stopped_reason
+
+
+def test_run_stops_for_safety_checkpoint_false():
+    class FailSafety:
+        reason = "game not focused"
+
+        def checkpoint(self):
+            return False
+
+        def snapshot_position(self):
+            pass
+
+    driver = FakeDriver()
+    runner = MarketplaceRunner(driver, LAYOUT, ScriptedState(used=0), tab_mapping=MAPPING,
+                               is_cancelled=lambda: False, pause=lambda: None, safety=FailSafety())
+    report = runner.run([_entry("a")])
+    assert report.results == ()
+    assert "Stopped for safety: game not focused" in report.stopped_reason
+    assert driver.actions == []
+
+
+def test_run_stops_on_unmapped_stash_tab():
+    driver = FakeDriver()
+    # Use stash "99" which is not in MAPPING
+    report = _runner(driver, ScriptedState(used=0)).run([_entry("a", stash="99")])
+    assert report.results == ()
+    assert "not mapped" in report.stopped_reason
+    # Spot click happens before unmapped stash error
+    assert len(driver.actions) == 1 and driver.actions[0][0] == "click"
+
+
+def test_run_continues_on_fail_code_662():
+    state = ScriptedState(outcomes=[RegisterOutcome("failed", 662), RegisterOutcome("ok")])
+    report = _runner(FakeDriver(), state).run([_entry("a"), _entry("b", slot=1)])
+    assert [r.status for r in report.results] == ["failed", "listed"]
+    assert report.stopped_reason is None
+
+
+def test_run_accepts_available_guard_normal():
+    # used=2, available=(2,3,4) — index 2 is available, should proceed normally
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=2, available=(2, 3, 4))).run([_entry("a")])
+    assert report.results[0].status == "listed"
+    assert report.stopped_reason is None
+
+
+def test_run_stops_on_available_guard_blocked():
+    # used=2, available=(5,6) — index 2 is not available, should stop without clicks
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=2, available=(5, 6))).run([_entry("a")])
+    assert report.results == ()
+    assert "not laid out as expected" in report.stopped_reason
+    assert driver.actions == []
+
+
+def test_run_calls_on_progress_for_failed_items():
+    state = ScriptedState(outcomes=[RegisterOutcome("failed", 657)])
+    progress_results = []
+
+    def track_progress(result):
+        progress_results.append(result)
+
+    report = _runner(FakeDriver(), state).run([_entry("a"), _entry("b", slot=1)], on_progress=track_progress)
+    assert len(progress_results) == 1
+    assert progress_results[0].status == "failed"
+    assert progress_results[0].unique_id == "a"
