@@ -65,9 +65,9 @@ def _clean_calibration(payload):
 def _listings_info(state):
     snapshot = state.snapshot()
     if snapshot is None:
-        return {"seen": False, "free": None, "age_s": None}
+        return {"seen": False, "free": None, "age_s": None, "payouts": 0}
     age = max(state.now() - snapshot.received_at, 0)
-    return {"seen": True, "free": snapshot.free, "age_s": round(age)}
+    return {"seen": True, "free": snapshot.free, "age_s": round(age), "payouts": len(snapshot.payouts)}
 
 
 def _unique_entries(entries):

@@ -97,7 +97,22 @@
             el.textContent = listings.seen ? LISTINGS_STALE_TEXT : LISTINGS_MISSING_TEXT;
         }
         el.classList.toggle('ok', fresh);
+        const payouts = fresh ? (listings.payouts || 0) : 0;
+        $('mlPayouts').hidden = payouts === 0;
+        $('mlPayoutText').textContent = `${payouts} sold/expired listing(s) waiting in My Listings — collect them before the game destroys them (7 days).`;
     };
+
+    const renderHistory = async () => {
+        try {
+            const h = await api('/history');
+            $('mlHistory').textContent = `${h.listings || 0} listings saved across ${h.items || 0} items · `
+                + `${h.vanished || 0} likely sold · your sales seen: ${h.my_sold || 0}`;
+        } catch (error) {
+            $('mlHistory').textContent = 'Market data unavailable.';
+        }
+    };
+
+    const CONFIDENCE_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
 
     const renderPlan = () => {
         $('mlPlanCard').hidden = false;
@@ -128,8 +143,10 @@
             if (rolls) nameCell.append(text('div', rolls, 'ml-muted ml-small'));
             if (entry.compared) nameCell.append(text('div', entry.compared, 'ml-muted ml-small'));
             if (entry.flag) nameCell.append(text('div', entry.flag, 'ml-flag-text ml-small'));
+            const confidence = text('span', CONFIDENCE_LABELS[entry.confidence] || '—',
+                entry.confidence ? `ml-conf ml-conf-${entry.confidence}` : '');
             const cells = [include, nameCell, text('span', STASH_NAMES[entry.stash_id] || entry.stash_id),
-                price, fee];
+                confidence, price, fee];
             row.replaceChildren(...cells.map((c) => { const td = document.createElement('td'); td.append(c); return td; }));
             return row;
         }));
@@ -158,6 +175,9 @@
         $('mlBuildPlan').disabled = running;
         $('mlHoverTest').disabled = running;
         $('mlPriceGame').disabled = running;
+        $('mlCollect').disabled = running;
+        $('mlCrawlUpdate').disabled = running;
+        $('mlCrawlDeep').disabled = running;
         $('mlCancel').hidden = !running;
     };
 
@@ -182,6 +202,7 @@
                     needsGamePricing = false;
                     renderPlan();
                 }
+                renderHistory();
                 notify(status.stopped_reason || 'Market lister finished.', status.stopped_reason ? 'warning' : 'success');
             }
         } catch (error) {
@@ -225,7 +246,7 @@
         const entries = selectedEntries();
         if (!entries.length) { notify('Tick at least one item.', 'warning'); return; }
         try {
-            await post('/start', { entries, dry_run: dryRun });
+            await post('/start', { entries, dry_run: dryRun, recheck: $('mlRecheck').checked });
             notify(dryRun ? 'Dry run started — switching to the game…' : 'Listing started — switching to the game…');
             watching = true;
             setRunning(true);
@@ -286,11 +307,24 @@
         }
     };
 
+    const runJob = async (path, body, message) => {
+        try {
+            await post(path, body);
+            notify(message);
+            watching = true;
+            setRunning(true);
+            pollTimer = setTimeout(poll, POLL_MS);
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    };
+
     const init = async () => {
         try {
             await loadCharacters();
             fillRules(await api('/rules'));
             renderCalibration(await api('/calibration'));
+            renderHistory();
             await poll();
         } catch (error) {
             notify(error.message, 'error');
@@ -303,6 +337,13 @@
         $('mlCancel').addEventListener('click', () => post('/cancel').catch((e) => notify(e.message, 'error')));
         $('mlHoverTest').addEventListener('click', hoverTest);
         $('mlSaveCalibration').addEventListener('click', saveCalibration);
+        $('mlCollect').addEventListener('click', () => runJob('/collect', {}, 'Collecting sold gold — switching to the game…'));
+        $('mlCrawlUpdate').addEventListener('click', () => runJob('/crawl', { pages: 20 }, 'Updating market data…'));
+        $('mlCrawlDeep').addEventListener('click', () => runJob('/crawl', { pages: 60, incremental: false },
+            'Deep crawl started — this reads a few hundred pages…'));
+        document.querySelectorAll('.ml-chip[data-undercut]').forEach((chip) => chip.addEventListener('click', () => {
+            $('mlUndercut').value = chip.dataset.undercut;
+        }));
     };
 
     window.__pageCleanup = window.__pageCleanup || [];

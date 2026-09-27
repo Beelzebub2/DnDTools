@@ -10,7 +10,7 @@
         <div class="ml-header-icon" aria-hidden="true"><span class="material-icons">storefront</span></div>
         <div class="ml-header-text">
             <h1>Market Lister</h1>
-            <p>Price items from DarkerDB and list them on the Marketplace automatically.</p>
+            <p>Price your items from the live Marketplace (roll-aware) and list them automatically.</p>
         </div>
     </div>
 
@@ -20,6 +20,12 @@
     </div>
 
     <div class="ml-status" id="mlListingStatus">Open Trade → Marketplace → My Listings in the game so DnDTools can see your listing spots.</div>
+
+    <div class="ml-payouts" id="mlPayouts" hidden>
+        <span class="material-icons" aria-hidden="true">paid</span>
+        <span id="mlPayoutText"></span>
+        <button type="button" class="ml-btn" id="mlCollect"><span class="material-icons">savings</span>Collect</button>
+    </div>
 
     <section class="ml-card">
         <h2>Rules</h2>
@@ -33,7 +39,13 @@
                 </select>
             </label>
             <label>Min price (g) <input type="number" id="mlMinPrice" min="0"></label>
-            <label>Undercut % <input type="number" id="mlUndercut" min="0" max="90"></label>
+            <label>Undercut % <input type="number" id="mlUndercut" min="0" max="90">
+                <span class="ml-presets">
+                    <button type="button" class="ml-chip" data-undercut="10" title="Sell fast">Fast</button>
+                    <button type="button" class="ml-chip" data-undercut="3" title="Just under the cheapest comparable">Balanced</button>
+                    <button type="button" class="ml-chip" data-undercut="1" title="Keep the most gold">Max</button>
+                </span>
+            </label>
             <label>Max items per run <input type="number" id="mlMaxItems" min="1" max="40"></label>
             <fieldset class="ml-sources">
                 <legend>List from</legend>
@@ -49,10 +61,11 @@
         <h2>Review plan</h2>
         <ul class="ml-warnings" id="mlWarnings"></ul>
         <table class="ml-table">
-            <thead><tr><th></th><th>Item</th><th>From</th><th>Price (g)</th><th>Fee</th></tr></thead>
+            <thead><tr><th></th><th>Item</th><th>From</th><th>Confidence</th><th>Price (g)</th><th>Fee</th></tr></thead>
             <tbody id="mlPlanRows"></tbody>
         </table>
         <details class="ml-skipped"><summary id="mlSkippedSummary">Skipped</summary><ul id="mlSkipped"></ul></details>
+        <label class="ml-check"><input type="checkbox" id="mlRecheck" checked> Re-check each price on the market right before listing (lowers it if the market dropped, skips items no longer worth it)</label>
         <div class="ml-actions">
             <button type="button" class="ml-btn" id="mlPriceGame" hidden><span class="material-icons">travel_explore</span>Price from game</button>
             <button type="button" class="ml-btn ml-btn-secondary" id="mlDryRun"><span class="material-icons">visibility</span>Dry run</button>
@@ -60,6 +73,16 @@
             <button type="button" class="ml-btn ml-btn-danger" id="mlCancel" hidden><span class="material-icons">stop</span>Stop</button>
         </div>
         <ol class="ml-results" id="mlResults"></ol>
+    </section>
+
+    <section class="ml-card">
+        <h2>Market data</h2>
+        <p class="ml-muted">Every Marketplace page DnDTools sees is saved locally (items, rolls, prices) — including pages you browse yourself. Pricing uses it alongside the live search, and listings that vanish before expiring are tracked as likely sales.</p>
+        <div class="ml-stats" id="mlHistory"></div>
+        <div class="ml-actions">
+            <button type="button" class="ml-btn ml-btn-secondary" id="mlCrawlUpdate" title="Reads only new listings since the last update"><span class="material-icons">sync</span>Update market data</button>
+            <button type="button" class="ml-btn ml-btn-secondary" id="mlCrawlDeep" title="Reads 60 pages of gear per rarity"><span class="material-icons">travel_explore</span>Deep crawl</button>
+        </div>
     </section>
 
     <section class="ml-card">

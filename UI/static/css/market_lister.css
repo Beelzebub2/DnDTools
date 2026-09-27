@@ -45,3 +45,18 @@
 .ml-small { font-size: 0.8rem; margin-top: 2px; }
 .ml-flagged { color: var(--accent-gold); font-weight: 600; }
 .ml-flag-text { color: var(--accent-gold); }
+.ml-payouts { display: flex; gap: 12px; align-items: center; padding: 12px 16px; border-radius: 12px;
+    border: 1px solid rgba(156, 204, 101, 0.4); background: rgba(156, 204, 101, 0.08); color: var(--text-primary); }
+.ml-payouts .ml-btn { margin-left: auto; }
+.ml-presets { display: flex; gap: 6px; margin-top: 6px; }
+.ml-chip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border-color); background: var(--bg-tertiary);
+    color: var(--text-secondary); cursor: pointer; font-size: 0.8rem; }
+.ml-chip:hover { color: var(--accent-gold); border-color: rgba(228, 200, 105, 0.5); }
+.ml-conf { padding: 2px 8px; border-radius: 999px; font-size: 0.8rem; font-weight: 600; }
+.ml-conf-high { color: #9ccc65; background: rgba(156, 204, 101, 0.12); }
+.ml-conf-medium { color: var(--accent-gold); background: rgba(228, 200, 105, 0.12); }
+.ml-conf-low { color: #ff8a80; background: rgba(255, 138, 128, 0.12); }
+.ml-check { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--text-secondary); }
+.ml-stats { color: var(--text-secondary); }
+.ml-result-collected, .ml-result-crawled, .ml-result-priced { color: #9ccc65; }
+.ml-result-skipped { color: var(--text-secondary); }
