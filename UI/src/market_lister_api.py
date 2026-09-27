@@ -63,9 +63,10 @@ def _listings_info(state):
 
 
 def _data_predates_last_run(job, data_age_s):
-    if data_age_s is None or job.last_finished_mode != "list" or job.last_finished_at is None:
+    finished_at = job.last_list_finished_at
+    if data_age_s is None or finished_at is None:
         return False
-    return time.time() - data_age_s < job.last_finished_at
+    return time.time() - data_age_s < finished_at
 
 
 def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:

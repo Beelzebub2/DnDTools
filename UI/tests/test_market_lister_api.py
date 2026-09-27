@@ -188,3 +188,14 @@ def test_plan_does_not_warn_after_dry_run_only(client_and_deps):
     deps.get_data_age = lambda cid: 60.0
     warnings = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()["plan"]["warnings"]
     assert STALE_AFTER_RUN_WARNING not in warnings
+
+
+def test_plan_still_warns_when_dry_run_follows_list_run(client_and_deps):
+    client, deps, _ = client_and_deps
+    client.post("/api/market-lister/start", json={"entries": [ENTRY]})
+    _wait_done(deps.job)
+    client.post("/api/market-lister/start", json={"entries": [ENTRY], "dry_run": True})
+    _wait_done(deps.job)
+    deps.get_data_age = lambda cid: 60.0
+    warnings = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()["plan"]["warnings"]
+    assert STALE_AFTER_RUN_WARNING in warnings

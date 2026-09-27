@@ -17,7 +17,7 @@ class ListerJob:
         self._event = None
         self._status = {"state": "idle", "mode": None, "results": [], "stopped_reason": None}
         self._last_finished_at = None
-        self._last_finished_mode = None
+        self._last_list_finished_at = None
 
     @property
     def last_finished_at(self):
@@ -26,9 +26,10 @@ class ListerJob:
             return self._last_finished_at
 
     @property
-    def last_finished_mode(self):
+    def last_list_finished_at(self):
+        """time.time() when the last real (non-dry) list run finished, or None."""
         with self._lock:
-            return self._last_finished_mode
+            return self._last_list_finished_at
 
     def is_running(self) -> bool:
         with self._lock:
@@ -60,7 +61,8 @@ class ListerJob:
             self._status = {**self._status, "state": "done", "stopped_reason": stopped_reason}
             if self._status["mode"] in LISTING_MODES:
                 self._last_finished_at = time.time()
-                self._last_finished_mode = self._status["mode"]
+                if self._status["mode"] == "list":
+                    self._last_list_finished_at = self._last_finished_at
 
     def _record(self, result):
         with self._lock:
