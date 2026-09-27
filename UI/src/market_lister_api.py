@@ -52,6 +52,14 @@ def _clean_calibration(payload):
     return {"points": {k: list(v) for k, v in points.items()}, "lengths": dict(lengths)}
 
 
+def _listings_info(state):
+    snapshot = state.snapshot()
+    if snapshot is None:
+        return {"seen": False, "used": None, "age_s": None}
+    age = max(state.now() - snapshot.received_at, 0)
+    return {"seen": True, "used": snapshot.used, "age_s": round(age)}
+
+
 def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
     bp = Blueprint("market_lister", __name__)
 
@@ -85,8 +93,7 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
             )
         except PlanError as exc:
             return _error(str(exc), 424)
-        listings = {"seen": snapshot is not None, "used": None if snapshot is None else snapshot.used}
-        return jsonify({"success": True, "plan": result.to_dict(), "listings": listings})
+        return jsonify({"success": True, "plan": result.to_dict(), "listings": _listings_info(deps.state)})
 
     @bp.post("/api/market-lister/start")
     def start():
@@ -108,10 +115,7 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
 
     @bp.get("/api/market-lister/status")
     def status():
-        snapshot = deps.state.snapshot()
-        return jsonify({**deps.job.status(),
-                        "listings": {"seen": snapshot is not None,
-                                     "used": None if snapshot is None else snapshot.used}})
+        return jsonify({**deps.job.status(), "listings": _listings_info(deps.state)})
 
     @bp.get("/api/market-lister/calibration")
     def get_calibration():

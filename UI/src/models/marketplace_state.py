@@ -4,6 +4,10 @@ import time
 from dataclasses import dataclass
 
 REGISTER_SUCCESS = 1
+MAX_SNAPSHOT_AGE_S = 120
+# currentPage base (0 or 1) unverified — 0 never mistakes page 2 for page 1;
+# flip to 1 if the in-game dry run refuses on page 1.
+FIRST_PAGE = 0
 ITEM_LEVEL_FAIL_CODES = frozenset({662, 666})
 FAIL_CODE_MESSAGES = {
     650: "Marketplace general error",
@@ -28,6 +32,7 @@ class ListingsSnapshot:
     received_at: float
     used: int
     available: tuple
+    current_page: int = FIRST_PAGE
 
 
 @dataclass(frozen=True)
@@ -54,6 +59,7 @@ class MarketplaceState:
                 received_at=received,
                 used=int(message.totalItemCount),
                 available=tuple(int(i) for i in message.availableOrderIndexes),
+                current_page=int(message.currentPage),
             )
             for info in message.myItemInfos:
                 self._listed_at[str(info.itemInfo.item.itemUniqueId)] = received
@@ -67,6 +73,10 @@ class MarketplaceState:
     def snapshot(self):
         with self._cond:
             return self._snapshot
+
+    def listed_ids(self) -> frozenset:
+        with self._cond:
+            return frozenset(self._listed_at)
 
     def begin_register(self) -> None:
         with self._cond:

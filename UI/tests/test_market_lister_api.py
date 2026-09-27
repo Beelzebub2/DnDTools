@@ -79,7 +79,7 @@ def test_plan_returns_entries_and_listing_info(client_and_deps):
     data = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()
     assert data["success"] is True
     assert data["plan"]["entries"][0]["price"] == 900
-    assert data["listings"] == {"seen": True, "used": 2}
+    assert data["listings"] == {"seen": True, "used": 2, "age_s": 0}
 
 
 def test_plan_requires_character(client_and_deps):
@@ -134,3 +134,21 @@ def test_calibration_saved_per_resolution(client_and_deps):
 def test_calibration_rejects_unknown_keys(client_and_deps):
     client, _, _ = client_and_deps
     assert client.post("/api/market-lister/calibration", json={"points": {"evil": [1, 1]}}).status_code == 400
+
+
+def test_listings_report_snapshot_age(client_and_deps):
+    client, deps, _ = client_and_deps
+    clock = {"t": 500.0}
+    state = MarketplaceState(clock=lambda: clock["t"])
+    state.handle_my_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=3))
+    deps.state = state
+    clock["t"] += 42.4
+    assert client.get("/api/market-lister/status").get_json()["listings"] == {"seen": True, "used": 3, "age_s": 42}
+    plan = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()
+    assert plan["listings"]["age_s"] == 42
+
+
+def test_listings_age_is_none_without_snapshot(client_and_deps):
+    client, deps, _ = client_and_deps
+    deps.state = MarketplaceState()
+    assert client.get("/api/market-lister/status").get_json()["listings"] == {"seen": False, "used": None, "age_s": None}

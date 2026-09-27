@@ -1,4 +1,5 @@
 import sys
+import time
 
 import networking.protos
 
@@ -12,7 +13,7 @@ from networking.protos import MarketPlace_pb2
 from src.market_lister import PlanEntry
 from src.models.marketplace_layout import build_layout
 from src.models.marketplace_runner import MarketplaceRunner
-from src.models.marketplace_state import MarketplaceState, RegisterOutcome
+from src.models.marketplace_state import FIRST_PAGE, MAX_SNAPSHOT_AGE_S, MarketplaceState, RegisterOutcome
 
 MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
 LAYOUT = build_layout((1920, 1080))
@@ -38,9 +39,10 @@ class FakeDriver:
 class ScriptedState(MarketplaceState):
     """Answers register / listing waits from a script instead of packets."""
 
-    def __init__(self, used=2, outcomes=(), confirm=True, available=()):
-        super().__init__()
-        msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=used, availableOrderIndexes=available)
+    def __init__(self, used=2, outcomes=(), confirm=True, available=(), clock=None, page=FIRST_PAGE):
+        super().__init__(clock or time.monotonic)
+        msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(
+            totalItemCount=used, availableOrderIndexes=available, currentPage=page)
         self.handle_my_item_list(msg)
         self.outcomes = list(outcomes)
         self.confirm = confirm
@@ -238,3 +240,44 @@ def test_run_calls_on_progress_for_failed_items():
     assert len(progress_results) == 1
     assert progress_results[0].status == "failed"
     assert progress_results[0].unique_id == "a"
+
+
+class FakeClock:
+    def __init__(self, t=1000.0):
+        self.t = t
+
+    def __call__(self):
+        return self.t
+
+
+def test_run_refuses_on_stale_listings_snapshot():
+    clock = FakeClock()
+    state = ScriptedState(used=0, clock=clock)
+    clock.t += MAX_SNAPSHOT_AGE_S + 1
+    driver = FakeDriver()
+    report = _runner(driver, state).run([_entry("a")])
+    assert report.results == ()
+    assert report.stopped_reason == "Open (or re-open) Trade → Marketplace → My Listings in the game first."
+    assert driver.actions == []
+
+
+def test_run_accepts_recent_listings_snapshot():
+    clock = FakeClock()
+    state = ScriptedState(used=0, clock=clock)
+    clock.t += MAX_SNAPSHOT_AGE_S - 1
+    report = _runner(FakeDriver(), state).run([_entry("a")])
+    assert report.stopped_reason is None
+    assert [r.status for r in report.results] == ["listed"]
+
+
+def test_run_refuses_when_not_on_first_page():
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=0, page=FIRST_PAGE + 1)).run([_entry("a")])
+    assert report.results == ()
+    assert report.stopped_reason == "Go to page 1 of My Listings, then start again."
+    assert driver.actions == []
+
+
+def test_run_accepts_first_page():
+    report = _runner(FakeDriver(), ScriptedState(used=0, page=FIRST_PAGE)).run([_entry("a")])
+    assert report.stopped_reason is None

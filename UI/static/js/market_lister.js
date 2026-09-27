@@ -2,6 +2,9 @@
 (() => {
     const API = '/api/market-lister';
     const POLL_MS = 500;
+    const MAX_SNAPSHOT_AGE_S = 120; // keep in sync with marketplace_state.MAX_SNAPSHOT_AGE_S
+    const LISTINGS_MISSING_TEXT = 'Open Trade → Marketplace → My Listings in the game so DnDTools can see your listing spots.';
+    const LISTINGS_STALE_TEXT = 'My Listings info is out of date — open (or re-open) Trade → Marketplace → My Listings in the game.';
     const STASH_NAMES = { 2: 'Inventory', 4: 'Storage', 5: 'Purchased 1', 6: 'Purchased 2', 7: 'Purchased 3',
         8: 'Purchased 4', 9: 'Purchased 5', 20: 'Shared Seasonal', 30: 'Shared Stash' };
     const POINT_KEYS = ['spot_row_origin', 'next_page_arrow', 'tab_icon_origin', 'inv_grid_origin',
@@ -65,10 +68,14 @@
 
     const renderListingStatus = (listings) => {
         const el = $('mlListingStatus');
-        if (listings && listings.seen) {
-            el.textContent = `My Listings detected — ${listings.used} of 40 spots used.`;
-            el.classList.add('ok');
+        if (!listings) return;
+        const fresh = listings.seen && listings.age_s !== null && listings.age_s <= MAX_SNAPSHOT_AGE_S;
+        if (fresh) {
+            el.textContent = `My Listings detected ${listings.age_s} s ago — ${listings.used} of 40 spots used.`;
+        } else {
+            el.textContent = listings.seen ? LISTINGS_STALE_TEXT : LISTINGS_MISSING_TEXT;
         }
+        el.classList.toggle('ok', fresh);
     };
 
     const renderPlan = () => {

@@ -3,7 +3,9 @@ from dataclasses import asdict, dataclass
 from typing import Protocol
 
 from src.models.marketplace_layout import spot_location, tab_icon_index
-from src.models.marketplace_state import ITEM_LEVEL_FAIL_CODES, describe_fail_code
+from src.models.marketplace_state import (
+    FIRST_PAGE, ITEM_LEVEL_FAIL_CODES, MAX_SNAPSHOT_AGE_S, describe_fail_code,
+)
 
 MAX_PAGES = 4
 
@@ -66,10 +68,20 @@ class MarketplaceRunner:
         self._confirm_timeout = confirm_timeout
         self._page = 0
 
+    def _refusal(self, snapshot):
+        if snapshot is None:
+            return "Open Trade → Marketplace → My Listings in the game first."
+        if self._state.now() - snapshot.received_at > MAX_SNAPSHOT_AGE_S:
+            return "Open (or re-open) Trade → Marketplace → My Listings in the game first."
+        if snapshot.current_page != FIRST_PAGE:
+            return "Go to page 1 of My Listings, then start again."
+        return None
+
     def run(self, entries, dry_run=False, on_progress=None) -> RunReport:
         snapshot = self._state.snapshot()
-        if snapshot is None:
-            return RunReport((), "Open Trade → Marketplace → My Listings in the game first.")
+        refusal = self._refusal(snapshot)
+        if refusal:
+            return RunReport((), refusal)
         results, used, self._page = [], snapshot.used, 0
         current = None
         try:

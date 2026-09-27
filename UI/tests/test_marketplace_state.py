@@ -85,3 +85,18 @@ def test_describe_fail_code():
     assert "gold" in describe_fail_code(657).lower()
     assert "655" in describe_fail_code(655) or "maximum" in describe_fail_code(655).lower()
     assert describe_fail_code(12345) == "Marketplace error 12345"
+
+
+def test_snapshot_records_current_page():
+    state = MarketplaceState()
+    msg = _my_list(3)
+    msg.currentPage = 2
+    state.handle_my_item_list(msg)
+    assert state.snapshot().current_page == 2
+
+
+def test_listed_ids_returns_seen_unique_ids():
+    state = MarketplaceState()
+    assert state.listed_ids() == frozenset()
+    state.handle_my_item_list(_my_list(2, unique_ids=(11, 12)))
+    assert state.listed_ids() == frozenset({"11", "12"})
