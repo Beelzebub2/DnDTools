@@ -8,12 +8,22 @@ from src.models.marketplace_state import (
 )
 
 MAX_PAGES = 4
+CURSOR_DEVIATION_PX = 120
+SAFETY_REASON_TEXT = {
+    "game_window_unfocused": "the game lost focus",
+    "mouse_interference": "the mouse was moved",
+}
+
+
+def _friendly_reason(reason):
+    return SAFETY_REASON_TEXT.get(reason, reason)
 
 
 class InputDriver(Protocol):
     def click(self, x: int, y: int) -> None: ...
     def move_to(self, x: int, y: int) -> None: ...
     def clear_and_type(self, text: str) -> None: ...
+    def position(self) -> tuple[int, int]: ...
 
 
 class Safety(Protocol):
@@ -77,9 +87,16 @@ class MarketplaceRunner:
             return "Go to page 1 of My Listings, then start again."
         return None
 
+    def _unmapped_message(self, entries):
+        for entry in entries:
+            if tab_icon_index(entry.stash_id, self._tab_mapping) is None:
+                return f"Stash tab for {entry.name} is not mapped in DnDTools settings."
+        return None
+
     def run(self, entries, dry_run=False, on_progress=None) -> RunReport:
         snapshot = self._state.snapshot()
-        refusal = self._refusal(snapshot)
+        entries = list(entries)
+        refusal = self._refusal(snapshot) or self._unmapped_message(entries)
         if refusal:
             return RunReport((), refusal)
         results, used, self._page = [], snapshot.used, 0
@@ -113,7 +130,7 @@ class MarketplaceRunner:
     def _check(self):
         if self._is_cancelled():
             reason = self._safety.reason
-            raise _Stop(f"Stopped for safety: {reason}" if reason else "Cancelled")
+            raise _Stop(f"Stopped for safety: {_friendly_reason(reason)}" if reason else "Cancelled")
 
     def _click(self, point):
         self._check()
@@ -147,7 +164,15 @@ class MarketplaceRunner:
         stop.results = [result]
         return stop
 
+    def _check_cursor(self, entry):
+        px, py = self._layout.point("price_field")
+        cx, cy = self._driver.position()
+        if abs(cx - px) > CURSOR_DEVIATION_PX or abs(cy - py) > CURSOR_DEVIATION_PX:
+            fail = ItemResult(entry.unique_id, entry.name, "failed", "stopped before Create Listing — no fee charged")
+            raise self._stop_with(fail, "Stopped for safety: mouse moved during listing")
+
     def _submit(self, entry):
+        self._check_cursor(entry)
         self._state.begin_register()
         since = self._state.now()
         self._check()
@@ -171,10 +196,13 @@ class MarketplaceRunner:
 
     def _list_one(self, entry, used, available, dry_run) -> ItemResult:
         if not self._safety.checkpoint():
-            raise _Stop(f"Stopped for safety: {self._safety.reason or 'game lost focus'}")
+            raise _Stop(f"Stopped for safety: {_friendly_reason(self._safety.reason) or 'the game lost focus'}")
         self._go_to_spot(used, available)
         self._fill_form(entry)
-        self._safety.snapshot_position()
         if dry_run:
-            return ItemResult(entry.unique_id, entry.name, "dry_run", f"would list at {entry.price}g")
-        return self._submit(entry)
+            result = ItemResult(entry.unique_id, entry.name, "dry_run", f"would list at {entry.price}g")
+        else:
+            result = self._submit(entry)
+        # Snapshot after the last click so the next checkpoint only sees user movement.
+        self._safety.snapshot_position()
+        return result

@@ -1,6 +1,8 @@
 """Real Windows input + live layout for the market lister (not unit-tested)."""
+import ctypes
 import random
 import time
+from ctypes import wintypes
 
 from src.models import macros
 from src.models.marketplace_layout import build_layout
@@ -15,6 +17,12 @@ VK_DIGIT_0 = 0x30
 
 
 class MacrosInputDriver:
+    def position(self):
+        pt = wintypes.POINT()
+        if not ctypes.windll.user32.GetCursorPos(ctypes.byref(pt)):
+            raise RuntimeError("couldn't read the mouse position")
+        return (pt.x, pt.y)
+
     def move_to(self, x, y):
         macros.move_mouse(x, y)
 

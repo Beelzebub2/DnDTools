@@ -12,7 +12,7 @@ from networking.protos import MarketPlace_pb2
 
 from src.market_lister import PlanEntry
 from src.models.marketplace_layout import build_layout
-from src.models.marketplace_runner import MarketplaceRunner
+from src.models.marketplace_runner import CURSOR_DEVIATION_PX, MarketplaceRunner
 from src.models.marketplace_state import FIRST_PAGE, MAX_SNAPSHOT_AGE_S, MarketplaceState, RegisterOutcome
 
 MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
@@ -23,17 +23,26 @@ class FakeDriver:
     def __init__(self):
         self.actions = []
         self.on_create = None
+        self.on_type = None
+        self.pos = (0, 0)
 
     def click(self, x, y):
         self.actions.append(("click", (x, y)))
+        self.pos = (x, y)
         if (x, y) == LAYOUT.point("create_listing_button") and self.on_create:
             self.on_create()
 
     def move_to(self, x, y):
         self.actions.append(("move", (x, y)))
+        self.pos = (x, y)
 
     def clear_and_type(self, text):
         self.actions.append(("type", text))
+        if self.on_type:
+            self.on_type()
+
+    def position(self):
+        return self.pos
 
 
 class ScriptedState(MarketplaceState):
@@ -201,8 +210,15 @@ def test_run_stops_on_unmapped_stash_tab():
     report = _runner(driver, ScriptedState(used=0)).run([_entry("a", stash="99")])
     assert report.results == ()
     assert "not mapped" in report.stopped_reason
-    # Spot click happens before unmapped stash error
-    assert len(driver.actions) == 1 and driver.actions[0][0] == "click"
+    assert driver.actions == []
+
+
+def test_run_validates_every_tab_mapping_before_any_click():
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=0)).run([_entry("a"), _entry("b", stash="99", slot=1)])
+    assert report.results == ()
+    assert report.stopped_reason == "Stash tab for Item b is not mapped in DnDTools settings."
+    assert driver.actions == []
 
 
 def test_run_continues_on_fail_code_662():
@@ -281,3 +297,69 @@ def test_run_refuses_when_not_on_first_page():
 def test_run_accepts_first_page():
     report = _runner(FakeDriver(), ScriptedState(used=0, page=FIRST_PAGE)).run([_entry("a")])
     assert report.stopped_reason is None
+
+
+class RecordingSafety:
+    def __init__(self, driver, reason=None, ok=True):
+        self.driver = driver
+        self.reason = reason
+        self.ok = ok
+
+    def checkpoint(self):
+        return self.ok
+
+    def snapshot_position(self):
+        self.driver.actions.append(("snapshot",))
+
+
+def _safe_runner(driver, state, safety, cancelled=lambda: False):
+    return MarketplaceRunner(driver, LAYOUT, state, tab_mapping=MAPPING, is_cancelled=cancelled,
+                             pause=lambda: None, safety=safety)
+
+
+def test_snapshot_position_taken_after_create_click():
+    driver = FakeDriver()
+    _safe_runner(driver, ScriptedState(used=0), RecordingSafety(driver)).run([_entry("a")])
+    create = ("click", LAYOUT.point("create_listing_button"))
+    assert driver.actions.index(("snapshot",)) > driver.actions.index(create)
+
+
+def test_snapshot_position_taken_after_dry_run_form_fill():
+    driver = FakeDriver()
+    _safe_runner(driver, ScriptedState(used=0), RecordingSafety(driver)).run([_entry("a")], dry_run=True)
+    assert driver.actions[-1] == ("snapshot",)
+    assert driver.actions.index(("type", "900")) < driver.actions.index(("snapshot",))
+
+
+def test_mouse_moved_before_create_stops_without_clicking_create():
+    driver = FakeDriver()
+    fx, fy = LAYOUT.point("price_field")
+    driver.on_type = lambda: setattr(driver, "pos", (fx + CURSOR_DEVIATION_PX + 1, fy))
+    progress = []
+    report = _runner(driver, ScriptedState(used=0)).run([_entry("a"), _entry("b", slot=1)], on_progress=progress.append)
+    assert ("click", LAYOUT.point("create_listing_button")) not in driver.actions
+    assert report.stopped_reason == "Stopped for safety: mouse moved during listing"
+    assert [(r.unique_id, r.status, r.message) for r in report.results] == [
+        ("a", "failed", "stopped before Create Listing — no fee charged")]
+    assert [r.unique_id for r in progress] == ["a"]
+
+
+def test_small_cursor_drift_does_not_stop():
+    driver = FakeDriver()
+    fx, fy = LAYOUT.point("price_field")
+    driver.on_type = lambda: setattr(driver, "pos", (fx + CURSOR_DEVIATION_PX, fy - CURSOR_DEVIATION_PX))
+    report = _runner(driver, ScriptedState(used=0)).run([_entry("a")])
+    assert report.stopped_reason is None
+    assert [r.status for r in report.results] == ["listed"]
+
+
+def test_safety_stop_uses_friendly_reason_text():
+    driver = FakeDriver()
+    safety = RecordingSafety(driver, reason="mouse_interference", ok=False)
+    report = _safe_runner(driver, ScriptedState(used=0), safety).run([_entry("a")])
+    assert report.stopped_reason == "Stopped for safety: the mouse was moved"
+
+    driver = FakeDriver()
+    safety = RecordingSafety(driver, reason="game_window_unfocused")
+    report = _safe_runner(driver, ScriptedState(used=0), safety, cancelled=lambda: True).run([_entry("a")])
+    assert report.stopped_reason == "Stopped for safety: the game lost focus"
