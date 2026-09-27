@@ -431,3 +431,55 @@ def test_price_all_reads_up_to_three_pages_of_all_roll_results():
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
     assert clicks.count(LAYOUT.point("market_next_page")) == 2   # stops once a page is short
     assert len(rows["a"]["all"]) == 23
+
+
+class PayoutState(MarketplaceState):
+    """Serves a scripted sequence of My Listings snapshots and transfer results."""
+
+    def __init__(self, snapshots, transfer_results):
+        super().__init__()
+        self.snapshots = list(snapshots)
+        self.transfer_results = list(transfer_results)
+        self._snap = self.snapshots.pop(0)  # what the game showed before the run
+
+    def snapshot(self):
+        return self._snap
+
+    def wait_for_snapshot(self, since, timeout):
+        self._snap = self.snapshots.pop(0) if self.snapshots else self._snap
+        return self._snap
+
+    def wait_for_transfer(self, timeout):
+        return self.transfer_results.pop(0) if self.transfer_results else None
+
+
+def _snap(payouts, now):
+    from src.models.marketplace_state import ListingsSnapshot
+    return ListingsSnapshot(received_at=now, available=(5,), payouts=tuple(payouts))
+
+
+def test_collect_payouts_transfers_each_sold_listing():
+    import time as _t
+    now = _t.monotonic()
+    helm, robe = (1, 3, "GreatHelm_3001", 200), (3, 2, "OracleRobe_4001", 690)
+    state = PayoutState([_snap([helm, robe], now), _snap([helm, robe], now), _snap([(2, 2, "OracleRobe_4001", 690)], now),
+                         _snap([], now)], [1, 1])
+    driver = FakeDriver()
+    report = _runner(driver, state).collect_payouts()
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks == [LAYOUT.point("my_listings_tab"), LAYOUT.spot_row(1), LAYOUT.point("transfer_all_button"),
+                      LAYOUT.point("my_listings_tab"), LAYOUT.spot_row(2), LAYOUT.point("transfer_all_button"),
+                      LAYOUT.point("my_listings_tab")]
+    assert [(r.name, r.status, r.message) for r in report.results] == [
+        ("GreatHelm_3001", "collected", "200g collected"), ("OracleRobe_4001", "collected", "expired item returned")]
+    assert report.stopped_reason is None
+
+
+def test_collect_payouts_stops_on_transfer_failure():
+    import time as _t
+    now = _t.monotonic()
+    helm = (1, 3, "GreatHelm_3001", 200)
+    state = PayoutState([_snap([helm], now), _snap([helm], now)], [658])
+    report = _runner(FakeDriver(), state).collect_payouts()
+    assert report.results[0].status == "failed"
+    assert "Marketplace error 658" in report.stopped_reason or "space" in report.stopped_reason.lower()

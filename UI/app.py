@@ -2,7 +2,7 @@ import ctypes
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
-from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir
+from src.models.appdirs import resource_path, get_resource_dir, get_templates_dir, get_static_dir, migrate_data_files, get_characters_dir, get_data_dir
 from src.models.settings import (
     settings_manager,
     SettingsManager,
@@ -682,9 +682,10 @@ class Api:
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_COMPLETE_RES: self._quest_packet_handler.handle_quest_complete,
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_CONTENT_VALUE_STACK_RES: self._quest_packet_handler.handle_quest_content_value_stack,
             # Market lister confirmation handlers
-            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_MY_ITEM_LIST_RES: marketplace_state.handle_my_item_list,
+            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_MY_ITEM_LIST_RES: _on_my_item_list,
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_REGISTER_RES: marketplace_state.handle_register_res,
-            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_LIST_RES: marketplace_state.handle_item_list,
+            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_LIST_RES: _on_item_list,
+            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_TRANSFER_ITEMS_RES: marketplace_state.handle_transfer_res,
         }
         self._capture_controller = CaptureController(
             self._capture_settings, capture_info, wireshark_path=self._wireshark_path
@@ -2735,8 +2736,27 @@ class Api:
 
 # ── Market lister ──
 from src.models.marketplace_state import MarketplaceState
+from src.models.market_history import MarketHistory
 
 marketplace_state = MarketplaceState()
+market_history = None if _is_child_process else MarketHistory(os.path.join(get_data_dir(), 'market_history.sqlite'))
+
+
+def _on_item_list(message):
+    """Marketplace search results feed the live lister state and the local history."""
+    marketplace_state.handle_item_list(message)
+    try:
+        market_history.record_item_list(message)
+    except Exception:  # history is best-effort; never break packet capture
+        logger.exception("Failed to record marketplace listings")
+
+
+def _on_my_item_list(message):
+    marketplace_state.handle_my_item_list(message)
+    try:
+        market_history.record_my_listings(message)
+    except Exception:
+        logger.exception("Failed to record my marketplace listings")
 
 from src.market_lister_api import ListerDeps, create_market_lister_blueprint
 from src.market_lister_job import ListerJob

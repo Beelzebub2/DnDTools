@@ -4,12 +4,13 @@ from typing import Protocol
 
 from src.models.marketplace_layout import spot_location, tab_icon_index
 from src.models.marketplace_state import (
-    FIRST_PAGE, ITEM_LEVEL_FAIL_CODES, MAX_SNAPSHOT_AGE_S, describe_fail_code,
+    FIRST_PAGE, ITEM_LEVEL_FAIL_CODES, MAX_SNAPSHOT_AGE_S, MY_ITEM_SOLD, REGISTER_SUCCESS, describe_fail_code,
 )
 
 MAX_PAGES = 4
 CURSOR_DEVIATION_PX = 120
 SEARCH_SETTLE_PAUSES = 4
+MAX_PAYOUTS_PER_RUN = 40
 MARKET_PAGES = 3        # result pages read per search
 MARKET_PAGE_SIZE = 10   # listings per View Market page  # the View Market screen needs a moment after each switch
 SAFETY_REASON_TEXT = {
@@ -165,6 +166,49 @@ class MarketplaceRunner:
         except Exception as exc:
             return rows_by_uid, RunReport(tuple(results), f"Stopped: {exc}")
         return rows_by_uid, RunReport(tuple(results), None)
+
+    def collect_payouts(self, on_progress=None) -> RunReport:
+        """Collect gold from sold listings and take back expired items ("Transfer All Items").
+
+        The game destroys uncollected payouts after 7 days. Listings shift up after each
+        transfer, so the My Listings tab is re-opened to get fresh positions every time.
+        """
+        refusal = self._refusal(self._state.snapshot())
+        if refusal:
+            return RunReport((), refusal)
+        results = []
+        try:
+            for _ in range(MAX_PAYOUTS_PER_RUN):
+                snapshot = self._reopen_my_listings()
+                if not snapshot.payouts:
+                    break
+                order_index, state, item_id, price = min(snapshot.payouts)
+                self._go_to_spot(order_index)
+                self._state.begin_transfer()
+                self._click(self._layout.point("transfer_all_button"))
+                code = self._state.wait_for_transfer(self._register_timeout)
+                if code != REGISTER_SUCCESS:
+                    message = "no response from the game" if code is None else describe_fail_code(code)
+                    fail = ItemResult(str(order_index), item_id, "failed", message)
+                    raise self._stop_with(fail, f"Couldn't collect {item_id}: {message}")
+                note = f"{price}g collected" if state == MY_ITEM_SOLD else "expired item returned"
+                result = ItemResult(str(order_index), item_id, "collected", note)
+                results.append(result)
+                if on_progress:
+                    on_progress(result)
+        except _Stop as stop:
+            stop_results = getattr(stop, "results", [])
+            for r in stop_results:
+                if on_progress:
+                    on_progress(r)
+            return RunReport(tuple(results + stop_results), str(stop))
+        return RunReport(tuple(results), None)
+
+    def _reopen_my_listings(self):
+        since = self._state.now()
+        self._click(self._layout.point("my_listings_tab"))
+        self._page = 0
+        return self._state.wait_for_snapshot(since, self._register_timeout)
 
     def _settle(self):
         for _ in range(SEARCH_SETTLE_PAUSES):

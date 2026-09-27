@@ -125,3 +125,26 @@ def test_listed_ids_returns_seen_unique_ids():
     assert state.listed_ids() == frozenset()
     state.handle_my_item_list(_my_list(2, unique_ids=(11, 12)))
     assert state.listed_ids() == frozenset({"11", "12"})
+
+
+def test_snapshot_lists_sold_and_expired_payouts():
+    msg = _my_list(35, available=[2, 3])
+    sold = msg.myItemInfos.add()
+    sold.orderIndex = 1
+    sold.myItemState = 3
+    sold.itemInfo.price = 200
+    sold.itemInfo.item.itemId = "DesignDataItem:Id_Item_GreatHelm_3001"
+    active = msg.myItemInfos.add()
+    active.orderIndex = 0
+    active.myItemState = 1
+    state = MarketplaceState()
+    state.handle_my_item_list(msg)
+    assert state.snapshot().payouts == ((1, 3, "GreatHelm_3001", 200),)
+
+
+def test_transfer_result_wait():
+    state = MarketplaceState()
+    state.begin_transfer()
+    assert state.wait_for_transfer(0.05) is None
+    state.handle_transfer_res(MarketPlace_pb2.SS2C_MARKETPLACE_TRANSFER_ITEMS_RES(result=1))
+    assert state.wait_for_transfer(0.05) == 1

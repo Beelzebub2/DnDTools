@@ -77,3 +77,4 @@ nodejs/yarn-debug.log*
 nodejs/yarn-error.log*
 nodejs/.env
 !/UI/tests/test_roll_pricing.py
+!/UI/tests/test_market_history.py

@@ -12,11 +12,15 @@ MAX_SNAPSHOT_AGE_S = 120
 FIRST_PAGE = 0
 ITEM_LEVEL_FAIL_CODES = frozenset({662, 666})
 ITEM_ID_PREFIX = "Id_Item_"
+MY_ITEM_LISTING, MY_ITEM_EXPIRED, MY_ITEM_SOLD = 1, 2, 3  # myItemState (3 = sold, verified in game)
+PAYOUT_STATES = frozenset({MY_ITEM_EXPIRED, MY_ITEM_SOLD})
 FAIL_CODE_MESSAGES = {
     650: "Marketplace general error",
     655: "Maximum number of listings reached",
     656: "Price was not set (typing may have failed)",
+    653: "Not enough inventory space",
     657: "Not enough gold for the listing fee",
+    658: "Not enough space in your stash/inventory to take the item back",
     660: "Price is above the maximum allowed",
     662: "Item was looted in a raid and can't be traded",
     663: "Squires can't list items",
@@ -46,6 +50,7 @@ class ListingsSnapshot:
     received_at: float
     available: tuple  # free spot order indexes (availableOrderIndexes)
     current_page: int = FIRST_PAGE
+    payouts: tuple = ()  # (order_index, state, item_id, price) for sold / expired listings awaiting transfer
 
     @property
     def free(self) -> int:
@@ -65,7 +70,8 @@ class MarketplaceState:
         self._snapshot = None
         self._listed_at = {}  # itemUniqueId(str) -> last received_at seen
         self._register_result = None
-        self._item_list = None  # (received_at, [(item_id, price)])
+        self._item_list = None  # (received_at, [MarketRow])
+        self._transfer_result = None
 
     def now(self) -> float:
         return self._clock()
@@ -77,6 +83,10 @@ class MarketplaceState:
                 received_at=received,
                 available=tuple(int(i) for i in message.availableOrderIndexes),
                 current_page=int(message.currentPage),
+                payouts=tuple(
+                    (int(info.orderIndex), int(info.myItemState),
+                     str(info.itemInfo.item.itemId).split(ITEM_ID_PREFIX)[-1], int(info.itemInfo.price))
+                    for info in message.myItemInfos if int(info.myItemState) in PAYOUT_STATES),
             )
             for info in message.myItemInfos:
                 self._listed_at[str(info.itemInfo.item.itemUniqueId)] = received
@@ -98,6 +108,22 @@ class MarketplaceState:
                 return None
             return list(self._item_list[1])
 
+    def handle_transfer_res(self, message) -> None:
+        """S2C_MARKETPLACE_TRANSFER_ITEMS_RES after "Transfer All Items" on a sold / expired listing."""
+        with self._cond:
+            self._transfer_result = int(message.result)
+            self._cond.notify_all()
+
+    def begin_transfer(self) -> None:
+        with self._cond:
+            self._transfer_result = None
+
+    def wait_for_transfer(self, timeout: float):
+        """The transfer result code, or None if the game did not answer in time."""
+        with self._cond:
+            self._cond.wait_for(lambda: self._transfer_result is not None, timeout)
+            return self._transfer_result
+
     def handle_register_res(self, message) -> None:
         with self._cond:
             self._register_result = int(message.result)
@@ -105,6 +131,12 @@ class MarketplaceState:
 
     def snapshot(self):
         with self._cond:
+            return self._snapshot
+
+    def wait_for_snapshot(self, since: float, timeout: float):
+        """The My Listings snapshot, waiting up to `timeout` for one received after `since`."""
+        with self._cond:
+            self._cond.wait_for(lambda: self._snapshot is not None and self._snapshot.received_at > since, timeout)
             return self._snapshot
 
     def listed_ids(self) -> frozenset:
