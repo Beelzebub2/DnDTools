@@ -140,3 +140,10 @@ def test_apply_game_prices_undercuts_cheapest_listing():
     plan = apply_game_prices(unpriced, rows, ListerRules(source_stash_ids=("2",)))
     assert [(e.unique_id, e.price, e.fee) for e in plan.entries] == [("a", 270, 15), ("c", 900, 45)]
     assert [(s.name, s.reason) for s in plan.skipped] == [("Item b", "nobody is selling this right now")]
+
+
+def test_apply_game_prices_marks_unsearched_items_not_priced():
+    from src.market_lister import apply_game_prices
+    unpriced = _plan({"2": [_item("a", 0)]}, None).entries
+    plan = apply_game_prices(unpriced, {}, ListerRules(source_stash_ids=("2",)))
+    assert [(s.name, s.reason) for s in plan.skipped] == [("Item a", "not priced — the pricing run stopped first")]

@@ -165,6 +165,9 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
     return Plan(tuple(entries), tuple(skipped), tuple(warnings))
 
 
+NOT_PRICED_REASON = "not priced — the pricing run stopped first"
+
+
 def apply_game_prices(entries, market_by_unique_id, rules) -> Plan:
     """Price unpriced entries from in-game search results, comparing like rolls with like.
 
@@ -172,7 +175,10 @@ def apply_game_prices(entries, market_by_unique_id, rules) -> Plan:
     """
     priced, skipped = [], []
     for entry in entries:
-        market = market_by_unique_id.get(entry.unique_id) or {}
+        market = market_by_unique_id.get(entry.unique_id)
+        if market is None:
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, NOT_PRICED_REASON))
+            continue
         result = price_from_market(entry.item_id, entry.base_rolls, entry.rolls, entry.vendor_price,
                                    market.get("same") or [], market.get("all") or [], rules)
         if result.ok:
