@@ -463,7 +463,27 @@ class StashManager:
                     fixed_stashes[k] = [v]
             return fixed_stashes
         return {}
-        
+
+    def get_enhanced_stashes(self, character_id: str, stash_ids) -> Dict[str, List[Dict]]:
+        """Return enhanced item dicts for the requested stash ids (market lister)."""
+        raw = self.get_character_stashes(character_id)
+        result = {}
+        for stash_id in stash_ids:
+            items = raw.get(str(stash_id)) or []
+            _, enhanced = self._process_stash_items(str(stash_id), items)
+            result[str(stash_id)] = enhanced
+        return result
+
+    def get_character_data_age(self, character_id: str) -> Optional[float]:
+        """Seconds since this character's capture file was last written."""
+        self._ensure_loaded()
+        with self._cache_lock:
+            char = self.characters_cache.get(str(character_id))
+        path = (char or {}).get('file_path')
+        if not path or not os.path.exists(path):
+            return None
+        return max(0.0, time.time() - os.path.getmtime(path))
+
     def get_character_details(self, character_id: str) -> Optional[Dict]:
         """Get detailed information about a specific character"""
         self._ensure_loaded()
