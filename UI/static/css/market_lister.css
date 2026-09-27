@@ -41,3 +41,7 @@
 .ml-calibration { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
 .ml-cal-row { display: grid; grid-template-columns: 200px repeat(2, 120px); gap: 10px; align-items: center; text-transform: capitalize; }
 .ml-cal-row input { width: 80px; }
+
+.ml-small { font-size: 0.8rem; margin-top: 2px; }
+.ml-flagged { color: var(--accent-gold); font-weight: 600; }
+.ml-flag-text { color: var(--accent-gold); }

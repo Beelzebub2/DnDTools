@@ -3,6 +3,7 @@ from dataclasses import asdict, dataclass, replace
 
 from src.models.market_rules import Skip, compute_price, listing_fee, rarity_id, select_candidates
 from src.models.marketplace_layout import tab_icon_index
+from src.models.roll_pricing import price_from_market
 
 MAX_LISTING_PRICE = 1_000_000
 STALE_DATA_SECONDS = 300
@@ -13,6 +14,18 @@ class PlanError(Exception):
     def __init__(self, code: str, message: str):
         super().__init__(message)
         self.code = code
+
+
+MAX_STATS = 16
+
+
+def _stat_pairs(raw) -> tuple:
+    """[[stat, value], ...] from JSON / enhanced items -> ((stat, int), ...); junk is dropped."""
+    pairs = []
+    for pair in raw if isinstance(raw, (list, tuple)) else ():
+        if isinstance(pair, (list, tuple)) and len(pair) == 2 and isinstance(pair[1], (int, float))                 and not isinstance(pair[1], bool):
+            pairs.append((str(pair[0])[:64], int(pair[1])))
+    return tuple(pairs[:MAX_STATS])
 
 
 def _positive_int(value, name, minimum=0, maximum=None):
@@ -36,6 +49,10 @@ class PlanEntry:
     fee: int
     vendor_price: int
     item_id: str = ""
+    base_rolls: tuple = ()   # ((stat, value), ...) primary properties of our copy
+    rolls: tuple = ()        # ((stat, value), ...) random secondary properties
+    flag: str = ""           # pricing warning for the user to review
+    compared: str = ""       # what the price was compared against
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -57,6 +74,10 @@ class PlanEntry:
             fee=listing_fee(price) if price else 0,
             vendor_price=_positive_int(data.get("vendor_price", 0), "vendor_price", 0),
             item_id=str(data.get("item_id") or "")[:128],
+            base_rolls=_stat_pairs(data.get("base_rolls")),
+            rolls=_stat_pairs(data.get("rolls")),
+            flag=str(data.get("flag") or "")[:300],
+            compared=str(data.get("compared") or "")[:300],
         )
 
 
@@ -84,6 +105,7 @@ def _entry(candidate, decision=None) -> PlanEntry:
         height=int(item.get("height") or 1),
         price=decision.price if decision else 0, fee=decision.fee if decision else 0,
         vendor_price=int(item.get("vendor_price") or 0), item_id=str(item.get("itemId") or ""),
+        base_rolls=_stat_pairs(item.get("pp")), rolls=_stat_pairs(item.get("sp")),
     )
 
 
@@ -143,32 +165,26 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
     return Plan(tuple(entries), tuple(skipped), tuple(warnings))
 
 
-NO_SELLERS_REASON = "nobody is selling this right now"
+def apply_game_prices(entries, market_by_unique_id, rules) -> Plan:
+    """Price unpriced entries from in-game search results, comparing like rolls with like.
 
-
-def _game_price_check(entry, rows):
-    """Turn one page of View Market results (cheapest first) into a price-check summary."""
-    prices = [price for item_id, price in rows if not entry.item_id or item_id == entry.item_id]
-    if not prices:
-        return None
-    return {"success": True, "has_data": True, "lowest_ask": min(prices),
-            "avg_price": sum(prices) / len(prices), "num_listings": len(prices)}
-
-
-def apply_game_prices(entries, rows_by_unique_id, rules) -> Plan:
-    """Price unpriced entries from in-game search results keyed by unique_id."""
+    market_by_unique_id: {unique_id: {"same": [MarketRow], "all": [MarketRow]}}.
+    """
     priced, skipped = [], []
     for entry in entries:
-        check = _game_price_check(entry, rows_by_unique_id.get(entry.unique_id) or [])
-        decision = compute_price(check, entry.vendor_price, rules) if check else None
-        if decision is None:
-            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, NO_SELLERS_REASON))
-        elif not decision.ok:
-            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, decision.reason))
+        market = market_by_unique_id.get(entry.unique_id) or {}
+        result = price_from_market(entry.item_id, entry.base_rolls, entry.rolls, entry.vendor_price,
+                                   market.get("same") or [], market.get("all") or [], rules)
+        if result.ok:
+            priced.append(replace(entry, price=result.price, fee=result.fee,
+                                  flag=result.flag, compared=result.compared))
         else:
-            priced.append(replace(entry, price=decision.price, fee=decision.fee))
-    warnings = tuple(_explain(priced, skipped))
-    return Plan(tuple(priced), tuple(skipped), warnings)
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, result.reason))
+    warnings = list(_explain(priced, skipped))
+    flagged = sum(1 for e in priced if e.flag)
+    if flagged:
+        warnings.insert(0, f"{flagged} price(s) marked ⚠️ need your check before listing.")
+    return Plan(tuple(priced), tuple(skipped), tuple(warnings))
 
 
 def _explain(entries, skipped):

@@ -105,7 +105,13 @@
                 const value = Number(price.value);
                 fee.textContent = Number.isFinite(value) && value > 0 ? `${listingFee(value)}g` : '—';
             });
-            const cells = [include, text('span', entry.name), text('span', STASH_NAMES[entry.stash_id] || entry.stash_id),
+            const nameCell = document.createElement('div');
+            nameCell.append(text('span', entry.flag ? `⚠️ ${entry.name}` : entry.name, entry.flag ? 'ml-flagged' : ''));
+            const rolls = [...(entry.base_rolls || []), ...(entry.rolls || [])].map(([stat, value]) => `${stat} ${value}`).join(', ');
+            if (rolls) nameCell.append(text('div', rolls, 'ml-muted ml-small'));
+            if (entry.compared) nameCell.append(text('div', entry.compared, 'ml-muted ml-small'));
+            if (entry.flag) nameCell.append(text('div', entry.flag, 'ml-flag-text ml-small'));
+            const cells = [include, nameCell, text('span', STASH_NAMES[entry.stash_id] || entry.stash_id),
                 price, fee];
             row.replaceChildren(...cells.map((c) => { const td = document.createElement('td'); td.append(c); return td; }));
             return row;

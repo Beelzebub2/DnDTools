@@ -128,10 +128,14 @@ def test_build_plan_without_price_lookup_defers_pricing_to_the_game():
 def test_apply_game_prices_undercuts_cheapest_listing():
     from src.market_lister import apply_game_prices
     unpriced = _plan({"2": [_item("a", 0), _item("b", 1), _item("c", 2)]}, None).entries
+    from src.models.roll_pricing import MarketRow
+
+    def rows(item, *prices):
+        return [MarketRow(item, p, (), ()) for p in prices]
     rows = {
-        "a": [("Id_a", 300), ("Id_a", 310), ("Id_a", 333), ("Id_a", 350)],
-        "b": [],                                   # nobody selling it
-        "c": [("Id_other", 50), ("Id_c", 1000), ("Id_c", 1000), ("Id_c", 1100)],
+        "a": {"same": [], "all": rows("Id_a", 300, 310, 333, 350)},
+        "b": {"same": [], "all": []},                 # nobody selling it
+        "c": {"same": [], "all": rows("Id_other", 50) + rows("Id_c", 1000, 1000, 1100)},
     }
     plan = apply_game_prices(unpriced, rows, ListerRules(source_stash_ids=("2",)))
     assert [(e.unique_id, e.price, e.fee) for e in plan.entries] == [("a", 270, 15), ("c", 900, 45)]

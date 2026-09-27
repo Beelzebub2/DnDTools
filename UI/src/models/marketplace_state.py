@@ -3,6 +3,8 @@ import threading
 import time
 from dataclasses import dataclass
 
+from src.models.roll_pricing import MarketRow, stat_name
+
 REGISTER_SUCCESS = 1
 MAX_SNAPSHOT_AGE_S = 120
 # currentPage base (0 or 1) unverified — 0 never mistakes page 2 for page 1;
@@ -22,6 +24,16 @@ FAIL_CODE_MESSAGES = {
     665: "Can't list while matchmaking",
     666: "Item is not tradable",
 }
+
+
+def _stats(properties) -> tuple:
+    return tuple((stat_name(p.propertyTypeId), int(p.propertyValue)) for p in properties)
+
+
+def _market_row(info) -> MarketRow:
+    item = info.item
+    return MarketRow(str(item.itemId).split(ITEM_ID_PREFIX)[-1], int(info.price),
+                     _stats(item.primaryPropertyArray), _stats(item.secondaryPropertyArray))
 
 
 def describe_fail_code(code: int) -> str:
@@ -72,13 +84,13 @@ class MarketplaceState:
     def handle_item_list(self, message) -> None:
         """S2C_MARKETPLACE_ITEM_LIST_RES: one page of View Market search results."""
         received = self._clock()
-        rows = [(str(info.item.itemId).split(ITEM_ID_PREFIX)[-1], int(info.price)) for info in message.itemInfos]
+        rows = [_market_row(info) for info in message.itemInfos]
         with self._cond:
             self._item_list = (received, rows)
             self._cond.notify_all()
 
     def wait_for_item_list(self, since: float, timeout: float):
-        """Rows [(item_id, price)] from the first search result page received after `since`."""
+        """MarketRows from the first search result page received after `since`."""
         with self._cond:
             self._cond.wait_for(lambda: self._item_list is not None and self._item_list[0] > since, timeout)
             if self._item_list is None or self._item_list[0] <= since:

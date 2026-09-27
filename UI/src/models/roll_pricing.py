@@ -1,0 +1,83 @@
+"""Roll-aware pricing from in-game Marketplace search results (pure, no I/O).
+
+An item is compared only with listings that have the same random attributes. The
+cheapest listing whose base stats and rolls are all at least as good as ours sets the
+price ceiling; we undercut it. When nothing comparable exists the price falls back to
+all rolls and the entry is flagged for the user to check.
+"""
+import math
+from dataclasses import dataclass
+
+from src.models.market_rules import listing_fee
+
+PROPERTY_PREFIX = "Effect_"
+NO_SELLERS_REASON = "nobody is selling this right now"
+
+
+@dataclass(frozen=True)
+class MarketRow:
+    item_id: str
+    price: int
+    base: tuple   # ((stat, value), ...) primary properties
+    rolls: tuple  # ((stat, value), ...) random secondary properties
+
+
+@dataclass(frozen=True)
+class RollPrice:
+    ok: bool
+    price: int | None
+    fee: int
+    reason: str
+    flag: str = ""
+    compared: str = ""
+
+
+def stat_name(property_type_id: str) -> str:
+    """'DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Luck' -> 'Luck'."""
+    return str(property_type_id).split(PROPERTY_PREFIX)[-1]
+
+
+def _at_least_as_good(row: MarketRow, base: tuple, rolls: tuple) -> bool:
+    theirs = dict(row.base) | dict(row.rolls)
+    return all(theirs.get(stat, float("-inf")) >= value for stat, value in base + rolls)
+
+
+def _undercut(reference, rules) -> int:
+    return math.floor(reference * (1 - rules.undercut_pct / 100))
+
+
+def _reference(item_id, base, rolls, same_rows, all_rows, rules):
+    """Return (price, flag, compared) or None when nobody sells this item."""
+    rows = [r for r in list(same_rows) + list(all_rows) if r.item_id == item_id]
+    if not rows:
+        return None
+    roll_set = {stat for stat, _ in rolls}
+    similar = list({id(r): r for r in rows if {s for s, _ in r.rolls} == roll_set}.values())
+    better = [r for r in similar if _at_least_as_good(r, base, rolls)]
+    if better:
+        cheapest = min(r.price for r in better)
+        compared = f"{len(similar)} listings with the same rolls; cheapest at least as good: {cheapest}g"
+        return _undercut(cheapest, rules), "", compared
+    if similar:
+        top = max(r.price for r in similar)
+        flag = f"Your rolls are better than every similar listing (best asks {top}g) — set this price yourself."
+        return top, flag, f"{len(similar)} listings with the same rolls, all worse"
+    cheapest = min(r.price for r in rows)
+    flag = "There are no listings with the same rolls — priced against all rolls; check this price."
+    return _undercut(cheapest, rules), flag, f"{len(rows)} listings of any roll; cheapest {cheapest}g"
+
+
+def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, rules) -> RollPrice:
+    found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules)
+    if found is None:
+        return RollPrice(False, None, 0, NO_SELLERS_REASON)
+    price, flag, compared = found
+    if price < max(rules.min_price, 1):
+        return RollPrice(False, None, 0, "below min price", flag, compared)
+    fee = listing_fee(price)
+    net = price - fee
+    if net <= int(vendor_price or 0):
+        return RollPrice(False, None, 0, "vendor pays more", flag, compared)
+    if net / price < rules.min_net_ratio:
+        return RollPrice(False, None, 0, "fee too high", flag, compared)
+    return RollPrice(True, price, fee, "ok", flag, compared)

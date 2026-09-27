@@ -88,6 +88,9 @@ def _item_list(prices, item="HeaterShield_5001"):
         info = msg.itemInfos.add()
         info.item.itemId = f"DesignDataItem:Id_Item_{item}"
         info.price = price
+        roll = info.item.secondaryPropertyArray.add()
+        roll.propertyTypeId = "DesignDataItemPropertyType:Id_ItemPropertyType_Effect_Luck"
+        roll.propertyValue = 17
     return msg
 
 
@@ -98,7 +101,9 @@ def test_wait_for_item_list_returns_prices_newer_than_since():
     assert state.wait_for_item_list(since=100.0, timeout=0.05) is None  # not newer
     clock.t = 101.0
     state.handle_item_list(_item_list([300, 333], item="GemRing_6001"))
-    assert state.wait_for_item_list(since=100.5, timeout=0.05) == [("GemRing_6001", 300), ("GemRing_6001", 333)]
+    rows = state.wait_for_item_list(since=100.5, timeout=0.05)
+    assert [(r.item_id, r.price, r.rolls) for r in rows] == [
+        ("GemRing_6001", 300, (("Luck", 17),)), ("GemRing_6001", 333, (("Luck", 17),))]
 
 
 def test_describe_fail_code():

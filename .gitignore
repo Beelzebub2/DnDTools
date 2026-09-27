@@ -76,3 +76,4 @@ nodejs/npm-debug.log*
 nodejs/yarn-debug.log*
 nodejs/yarn-error.log*
 nodejs/.env
+!/UI/tests/test_roll_pricing.py

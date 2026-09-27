@@ -12,6 +12,7 @@ from networking.protos import MarketPlace_pb2
 
 from src.market_lister import PlanEntry
 from src.models.marketplace_layout import build_layout, tab_icon_index
+from src.models.roll_pricing import MarketRow
 from src.models.marketplace_runner import CURSOR_DEVIATION_PX, MarketplaceRunner
 from src.models.marketplace_state import FIRST_PAGE, MAX_SNAPSHOT_AGE_S, MarketplaceState, RegisterOutcome
 
@@ -378,7 +379,8 @@ class PricingState(ScriptedState):
 
 def test_price_all_runs_the_search_flow_per_item():
     driver = FakeDriver()
-    state = PricingState([[("HeaterShield_5001", 300)], None], available=(2, 3))
+    row = MarketRow("HeaterShield_5001", 300, (), ())
+    state = PricingState([[], [row], None, None], available=(2, 3))  # same-roll then all-roll search per item
     entries = [_entry("a", stash="20", slot=13), _entry("b", slot=1)]
     progress = []
     rows, report = _runner(driver, state).price_all(entries, on_progress=progress.append)
@@ -390,7 +392,7 @@ def test_price_all_runs_the_search_flow_per_item():
         LAYOUT.point("my_listings_tab"),
     ]
     assert LAYOUT.point("create_listing_button") not in clicks
-    assert rows == {"a": [("HeaterShield_5001", 300)], "b": []}
+    assert rows == {"a": {"same": [], "all": [row]}, "b": {"same": [], "all": []}}
     assert [r.status for r in report.results] == ["priced", "no_results"]
     assert len(progress) == 2 and report.stopped_reason is None
 

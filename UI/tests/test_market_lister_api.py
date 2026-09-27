@@ -18,6 +18,7 @@ from src.market_lister_api import ListerDeps, create_market_lister_blueprint
 from src.market_lister_job import ListerJob
 from src.models.marketplace_runner import ItemResult, RunReport
 from src.models.marketplace_state import MarketplaceState
+from src.models.roll_pricing import MarketRow
 
 ENTRY = {"unique_id": "a", "name": "Gloves", "rarity": 5, "stash_id": "2", "slot_id": 0,
          "width": 1, "height": 1, "price": 900, "fee": 45, "vendor_price": 10}
@@ -34,7 +35,8 @@ class FakeRunner:
         return RunReport(tuple(results), None)
 
     def price_all(self, entries, on_progress=None):
-        rows = {e.unique_id: [(e.item_id, 300), (e.item_id, 320), (e.item_id, 340)] for e in entries}
+        rows = {e.unique_id: {"same": [], "all": [MarketRow(e.item_id, p, (), ()) for p in (300, 320, 340)]}
+                for e in entries}
         results = [ItemResult(e.unique_id, e.name, "priced") for e in entries]
         for r in results:
             on_progress(r)

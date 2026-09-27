@@ -135,7 +135,7 @@ class MarketplaceRunner:
     def price_all(self, entries, on_progress=None):
         """Look up each entry's current market listings via the in-game Search flow.
 
-        Never clicks Create Listing. Returns ({unique_id: [(item_id, price)]}, RunReport).
+        Never clicks Create Listing. Returns ({unique_id: {"same": [MarketRow], "all": [MarketRow]}}, RunReport).
         """
         snapshot = self._state.snapshot()
         entries = list(entries)
@@ -149,10 +149,11 @@ class MarketplaceRunner:
             for entry in entries:
                 if not self._safety.checkpoint():
                     raise _Stop(f"Stopped for safety: {_friendly_reason(self._safety.reason) or 'the game lost focus'}")
-                rows = self._search_market(entry, spot) or []
-                rows_by_uid[entry.unique_id] = rows
-                result = ItemResult(entry.unique_id, entry.name, "priced" if rows else "no_results",
-                                    f"{len(rows)} listings found")
+                found = self._search_market(entry, spot)
+                rows_by_uid[entry.unique_id] = found
+                total = len(found["same"]) + len(found["all"])
+                result = ItemResult(entry.unique_id, entry.name, "priced" if total else "no_results",
+                                    f"{len(found['same'])} with the same rolls, {len(found['all'])} of any roll")
                 results.append(result)
                 if on_progress:
                     on_progress(result)
@@ -171,16 +172,19 @@ class MarketplaceRunner:
         self._page = 0  # returning to My Listings shows page 1 again
         self._go_to_spot(spot)
         self._select_item(entry)
+        since = self._state.now()
+        # The game pre-fills the search with our item's random attributes: same-roll listings.
         self._click(self._layout.point("form_search_button"))
+        same = self._state.wait_for_item_list(since, self._register_timeout) or []
         self._settle()
-        self._click(self._layout.point("market_attr_reset"))  # search all rolls, not just ours
+        self._click(self._layout.point("market_attr_reset"))  # then every roll of this item
         self._settle()
         since = self._state.now()
         self._click(self._layout.point("market_search_button"))
-        rows = self._state.wait_for_item_list(since, self._register_timeout)
+        every = self._state.wait_for_item_list(since, self._register_timeout) or []
         self._click(self._layout.point("my_listings_tab"))
         self._settle()
-        return rows
+        return {"same": same, "all": every}
 
     def _check(self):
         if self._is_cancelled():
