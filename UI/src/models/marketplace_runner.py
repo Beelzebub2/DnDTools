@@ -255,6 +255,10 @@ class MarketplaceRunner:
         since = self._state.now()
         self._check()
         self._driver.click(*self._layout.point("create_listing_button"))
+        self._pause()
+        # The game asks "Would you like to list the item?"; the fee is only charged on Yes.
+        self._check()
+        self._driver.click(*self._layout.point("confirm_listing_yes"))
         outcome = self._state.wait_for_register(self._register_timeout)
         if outcome.status == "timeout":
             fail = ItemResult(entry.unique_id, entry.name, "unconfirmed", "no response — may be listed, fee may have been charged")

@@ -208,8 +208,10 @@
     };
 
     const priceFromGame = async () => {
+        const entries = selectedEntries();
+        if (!entries.length) { notify('Tick at least one item to price.', 'warning'); return; }
         try {
-            await post('/price', { entries: plan.entries });
+            await post('/price', { entries });
             notify('Pricing from the in-game market — switching to the game…');
             watching = true;
             setRunning(true);

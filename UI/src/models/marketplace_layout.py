@@ -23,6 +23,7 @@ BASE_POINTS = {
     "market_search_button": (1794, 277),   # View Market "Search" button
     "my_listings_tab": (1062, 123),        # "My Listings" tab header
     "market_next_page": (1032, 1015),      # View Market next-page arrow
+    "confirm_listing_yes": (861, 620),     # "Would you like to list the item?" -> Yes
 }
 BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3}
 

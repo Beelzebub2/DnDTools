@@ -13,6 +13,7 @@ from src.models.market_rules import listing_fee
 PROPERTY_PREFIX = "Effect_"
 NO_SELLERS_REASON = "nobody is selling this right now"
 LOWBALL_RATIO = 0.5  # a listing under half the average ask is treated as a lowball outlier
+CLOSE_ROLL_RATIO = 1.5  # a roll up to 1.5x ours counts as comparable; beyond that we scale
 
 
 @dataclass(frozen=True)
@@ -55,21 +56,40 @@ def _unique(rows):
     return list({(r.listing_id or (r.item_id, r.price, r.base, r.rolls)): r for r in rows}.values())
 
 
-def _best_single_roll(rows, base, rolls):
-    """((stat, value), price) for the roll of ours that the market values most, or None.
+def _roll_value(row, stat):
+    return dict(row.rolls).get(stat, float("-inf"))
 
-    For each of our rolls, the cheapest listing carrying that stat at least as high (and
-    base stats at least as good) shows what buyers pay for it; our item offers the same,
-    so its value is set by whichever roll commands the highest such price.
+
+def _single_roll_reference(rows, base, stat, value):
+    """(reference price, explanation) that one of our rolls supports, or None."""
+    eligible = [r for r in rows if _at_least_as_good(r, base, ())]
+    supporters = [r for r in eligible if _roll_value(r, stat) >= value]
+    if not supporters:
+        return None
+    cheapest = _sane_min([r.price for r in supporters])
+    match = min((r for r in supporters if r.price == cheapest), key=lambda r: _roll_value(r, stat))
+    theirs = _roll_value(match, stat)
+    if value <= 0 or theirs <= value * CLOSE_ROLL_RATIO:
+        return cheapest, f"cheapest listing with it at least as good: {cheapest}g"
+    # Only much stronger rolls are listed: scale by roll strength, floored by weaker listings.
+    estimate = cheapest * value / theirs
+    weaker = [r.price for r in eligible if value > _roll_value(r, stat) > float("-inf")]
+    if weaker:
+        estimate = max(estimate, max(weaker))
+    return estimate, f"scaled from a {stat} {theirs} listing at {cheapest}g"
+
+
+def _best_single_roll(rows, base, rolls):
+    """((stat, value), reference, explanation) for our roll the market values most, or None.
+
+    A buyer after one of our rolls pays at least what the cheapest comparable listing with
+    that roll costs, so the item's value is set by whichever roll supports the highest price.
     """
     best = None
     for stat, value in rolls:
-        supporters = [r.price for r in rows
-                      if dict(r.rolls).get(stat, float("-inf")) >= value and _at_least_as_good(r, base, ())]
-        if supporters:
-            cheapest = _sane_min(supporters)
-            if best is None or cheapest > best[1]:
-                best = ((stat, value), cheapest)
+        found = _single_roll_reference(rows, base, stat, value)
+        if found and (best is None or found[0] > best[1]):
+            best = ((stat, value), found[0], found[1])
     return best
 
 
@@ -95,11 +115,10 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules):
         return top, flag, f"{len(similar)} listings with the same rolls, all worse"
     best = _best_single_roll(rows, base, rolls)
     if best is not None:
-        (stat, value), cheapest = best
-        compared = (f"matched on your best roll: {stat} {value} "
-                    f"(cheapest listing with it at least as good: {cheapest}g)")
+        (stat, value), reference, how = best
+        compared = f"matched on your best roll: {stat} {value} ({how})"
         flag = "Priced from your best single roll (no exact roll match) — check this price."
-        return _undercut(cheapest, rules), flag, compared
+        return _undercut(reference, rules), flag, compared
     cheapest = _sane_min([r.price for r in rows])
     flag = "There are no listings with the same rolls — priced against all rolls; check this price."
     return _undercut(cheapest, rules), flag, f"{len(rows)} listings of any roll; cheapest {cheapest}g"

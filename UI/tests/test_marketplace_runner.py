@@ -87,6 +87,7 @@ def test_run_clicks_full_sequence_for_one_item():
         ("click", LAYOUT.point("price_field")),
         ("type", "900"),
         ("click", LAYOUT.point("create_listing_button")),
+        ("click", LAYOUT.point("confirm_listing_yes")),   # "Would you like to list the item?" -> Yes
     ]
 
 
@@ -143,9 +144,27 @@ def test_run_stops_when_listing_not_confirmed():
 
 
 def test_run_stops_when_cancelled():
+    # Cancel lands after Create Listing but before the confirmation: Yes is never clicked,
+    # so nothing is listed and no fee is charged.
     flag = {"cancel": False}
     driver = FakeDriver()
     driver.on_create = lambda: flag.update(cancel=True)
+    report = _runner(driver, ScriptedState(), cancelled=lambda: flag["cancel"]).run([_entry("a"), _entry("b", slot=1)])
+    assert report.results == ()
+    assert report.stopped_reason == "Cancelled"
+    assert ("click", LAYOUT.point("confirm_listing_yes")) not in driver.actions
+
+
+def test_run_cancel_between_items_keeps_the_listed_one():
+    flag = {"cancel": False, "yes": 0}
+    driver = FakeDriver()
+    original = driver.click
+
+    def click(x, y):
+        original(x, y)
+        if (x, y) == LAYOUT.point("confirm_listing_yes"):
+            flag["cancel"] = True
+    driver.click = click
     report = _runner(driver, ScriptedState(), cancelled=lambda: flag["cancel"]).run([_entry("a"), _entry("b", slot=1)])
     assert [r.status for r in report.results] == ["listed"]
     assert report.stopped_reason == "Cancelled"

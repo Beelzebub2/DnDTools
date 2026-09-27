@@ -100,3 +100,21 @@ def test_best_single_roll_ignores_listings_with_worse_base_stats():
             _row(200, rolls=(("Luck", 17),), base=(("ArmorRating", 30),))]
     result = _price(rows)
     assert result.price == 180
+
+
+def test_best_single_roll_prefers_listings_with_a_similar_roll_value():
+    # Ours: Luck 17. A Luck 30 god-roll shouldn't set the price when a Luck 19 exists.
+    rows = [_row(450, rolls=(("Luck", 30),)), _row(300, rolls=(("Luck", 19),))]
+    assert _price(rows).price == 270
+
+
+def test_only_much_better_rolls_scale_the_price_down_by_roll_strength():
+    # Only a Luck 30 at 450g: Luck 17 is worth about 450 * 17/30 = 255, then undercut 10%.
+    result = _price([_row(450, rolls=(("Luck", 30),))])
+    assert result.price == 229
+    assert "scaled" in result.compared
+
+
+def test_a_weaker_roll_listing_sets_a_floor_for_the_scaled_estimate():
+    rows = [_row(450, rolls=(("Luck", 30),)), _row(300, rolls=(("Luck", 12),))]
+    assert _price(rows).price == 270  # estimate 255 lifted to the 300g weaker-roll floor, undercut
