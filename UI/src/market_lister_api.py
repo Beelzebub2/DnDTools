@@ -39,6 +39,7 @@ class ListerDeps:
     extra_roll_share: Callable[[], float] = lambda: 0.5
     old_page_detector: Callable[[], Any] = lambda: None
     price_search: Callable[[str], list] = lambda query: []
+    analyze_market: Callable[[], dict] = lambda: {}
 
 
 def _error(message, status=400):
@@ -195,6 +196,10 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         if len(query) < MIN_PRICE_QUERY:
             return _error(f"Type at least {MIN_PRICE_QUERY} letters of an item name.")
         return jsonify({"success": True, "items": deps.price_search(query)[:MAX_PRICE_RESULTS]})
+
+    @bp.post("/api/market-lister/analyze")
+    def analyze():
+        return jsonify({"success": True, "report": deps.analyze_market()})
 
     @bp.get("/api/market-lister/history")
     def history():

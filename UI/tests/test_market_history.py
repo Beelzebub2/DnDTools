@@ -132,3 +132,11 @@ def test_price_guide_summarises_each_item_per_unit():
     assert guide["Bandage_2001"] == {"listings": 3, "min_unit": 90.0, "median_unit": 100.0, "max_unit": 120.0}
     assert guide["HeaterShield_5001"]["listings"] == 1
     assert "Missing_1001" not in guide
+
+
+def test_pattern_listings_export_every_saved_listing():
+    clock = Clock()
+    history = _history(clock)
+    history.record_item_list(_page((1, "HeaterShield_5001", 300, DAY_MS, 17)))
+    [listing] = history.pattern_listings()
+    assert (listing.item_id, listing.rarity, listing.price, listing.rolls) == ("HeaterShield_5001", 5, 300, (("Luck", 17),))

@@ -209,6 +209,15 @@ class MarketHistory:
                               "median_unit": round(values[len(values) // 2], 1), "max_unit": round(values[-1], 1)}
         return guide
 
+    def pattern_listings(self) -> list:
+        """Every saved listing as market_patterns.Listing, for cross-item analysis."""
+        from src.models.market_patterns import Listing
+        with self._lock:
+            records = self._db.execute(
+                "SELECT item_id, rarity, price, item_count, base, rolls, seller FROM listings").fetchall()
+        return [Listing(i, r, p, c, tuple(map(tuple, json.loads(b))), tuple(map(tuple, json.loads(ro))), s)
+                for i, r, p, c, b, ro, s in records]
+
     def known_item_ids(self) -> list:
         with self._lock:
             return [r[0] for r in self._db.execute("SELECT DISTINCT item_id FROM listings").fetchall()]

@@ -312,3 +312,9 @@ def test_price_search_endpoint(client_and_deps):
     data = client.get("/api/market-lister/prices?q=heater").get_json()
     assert data["items"][0]["listings"] == 131
     assert client.get("/api/market-lister/prices?q=h").status_code == 400
+
+
+def test_analyze_endpoint_returns_report(client_and_deps):
+    client, deps, _ = client_and_deps
+    deps.analyze_market = lambda: {"listings": 5, "rarity_steps": {"5->6": {"median_ratio": 2.5}}}
+    assert client.post("/api/market-lister/analyze").get_json()["report"]["listings"] == 5

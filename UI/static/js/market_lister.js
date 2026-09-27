@@ -121,6 +121,41 @@
 
     const gold = (value) => `${Math.round(value).toLocaleString()}g`;
 
+    const insightList = (title, lines) => {
+        const block = document.createElement('div');
+        block.append(text('h3', title));
+        const ul = document.createElement('ul');
+        ul.replaceChildren(...(lines.length ? lines : ['Not enough data yet.']).map((line) => text('li', line)));
+        block.append(ul);
+        return block;
+    };
+
+    const analyzeMarket = async () => {
+        $('mlAnalyze').disabled = true;
+        try {
+            const { report } = await post('/analyze');
+            const stats = Object.entries(report.stat_premiums || {});
+            const pct = (v) => `${v > 0 ? '+' : ''}${v}%`;
+            $('mlInsights').replaceChildren(
+                text('p', `${report.listings} listings across ${report.items} items analysed.`, 'ml-muted'),
+                insightList('Rolls that add the most value (worst → best roll, same item)',
+                    stats.slice(0, 8).map(([s, p]) => `${s}: ${pct(p.per_quality)} (n=${p.support})`)),
+                insightList('Rolls that add the least', stats.slice(-5).map(([s, p]) => `${s}: ${pct(p.per_quality)}`)),
+                insightList('Good rolls (top 30% of range) vs price', Object.entries(report.good_roll_counts || {})
+                    .map(([k, v]) => `${k} good roll(s): ${pct(v.median_uplift)} (n=${v.support})`)),
+                insightList('Rarity price steps', Object.entries(report.rarity_steps || {})
+                    .map(([step, v]) => `${step}: ×${v.median_ratio} (${v.archetypes} items)`)),
+                insightList('Listed below what a merchant pays', (report.below_vendor || [])
+                    .map((d) => `${d.name}: ${d.price}g (merchant pays ${d.vendor}g, +${d.gain}g)`)),
+            );
+            $('mlInsights').hidden = false;
+        } catch (error) {
+            notify(error.message, 'error');
+        } finally {
+            $('mlAnalyze').disabled = false;
+        }
+    };
+
     const searchPrices = async () => {
         const query = $('mlPriceQuery').value.trim();
         if (query.length < 2) { $('mlPriceTable').hidden = true; return; }
@@ -368,6 +403,7 @@
         $('mlCrawlUpdate').addEventListener('click', () => runJob('/crawl', { pages: 20 }, 'Updating market data…'));
         $('mlCrawlDeep').addEventListener('click', () => runJob('/crawl', { pages: 60, incremental: false },
             'Deep crawl started — this reads a few hundred pages…'));
+        $('mlAnalyze').addEventListener('click', analyzeMarket);
         $('mlPriceQuery').addEventListener('input', () => {
             clearTimeout(priceQueryTimer);
             priceQueryTimer = setTimeout(searchPrices, 300);

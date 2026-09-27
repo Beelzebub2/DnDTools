@@ -2792,6 +2792,24 @@ def _lister_price_search(query):
     return sorted(rows, key=lambda r: (r["name"], r["rarity"]))
 
 
+def _lister_analyze_market():
+    """Run the cross-item pattern analysis, save market_model.json for pricing, return a summary."""
+    from src.models.game_data import item_data_manager
+    from src.models.market_patterns import analyze
+    listings = market_history.pattern_listings()
+    ids = {listing.item_id for listing in listings}
+    metas = {i: item_data_manager.get_item_data(i) or {} for i in ids}
+    report = analyze(listings, {i: m.get("vendor_price", 0) for i, m in metas.items()},
+                     {i: m.get("item_type") or "other" for i, m in metas.items()})
+    model = {k: report[k] for k in ("stat_premiums", "good_roll_counts", "extra_good_roll_factor", "roll_ranges")}
+    with open(os.path.join(get_data_dir(), 'market_model.json'), 'w', encoding='utf-8') as fh:
+        json.dump(model, fh)
+    names = {i: m.get("name") or i for i, m in metas.items()}
+    summary = {k: v for k, v in report.items() if k != "roll_ranges"}
+    summary["below_vendor"] = [{**d, "name": names.get(d["item"], d["item"])} for d in report["below_vendor"]]
+    return summary
+
+
 def _lister_extra_roll_share():
     """Share of each extra good roll's premium to add — learned by scripts/market_patterns_report.py."""
     from src.models.roll_pricing import EXTRA_ROLL_SHARE
@@ -2960,6 +2978,7 @@ if not _is_child_process:
         extra_roll_share=_lister_extra_roll_share,
         old_page_detector=_lister_old_page_detector,
         price_search=_lister_price_search,
+        analyze_market=_lister_analyze_market,
     )))
 
 @server.route('/api/download_update')

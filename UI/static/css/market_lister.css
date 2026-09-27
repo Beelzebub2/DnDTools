@@ -62,3 +62,6 @@
 .ml-result-skipped { color: var(--text-secondary); }
 .ml-search { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; color: var(--text-secondary); }
 .ml-search input { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); max-width: 420px; }
+.ml-insights { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px 24px; margin-top: 16px; }
+.ml-insights h3 { font-size: 0.95rem; margin: 0 0 6px; color: var(--accent-gold); }
+.ml-insights ul { margin: 0; padding-left: 18px; color: var(--text-secondary); }
