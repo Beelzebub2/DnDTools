@@ -22,8 +22,10 @@ class MacrosInputDriver:
         macros.move_mouse(x, y)
         time.sleep(CLICK_HOLD_SECONDS)
         macros.mouse_down()
-        time.sleep(CLICK_HOLD_SECONDS)
-        macros.mouse_up()
+        try:
+            time.sleep(CLICK_HOLD_SECONDS)
+        finally:
+            macros.mouse_up()
 
     def _tap(self, vk):
         macros.send_key(vk)
@@ -32,15 +34,17 @@ class MacrosInputDriver:
         time.sleep(KEY_GAP_SECONDS)
 
     def clear_and_type(self, text):
-        macros.send_key(macros.VK_CONTROL)
-        self._tap(VK_A)
-        macros.send_key(macros.VK_CONTROL, key_up=True)
-        self._tap(VK_BACK)
-        for ch in text:
-            if not ch.isdigit():
-                raise ValueError("price must be digits only")
-            self._tap(VK_DIGIT_0 + int(ch))
-        macros.release_modifiers()
+        if not text.isdigit():
+            raise ValueError("price must be digits only")
+        try:
+            macros.send_key(macros.VK_CONTROL)
+            self._tap(VK_A)
+            macros.send_key(macros.VK_CONTROL, key_up=True)
+            self._tap(VK_BACK)
+            for ch in text:
+                self._tap(VK_DIGIT_0 + int(ch))
+        finally:
+            macros.release_modifiers()
 
 
 def resolution_key():
