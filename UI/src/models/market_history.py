@@ -15,6 +15,7 @@ from src.models.roll_pricing import MarketRow, stat_name
 ITEM_ID_PREFIX = "Id_Item_"
 MS_PER_S = 1000.0
 VANISH_MARGIN_S = 600  # a listing gone >10 min before its expiry did not simply expire
+MY_STATE_LISTING = 1
 MY_STATE_SOLD = 3
 BUSY_TIMEOUT_S = 5.0  # wait this long for another connection (e.g. an analysis script) to finish writing
 
@@ -149,6 +150,21 @@ class MarketHistory:
             self._db.commit()
             return cursor.rowcount
 
+    def note_crawl_pass(self, rarity: int, started_at: float) -> int:
+        """After a crawl read every page of one rarity, mark its listings that didn't show up again.
+
+        A listing last seen before the pass started, and not due to expire yet, most likely
+        sold (or was cancelled). Returns how many were marked.
+        """
+        now = self._clock()
+        with self._lock:
+            cursor = self._db.execute(
+                """UPDATE listings SET vanished_at = ?
+                   WHERE rarity = ? AND vanished_at IS NULL AND last_seen < ? AND expires_at > ?""",
+                (now, int(rarity), started_at, now + VANISH_MARGIN_S))
+            self._db.commit()
+            return cursor.rowcount
+
     def record_my_listings(self, message) -> None:
         now = self._clock()
         with self._lock:
@@ -164,6 +180,12 @@ class MarketHistory:
                     (listing_id, str(item_info.item.itemId).split(ITEM_ID_PREFIX)[-1], int(item_info.price),
                      state, now, now, now if state == MY_STATE_SOLD else None))
             self._db.commit()
+
+    def my_listing_ids(self) -> frozenset:
+        """Listing ids of our listings still up for sale, from every My Listings page ever seen."""
+        with self._lock:
+            rows = self._db.execute("SELECT listing_id FROM my_listings WHERE state = ?", (MY_STATE_LISTING,))
+            return frozenset(listing_id for (listing_id,) in rows.fetchall())
 
     def active_rows(self, item_id: str, max_age_s: float) -> list:
         """MarketRows for listings of `item_id` seen recently that have not vanished or expired."""

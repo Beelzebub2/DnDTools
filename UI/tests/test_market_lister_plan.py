@@ -186,3 +186,8 @@ def test_apply_game_prices_skips_prices_above_the_game_maximum():
     market = {"a": {"same": [], "all": [MarketRow("Id_a", MAX_LISTING_PRICE * 3, (), ())]}}
     plan = apply_game_prices(unpriced, market, ListerRules(source_stash_ids=("2",)))
     assert plan.entries == () and "maximum" in plan.skipped[0].reason
+
+
+def test_darkerdb_prices_remember_the_recommendation_so_edits_are_kept():
+    plan = _plan({"2": [_item("a", 3)]}, lambda item: _ok())
+    assert (plan.entries[0].price, plan.entries[0].recommended) == (900, 900)

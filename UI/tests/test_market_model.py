@@ -45,3 +45,35 @@ def test_extra_roll_share_is_clamped_with_a_default():
     assert extra_roll_share({"extra_good_roll_factor": -1}, 0.25) == 0.0
     assert extra_roll_share({"extra_good_roll_factor": "x"}, 0.25) == 0.25
     assert extra_roll_share({}, 0.25) == 0.25
+
+
+def test_a_failed_save_keeps_the_previous_model(tmp_path, monkeypatch):
+    import json
+    import pytest
+    path = str(tmp_path / "market_model.json")
+    save_model(path, {"extra_good_roll_factor": 0.1})
+
+    def broken_dump(*args, **kwargs):
+        raise OSError("disk full")
+    monkeypatch.setattr(json, "dump", broken_dump)
+    with pytest.raises(OSError):
+        save_model(path, {"extra_good_roll_factor": 0.9})
+    monkeypatch.undo()
+    assert load_model(path) == {"extra_good_roll_factor": 0.1}
+    assert os.listdir(tmp_path) == ["market_model.json"]
+
+
+def test_save_retries_while_windows_holds_the_file(tmp_path, monkeypatch):
+    import src.models.market_model as market_model
+    path = str(tmp_path / "market_model.json")
+    real_replace, calls = os.replace, []
+
+    def busy_twice(src, dst):
+        calls.append(dst)
+        if len(calls) <= 2:
+            raise PermissionError("[WinError 5] Access is denied")
+        real_replace(src, dst)
+    monkeypatch.setattr(market_model.os, "replace", busy_twice)
+    monkeypatch.setattr(market_model, "REPLACE_RETRY_S", 0)
+    save_model(path, {"extra_good_roll_factor": 0.2})
+    assert len(calls) == 3 and load_model(path) == {"extra_good_roll_factor": 0.2}

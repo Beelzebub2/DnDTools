@@ -17,6 +17,9 @@ NO_FREE_SPOTS = "No free listing spots left."
 NOT_ON_MY_LISTINGS = ("Couldn't confirm My Listings is open on page 1 — open Trade → Marketplace → "
                       "My Listings in the game and try again.")
 DEFAULT_SKIP_NOTE = "no longer worth listing at today's prices"
+MOUSE_MOVED = "Stopped for safety: the mouse was moved"
+UNFOCUSED_REASON = "game_window_unfocused"
+DIALOG_MAY_BE_OPEN = " The \"Would you like to list the item?\" dialog may still be open: click No in the game."
 CRAWL_RARITIES = (5, 6, 4, 7)  # Epic, Legendary, Rare, Unique
 RARITY_NAMES = {1: "Poor", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Epic", 6: "Legendary",
                 7: "Unique", 8: "Artifact"}
@@ -90,7 +93,7 @@ class _Stop(Exception):
 
 class MarketplaceRunner:
     def __init__(self, driver, layout, state, *, tab_mapping, is_cancelled, pause,
-                 safety=None, register_timeout=5.0, confirm_timeout=3.0, scan_observer=None):
+                 safety=None, register_timeout=5.0, confirm_timeout=3.0, scan_observer=None, pass_observer=None):
         self._driver = driver
         self._layout = layout
         self._state = state
@@ -101,8 +104,10 @@ class MarketplaceRunner:
         self._register_timeout = register_timeout
         self._confirm_timeout = confirm_timeout
         self._scan_observer = scan_observer  # (item_id, started_at, rows, complete) after each item scan
+        self._pass_observer = pass_observer  # (rarity, started_at) -> listings marked gone, after a full pass
         self._page = 0
         self._arrow_attempt = 0
+        self._last_click = None
 
     def _stale_message(self, snapshot):
         if snapshot is None:
@@ -241,6 +246,7 @@ class MarketplaceRunner:
                 if on_progress:
                     on_progress(result)
                 self._safety_checkpoint()
+                self._check_mouse_still()
                 snapshot = self._confirm_my_listings(via_market=True)
         except _Stop as stop:
             stop_results = getattr(stop, "results", [])
@@ -265,10 +271,15 @@ class MarketplaceRunner:
         results = []
         try:
             for rarity in rarities:
-                read, total = self._crawl_rarity(rarity, pages, gear_only, is_old_page,
-                                                 self._crawl_progress_reporter(on_progress))
-                result = ItemResult(f"rarity-{rarity}", RARITY_NAMES.get(rarity, str(rarity)), "crawled",
-                                    f"{read} pages, {total} listings")
+                started = self._state.now()
+                read, total, complete = self._crawl_rarity(rarity, pages, gear_only, is_old_page,
+                                                           self._crawl_progress_reporter(on_progress))
+                message = f"{read} pages, {total} listings"
+                if complete and is_old_page is None and self._pass_observer:  # every listing of it was seen
+                    gone = self._pass_observer(rarity, started)
+                    if gone is not None:
+                        message += f"; {gone} gone since the last full crawl (likely sold)"
+                result = ItemResult(f"rarity-{rarity}", RARITY_NAMES.get(rarity, str(rarity)), "crawled", message)
                 results.append(result)
                 if on_progress:
                     on_progress(result)
@@ -292,17 +303,21 @@ class MarketplaceRunner:
         since = self._state.now()
         self._click(self._layout.point("market_search_button"))
         rows = self._state.wait_for_item_list(since, self._register_timeout) or []
-        read, total = 0, 0
+        read, total, complete = 0, 0, False
         while rows:
             read, total = read + 1, total + len(rows)
             if on_page and read % CRAWL_PROGRESS_EVERY == 0:
                 on_page(rarity, read, total)
-            if read >= pages or len(rows) < MARKET_PAGE_SIZE or (is_old_page and is_old_page(rows)):
+            if len(rows) < MARKET_PAGE_SIZE:  # a short page is the last one: the whole rarity was read
+                complete = True
+                break
+            if read >= pages or (is_old_page and is_old_page(rows)):
                 break
             self._safety_checkpoint()
+            self._check_mouse_still()
             rows = self._next_page() or []
             self._safety.snapshot_position()
-        return read, total
+        return read, total, complete
 
     def _crawl_progress_reporter(self, on_progress):
         if not on_progress:
@@ -320,7 +335,9 @@ class MarketplaceRunner:
             since = self._state.now()
             self._check()
             # No fixed pause: the server's reply (awaited below) is the only wait between pages.
-            self._driver.click(*self._layout.next_page_candidate(attempt))
+            point = self._layout.next_page_candidate(attempt)
+            self._driver.click(*point)
+            self._last_click = point
             rows = self._state.wait_for_item_list(since, NEXT_PAGE_TIMEOUT_S)
             if rows is not None:
                 self._arrow_attempt = attempt
@@ -417,7 +434,16 @@ class MarketplaceRunner:
     def _click(self, point):
         self._check()
         self._driver.click(*point)
+        self._last_click = point
         self._pause()
+
+    def _check_mouse_still(self):
+        """Stop when the cursor left the spot we last clicked: someone took the mouse."""
+        if self._last_click is None:
+            return
+        (px, py), (cx, cy) = self._last_click, self._driver.position()
+        if abs(cx - px) > CURSOR_DEVIATION_PX or abs(cy - py) > CURSOR_DEVIATION_PX:
+            raise _Stop(MOUSE_MOVED)
 
     def _go_to_spot(self, index):
         page, row = spot_location(index)
@@ -426,7 +452,11 @@ class MarketplaceRunner:
         if page < self._page:
             self._confirm_my_listings(via_market=True)  # back to page 1, then forward again
         while self._page < page:
+            since = self._state.now()
             self._click(self._layout.point("next_page_arrow"))
+            snapshot = self._state.wait_for_fresh_snapshot(since, self._register_timeout)
+            if snapshot is None or snapshot.current_page != FIRST_PAGE + self._page + 1:
+                raise _Stop(f"Couldn't turn My Listings to page {self._page + 2}, so nothing was clicked there.")
             self._page += 1
         self._click(self._layout.spot_row(row))
 
@@ -471,18 +501,24 @@ class MarketplaceRunner:
         self._pause()
         # The game asks "Would you like to list the item?"; the fee is only charged on Yes.
         if self._is_cancelled():
-            self._dismiss_listing_dialog()  # never leave it open for a stray click to confirm
-            self._check()
+            dismissed = self._dismiss_listing_dialog()  # never leave it open for a stray click to confirm
+            try:
+                self._check()
+            except _Stop as stop:
+                raise _Stop(str(stop) + ("" if dismissed else DIALOG_MAY_BE_OPEN)) from None
         self._driver.click(*self._layout.point("confirm_listing_yes"))
         outcome = self._state.wait_for_register(self._register_timeout)
         if outcome.status == "timeout":
             self._dismiss_listing_dialog()  # in case the Yes click was lost and the dialog is still up
             fail = ItemResult(entry.unique_id, entry.name, "unconfirmed", "no response — may be listed, fee may have been charged")
-            raise self._stop_with(fail, "Listing not confirmed by the game — check the Marketplace.")
+            raise self._stop_with(fail, "Listing not confirmed by the game — check the Marketplace." + DIALOG_MAY_BE_OPEN)
         if outcome.status == "failed":
             message = describe_fail_code(outcome.fail_code)
             fail = ItemResult(entry.unique_id, entry.name, "failed", message)
             if outcome.fail_code in ITEM_LEVEL_FAIL_CODES:
+                # The form (or an error popup) may still be up: only go on from a confirmed My Listings.
+                if self._verify_my_listings(via_market=True) is None:
+                    raise self._stop_with(fail, NOT_ON_MY_LISTINGS)
                 return fail
             raise self._stop_with(fail, message)
         if not self._state.wait_for_listing(entry.unique_id, since, self._confirm_timeout):
@@ -496,8 +532,12 @@ class MarketplaceRunner:
         return ItemResult(entry.unique_id, entry.name, "listed", f"{entry.price}g")
 
     def _dismiss_listing_dialog(self):
+        """Click No on the confirmation dialog; False when another window is in front (no blind click)."""
+        if self._safety.reason == UNFOCUSED_REASON:
+            return False
         self._driver.click(*self._layout.point("confirm_listing_no"))
         self._pause()
+        return True
 
     def _list_one(self, entry, spot_index, dry_run, reprice=None) -> ItemResult:
         self._safety_checkpoint()

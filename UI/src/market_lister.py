@@ -112,6 +112,7 @@ def _entry(candidate, decision=None) -> PlanEntry:
         slot_id=int(item.get("slotId", 0)), width=int(item.get("width") or 1),
         height=int(item.get("height") or 1),
         price=decision.price if decision else 0, fee=decision.fee if decision else 0,
+        recommended=decision.price if decision else 0,
         vendor_price=int(item.get("vendor_price") or 0), item_id=str(item.get("itemId") or ""),
         base_rolls=_stat_pairs(item.get("pp")), rolls=_stat_pairs(item.get("sp")),
         quantity=max(int(item.get("itemCount") or 1), 1),
@@ -204,13 +205,15 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
                                    others(market.get("same") or []), others((market.get("all") or []) + history),
                                    rules, extra_share=extra_share, quantity=entry.quantity, synergies=synergies)
         if result.ok and result.price > MAX_LISTING_PRICE:
-            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, ABOVE_MAX_REASON))
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, ABOVE_MAX_REASON,
+                                result.flag, result.confidence))
         elif result.ok:
             priced.append(replace(entry, price=result.price, fee=result.fee, flag=result.flag,
                                   compared=result.compared, confidence=result.confidence,
                                   recommended=result.price))
         else:
-            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, result.reason))
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, result.reason,
+                                result.flag, result.confidence))
     warnings = list(_explain(priced, skipped))
     flagged = sum(1 for e in priced if e.flag)
     if flagged:

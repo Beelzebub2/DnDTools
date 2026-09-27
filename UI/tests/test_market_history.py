@@ -163,3 +163,32 @@ def test_pattern_listings_export_every_saved_listing():
     history.record_item_list(_page((1, "HeaterShield_5001", 300, DAY_MS, 17)))
     [listing] = history.pattern_listings()
     assert (listing.item_id, listing.rarity, listing.price, listing.rolls) == ("HeaterShield_5001", 5, 300, (("Luck", 17),))
+
+
+def test_full_crawl_pass_marks_listings_that_were_not_seen_again():
+    clock = Clock()
+    history = _history(clock)
+    history.record_item_list(_page((1, "HeaterShield_5001", 300, 5 * DAY_MS, 17),
+                                   (2, "GreatHelm_5001", 900, 5 * DAY_MS, 20),
+                                   (3, "GemRing_4001", 100, 5 * DAY_MS, 1),        # another rarity
+                                   (4, "HeaterShield_5001", 350, 60_000, 12)))     # expires in a minute
+    clock.t += 3600
+    started = clock.t
+    history.record_item_list(_page((1, "HeaterShield_5001", 300, 5 * DAY_MS, 17)))  # the pass sees only #1
+    clock.t += 60
+    assert history.note_crawl_pass(5, started) == 1   # #2 is gone; #3 is Rare; #4 simply expired
+    assert [r.listing_id for r in history.vanished_rows("GreatHelm_5001")] == ["2"]
+    assert history.vanished_rows("HeaterShield_5001") == []
+
+
+def test_my_listing_ids_include_every_active_listing_ever_seen():
+    history = _history(Clock())
+    msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(currentPage=1)
+    for listing_id, state in ((501, 1), (502, 3), (503, 1)):
+        info = msg.myItemInfos.add()
+        info.myItemState = state
+        info.itemInfo.listingId = listing_id
+        info.itemInfo.price = 100
+        info.itemInfo.item.itemId = "DesignDataItem:Id_Item_GemRing_5001"
+    history.record_my_listings(msg)
+    assert history.my_listing_ids() == frozenset({"501", "503"})   # 502 has sold

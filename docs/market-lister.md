@@ -69,8 +69,11 @@ are skipped instead), no free spots, or My Listings not having been seen recentl
 Before the first click of any run, and after every market search, My Listings is re-opened
 and the game must confirm it is showing page 1; otherwise the run stops. The market search
 must show the item that was meant to be selected, or the run stops before listing anything.
-If a run is cancelled while the "Would you like to list the item?" dialog is up, the lister
-clicks **No** so the dialog is never left open.
+Every page turn in My Listings must be confirmed by the game before a spot is clicked, and after
+a listing the game refuses (for example an untradable item) My Listings is re-confirmed before
+the next item. If a run is cancelled while the "Would you like to list the item?" dialog is up,
+the lister clicks **No** — unless another window is in front, in which case the stop message
+tells you to click No yourself. Collecting gold and crawling also stop when you move the mouse.
 
 ## Collecting sold gold
 
@@ -86,7 +89,10 @@ Every Marketplace page DnDTools sees is saved to `%LOCALAPPDATA%/DnDTools/data/m
 browse yourself. Listings that vanish well before their expiry time are marked as *likely sold*.
 
 - **Update market data** reads only new listings (stops once pages are already known).
-- **Deep crawl** reads many pages per rarity (the market sorts by price per unit).
+- **Deep crawl** reads many pages per rarity (the market sorts by price per unit; the game serves
+  about one page per second). When a crawl reads a rarity to its last page, listings from before
+  that crawl that didn't show up again are marked *likely sold* (or cancelled), so repeating
+  full crawls — say once a day — builds up real sale data, not just asking prices.
 - **Look up market prices** searches every saved item by name: listings, cheapest, typical and
   highest price per unit, and what a merchant pays.
 - `UI/scripts/market_patterns_report.py` prints cross-item patterns (which stats add value, how

@@ -7,9 +7,12 @@ import contextlib
 import json
 import os
 import tempfile
+import time
 
 MODEL_KEYS = ("stat_premiums", "good_roll_counts", "extra_good_roll_factor", "roll_ranges", "pair_synergies")
 MIN_PAIR_SUPPORT = 10   # listings carrying a stat pair before its bonus is trusted for pricing
+REPLACE_ATTEMPTS = 5    # Windows refuses to replace a file someone is reading: retry briefly
+REPLACE_RETRY_S = 0.1
 PAIR_SEPARATOR = " + "
 
 
@@ -23,11 +26,22 @@ def save_model(path: str, model: dict) -> None:
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(model, fh, indent=1)
-        os.replace(tmp, path)
+        _replace(tmp, path)
     except BaseException:
         with contextlib.suppress(OSError):
             os.remove(tmp)
         raise
+
+
+def _replace(source, target):
+    for attempt in range(REPLACE_ATTEMPTS):
+        try:
+            os.replace(source, target)
+            return
+        except PermissionError:
+            if attempt == REPLACE_ATTEMPTS - 1:
+                raise
+            time.sleep(REPLACE_RETRY_S * (attempt + 1))
 
 
 def load_model(path: str) -> dict:

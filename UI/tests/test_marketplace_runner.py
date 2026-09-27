@@ -28,11 +28,14 @@ class FakeDriver:
         self.actions = []
         self.on_create = None
         self.on_type = None
+        self.listener = None  # lets a fake game react to clicks (page turns, tab switches)
         self.pos = (0, 0)
 
     def click(self, x, y):
         self.actions.append(("click", (x, y)))
         self.pos = (x, y)
+        if self.listener:
+            self.listener((x, y))
         if (x, y) == LAYOUT.point("create_listing_button") and self.on_create:
             self.on_create()
 
@@ -53,7 +56,7 @@ class ScriptedState(MarketplaceState):
     """Answers register / listing waits from a script instead of packets."""
 
     def __init__(self, used=2, outcomes=(), confirm=True, available=None, clock=None, page=FIRST_PAGE,
-                 answers_page=FIRST_PAGE, responsive=True, after_listing_page=None):
+                 answers_page=FIRST_PAGE, responsive=True, after_listing_page=None, turns_pages=True):
         super().__init__(clock or time.monotonic)
         # The game reports free spots in availableOrderIndexes; `used` is shorthand for
         # "spots 0..used-1 are taken" out of 40.
@@ -66,12 +69,20 @@ class ScriptedState(MarketplaceState):
         self.answers_page = answers_page              # page the game shows when My Listings opens
         self.responsive = responsive                  # False: the game never answers
         self.after_listing_page = after_listing_page  # page the game shows after a listing
+        self.turns_pages = turns_pages                # False: the next-page arrow does nothing
+        self.shown_page = answers_page
+
+    def on_click(self, point):
+        if point == LAYOUT.point("my_listings_tab"):
+            self.shown_page = self.answers_page
+        elif point == LAYOUT.point("next_page_arrow") and self.turns_pages:
+            self.shown_page += 1
 
     def wait_for_fresh_snapshot(self, since, timeout):
-        """Stands in for the game re-sending My Listings when its tab is opened."""
+        """Stands in for the game re-sending My Listings when its tab is opened or a page turns."""
         if not self.responsive:
             return None
-        self._snapshot = replace(self._snapshot, received_at=since + 0.001, current_page=self.answers_page)
+        self._snapshot = replace(self._snapshot, received_at=since + 0.001, current_page=self.shown_page)
         return self._snapshot
 
     def wait_for_register(self, timeout):
@@ -79,6 +90,7 @@ class ScriptedState(MarketplaceState):
 
     def wait_for_listing(self, unique_id, since, timeout):
         if self.confirm and self.after_listing_page is not None:
+            self.shown_page = self.after_listing_page
             self._snapshot = replace(self._snapshot, received_at=since + 0.5, current_page=self.after_listing_page)
         return self.confirm
 
@@ -87,8 +99,10 @@ def _entry(uid, stash="2", slot=0, price=900):
     return PlanEntry(uid, f"Item {uid}", 5, stash, slot, 1, 1, price, 45, 10)
 
 
-def _runner(driver, state, cancelled=lambda: False):
-    return MarketplaceRunner(driver, LAYOUT, state, tab_mapping=MAPPING, is_cancelled=cancelled, pause=lambda: None)
+def _runner(driver, state, cancelled=lambda: False, safety=None):
+    driver.listener = getattr(state, "on_click", None)
+    return MarketplaceRunner(driver, LAYOUT, state, tab_mapping=MAPPING, is_cancelled=cancelled, pause=lambda: None,
+                             safety=safety)
 
 
 def test_run_clicks_full_sequence_for_one_item():
@@ -148,10 +162,41 @@ def test_run_stops_on_timeout_and_general_failure():
 
 
 def test_run_continues_after_item_level_failure():
+    driver = FakeDriver()
     state = ScriptedState(outcomes=[RegisterOutcome("failed", 666), RegisterOutcome("ok")])
-    report = _runner(FakeDriver(), state).run([_entry("a"), _entry("b", slot=1)])
+    report = _runner(driver, state).run([_entry("a"), _entry("b", slot=1)])
     assert [r.status for r in report.results] == ["failed", "listed"]
     assert report.stopped_reason is None
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    after_failure = clicks[clicks.index(LAYOUT.point("confirm_listing_yes")) + 1:]
+    assert after_failure[:2] == VERIFY_CLICKS   # back on a confirmed My Listings before the next item
+
+
+def test_item_level_failure_stops_when_my_listings_cannot_be_confirmed():
+    state = ScriptedState(outcomes=[RegisterOutcome("failed", 666)])
+    driver = FakeDriver()
+    runner = _runner(driver, state)
+    driver.on_create = lambda: setattr(state, "responsive", False)   # e.g. an error popup covers the tabs
+    report = runner.run([_entry("a"), _entry("b", slot=1)])
+    assert [r.status for r in report.results] == ["failed"]
+    assert report.stopped_reason == NOT_ON_MY_LISTINGS
+
+
+def test_page_turn_the_game_does_not_confirm_stops_before_the_spot_click():
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=19, turns_pages=False)).run([_entry("a")])
+    assert report.results == () and "Couldn't turn My Listings to page 2" in report.stopped_reason
+    assert ("click", LAYOUT.spot_row(9)) not in driver.actions
+
+
+def test_cancel_while_the_game_is_unfocused_does_not_click_no_blindly():
+    flag = {"cancel": False}
+    driver = FakeDriver()
+    driver.on_create = lambda: flag.update(cancel=True)
+    safety = RecordingSafety(driver, reason="game_window_unfocused")
+    report = _safe_runner(driver, ScriptedState(used=0), safety, cancelled=lambda: flag["cancel"]).run([_entry("a")])
+    assert ("click", LAYOUT.point("confirm_listing_no")) not in driver.actions
+    assert "may still be open" in report.stopped_reason
 
 
 def test_run_stops_when_listing_not_confirmed():
@@ -393,8 +438,7 @@ class RecordingSafety:
 
 
 def _safe_runner(driver, state, safety, cancelled=lambda: False):
-    return MarketplaceRunner(driver, LAYOUT, state, tab_mapping=MAPPING, is_cancelled=cancelled,
-                             pause=lambda: None, safety=safety)
+    return _runner(driver, state, cancelled=cancelled, safety=safety)
 
 
 def test_snapshot_position_taken_after_create_click():
@@ -585,6 +629,45 @@ def test_collect_stops_when_the_mouse_moves_between_transfers():
     assert report.stopped_reason == "Stopped for safety: the mouse was moved"
 
 
+class MouseTakenState(PricingState):
+    """The player grabs the mouse right after the first result page arrives."""
+
+    def __init__(self, driver, rows_per_search, **kw):
+        super().__init__(rows_per_search, **kw)
+        self.driver = driver
+
+    def wait_for_item_list(self, since, timeout):
+        rows = super().wait_for_item_list(since, timeout)
+        self.driver.pos = (5, 5)
+        return rows
+
+
+def test_crawl_stops_when_the_mouse_is_taken():
+    driver = FakeDriver()
+    full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
+    report = _runner(driver, MouseTakenState(driver, [full, full, full], available=(2,))).crawl_market(
+        pages=5, rarities=(5,))
+    assert report.stopped_reason == "Stopped for safety: the mouse was moved"
+    assert LAYOUT.point("market_next_page") not in [a[1] for a in driver.actions]
+
+
+def test_collect_stops_when_the_mouse_is_taken_during_a_transfer():
+    import time as _t
+    now = _t.monotonic()
+    helm, robe = (1, 3, "GreatHelm_3001", 200), (3, 2, "OracleRobe_4001", 690)
+    driver = FakeDriver()
+    state = PayoutState([_snap([helm, robe], now), _snap([helm, robe], now), _snap([robe], now)], [1, 1])
+    original = state.wait_for_transfer
+
+    def taken(timeout):
+        driver.pos = (5, 5)
+        return original(timeout)
+    state.wait_for_transfer = taken
+    report = _runner(driver, state).collect_payouts()
+    assert [r.status for r in report.results] == ["collected"]
+    assert report.stopped_reason == "Stopped for safety: the mouse was moved"
+
+
 def test_crawl_stops_for_safety_between_pages():
     full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
     state = PricingState([full, full, full], available=(2,))
@@ -674,3 +757,26 @@ def test_stacks_fill_the_quantity_box_before_the_price():
     assert typed == [("type", "3"), ("type", "270")]
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
     assert clicks.index(LAYOUT.point("quantity_field")) < clicks.index(LAYOUT.point("price_field"))
+
+
+def _crawl_runner(driver, state, passes):
+    driver.listener = getattr(state, "on_click", None)
+    return MarketplaceRunner(driver, LAYOUT, state, tab_mapping=MAPPING, is_cancelled=lambda: False,
+                             pause=lambda: None, pass_observer=lambda rarity, started: passes.append(rarity) or 7)
+
+
+def test_crawl_read_to_its_last_page_reports_a_complete_pass():
+    passes, full = [], [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([full, full, full[:4]], available=(2,))
+    report = _crawl_runner(FakeDriver(), state, passes).crawl_market(pages=50, rarities=(5,))
+    assert passes == [5]
+    assert report.results[0].message == "3 pages, 24 listings; 7 gone since the last full crawl (likely sold)"
+
+
+def test_limited_or_incremental_crawls_are_not_complete_passes():
+    passes, full = [], [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
+    _crawl_runner(FakeDriver(), PricingState([full, full, full[:4]], available=(2,)), passes).crawl_market(
+        pages=2, rarities=(5,))
+    _crawl_runner(FakeDriver(), PricingState([full, full[:4]], available=(2,)), passes).crawl_market(
+        pages=50, rarities=(5,), is_old_page=lambda rows: False)
+    assert passes == []

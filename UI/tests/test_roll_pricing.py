@@ -187,3 +187,29 @@ def test_learned_stat_pair_synergy_sets_the_extra_roll_bonus():
                                extra_share=0.0, synergies=synergies)
     assert result.price == 432   # Luck 400g +20% for the Luck + MagicalPower pair -> 480 -> 432
     assert "pair" in result.compared
+
+
+def test_a_lowball_better_copy_does_not_cap_the_price():
+    rows = [_row(700, rolls=(("Luck", 15), ("MagicalPower", 2))), _row(750, rolls=(("Luck", 16), ("MagicalPower", 1))),
+            _row(800, rolls=(("Luck", 17), ("MagicalPower", 2))), _row(60, rolls=(("Luck", 19), ("MagicalPower", 3)))]
+    result = _price(rows)
+    assert result.price == 675   # not 54: the 60g god roll is a lowball, not a ceiling
+
+
+def test_a_lowball_one_step_below_our_roll_is_ignored():
+    rows = [_row(200, rolls=(("Luck", 16),)), _row(800, rolls=(("Luck", 17),)), _row(900, rolls=(("Luck", 18),))]
+    assert _price(rows).price == 720   # 200g for Luck 16 when Luck 17 asks 800g is a dump
+
+
+def test_two_listings_far_apart_are_flagged_for_review():
+    rows = [MarketRow("GoldBand_3001", 100, (), ()), MarketRow("GoldBand_3001", 1600, (), ())]
+    result = price_from_market("GoldBand_3001", (), (), 10, [], rows, RULES)
+    assert (result.price, result.confidence) == (90, "low") and "far apart" in result.flag
+
+
+def test_tied_rolls_give_the_same_result_in_any_order():
+    rows = [_row(200, rolls=(("Luck", 10), ("MagicalPower", 1))), _row(300, rolls=(("Luck", 12), ("MagicalPower", 2)))]
+    forward = _price(rows, rolls=(("Luck", 17), ("MagicalPower", 2)))
+    backward = _price(rows, rolls=(("MagicalPower", 2), ("Luck", 17)))
+    assert (forward.price, forward.confidence, forward.flag) == (backward.price, backward.confidence, backward.flag)
+    assert "beat everything" in forward.flag   # still told that one roll beats every listing

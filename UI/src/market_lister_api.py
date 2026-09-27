@@ -5,7 +5,9 @@ from typing import Any, Callable
 
 from flask import Blueprint, jsonify, request
 
-from src.market_lister import NOT_PRICED_REASON, PlanEntry, PlanError, apply_game_prices, build_plan
+from src.market_lister import (
+    ABOVE_MAX_REASON, NOT_PRICED_REASON, PlanEntry, PlanError, apply_game_prices, build_plan,
+)
 from src.models.market_rules import ListerRules
 from src.models.marketplace_layout import BASE_LENGTHS, BASE_POINTS
 from src.models.marketplace_runner import Recheck
@@ -44,6 +46,7 @@ class ListerDeps:
     price_search: Callable[[str], list] = lambda query: []
     analyze_market: Callable[[], dict] = lambda: {}
     synergies: Callable[[], dict] = lambda: {}
+    own_listing_ids: Callable[[], frozenset] = lambda: frozenset()
 
 
 def _error(message, status=400):
@@ -129,7 +132,7 @@ def _game_pricer(deps, rules):
 
     def price(entries, rows):
         return apply_game_prices(entries, rows, rules, extra_rows=deps.history_rows, extra_share=share,
-                                 exclude_listing_ids=deps.state.own_listing_ids(), synergies=synergies)
+                                 exclude_listing_ids=deps.own_listing_ids(), synergies=synergies)
     return price
 
 
@@ -148,14 +151,16 @@ def _repricer(deps, rules):
         if market.get("degraded"):
             return Recheck(entry.price, "market search incomplete, approved price kept")
         plan = pricer([replace(entry, price=0, fee=0)], {entry.unique_id: market})
+        fresh = plan.entries[0] if plan.entries else (plan.skipped[0] if plan.skipped else None)
+        if fresh is not None and (fresh.flag or fresh.confidence == "low"):
+            return Recheck(entry.price, "fresh price uncertain, approved price kept")
         if not plan.entries:
-            reason = plan.skipped[0].reason if plan.skipped else NOT_PRICED_REASON
+            reason = fresh.reason if fresh is not None else NOT_PRICED_REASON
             if reason == NO_SELLERS_REASON:
                 return Recheck(entry.price, "no other sellers now, approved price kept")
+            if reason == ABOVE_MAX_REASON:
+                return Recheck(entry.price, "market above the game's maximum, approved price kept")
             return Recheck(None, f"not worth listing at today's prices ({reason})")
-        fresh = plan.entries[0]
-        if fresh.flag or fresh.confidence == "low":
-            return Recheck(entry.price, "fresh price uncertain, approved price kept")
         if fresh.price < entry.price * (1 - MAX_RECHECK_DROP):
             return Recheck(None, f"market dropped to {fresh.price}g, more than {MAX_RECHECK_DROP:.0%} below your "
                                  f"{entry.price}g; price it again to review")

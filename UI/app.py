@@ -2762,6 +2762,16 @@ def _lister_scan_observer(item_id, started_monotonic, rows, complete):
         logger.exception("Failed to record market scan for %s", item_id)
 
 
+def _lister_pass_observer(rarity, started_monotonic):
+    """After a crawl read every page of a rarity: mark its listings that are gone (most likely sold)."""
+    started_wall = time.time() - (marketplace_state.now() - started_monotonic)
+    try:
+        return market_history.note_crawl_pass(rarity, started_wall)
+    except Exception:
+        logger.exception("Failed to record the crawl pass for rarity %s", rarity)
+        return None
+
+
 def _lister_old_page_detector():
     """For incremental crawls: a page is 'old' once most of it was already in the history."""
     started = time.time()
@@ -2804,7 +2814,10 @@ def _lister_analyze_market():
     metas = {i: item_data_manager.get_item_data(i) or {} for i in ids}
     report = analyze(listings, {i: m.get("vendor_price", 0) for i, m in metas.items()},
                      {i: m.get("item_type") or "other" for i, m in metas.items()})
-    save_model(_market_model_path(), model_from_report(report))
+    try:
+        save_model(_market_model_path(), model_from_report(report))
+    except OSError:
+        logger.exception("Couldn't save market_model.json; pricing keeps the previous model")
     names = {i: m.get("name") or i for i, m in metas.items()}
     summary = {k: v for k, v in report.items() if k != "roll_ranges"}
     summary["below_vendor"] = [{**d, "name": names.get(d["item"], d["item"])} for d in report["below_vendor"]]
@@ -2876,7 +2889,7 @@ def _lister_runner_factory(event):
         marketplace_input.MacrosInputDriver(), marketplace_input.current_layout(), marketplace_state,
         tab_mapping=_lister_tab_mapping(), is_cancelled=event.is_set,
         pause=marketplace_input.make_pause(event.is_set), safety=monitor,
-        scan_observer=_lister_scan_observer,
+        scan_observer=_lister_scan_observer, pass_observer=_lister_pass_observer,
     )
     return MonitoredRunner(runner, monitor)
 
@@ -2963,6 +2976,7 @@ if not _is_child_process:
         history_rows=lambda item_id: market_history.active_rows(item_id, HISTORY_MAX_AGE_S),
         extra_roll_share=_lister_extra_roll_share,
         synergies=_lister_synergies,
+        own_listing_ids=lambda: marketplace_state.own_listing_ids() | market_history.my_listing_ids(),
         old_page_detector=_lister_old_page_detector,
         price_search=_lister_price_search,
         analyze_market=_lister_analyze_market,

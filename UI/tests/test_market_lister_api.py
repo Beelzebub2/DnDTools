@@ -322,20 +322,12 @@ def test_analyze_endpoint_returns_report(client_and_deps):
 
 # --- last-second re-check before each listing --------------------------------------------------
 
-class _OwnListingsState:
-    def __init__(self, own=()):
-        self.own = frozenset(own)
-
-    def own_listing_ids(self):
-        return self.own
-
-
 def _recheck(entry, market, own=(), synergies=None):
     from types import SimpleNamespace
     from src.market_lister_api import _repricer
     from src.models.market_rules import ListerRules
     deps = SimpleNamespace(extra_roll_share=lambda: 0.25, synergies=lambda: synergies or {},
-                           history_rows=lambda item_id: [], state=_OwnListingsState(own))
+                           history_rows=lambda item_id: [], own_listing_ids=lambda: frozenset(own))
     return _repricer(deps, ListerRules(min_price=50))(entry, market)
 
 
@@ -401,7 +393,19 @@ def test_price_from_game_ignores_our_own_listings():
     from src.market_lister_api import _game_pricer
     from src.models.market_rules import ListerRules
     deps = SimpleNamespace(extra_roll_share=lambda: 0.25, synergies=lambda: {}, history_rows=lambda item_id: [],
-                           state=_OwnListingsState({"mine"}))
+                           own_listing_ids=lambda: frozenset({"mine"}))
     plan = _game_pricer(deps, ListerRules(min_price=50))(
         [_approved(0, recommended=0)], {"a": _market(500, 880, ids=["mine", "b"])})
     assert plan.entries[0].price == 792
+
+
+def test_recheck_keeps_the_approved_price_when_a_doubtful_fresh_price_is_below_the_minimum():
+    # Our Luck roll isn't listed anywhere (uncertain), and the fresh price would be under 50g.
+    entry = _approved(900, rolls=(("Luck", 5),))
+    decision = _recheck(entry, _market(40, 45, rolls=(("Strength", 2),)))
+    assert decision.price == 900 and "uncertain" in decision.note
+
+
+def test_recheck_keeps_the_approved_price_when_the_market_is_above_the_game_maximum():
+    decision = _recheck(_approved(900), _market(2_000_000, 2_100_000))
+    assert decision.price == 900 and "maximum" in decision.note

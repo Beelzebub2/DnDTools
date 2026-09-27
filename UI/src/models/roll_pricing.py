@@ -34,6 +34,8 @@ CLOSE_ROLL_RATIO = 1.5    # rolls within 1.5x of ours (either way) are similar e
 BASE_TOLERANCE = 0.05     # base stats within 5% (at least 1 point) count as equal
 EXTRA_ROLL_SHARE = 0.25   # fallback share of an extra roll's premium when no pair synergy is known
 MAX_SYNERGY_PCT = 50.0    # cap on a learned pair bonus
+CONFIDENCE_RANK = {"high": 0, "medium": 1, "low": 2}
+FAR_APART_FLAG = "Only two listings and they're far apart — check this price."
 
 
 @dataclass(frozen=True)
@@ -127,12 +129,16 @@ def _anchor_estimate(rows, base, stat, value) -> _Estimate | None:
         return _Estimate(best_p, f"{stat} {value} beats every listing (best {stat} {best_v} asks {best_p}g)",
                          "low", beats_all=True)
     low, high = (value / CLOSE_ROLL_RATIO, value * CLOSE_ROLL_RATIO) if value > 0 else (value, value)
+    similar_better = [p for v, p in real if value <= v <= high]
+    if similar_better:  # a weaker copy far below similar ones at least as good as ours is a dump
+        floor = LOWBALL_RATIO * min(similar_better)
+        real = [(v, p) for v, p in real if v >= value or p >= floor]
     level = max((v for v, _ in real if low <= v < value), default=value)  # nearest similar weaker level
     competing = [(v, p) for v, p in real if v >= level]
     if all(v > high for v, _ in competing):
         return None  # only much stronger rolls are listed: this roll doesn't set our price
     price = min(p for _, p in competing)
-    confidence = "high" if any(v < value for v, _ in real) else "medium"
+    confidence = "high" if similar_better and any(v < value for v, _ in real) else "medium"
     return _Estimate(price, f"{stat} {value}: cheapest listing with {stat} ≥ {level} asks {price}g", confidence)
 
 
@@ -164,20 +170,23 @@ def _combine(rows, base, rolls, baseline, extra_share, synergies=None):
                  if (est := _anchor_estimate(rows, base, stat, value)) is not None]
     if not estimates:
         return None
-    estimates.sort(key=lambda e: -e[2].value)
+    estimates.sort(key=lambda e: (-e[2].value, CONFIDENCE_RANK[e[2].confidence]))  # ties: the surer one
     best_stat, _, best = estimates[0]
     extras = [(s, v, e.value - baseline) for s, v, e in estimates[1:]]
     bonus, extra_how = _extra_roll_bonus(best_stat, best.value, extras, extra_share, synergies)
-    return best.value + bonus, best.how + extra_how, best.confidence, best.beats_all
+    beats_any = any(e.beats_all for _, _, e in estimates)
+    return best.value + bonus, best.how + extra_how, best.confidence, beats_any
 
 
 def _stack_reference(rows, quantity):
     units = [r.price / max(r.count, 1) for r in rows]
     unit = _sane_min(units)
-    confidence = "high" if len(rows) >= 3 else "medium"
+    confidence, flag = ("high" if len(rows) >= 3 else "medium"), ""
+    if len(units) == 2 and min(units) < LOWBALL_RATIO * max(units):  # can't tell which one is off
+        confidence, flag = "low", FAR_APART_FLAG
     if quantity == 1 and all(r.count == 1 for r in rows):
-        return round(unit), "", f"cheapest of {len(rows)} listings: {round(unit)}g", confidence
-    return unit * quantity, "", f"cheapest of {len(rows)} listings: {unit:.1f}g per unit x {quantity}", confidence
+        return round(unit), flag, f"cheapest of {len(rows)} listings: {round(unit)}g", confidence
+    return unit * quantity, flag, f"cheapest of {len(rows)} listings: {unit:.1f}g per unit x {quantity}", confidence
 
 
 def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, quantity=1, synergies=None):
@@ -198,8 +207,9 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, qu
     dearest = max(r.price for r in rows)
     if value > dearest:  # never above the most expensive listing of this item
         value, how = dearest, how + f"; capped at the dearest listing ({dearest}g)"
-    if dominating:
-        ceiling = _sane_min(dominating)
+    real_caps = [p for p in dominating if p >= LOWBALL_RATIO * value]  # a dumped better copy is no ceiling
+    if real_caps:
+        ceiling = min(real_caps)
         if value > ceiling:
             value, how = ceiling, how + f"; capped at {ceiling}g (a copy at least as good on every stat)"
     flag = ""

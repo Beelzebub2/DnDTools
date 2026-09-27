@@ -85,6 +85,8 @@ class Skip:
     stash_id: str
     slot_id: int
     reason: str
+    flag: str = ""        # a doubt about the price that led to the skip
+    confidence: str = ""
 
 
 @dataclass(frozen=True)
