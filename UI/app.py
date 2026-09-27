@@ -2792,6 +2792,9 @@ def _lister_price_search(query):
     return sorted(rows, key=lambda r: (r["name"], r["rarity"]))
 
 
+from src.models.market_model import extra_roll_share, load_model, model_from_report, pair_bonuses, save_model
+
+
 def _lister_analyze_market():
     """Run the cross-item pattern analysis, save market_model.json for pricing, return a summary."""
     from src.models.game_data import item_data_manager
@@ -2801,24 +2804,26 @@ def _lister_analyze_market():
     metas = {i: item_data_manager.get_item_data(i) or {} for i in ids}
     report = analyze(listings, {i: m.get("vendor_price", 0) for i, m in metas.items()},
                      {i: m.get("item_type") or "other" for i, m in metas.items()})
-    model = {k: report[k] for k in ("stat_premiums", "good_roll_counts", "extra_good_roll_factor", "roll_ranges")}
-    with open(os.path.join(get_data_dir(), 'market_model.json'), 'w', encoding='utf-8') as fh:
-        json.dump(model, fh)
+    save_model(_market_model_path(), model_from_report(report))
     names = {i: m.get("name") or i for i, m in metas.items()}
     summary = {k: v for k, v in report.items() if k != "roll_ranges"}
     summary["below_vendor"] = [{**d, "name": names.get(d["item"], d["item"])} for d in report["below_vendor"]]
     return summary
 
 
+def _market_model_path():
+    return os.path.join(get_data_dir(), 'market_model.json')
+
+
 def _lister_extra_roll_share():
-    """Share of each extra good roll's premium to add — learned by scripts/market_patterns_report.py."""
+    """Share of each extra good roll's premium to add, learned by "Analyze market data"."""
     from src.models.roll_pricing import EXTRA_ROLL_SHARE
-    try:
-        with open(os.path.join(get_data_dir(), 'market_model.json'), encoding='utf-8') as fh:
-            factor = json.load(fh).get('extra_good_roll_factor')
-        return min(max(float(factor), 0.0), 1.0) if factor is not None else EXTRA_ROLL_SHARE
-    except (OSError, ValueError, TypeError):
-        return EXTRA_ROLL_SHARE
+    return extra_roll_share(load_model(_market_model_path()), EXTRA_ROLL_SHARE)
+
+
+def _lister_synergies():
+    """Learned bonuses for stat pairs that sell for more together (e.g. Physical Power + Weapon Damage)."""
+    return pair_bonuses(load_model(_market_model_path()))
 
 
 SOLD_NOTIFICATION_JS = (
@@ -2845,7 +2850,7 @@ def _on_my_item_list(message):
         logger.exception("Failed to record my marketplace listings")
 
 from src.market_lister_api import ListerDeps, create_market_lister_blueprint
-from src.market_lister_job import ListerJob
+from src.market_lister_job import ListerJob, MonitoredRunner
 
 GAME_WINDOW_TITLE = "Dark and Darker  "
 MARKET_LISTER_RUNNING_ERROR = "The market lister is running — cancel it before sorting."
@@ -2861,25 +2866,6 @@ def _lister_price_lookup(item):
     )
 
 
-class _MonitoredRunner:
-    """Runs each runner action (list, price, crawl, collect) under the sorter's safety monitor."""
-
-    def __init__(self, runner, monitor):
-        self._runner = runner
-        self._monitor = monitor
-
-    def __getattr__(self, name):
-        action = getattr(self._runner, name)
-
-        def monitored(*args, **kwargs):
-            self._monitor.start()
-            try:
-                return action(*args, **kwargs)
-            finally:
-                self._monitor.stop()
-        return monitored
-
-
 def _lister_runner_factory(event):
     from src.models import marketplace_input
     from src.models.marketplace_runner import MarketplaceRunner
@@ -2892,7 +2878,7 @@ def _lister_runner_factory(event):
         pause=marketplace_input.make_pause(event.is_set), safety=monitor,
         scan_observer=_lister_scan_observer,
     )
-    return _MonitoredRunner(runner, monitor)
+    return MonitoredRunner(runner, monitor)
 
 
 def _lister_hover_factory(event):
@@ -2976,6 +2962,7 @@ if not _is_child_process:
         history_summary=market_history.summary,
         history_rows=lambda item_id: market_history.active_rows(item_id, HISTORY_MAX_AGE_S),
         extra_roll_share=_lister_extra_roll_share,
+        synergies=_lister_synergies,
         old_page_detector=_lister_old_page_detector,
         price_search=_lister_price_search,
         analyze_market=_lister_analyze_market,

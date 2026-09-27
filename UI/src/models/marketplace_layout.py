@@ -25,6 +25,7 @@ BASE_POINTS = {
     "my_listings_tab": (1062, 123),        # "My Listings" tab header
     "market_next_page": (1032, 1015),      # View Market next-page arrow
     "confirm_listing_yes": (861, 620),     # "Would you like to list the item?" -> Yes
+    "confirm_listing_no": (1057, 620),     # ... -> No (dismisses it; no fee)
     "transfer_all_button": (960, 657),     # "Transfer All Items" on a sold / expired listing
     "view_market_tab": (862, 123),         # "View Market" tab header
     "market_reset_filters": (1794, 207),   # View Market "Reset Filters" button

@@ -141,6 +141,9 @@
                 insightList('Rolls that add the most value (worst → best roll, same item)',
                     stats.slice(0, 8).map(([s, p]) => `${s}: ${pct(p.per_quality)} (n=${p.support})`)),
                 insightList('Rolls that add the least', stats.slice(-5).map(([s, p]) => `${s}: ${pct(p.per_quality)}`)),
+                insightList('Rolls worth more together (pairs seen on 10+ listings raise prices)', (report.pair_synergies || [])
+                    .filter((p) => p.synergy > 0).slice(0, 10)
+                    .map((p) => `${p.pair}: ${pct(p.synergy)} (n=${p.support})`)),
                 insightList('Good rolls (top 30% of range) vs price', Object.entries(report.good_roll_counts || {})
                     .map(([k, v]) => `${k} good roll(s): ${pct(v.median_uplift)} (n=${v.support})`)),
                 insightList('Rarity price steps', Object.entries(report.rarity_steps || {})
@@ -200,7 +203,9 @@
                 fee.textContent = Number.isFinite(value) && value > 0 ? `${listingFee(value)}g` : '—';
             });
             const nameCell = document.createElement('div');
-            nameCell.append(text('span', entry.flag ? `⚠️ ${entry.name}` : entry.name, entry.flag ? 'ml-flagged' : ''));
+            const label = entry.quantity > 1 ? `${entry.name} ×${entry.quantity}` : entry.name;
+            nameCell.append(text('span', entry.flag ? `⚠️ ${label}` : label, entry.flag ? 'ml-flagged' : ''));
+            if (entry.quantity > 1) nameCell.append(text('div', 'Whole stack; the price is for all of it.', 'ml-muted ml-small'));
             const rolls = [...(entry.base_rolls || []), ...(entry.rolls || [])].map(([stat, value]) => `${stat} ${value}`).join(', ');
             if (rolls) nameCell.append(text('div', rolls, 'ml-muted ml-small'));
             if (entry.compared) nameCell.append(text('div', entry.compared, 'ml-muted ml-small'));

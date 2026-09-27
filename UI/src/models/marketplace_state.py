@@ -70,6 +70,7 @@ class MarketplaceState:
         self._snapshot = None
         self._listed_at = {}  # itemUniqueId(str) -> last received_at seen
         self._listing_state = {}  # itemUniqueId(str) -> latest myItemState
+        self._own_listings = {}   # listingId(str) -> latest myItemState, for excluding our own asks
         self._register_result = None
         self._item_list = None  # (received_at, [MarketRow])
         self._transfer_result = None
@@ -91,8 +92,10 @@ class MarketplaceState:
             )
             for info in message.myItemInfos:
                 key = str(info.itemInfo.item.itemUniqueId)
+                state = int(info.myItemState) or MY_ITEM_LISTING
                 self._listed_at[key] = received
-                self._listing_state[key] = int(info.myItemState) or MY_ITEM_LISTING
+                self._listing_state[key] = state
+                self._own_listings[str(info.itemInfo.listingId)] = state
             self._cond.notify_all()
 
     def handle_item_list(self, message) -> None:
@@ -135,6 +138,18 @@ class MarketplaceState:
     def snapshot(self):
         with self._cond:
             return self._snapshot
+
+    def own_listing_ids(self) -> frozenset:
+        """Listing ids of our own active listings — never compare our prices against them."""
+        with self._cond:
+            return frozenset(k for k, state in self._own_listings.items() if state == MY_ITEM_LISTING)
+
+    def wait_for_fresh_snapshot(self, since: float, timeout: float):
+        """A My Listings snapshot received after `since`, or None if none arrived in time."""
+        with self._cond:
+            self._cond.wait_for(lambda: self._snapshot is not None and self._snapshot.received_at > since, timeout)
+            snapshot = self._snapshot
+        return snapshot if snapshot is not None and snapshot.received_at > since else None
 
     def wait_for_snapshot(self, since: float, timeout: float):
         """The My Listings snapshot, waiting up to `timeout` for one received after `since`."""

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 GOOD_ROLL_PERCENTILE = 0.7   # a roll in the top 30% of its observed range counts as "good"
 MIN_ITEM_LISTINGS = 8        # items with fewer listings are too thin to compare within
+MODEL_PAIRS = 40             # stat pairs kept for pricing (the report shows the top ones)
 MIN_STAT_SUPPORT = 8         # stats / pairs need this many listings before we trust them
 LOWBALL_RATIO = 0.5
 
@@ -239,7 +240,7 @@ def analyze(listings, vendor_prices=None, item_types=None) -> dict:
         "stat_premiums": stat_premiums(listings),
         "good_roll_counts": counts,
         "extra_good_roll_factor": extra_good_roll_factor(counts),
-        "pair_synergies": pair_synergies(listings),
+        "pair_synergies": pair_synergies(listings, top=MODEL_PAIRS),
         "rarity_steps": rarity_steps(listings),
         "price_habits": price_habits(listings),
         "lowball_share": lowball_share(listings),

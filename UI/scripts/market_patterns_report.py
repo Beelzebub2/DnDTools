@@ -11,8 +11,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.models.appdirs import get_data_dir  # noqa: E402
+from src.models.market_model import model_from_report, save_model  # noqa: E402
 from src.models.market_patterns import Listing, analyze  # noqa: E402
 
+REPORT_PAIRS = 10  # pairs printed; the model keeps more for pricing
 ITEMS_JSON = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "items.json")
 
 
@@ -49,7 +51,7 @@ def print_report(report):
         print(f"  {k} good rolls: {v['median_uplift']:+.1f}%  (n={v['support']})")
     print(f"  => each extra good roll adds ~{report['extra_good_roll_factor']} of the first one's uplift")
     print("\nStat pairs worth more together:")
-    for pair in report["pair_synergies"]:
+    for pair in report["pair_synergies"][:REPORT_PAIRS]:
         print(f"  {pair['pair']:45} {pair['synergy']:+.1f}%  (n={pair['support']})")
     print("\nRarity price steps (median, same item):")
     for step, v in report["rarity_steps"].items():
@@ -67,9 +69,7 @@ def main():
     data_dir = get_data_dir()
     vendor, types = load_items()
     report = analyze(load_listings(os.path.join(data_dir, "market_history.sqlite")), vendor, types)
-    model = {k: report[k] for k in ("stat_premiums", "good_roll_counts", "extra_good_roll_factor", "roll_ranges")}
-    with open(os.path.join(data_dir, "market_model.json"), "w", encoding="utf-8") as fh:
-        json.dump(model, fh, indent=1)
+    save_model(os.path.join(data_dir, "market_model.json"), model_from_report(report))
     if "--json" in sys.argv:
         print(json.dumps({k: v for k, v in report.items() if k != "roll_ranges"}, indent=1))
     else:

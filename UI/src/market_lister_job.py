@@ -8,6 +8,27 @@ logger = logging.getLogger(__name__)
 LISTING_MODES = ("list", "dry_run")
 
 
+class MonitoredRunner:
+    """Runs each runner action (list, price, crawl, collect) under the sorter's safety monitor."""
+
+    def __init__(self, runner, monitor):
+        self._runner = runner
+        self._monitor = monitor
+
+    def __getattr__(self, name):
+        action = getattr(self._runner, name)
+        if not callable(action):
+            return action
+
+        def monitored(*args, **kwargs):
+            self._monitor.start()
+            try:
+                return action(*args, **kwargs)
+            finally:
+                self._monitor.stop()
+        return monitored
+
+
 class ListerJob:
     def __init__(self, runner_factory, hover_factory):
         self._runner_factory = runner_factory

@@ -157,3 +157,17 @@ def test_listed_ids_only_counts_items_still_for_sale():
     state = MarketplaceState()
     state.handle_my_item_list(msg)
     assert state.listed_ids() == frozenset({"555"})
+
+
+def test_own_listing_ids_and_fresh_snapshot():
+    clock = FakeClock()
+    state = MarketplaceState(clock=clock)
+    msg = _my_list(3, unique_ids=[555])
+    msg.myItemInfos[0].itemInfo.listingId = 4242
+    msg.myItemInfos[0].myItemState = 1
+    state.handle_my_item_list(msg)
+    assert state.own_listing_ids() == frozenset({"4242"})
+    assert state.wait_for_fresh_snapshot(since=100.0, timeout=0.05) is None   # not newer than `since`
+    clock.t = 101.0
+    state.handle_my_item_list(msg)
+    assert state.wait_for_fresh_snapshot(since=100.0, timeout=0.05).received_at == 101.0

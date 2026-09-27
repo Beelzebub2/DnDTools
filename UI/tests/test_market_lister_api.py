@@ -318,3 +318,90 @@ def test_analyze_endpoint_returns_report(client_and_deps):
     client, deps, _ = client_and_deps
     deps.analyze_market = lambda: {"listings": 5, "rarity_steps": {"5->6": {"median_ratio": 2.5}}}
     assert client.post("/api/market-lister/analyze").get_json()["report"]["listings"] == 5
+
+
+# --- last-second re-check before each listing --------------------------------------------------
+
+class _OwnListingsState:
+    def __init__(self, own=()):
+        self.own = frozenset(own)
+
+    def own_listing_ids(self):
+        return self.own
+
+
+def _recheck(entry, market, own=(), synergies=None):
+    from types import SimpleNamespace
+    from src.market_lister_api import _repricer
+    from src.models.market_rules import ListerRules
+    deps = SimpleNamespace(extra_roll_share=lambda: 0.25, synergies=lambda: synergies or {},
+                           history_rows=lambda item_id: [], state=_OwnListingsState(own))
+    return _repricer(deps, ListerRules(min_price=50))(entry, market)
+
+
+def _approved(price=900, recommended=900, vendor=10, rolls=()):
+    from src.market_lister import PlanEntry
+    return PlanEntry("a", "Gloves", 5, "2", 0, 1, 1, price, 45, vendor, item_id="G_1", rolls=rolls,
+                     recommended=recommended)
+
+
+def _market(*prices, degraded=False, ids=None, rolls=()):
+    ids = ids or [str(i) for i in range(len(prices))]
+    return {"same": [], "all": [MarketRow("G_1", p, (), rolls, i) for p, i in zip(prices, ids)], "degraded": degraded}
+
+
+def test_recheck_lowers_to_the_fresh_price_within_20_percent():
+    decision = _recheck(_approved(900), _market(880, 900, 950))
+    assert (decision.price, decision.note) == (792, "")   # 880 -10%
+
+
+def test_recheck_never_raises_the_approved_price():
+    assert _recheck(_approved(900), _market(2000, 2100)).price == 900
+
+
+def test_recheck_skips_when_the_market_fell_more_than_20_percent():
+    decision = _recheck(_approved(900), _market(600, 650, 700))
+    assert decision.price is None and "dropped to 540g" in decision.note
+
+
+def test_recheck_keeps_a_price_you_edited():
+    decision = _recheck(_approved(price=700, recommended=900), _market(300, 320))
+    assert (decision.price, decision.note) == (700, "your price kept")
+
+
+def test_recheck_keeps_the_approved_price_after_an_incomplete_search():
+    decision = _recheck(_approved(900), _market(300, degraded=True))
+    assert decision.price == 900 and "incomplete" in decision.note
+
+
+def test_recheck_keeps_the_approved_price_when_nobody_else_sells_it():
+    decision = _recheck(_approved(900), _market())
+    assert decision.price == 900 and "no other sellers" in decision.note
+
+
+def test_recheck_keeps_the_approved_price_when_the_fresh_one_is_uncertain():
+    # None of the listings carries our Luck roll: the fresh price is low-confidence.
+    entry = _approved(900, rolls=(("Luck", 5),))
+    decision = _recheck(entry, _market(880, 900, rolls=(("Strength", 2),)))
+    assert decision.price == 900 and "uncertain" in decision.note
+
+
+def test_recheck_skips_items_a_merchant_now_pays_more_for():
+    decision = _recheck(_approved(900, vendor=1000), _market(880, 900))
+    assert decision.price is None and "vendor pays more" in decision.note
+
+
+def test_recheck_ignores_our_own_listings():
+    decision = _recheck(_approved(900), _market(500, 880, 900, ids=["mine", "b", "c"]), own={"mine"})
+    assert decision.price == 792   # our own 500g listing is not competition
+
+
+def test_price_from_game_ignores_our_own_listings():
+    from types import SimpleNamespace
+    from src.market_lister_api import _game_pricer
+    from src.models.market_rules import ListerRules
+    deps = SimpleNamespace(extra_roll_share=lambda: 0.25, synergies=lambda: {}, history_rows=lambda item_id: [],
+                           state=_OwnListingsState({"mine"}))
+    plan = _game_pricer(deps, ListerRules(min_price=50))(
+        [_approved(0, recommended=0)], {"a": _market(500, 880, ids=["mine", "b"])})
+    assert plan.entries[0].price == 792

@@ -5,9 +5,11 @@ from typing import Any, Callable
 
 from flask import Blueprint, jsonify, request
 
-from src.market_lister import PlanEntry, PlanError, apply_game_prices, build_plan
+from src.market_lister import NOT_PRICED_REASON, PlanEntry, PlanError, apply_game_prices, build_plan
 from src.models.market_rules import ListerRules
 from src.models.marketplace_layout import BASE_LENGTHS, BASE_POINTS
+from src.models.marketplace_runner import Recheck
+from src.models.roll_pricing import NO_SELLERS_REASON
 
 RULES_KEY = "marketListerRules"
 CALIBRATION_KEY = "marketplaceCalibrationOverride"
@@ -17,6 +19,7 @@ DEFAULT_CRAWL_PAGES = 100
 MIN_PRICE_QUERY = 2
 MAX_PRICE_RESULTS = 60
 MAX_CRAWL_PAGES = 6000
+MAX_RECHECK_DROP = 0.2  # a bigger fall is skipped for review, never listed far below what you approved
 SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
 
@@ -40,6 +43,7 @@ class ListerDeps:
     old_page_detector: Callable[[], Any] = lambda: None
     price_search: Callable[[str], list] = lambda query: []
     analyze_market: Callable[[], dict] = lambda: {}
+    synergies: Callable[[], dict] = lambda: {}
 
 
 def _error(message, status=400):
@@ -115,14 +119,47 @@ def _parse_entries(payload, verb, past_tense, allow_unpriced=False):
         return None, _error(str(exc))
 
 
+def _game_pricer(deps, rules):
+    """(entries, market rows by unique id) -> Plan, with learned pair bonuses.
+
+    Our own listings are looked up at pricing time, so items listed earlier in the same run
+    are never treated as competition to undercut.
+    """
+    share, synergies = deps.extra_roll_share(), deps.synergies()
+
+    def price(entries, rows):
+        return apply_game_prices(entries, rows, rules, extra_rows=deps.history_rows, extra_share=share,
+                                 exclude_listing_ids=deps.state.own_listing_ids(), synergies=synergies)
+    return price
+
+
 def _repricer(deps, rules):
-    """Re-price one entry from a fresh market search just before it is listed."""
-    share = deps.extra_roll_share()
+    """Re-check one entry against a fresh market search right before it is listed -> Recheck.
+
+    Approved prices are never raised and a price you edited is kept. A partial search or an
+    uncertain fresh price keeps the approved one; a fall of more than MAX_RECHECK_DROP skips
+    the item for you to review rather than listing it far cheaper than you approved.
+    """
+    pricer = _game_pricer(deps, rules)
 
     def reprice(entry, market):
-        plan = apply_game_prices([replace(entry, price=0, fee=0)], {entry.unique_id: market}, rules,
-                                 extra_rows=deps.history_rows, extra_share=share)
-        return plan.entries[0].price if plan.entries else None
+        if entry.recommended and entry.price != entry.recommended:
+            return Recheck(entry.price, "your price kept")
+        if market.get("degraded"):
+            return Recheck(entry.price, "market search incomplete, approved price kept")
+        plan = pricer([replace(entry, price=0, fee=0)], {entry.unique_id: market})
+        if not plan.entries:
+            reason = plan.skipped[0].reason if plan.skipped else NOT_PRICED_REASON
+            if reason == NO_SELLERS_REASON:
+                return Recheck(entry.price, "no other sellers now, approved price kept")
+            return Recheck(None, f"not worth listing at today's prices ({reason})")
+        fresh = plan.entries[0]
+        if fresh.flag or fresh.confidence == "low":
+            return Recheck(entry.price, "fresh price uncertain, approved price kept")
+        if fresh.price < entry.price * (1 - MAX_RECHECK_DROP):
+            return Recheck(None, f"market dropped to {fresh.price}g, more than {MAX_RECHECK_DROP:.0%} below your "
+                                 f"{entry.price}g; price it again to review")
+        return Recheck(min(fresh.price, entry.price))
     return reprice
 
 
@@ -175,9 +212,8 @@ def _register_run_routes(bp, deps):
         entries, error = _parse_entries(request.get_json(silent=True), "price", "priced", allow_unpriced=True)
         if error:
             return error
-        rules, share = _current_rules(deps), deps.extra_roll_share()
-        return _launch_job(deps, lambda: deps.job.price(entries, lambda es, rows: apply_game_prices(
-            es, rows, rules, extra_rows=deps.history_rows, extra_share=share)))
+        pricer = _game_pricer(deps, _current_rules(deps))
+        return _launch_job(deps, lambda: deps.job.price(entries, pricer))
 
     @bp.post("/api/market-lister/start")
     def start():

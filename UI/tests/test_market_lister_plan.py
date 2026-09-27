@@ -157,3 +157,32 @@ def test_apply_game_prices_merges_history_rows_and_records_confidence():
     plan = apply_game_prices(unpriced, {"a": {"same": [], "all": []}}, ListerRules(source_stash_ids=("2",)),
                              extra_rows=lambda item_id: history.get(item_id, []))
     assert [(e.unique_id, e.price, e.confidence) for e in plan.entries] == [("a", 270, "high")]
+
+
+def test_darkerdb_pricing_never_prices_a_stack_as_one_unit():
+    stashes = {"2": [_item("pots", 0, itemCount=5, max_stack_size=5)]}
+    rules = ListerRules(source_stash_ids=("2",), allow_stacks=True)
+    plan = _plan(stashes, lambda item: _ok(100), rules=rules)
+    assert plan.entries == ()
+    assert "Price from game" in plan.skipped[0].reason
+
+
+def test_apply_game_prices_excludes_our_own_listings_and_records_recommended():
+    from src.market_lister import apply_game_prices
+    from src.models.roll_pricing import MarketRow
+    unpriced = _plan({"2": [_item("a", 0)]}, None).entries
+    market = {"a": {"same": [], "all": [MarketRow("Id_a", 90, (), (), "mine"),
+                                        MarketRow("Id_a", 300, (), (), "x1"), MarketRow("Id_a", 310, (), (), "x2")]}}
+    plan = apply_game_prices(unpriced, market, ListerRules(source_stash_ids=("2",)),
+                             exclude_listing_ids=frozenset({"mine"}))
+    entry = plan.entries[0]
+    assert (entry.price, entry.recommended) == (270, 270)   # our own 90g listing was ignored
+
+
+def test_apply_game_prices_skips_prices_above_the_game_maximum():
+    from src.market_lister import MAX_LISTING_PRICE, apply_game_prices
+    from src.models.roll_pricing import MarketRow
+    unpriced = _plan({"2": [_item("a", 0)]}, None).entries
+    market = {"a": {"same": [], "all": [MarketRow("Id_a", MAX_LISTING_PRICE * 3, (), ())]}}
+    plan = apply_game_prices(unpriced, market, ListerRules(source_stash_ids=("2",)))
+    assert plan.entries == () and "maximum" in plan.skipped[0].reason

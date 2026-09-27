@@ -26,21 +26,31 @@ Market listings of the same item and rarity are read from the game (up to 10 pag
 first) plus anything saved in the local market history from the last 6 hours.
 
 - **Items without rolls** (jewelry, treasure, potions): the cheapest real listing, per unit for
-  stacks. Lone lowball listings (under half the average) are ignored — they rarely survive anyway.
-- **Items with rolls** use *price ladders*. For each of your random rolls, the listings carrying
-  that stat are ordered by roll value; your roll is placed between the nearest weaker roll and
-  the nearest equal-or-better one, so a small roll isn't priced like a god roll.
-  - The **best roll** sets the base price.
-  - **Extra good rolls** each add a share (50% by default, learned from market data when there's
-    enough) of their own premium over a plain copy.
+  stacks.
+- **Items with rolls** are priced off **one real listing — never a point inside a price range**.
+  For each of your random rolls the anchor is the cheapest listing with that stat at your level
+  or the nearest similar weaker level (within 1.5× of your roll), or anything stronger that is
+  even cheaper. So your copy is never dearer than one at least as good, nor than a slightly
+  weaker one — a low price for a fast sale.
+  - Rolls far weaker or far stronger than yours are no comparison: a small roll isn't priced
+    like a god roll, and one expensive listing can't drag the price up.
+  - The **best roll**'s anchor sets the base.
+  - **Extra rolls** add a bonus when market data shows the two stats sell together (for example
+    Physical Power + Physical Weapon Damage), otherwise a small share of their premium.
   - A listing that is **at least as good on every stat** caps the price.
   - Base stats count with a small tolerance (Armor 29 ≈ 30).
+- **Lowballs are ignored**: an ask under half of what copies no better than it typically ask.
+  A cheap weak roll is a real price level; a strong roll dumped for pennies is not — it rarely
+  lasts, so the lister doesn't follow it down.
 - Then your **Undercut %** is applied (Fast 10% / Balanced 3% / Max 1% presets).
 - Items are skipped when a merchant pays more than the market (after the 5% / min 15g fee), when
   they'd sell below your minimum price, or when the fee would eat most of the price.
-- **Re-check before listing** (on by default) repeats the search right before each listing: if
-  the market dropped the lower price is used; if the item is no longer worth listing it's skipped.
-  Approved prices are never raised.
+- **Re-check before listing** (on by default) repeats the search right before each listing:
+  - a small drop (up to 20%) → the lower price is used; approved prices are never raised;
+  - a bigger drop → the item is skipped so you can price it again and review it;
+  - no longer worth listing (for example a merchant now pays more) → skipped;
+  - a price you edited, an incomplete search, or an uncertain fresh price → your approved price
+    is kept. Your own listings never count as competition.
 
 Confidence: **High** — comparable listings on both sides of your roll; **Medium** — one side
 only; **Low** — few or no comparable listings (marked ⚠️ for you to check).
@@ -54,8 +64,13 @@ that doesn't happen the run stops and the item is marked *unconfirmed*.
 
 The run stops immediately on: Ctrl+F12, the game losing focus, the mouse moving before Create
 Listing (checked right before the fee is charged), a fail code from the game (non-tradable items
-are skipped instead), no free spots, or My Listings not having been seen recently. It re-opens
-the Marketplace by itself only if you were in it within the last 10 minutes.
+are skipped instead), no free spots, or My Listings not having been seen recently.
+
+Before the first click of any run, and after every market search, My Listings is re-opened
+and the game must confirm it is showing page 1; otherwise the run stops. The market search
+must show the item that was meant to be selected, or the run stops before listing anything.
+If a run is cancelled while the "Would you like to list the item?" dialog is up, the lister
+clicks **No** so the dialog is never left open.
 
 ## Collecting sold gold
 

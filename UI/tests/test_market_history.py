@@ -81,6 +81,29 @@ def test_scan_marks_listings_that_vanished_before_expiry():
     assert history.summary()["vanished"] == 1
 
 
+def test_incomplete_scan_does_not_vanish_listings_at_its_price_boundary():
+    # An incomplete scan that stopped at 500g may have cut off other 500g listings mid-page.
+    clock = Clock()
+    history = _history(clock)
+    history.record_item_list(_page((1, "HeaterShield_5001", 300, 5 * DAY_MS, 17),
+                                   (2, "HeaterShield_5001", 500, 5 * DAY_MS, 20),
+                                   (3, "HeaterShield_5001", 400, 5 * DAY_MS, 12)))
+    clock.t += 3600
+    started = clock.t
+    history.record_item_list(_page((1, "HeaterShield_5001", 300, 5 * DAY_MS, 17)))
+    assert history.note_scan("HeaterShield_5001", started, max_price=500, complete=False) == 1  # only the 400g
+    assert [r.listing_id for r in history.vanished_rows("HeaterShield_5001")] == ["3"]
+
+
+def test_history_database_tolerates_a_second_connection(tmp_path):
+    path = str(tmp_path / "history.sqlite")
+    writer, reader = MarketHistory(path), MarketHistory(path)
+    writer.record_item_list(_page((1, "HeaterShield_5001", 300, 5 * DAY_MS, 17)))
+    assert reader.summary()["listings"] == 1
+    mode = reader.connection().execute("PRAGMA journal_mode").fetchone()[0]
+    assert mode == "wal"
+
+
 def test_seen_again_listing_is_not_vanished():
     clock = Clock()
     history = _history(clock)

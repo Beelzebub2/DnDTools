@@ -16,6 +16,7 @@ ITEM_ID_PREFIX = "Id_Item_"
 MS_PER_S = 1000.0
 VANISH_MARGIN_S = 600  # a listing gone >10 min before its expiry did not simply expire
 MY_STATE_SOLD = 3
+BUSY_TIMEOUT_S = 5.0  # wait this long for another connection (e.g. an analysis script) to finish writing
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS listings (
@@ -102,7 +103,10 @@ class MarketHistory:
     def __init__(self, path: str, clock=time.time):
         self._clock = clock
         self._lock = threading.Lock()
-        self._db = sqlite3.connect(path, check_same_thread=False)
+        self._db = sqlite3.connect(path, check_same_thread=False, timeout=BUSY_TIMEOUT_S)
+        # WAL lets analysis scripts read while the app keeps recording pages.
+        self._db.execute("PRAGMA journal_mode=WAL")
+        self._db.execute(f"PRAGMA busy_timeout={int(BUSY_TIMEOUT_S * 1000)}")
         self._db.executescript(_SCHEMA)
         self._db.commit()
 
@@ -127,8 +131,9 @@ class MarketHistory:
     def note_scan(self, item_id: str, started_at: float, max_price: int, complete: bool) -> int:
         """Record a finished search of one item and mark listings that vanished since.
 
-        Search results are cheapest-first, so any older listing of this item priced within
-        the range the scan covered (or any, if the scan read every page) that did not show
+        Search results are cheapest-first, so any older listing of this item priced below
+        the highest price an incomplete scan reached (listings at exactly that price may have
+        been cut off mid-page), or any at all if the scan read every page, that did not show
         up again and was not due to expire has most likely been sold.
         """
         now = self._clock()
@@ -139,7 +144,7 @@ class MarketHistory:
             cursor = self._db.execute(
                 """UPDATE listings SET vanished_at = ?
                    WHERE item_id = ? AND vanished_at IS NULL AND last_seen < ? AND expires_at > ?
-                     AND (? = 1 OR price <= ?)""",
+                     AND (? = 1 OR price < ?)""",
                 (now, item_id, started_at, now + VANISH_MARGIN_S, 1 if complete else 0, int(max_price)))
             self._db.commit()
             return cursor.rowcount

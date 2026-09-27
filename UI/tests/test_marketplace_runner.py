@@ -1,5 +1,6 @@
 import sys
 import time
+from dataclasses import replace
 
 import networking.protos
 
@@ -13,11 +14,13 @@ from networking.protos import MarketPlace_pb2
 from src.market_lister import PlanEntry
 from src.models.marketplace_layout import build_layout, tab_icon_index
 from src.models.roll_pricing import MarketRow
-from src.models.marketplace_runner import CURSOR_DEVIATION_PX, MarketplaceRunner
+from src.models.marketplace_runner import CURSOR_DEVIATION_PX, NOT_ON_MY_LISTINGS, MarketplaceRunner, Recheck
 from src.models.marketplace_state import FIRST_PAGE, MAX_SNAPSHOT_AGE_S, MarketplaceState, RegisterOutcome
 
 MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
 LAYOUT = build_layout((1920, 1080))
+# Every flow starts by re-opening My Listings (via View Market) and waiting for the game to confirm it.
+VERIFY_CLICKS = [LAYOUT.point("view_market_tab"), LAYOUT.point("my_listings_tab")]
 
 
 class FakeDriver:
@@ -49,7 +52,8 @@ class FakeDriver:
 class ScriptedState(MarketplaceState):
     """Answers register / listing waits from a script instead of packets."""
 
-    def __init__(self, used=2, outcomes=(), confirm=True, available=None, clock=None, page=FIRST_PAGE):
+    def __init__(self, used=2, outcomes=(), confirm=True, available=None, clock=None, page=FIRST_PAGE,
+                 answers_page=FIRST_PAGE, responsive=True, after_listing_page=None):
         super().__init__(clock or time.monotonic)
         # The game reports free spots in availableOrderIndexes; `used` is shorthand for
         # "spots 0..used-1 are taken" out of 40.
@@ -59,11 +63,23 @@ class ScriptedState(MarketplaceState):
         self.handle_my_item_list(msg)
         self.outcomes = list(outcomes)
         self.confirm = confirm
+        self.answers_page = answers_page              # page the game shows when My Listings opens
+        self.responsive = responsive                  # False: the game never answers
+        self.after_listing_page = after_listing_page  # page the game shows after a listing
+
+    def wait_for_fresh_snapshot(self, since, timeout):
+        """Stands in for the game re-sending My Listings when its tab is opened."""
+        if not self.responsive:
+            return None
+        self._snapshot = replace(self._snapshot, received_at=since + 0.001, current_page=self.answers_page)
+        return self._snapshot
 
     def wait_for_register(self, timeout):
         return self.outcomes.pop(0) if self.outcomes else RegisterOutcome("ok")
 
     def wait_for_listing(self, unique_id, since, timeout):
+        if self.confirm and self.after_listing_page is not None:
+            self._snapshot = replace(self._snapshot, received_at=since + 0.5, current_page=self.after_listing_page)
         return self.confirm
 
 
@@ -80,7 +96,7 @@ def test_run_clicks_full_sequence_for_one_item():
     report = _runner(driver, ScriptedState(used=2)).run([_entry("a", stash="4", slot=13)])
     assert report.stopped_reason is None
     assert [r.status for r in report.results] == ["listed"]
-    assert driver.actions == [
+    assert driver.actions == [("click", p) for p in VERIFY_CLICKS] + [
         ("click", LAYOUT.spot_row(2)),
         ("click", LAYOUT.tab_icon(1)),
         ("click", LAYOUT.item_centre("4", 13, 1, 1)),
@@ -94,7 +110,7 @@ def test_run_clicks_full_sequence_for_one_item():
 def test_run_turns_pages_when_spots_full():
     driver = FakeDriver()
     _runner(driver, ScriptedState(used=19)).run([_entry("a"), _entry("b", slot=1)])
-    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    clicks = [a[1] for a in driver.actions if a[0] == "click"][len(VERIFY_CLICKS):]
     arrow = LAYOUT.point("next_page_arrow")
     assert clicks[0] == arrow and clicks[1] == LAYOUT.spot_row(9)   # index 19 → page 1, row 9
     assert clicks.count(arrow) == 2                                  # index 20 → page 2
@@ -118,10 +134,12 @@ def test_run_refuses_without_listings_snapshot():
 
 
 def test_run_stops_on_timeout_and_general_failure():
-    # Timeout results in "unconfirmed" status
-    report = _runner(FakeDriver(), ScriptedState(outcomes=[RegisterOutcome("timeout")])).run([_entry("a"), _entry("b", slot=1)])
+    # Timeout results in "unconfirmed" status, and No is clicked in case the dialog is still open
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(outcomes=[RegisterOutcome("timeout")])).run([_entry("a"), _entry("b", slot=1)])
     assert len(report.results) == 1 and report.results[0].status == "unconfirmed"
     assert "not confirmed" in report.stopped_reason.lower()
+    assert driver.actions[-1] == ("click", LAYOUT.point("confirm_listing_no"))
 
     # General failure (657) results in "failed" status
     report = _runner(FakeDriver(), ScriptedState(outcomes=[RegisterOutcome("failed", 657)])).run([_entry("a"), _entry("b", slot=1)])
@@ -153,6 +171,7 @@ def test_run_stops_when_cancelled():
     assert report.results == ()
     assert report.stopped_reason == "Cancelled"
     assert ("click", LAYOUT.point("confirm_listing_yes")) not in driver.actions
+    assert driver.actions[-1] == ("click", LAYOUT.point("confirm_listing_no"))  # dialog dismissed
 
 
 def test_run_cancel_between_items_keeps_the_listed_one():
@@ -186,7 +205,7 @@ def test_run_stops_when_driver_click_raises():
 
     def raising_click(x, y):
         call_count[0] += 1
-        if call_count[0] > 6:  # First item completes (6 clicks), second item fails
+        if call_count[0] > 8:  # My Listings check (2 clicks) + first item (6 clicks), then it fails
             raise ValueError("Driver crashed")
         original_click(x, y)
 
@@ -289,11 +308,10 @@ class FakeClock:
 
 
 def test_run_refuses_when_my_listings_was_seen_long_ago():
-    # Seen more than REOPEN_WINDOW_S ago: the player may be anywhere, so nothing is clicked.
-    from src.models.marketplace_runner import REOPEN_WINDOW_S
+    # Seen too long ago: the player may be anywhere, so nothing is clicked.
     clock = FakeClock()
     state = ScriptedState(used=0, clock=clock)
-    clock.t += REOPEN_WINDOW_S + 1
+    clock.t += MAX_SNAPSHOT_AGE_S + 1
     driver = FakeDriver()
     report = _runner(driver, state).run([_entry("a")])
     assert report.results == ()
@@ -301,25 +319,29 @@ def test_run_refuses_when_my_listings_was_seen_long_ago():
     assert driver.actions == []
 
 
-class ReopenState(ScriptedState):
-    """Stale snapshot that becomes fresh once My Listings is re-opened."""
-
-    def wait_for_snapshot(self, since, timeout):
-        from src.models.marketplace_state import ListingsSnapshot
-        self._snapshot = ListingsSnapshot(received_at=self.now(), available=tuple(range(2, 40)))
-        return self._snapshot
-
-
-def test_run_reopens_a_recently_seen_marketplace_then_lists():
-    clock = FakeClock()
-    state = ReopenState(used=0, clock=clock)
-    clock.t += MAX_SNAPSHOT_AGE_S + 1   # stale, but seen within the last 10 minutes
+def test_run_stops_when_the_game_does_not_confirm_my_listings():
     driver = FakeDriver()
-    report = _runner(driver, state).run([_entry("a")])
+    report = _runner(driver, ScriptedState(used=0, responsive=False)).run([_entry("a")])
+    assert (report.results, report.stopped_reason) == ((), NOT_ON_MY_LISTINGS)
+    assert [a[1] for a in driver.actions] == VERIFY_CLICKS   # nothing after the unanswered check
+
+
+def test_run_stops_when_my_listings_opens_on_another_page():
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=0, answers_page=FIRST_PAGE + 1)).run([_entry("a")])
+    assert (report.results, report.stopped_reason) == ((), NOT_ON_MY_LISTINGS)
+    assert [a[1] for a in driver.actions] == VERIFY_CLICKS
+
+
+def test_going_back_a_page_reopens_my_listings_before_moving_on():
+    # After the first listing the game shows page 3; the next free spot is on page 2.
+    driver = FakeDriver()
+    state = ScriptedState(available=(3, 12), after_listing_page=FIRST_PAGE + 2)
+    report = _runner(driver, state).run([_entry("a"), _entry("b", slot=1)])
+    assert [r.status for r in report.results] == ["listed", "listed"]
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
-    assert clicks[:3] == [LAYOUT.point("trade_tab"), LAYOUT.point("marketplace_button"),
-                          LAYOUT.point("my_listings_tab")]
-    assert [r.status for r in report.results] == ["listed"]
+    after_first = clicks[clicks.index(LAYOUT.point("confirm_listing_yes")) + 1:]
+    assert after_first[:4] == VERIFY_CLICKS + [LAYOUT.point("next_page_arrow"), LAYOUT.spot_row(2)]
 
 
 def test_crawl_gear_only_ticks_every_class_and_stops_at_known_listings():
@@ -332,7 +354,7 @@ def test_crawl_gear_only_ticks_every_class_and_stops_at_known_listings():
     expected = []
     for i in range(10):   # the dropdown closes after each tick, so it is reopened every time
         expected += [LAYOUT.point("class_dropdown"), LAYOUT.class_option(i)]
-    assert clicks[4:24] == expected
+    assert clicks[len(VERIFY_CLICKS) + 4:len(VERIFY_CLICKS) + 24] == expected
     assert report.results[0].message == "1 pages, 10 listings"   # first page already known -> stop
 
 
@@ -345,12 +367,11 @@ def test_run_accepts_recent_listings_snapshot():
     assert [r.status for r in report.results] == ["listed"]
 
 
-def test_run_refuses_when_not_on_first_page():
+def test_run_reopens_my_listings_on_page_one_when_another_page_was_open():
     driver = FakeDriver()
     report = _runner(driver, ScriptedState(used=0, page=FIRST_PAGE + 1)).run([_entry("a")])
-    assert report.results == ()
-    assert report.stopped_reason == "Go to page 1 of My Listings, then start again."
-    assert driver.actions == []
+    assert report.stopped_reason is None and [r.status for r in report.results] == ["listed"]
+    assert [a[1] for a in driver.actions[:2]] == VERIFY_CLICKS
 
 
 def test_run_accepts_first_page():
@@ -441,16 +462,28 @@ def test_price_all_runs_the_search_flow_per_item():
     progress = []
     rows, report = _runner(driver, state).price_all(entries, on_progress=progress.append)
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
-    assert clicks[:7] == [
+    assert clicks[:9] == VERIFY_CLICKS + [
         LAYOUT.spot_row(2), LAYOUT.tab_icon(tab_icon_index("20", MAPPING)),
         LAYOUT.item_centre("20", 13, 1, 1), LAYOUT.point("form_search_button"),
         LAYOUT.point("market_attr_reset"), LAYOUT.point("market_search_button"),
-        LAYOUT.point("my_listings_tab"),
+        LAYOUT.point("my_listings_tab"),   # back, and confirmed, before the next item
     ]
     assert LAYOUT.point("create_listing_button") not in clicks
-    assert rows == {"a": {"same": [], "all": [row]}, "b": {"same": [], "all": []}}
+    # Item b's searches never answered: its (empty) view is marked incomplete.
+    assert rows == {"a": {"same": [], "all": [row], "degraded": False},
+                    "b": {"same": [], "all": [], "degraded": True}}
     assert [r.status for r in report.results] == ["priced", "no_results"]
+    assert "search incomplete" in report.results[1].message
     assert len(progress) == 2 and report.stopped_reason is None
+
+
+def test_search_showing_another_item_stops_before_listing():
+    driver = FakeDriver()
+    entry = replace(_entry("a"), item_id="HeaterShield_5001")
+    state = PricingState([[MarketRow("GreatHelm_5001", 300, (), ())], []], available=(2,))
+    report = _runner(driver, state).run([entry], reprice=lambda e, market: Recheck(e.price))
+    assert "instead of Item a" in report.stopped_reason
+    assert ("click", LAYOUT.point("create_listing_button")) not in driver.actions
 
 
 def test_price_all_refuses_without_listings_snapshot():
@@ -482,8 +515,10 @@ class PayoutState(MarketplaceState):
     def snapshot(self):
         return self._snap
 
-    def wait_for_snapshot(self, since, timeout):
-        self._snap = self.snapshots.pop(0) if self.snapshots else self._snap
+    def wait_for_fresh_snapshot(self, since, timeout):
+        if not self.snapshots:
+            return None
+        self._snap = replace(self.snapshots.pop(0), received_at=since + 0.001)
         return self._snap
 
     def wait_for_transfer(self, timeout):
@@ -504,9 +539,10 @@ def test_collect_payouts_transfers_each_sold_listing():
     driver = FakeDriver()
     report = _runner(driver, state).collect_payouts()
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
-    assert clicks == [LAYOUT.point("my_listings_tab"), LAYOUT.spot_row(1), LAYOUT.point("transfer_all_button"),
-                      LAYOUT.point("my_listings_tab"), LAYOUT.spot_row(2), LAYOUT.point("transfer_all_button"),
-                      LAYOUT.point("my_listings_tab")]
+    # My Listings is re-opened and confirmed before every transfer: rows shift after each one.
+    assert clicks == (VERIFY_CLICKS + [LAYOUT.spot_row(1), LAYOUT.point("transfer_all_button")]
+                      + VERIFY_CLICKS + [LAYOUT.spot_row(2), LAYOUT.point("transfer_all_button")]
+                      + VERIFY_CLICKS)
     assert [(r.name, r.status, r.message) for r in report.results] == [
         ("GreatHelm_3001", "collected", "200g collected"), ("OracleRobe_4001", "collected", "expired item returned")]
     assert report.stopped_reason is None
@@ -522,12 +558,48 @@ def test_collect_payouts_stops_on_transfer_failure():
     assert "Marketplace error 658" in report.stopped_reason or "space" in report.stopped_reason.lower()
 
 
+class CountingSafety:
+    """Passes the first `ok_calls` checkpoints, then reports the mouse moved."""
+    reason = "mouse_interference"
+
+    def __init__(self, ok_calls):
+        self.ok_calls = ok_calls
+
+    def checkpoint(self):
+        self.ok_calls -= 1
+        return self.ok_calls >= 0
+
+    def snapshot_position(self):
+        pass
+
+
+def test_collect_stops_when_the_mouse_moves_between_transfers():
+    import time as _t
+    now = _t.monotonic()
+    helm, robe = (1, 3, "GreatHelm_3001", 200), (3, 2, "OracleRobe_4001", 690)
+    state = PayoutState([_snap([helm, robe], now), _snap([helm, robe], now), _snap([robe], now)], [1, 1])
+    runner = MarketplaceRunner(FakeDriver(), LAYOUT, state, tab_mapping=MAPPING, is_cancelled=lambda: False,
+                               pause=lambda: None, safety=CountingSafety(ok_calls=1))
+    report = runner.collect_payouts()
+    assert [r.status for r in report.results] == ["collected"]
+    assert report.stopped_reason == "Stopped for safety: the mouse was moved"
+
+
+def test_crawl_stops_for_safety_between_pages():
+    full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([full, full, full], available=(2,))
+    runner = MarketplaceRunner(FakeDriver(), LAYOUT, state, tab_mapping=MAPPING, is_cancelled=lambda: False,
+                               pause=lambda: None, safety=CountingSafety(ok_calls=1))
+    report = runner.crawl_market(pages=5, rarities=(5,))
+    assert report.stopped_reason == "Stopped for safety: the mouse was moved"
+
+
 def test_crawl_market_reads_each_rarity_newest_first():
     driver = FakeDriver()
     full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
     state = PricingState([full, full, full[:4]], available=(2,))
     report = _runner(driver, state).crawl_market(pages=5, rarities=(5,), gear_only=False)
-    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    clicks = [a[1] for a in driver.actions if a[0] == "click"][len(VERIFY_CLICKS):]
     assert clicks[:5] == [LAYOUT.point("view_market_tab"), LAYOUT.point("market_reset_filters"),
                           LAYOUT.point("rarity_dropdown"), LAYOUT.rarity_option(5),
                           LAYOUT.point("market_search_button")]
@@ -564,7 +636,7 @@ def test_recheck_lowers_price_when_the_market_dropped():
     driver = FakeDriver()
     rows = [MarketRow("", 700, (), ())]
     state = PricingState([[], rows], available=(2, 3))
-    report = _runner(driver, state).run([_entry("a", price=900)], reprice=lambda entry, market: 630)
+    report = _runner(driver, state).run([_entry("a", price=900)], reprice=lambda entry, market: Recheck(630))
     assert ("type", "630") in driver.actions
     assert report.results[0].message == "630g (market moved: planned 900g)"
 
@@ -572,7 +644,7 @@ def test_recheck_lowers_price_when_the_market_dropped():
 def test_recheck_keeps_the_approved_price_when_market_rose():
     driver = FakeDriver()
     state = PricingState([[], []], available=(2, 3))
-    _runner(driver, state).run([_entry("a", price=900)], reprice=lambda entry, market: 1200)
+    _runner(driver, state).run([_entry("a", price=900)], reprice=lambda entry, market: Recheck(1200))
     assert ("type", "900") in driver.actions
 
 
@@ -580,9 +652,17 @@ def test_recheck_skips_items_no_longer_worth_listing():
     driver = FakeDriver()
     state = PricingState([[], [], [], []], available=(2, 3))
     report = _runner(driver, state).run([_entry("a"), _entry("b", slot=1)],
-                                        reprice=lambda entry, market: None if entry.unique_id == "a" else 900)
+                                        reprice=lambda entry, market: Recheck(None if entry.unique_id == "a" else 900))
     assert [(r.unique_id, r.status) for r in report.results] == [("a", "skipped"), ("b", "listed")]
+    assert report.results[0].message == "no longer worth listing at today's prices"
     assert ("type", "900") in driver.actions and driver.actions.count(("click", LAYOUT.point("create_listing_button"))) == 1
+
+
+def test_recheck_skip_reason_is_shown():
+    state = PricingState([[], []], available=(2,))
+    report = _runner(FakeDriver(), state).run(
+        [_entry("a")], reprice=lambda entry, market: Recheck(None, "market dropped to 500g"))
+    assert (report.results[0].status, report.results[0].message) == ("skipped", "market dropped to 500g")
 
 
 def test_stacks_fill_the_quantity_box_before_the_price():

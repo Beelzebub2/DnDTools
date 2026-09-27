@@ -57,6 +57,7 @@ class PlanEntry:
     compared: str = ""       # what the price was compared against
     confidence: str = ""     # "high" | "medium" | "low" — how well the market backs the price
     quantity: int = 1        # stack size to list (the price is for the whole stack)
+    recommended: int = 0     # the price the lister computed (differs from `price` if the user edited it)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -84,6 +85,7 @@ class PlanEntry:
             compared=str(data.get("compared") or "")[:300],
             confidence=str(data.get("confidence") or "") if data.get("confidence") in CONFIDENCE_LEVELS else "",
             quantity=_positive_int(data.get("quantity", 1), "quantity", 1, MAX_QUANTITY),
+            recommended=_positive_int(data.get("recommended", 0), "recommended", 0, MAX_LISTING_PRICE),
         )
 
 
@@ -151,6 +153,9 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
         if price_lookup is None:
             entries.append(_entry(candidate))
             continue
+        if int(candidate.item.get("itemCount") or 1) > 1:  # DarkerDB quotes one unit, not the stack
+            skipped.append(_skip(candidate, STACK_NEEDS_GAME_PRICING))
+            continue
         check = price_lookup(candidate.item)
         pause()
         error = (check or {}).get("error_code")
@@ -173,14 +178,17 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
 
 
 NOT_PRICED_REASON = "not priced — the pricing run stopped first"
+STACK_NEEDS_GAME_PRICING = "stacks are priced per unit from the game market — use Price from game"
+ABOVE_MAX_REASON = "price would be above the game's maximum listing price"
 
 
 def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
-                      extra_share=EXTRA_ROLL_SHARE) -> Plan:
+                      extra_share=EXTRA_ROLL_SHARE, exclude_listing_ids=frozenset(), synergies=None) -> Plan:
     """Price unpriced entries from in-game search results, comparing like rolls with like.
 
     market_by_unique_id: {unique_id: {"same": [MarketRow], "all": [MarketRow]}}.
     extra_rows(item_id): recent listings from the local market history to widen the view.
+    exclude_listing_ids: our own listings, which must not set our prices.
     """
     priced, skipped = [], []
     for entry in entries:
@@ -189,12 +197,18 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, NOT_PRICED_REASON))
             continue
         history = list(extra_rows(entry.item_id)) if extra_rows else []
+
+        def others(rows):
+            return [r for r in rows if r.listing_id not in exclude_listing_ids]
         result = price_from_market(entry.item_id, entry.base_rolls, entry.rolls, entry.vendor_price,
-                                   market.get("same") or [], (market.get("all") or []) + history, rules,
-                                   extra_share=extra_share, quantity=entry.quantity)
-        if result.ok:
+                                   others(market.get("same") or []), others((market.get("all") or []) + history),
+                                   rules, extra_share=extra_share, quantity=entry.quantity, synergies=synergies)
+        if result.ok and result.price > MAX_LISTING_PRICE:
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, ABOVE_MAX_REASON))
+        elif result.ok:
             priced.append(replace(entry, price=result.price, fee=result.fee, flag=result.flag,
-                                  compared=result.compared, confidence=result.confidence))
+                                  compared=result.compared, confidence=result.confidence,
+                                  recommended=result.price))
         else:
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, result.reason))
     warnings = list(_explain(priced, skipped))
