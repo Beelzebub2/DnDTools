@@ -1,5 +1,5 @@
 """Builds the auto market lister's reviewable listing plan."""
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 from src.models.market_rules import Skip, compute_price, listing_fee, rarity_id, select_candidates
 from src.models.marketplace_layout import tab_icon_index
@@ -35,15 +35,16 @@ class PlanEntry:
     price: int
     fee: int
     vendor_price: int
+    item_id: str = ""
 
     def to_dict(self) -> dict:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "PlanEntry":
+    def from_dict(cls, data: dict, allow_unpriced: bool = False) -> "PlanEntry":
         if not isinstance(data, dict) or not str(data.get("unique_id") or "").strip():
             raise ValueError("entry is missing unique_id")
-        price = _positive_int(data.get("price"), "price", 1, MAX_LISTING_PRICE)
+        price = _positive_int(data.get("price"), "price", 0 if allow_unpriced else 1, MAX_LISTING_PRICE)
         return cls(
             unique_id=str(data["unique_id"]),
             name=str(data.get("name") or "?")[:128],
@@ -53,8 +54,9 @@ class PlanEntry:
             width=_positive_int(data.get("width", 1), "width", 1, 4),
             height=_positive_int(data.get("height", 1), "height", 1, 4),
             price=price,
-            fee=listing_fee(price),
+            fee=listing_fee(price) if price else 0,
             vendor_price=_positive_int(data.get("vendor_price", 0), "vendor_price", 0),
+            item_id=str(data.get("item_id") or "")[:128],
         )
 
 
@@ -72,14 +74,16 @@ class Plan:
         }
 
 
-def _entry(candidate, decision) -> PlanEntry:
+def _entry(candidate, decision=None) -> PlanEntry:
+    """A plan entry; without a decision it is unpriced (price 0) until the game prices it."""
     item = candidate.item
     return PlanEntry(
         unique_id=str(item.get("itemUniqueId")), name=item.get("name", "?"),
         rarity=rarity_id(item.get("rarity")), stash_id=candidate.stash_id,
         slot_id=int(item.get("slotId", 0)), width=int(item.get("width") or 1),
-        height=int(item.get("height") or 1), price=decision.price, fee=decision.fee,
-        vendor_price=int(item.get("vendor_price") or 0),
+        height=int(item.get("height") or 1),
+        price=decision.price if decision else 0, fee=decision.fee if decision else 0,
+        vendor_price=int(item.get("vendor_price") or 0), item_id=str(item.get("itemId") or ""),
     )
 
 
@@ -115,6 +119,9 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
         if tab_icon_index(candidate.stash_id, tab_mapping) is None:
             skipped.append(_skip(candidate, UNMAPPED_TAB_REASON))
             continue
+        if price_lookup is None:
+            entries.append(_entry(candidate))
+            continue
         check = price_lookup(candidate.item)
         pause()
         error = (check or {}).get("error_code")
@@ -130,8 +137,38 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
             skipped.append(_skip(candidate, decision.reason))
     if free_spots is not None and len(entries) >= free_spots and len(candidates) > len(entries):
         warnings.append(f"Only {free_spots} free listing spots — some items were left out.")
+    if price_lookup is None and entries:
+        warnings.append("Prices will come from the in-game market — click \"Price from game\".")
     warnings.extend(_explain(entries, skipped))
     return Plan(tuple(entries), tuple(skipped), tuple(warnings))
+
+
+NO_SELLERS_REASON = "nobody is selling this right now"
+
+
+def _game_price_check(entry, rows):
+    """Turn one page of View Market results (cheapest first) into a price-check summary."""
+    prices = [price for item_id, price in rows if not entry.item_id or item_id == entry.item_id]
+    if not prices:
+        return None
+    return {"success": True, "has_data": True, "lowest_ask": min(prices),
+            "avg_price": sum(prices) / len(prices), "num_listings": len(prices)}
+
+
+def apply_game_prices(entries, rows_by_unique_id, rules) -> Plan:
+    """Price unpriced entries from in-game search results keyed by unique_id."""
+    priced, skipped = [], []
+    for entry in entries:
+        check = _game_price_check(entry, rows_by_unique_id.get(entry.unique_id) or [])
+        decision = compute_price(check, entry.vendor_price, rules) if check else None
+        if decision is None:
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, NO_SELLERS_REASON))
+        elif not decision.ok:
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, decision.reason))
+        else:
+            priced.append(replace(entry, price=decision.price, fee=decision.fee))
+    warnings = tuple(_explain(priced, skipped))
+    return Plan(tuple(priced), tuple(skipped), warnings)
 
 
 def _explain(entries, skipped):

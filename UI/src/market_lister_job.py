@@ -78,6 +78,20 @@ class ListerJob:
                 self._finish(f"Unexpected error: {exc}")
         return self._launch("dry_run" if dry_run else "list", target)
 
+    def price(self, entries, price_results) -> bool:
+        """Price entries from the in-game market; `price_results(entries, rows)` builds the plan."""
+        def target(event):
+            try:
+                rows, report = self._runner_factory(event).price_all(entries, on_progress=self._record)
+                plan = price_results(entries, rows).to_dict()
+                with self._lock:
+                    self._status = {**self._status, "plan": plan}
+                self._finish(report.stopped_reason)
+            except Exception as exc:
+                logger.exception("Market lister pricing failed")
+                self._finish(f"Unexpected error: {exc}")
+        return self._launch("price", target)
+
     def hover_test(self) -> bool:
         def target(event):
             try:

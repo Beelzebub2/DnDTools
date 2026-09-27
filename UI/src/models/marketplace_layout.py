@@ -17,12 +17,33 @@ BASE_POINTS = {
     "stash_grid_origin": (1369, 184),
     "price_field": (960, 618),
     "create_listing_button": (960, 968),
+    # In-game pricing flow (measured at 3840x2160, halved):
+    "form_search_button": (960, 467),      # "Search" under the selected item in List an Item
+    "market_attr_reset": (1677, 207),      # reset icon of View Market's Random Attribute filter
+    "market_search_button": (1794, 277),   # View Market "Search" button
+    "my_listings_tab": (1062, 123),        # "My Listings" tab header
 }
 BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3}
 
 
 def spot_location(order_index: int):
     return divmod(int(order_index), SPOTS_PER_PAGE)
+
+
+FIRST_STASH_TAB_ID, GEAR_SET_FIRST_ID = 4, 100
+
+
+def auto_tab_order(stash_ids):
+    """Marketplace stash tab icons follow the account's stash ids in ascending order."""
+    ids = []
+    for raw in stash_ids:
+        try:
+            value = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if FIRST_STASH_TAB_ID <= value < GEAR_SET_FIRST_ID:
+            ids.append(value)
+    return sorted(set(ids))
 
 
 def tab_icon_index(stash_id: str, tab_mapping):

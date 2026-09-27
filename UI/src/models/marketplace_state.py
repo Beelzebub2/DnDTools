@@ -9,6 +9,7 @@ MAX_SNAPSHOT_AGE_S = 120
 # flip to 1 if the in-game dry run refuses on page 1.
 FIRST_PAGE = 0
 ITEM_LEVEL_FAIL_CODES = frozenset({662, 666})
+ITEM_ID_PREFIX = "Id_Item_"
 FAIL_CODE_MESSAGES = {
     650: "Marketplace general error",
     655: "Maximum number of listings reached",
@@ -51,6 +52,7 @@ class MarketplaceState:
         self._snapshot = None
         self._listed_at = {}  # itemUniqueId(str) -> last received_at seen
         self._register_result = None
+        self._item_list = None  # (received_at, [(item_id, price)])
 
     def now(self) -> float:
         return self._clock()
@@ -66,6 +68,22 @@ class MarketplaceState:
             for info in message.myItemInfos:
                 self._listed_at[str(info.itemInfo.item.itemUniqueId)] = received
             self._cond.notify_all()
+
+    def handle_item_list(self, message) -> None:
+        """S2C_MARKETPLACE_ITEM_LIST_RES: one page of View Market search results."""
+        received = self._clock()
+        rows = [(str(info.item.itemId).split(ITEM_ID_PREFIX)[-1], int(info.price)) for info in message.itemInfos]
+        with self._cond:
+            self._item_list = (received, rows)
+            self._cond.notify_all()
+
+    def wait_for_item_list(self, since: float, timeout: float):
+        """Rows [(item_id, price)] from the first search result page received after `since`."""
+        with self._cond:
+            self._cond.wait_for(lambda: self._item_list is not None and self._item_list[0] > since, timeout)
+            if self._item_list is None or self._item_list[0] <= since:
+                return None
+            return list(self._item_list[1])
 
     def handle_register_res(self, message) -> None:
         with self._cond:

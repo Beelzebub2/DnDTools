@@ -1,7 +1,7 @@
 import pytest
 
 from src.models.marketplace_layout import (
-    SPOTS_PER_PAGE, build_layout, spot_location, tab_icon_index,
+    SPOTS_PER_PAGE, auto_tab_order, build_layout, spot_location, tab_icon_index,
 )
 from src.models.screen_scaling import Scale, scale_for, scale_length, scale_point
 
@@ -40,6 +40,13 @@ def test_tab_icon_index_inventory_and_stash():
 def test_tab_icon_index_unmapped_returns_none():
     assert tab_icon_index("9", [4, 20, 5, 6, 7, 8, 0, 30]) is None
     assert tab_icon_index("abc", MAPPING) is None
+
+
+def test_auto_tab_order_is_stash_ids_ascending():
+    # Verified in game: Marketplace tab icons follow the account's stash ids in ascending
+    # order; inventory (2) and equipment (3) are not stash tabs.
+    assert auto_tab_order(["2", "3", "4", "20", "5", "21", "30"]) == [4, 5, 20, 21, 30]
+    assert auto_tab_order(["2", "3", "abc", "101"]) == []
 
 
 def test_build_layout_1080p_base_points():

@@ -7,7 +7,10 @@ from ctypes import wintypes
 from src.models import macros
 from src.models.marketplace_layout import build_layout
 
-CLICK_HOLD_SECONDS = 0.04
+CLICK_HOLD_SECONDS = 0.12
+APPROACH_OFFSET_PX = 5
+APPROACH_SECONDS = 0.12
+HOVER_SETTLE_SECONDS = 0.15
 KEY_GAP_SECONDS = 0.03
 MIN_STEP_DELAY = 0.15
 STEP_JITTER = 0.07
@@ -27,8 +30,12 @@ class MacrosInputDriver:
         macros.move_mouse(x, y)
 
     def click(self, x, y):
+        # The game ignores instant clicks: arrive with a small approach move, let the
+        # hover register, then hold the button briefly (verified in game).
+        macros.move_mouse(x - APPROACH_OFFSET_PX, y - APPROACH_OFFSET_PX)
+        time.sleep(APPROACH_SECONDS)
         macros.move_mouse(x, y)
-        time.sleep(CLICK_HOLD_SECONDS)
+        time.sleep(HOVER_SETTLE_SECONDS)
         macros.mouse_down()
         try:
             time.sleep(CLICK_HOLD_SECONDS)

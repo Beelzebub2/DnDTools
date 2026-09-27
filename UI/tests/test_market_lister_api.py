@@ -33,6 +33,13 @@ class FakeRunner:
             on_progress(r)
         return RunReport(tuple(results), None)
 
+    def price_all(self, entries, on_progress=None):
+        rows = {e.unique_id: [(e.item_id, 300), (e.item_id, 320), (e.item_id, 340)] for e in entries}
+        results = [ItemResult(e.unique_id, e.name, "priced") for e in entries]
+        for r in results:
+            on_progress(r)
+        return rows, RunReport(tuple(results), None)
+
 
 def _wait_done(job):
     for _ in range(100):
@@ -226,3 +233,27 @@ def test_start_drops_duplicate_unique_ids(client_and_deps):
     _wait_done(deps.job)
     results = client.get("/api/market-lister/status").get_json()["results"]
     assert [r["unique_id"] for r in results] == ["a", "b"]
+
+
+def test_plan_falls_back_to_game_pricing_without_darkerdb_key(client_and_deps):
+    client, deps, _ = client_and_deps
+    deps.price_lookup = lambda item: {"success": False, "error_code": "missing_api_key"}
+    data = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()
+    assert data["success"] is True and data["needs_game_pricing"] is True
+    assert data["plan"]["entries"][0]["price"] == 0
+
+
+def test_price_endpoint_prices_from_game_and_returns_plan(client_and_deps):
+    client, deps, _ = client_and_deps
+    unpriced = {**ENTRY, "price": 0, "fee": 0, "item_id": "G_1"}
+    assert client.post("/api/market-lister/price", json={"entries": [unpriced]}).status_code == 200
+    _wait_done(deps.job)
+    status = client.get("/api/market-lister/status").get_json()
+    assert status["mode"] == "price" and status["state"] == "done"
+    assert status["plan"]["entries"][0]["price"] == 270
+
+
+def test_price_endpoint_rejects_bad_entries(client_and_deps):
+    client, _, _ = client_and_deps
+    assert client.post("/api/market-lister/price", json={"entries": []}).status_code == 400
+    assert client.post("/api/market-lister/price", json={"entries": [{**ENTRY, "price": -1}]}).status_code == 400

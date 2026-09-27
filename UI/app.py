@@ -684,6 +684,7 @@ class Api:
             # Market lister confirmation handlers
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_MY_ITEM_LIST_RES: marketplace_state.handle_my_item_list,
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_REGISTER_RES: marketplace_state.handle_register_res,
+            _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_LIST_RES: marketplace_state.handle_item_list,
         }
         self._capture_controller = CaptureController(
             self._capture_settings, capture_info, wireshark_path=self._wireshark_path
@@ -2768,6 +2769,13 @@ class _MonitoredRunner:
         finally:
             self._monitor.stop()
 
+    def price_all(self, *args, **kwargs):
+        self._monitor.start()
+        try:
+            return self._runner.price_all(*args, **kwargs)
+        finally:
+            self._monitor.stop()
+
 
 def _lister_runner_factory(event):
     from src.models import marketplace_input
@@ -2777,7 +2785,7 @@ def _lister_runner_factory(event):
     monitor = SortSafetyMonitor(event)
     runner = MarketplaceRunner(
         marketplace_input.MacrosInputDriver(), marketplace_input.current_layout(), marketplace_state,
-        tab_mapping=marketplace_input.current_tab_mapping(), is_cancelled=event.is_set,
+        tab_mapping=_lister_tab_mapping(), is_cancelled=event.is_set,
         pause=marketplace_input.make_pause(event.is_set), safety=monitor,
     )
     return _MonitoredRunner(runner, monitor)
@@ -2806,7 +2814,11 @@ def _focus_game_window(wait=time.sleep):
     windows = [w for w in gw.getAllWindows() if w.title == GAME_WINDOW_TITLE]
     if not windows:
         raise RuntimeError("Dark and Darker window not found.")
-    windows[0].activate()
+    macros.tap_alt()  # lifts Windows' foreground lock so activate() is allowed from a background app
+    try:
+        windows[0].activate()
+    except Exception as exc:  # pygetwindow raises even when activation succeeded
+        logger.debug("activate() reported: %s", exc)
     if macros.get_game_window_mode() == 0:
         wait(1.0)
     macros.tap_alt()
@@ -2829,7 +2841,18 @@ def _lister_resolution_key():
 
 
 def _lister_tab_mapping():
+    """Tab icon order worked out from the freshest character's stash ids (no setup needed)."""
     from src.models import marketplace_input
+    from src.models.marketplace_layout import auto_tab_order
+    freshest = None
+    for summary in stash_manager.get_characters_summary():
+        age = stash_manager.get_character_data_age(summary.get('id'))
+        if age is not None and (freshest is None or age < freshest[0]):
+            freshest = (age, summary.get('id'))
+    if freshest is not None:
+        order = auto_tab_order(stash_manager.get_character_stashes(freshest[1]).keys())
+        if order:
+            return order
     return marketplace_input.current_tab_mapping()
 
 

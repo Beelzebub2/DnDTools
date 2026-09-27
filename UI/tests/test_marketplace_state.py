@@ -82,6 +82,25 @@ def test_wait_for_listing_requires_newer_snapshot_with_item():
     assert state.wait_for_listing("999", since=100.5, timeout=0.05) is False
 
 
+def _item_list(prices, item="HeaterShield_5001"):
+    msg = MarketPlace_pb2.SS2C_MARKETPLACE_ITEM_LIST_RES(currentPage=1, maxPage=13)
+    for price in prices:
+        info = msg.itemInfos.add()
+        info.item.itemId = f"DesignDataItem:Id_Item_{item}"
+        info.price = price
+    return msg
+
+
+def test_wait_for_item_list_returns_prices_newer_than_since():
+    clock = FakeClock()
+    state = MarketplaceState(clock=clock)
+    state.handle_item_list(_item_list([300, 310]))
+    assert state.wait_for_item_list(since=100.0, timeout=0.05) is None  # not newer
+    clock.t = 101.0
+    state.handle_item_list(_item_list([300, 333], item="GemRing_6001"))
+    assert state.wait_for_item_list(since=100.5, timeout=0.05) == [("GemRing_6001", 300), ("GemRing_6001", 333)]
+
+
 def test_describe_fail_code():
     assert "gold" in describe_fail_code(657).lower()
     assert "655" in describe_fail_code(655) or "maximum" in describe_fail_code(655).lower()

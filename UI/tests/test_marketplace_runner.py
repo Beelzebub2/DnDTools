@@ -11,7 +11,7 @@ if _PROTOS_PATH not in sys.path:
 from networking.protos import MarketPlace_pb2
 
 from src.market_lister import PlanEntry
-from src.models.marketplace_layout import build_layout
+from src.models.marketplace_layout import build_layout, tab_icon_index
 from src.models.marketplace_runner import CURSOR_DEVIATION_PX, MarketplaceRunner
 from src.models.marketplace_state import FIRST_PAGE, MAX_SNAPSHOT_AGE_S, MarketplaceState, RegisterOutcome
 
@@ -365,3 +365,36 @@ def test_safety_stop_uses_friendly_reason_text():
     safety = RecordingSafety(driver, reason="game_window_unfocused")
     report = _safe_runner(driver, ScriptedState(used=0), safety, cancelled=lambda: True).run([_entry("a")])
     assert report.stopped_reason == "Stopped for safety: the game lost focus"
+
+
+class PricingState(ScriptedState):
+    def __init__(self, rows_per_search, **kw):
+        super().__init__(**kw)
+        self.rows_per_search = list(rows_per_search)
+
+    def wait_for_item_list(self, since, timeout):
+        return self.rows_per_search.pop(0) if self.rows_per_search else None
+
+
+def test_price_all_runs_the_search_flow_per_item():
+    driver = FakeDriver()
+    state = PricingState([[("HeaterShield_5001", 300)], None], available=(2, 3))
+    entries = [_entry("a", stash="20", slot=13), _entry("b", slot=1)]
+    progress = []
+    rows, report = _runner(driver, state).price_all(entries, on_progress=progress.append)
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks[:7] == [
+        LAYOUT.spot_row(2), LAYOUT.tab_icon(tab_icon_index("20", MAPPING)),
+        LAYOUT.item_centre("20", 13, 1, 1), LAYOUT.point("form_search_button"),
+        LAYOUT.point("market_attr_reset"), LAYOUT.point("market_search_button"),
+        LAYOUT.point("my_listings_tab"),
+    ]
+    assert LAYOUT.point("create_listing_button") not in clicks
+    assert rows == {"a": [("HeaterShield_5001", 300)], "b": []}
+    assert [r.status for r in report.results] == ["priced", "no_results"]
+    assert len(progress) == 2 and report.stopped_reason is None
+
+
+def test_price_all_refuses_without_listings_snapshot():
+    rows, report = _runner(FakeDriver(), MarketplaceState()).price_all([_entry("a")])
+    assert rows == {} and "My Listings" in report.stopped_reason

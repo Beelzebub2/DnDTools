@@ -116,3 +116,23 @@ def test_build_plan_skips_already_listed_unique_ids():
     assert [e.unique_id for e in plan.entries] == ["b"]
     assert [(s.name, s.reason) for s in plan.skipped] == [("Item a", "already listed")]
     assert looked_up == ["b"]
+
+
+def test_build_plan_without_price_lookup_defers_pricing_to_the_game():
+    plan = _plan({"2": [_item("a", 3)]}, None)
+    entry = plan.entries[0]
+    assert (entry.unique_id, entry.price, entry.fee, entry.item_id) == ("a", 0, 0, "Id_a")
+    assert any("in-game market" in w for w in plan.warnings)
+
+
+def test_apply_game_prices_undercuts_cheapest_listing():
+    from src.market_lister import apply_game_prices
+    unpriced = _plan({"2": [_item("a", 0), _item("b", 1), _item("c", 2)]}, None).entries
+    rows = {
+        "a": [("Id_a", 300), ("Id_a", 310), ("Id_a", 333), ("Id_a", 350)],
+        "b": [],                                   # nobody selling it
+        "c": [("Id_other", 50), ("Id_c", 1000), ("Id_c", 1000), ("Id_c", 1100)],
+    }
+    plan = apply_game_prices(unpriced, rows, ListerRules(source_stash_ids=("2",)))
+    assert [(e.unique_id, e.price, e.fee) for e in plan.entries] == [("a", 270, 15), ("c", 900, 45)]
+    assert [(s.name, s.reason) for s in plan.skipped] == [("Item b", "nobody is selling this right now")]

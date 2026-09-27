@@ -15,6 +15,7 @@
     const listingFee = (price) => Math.max(LISTING_FEE_MIN, Math.ceil(price * LISTING_FEE_RATE));
     const $ = (id) => document.getElementById(id);
     let plan = null;
+    let needsGamePricing = false; // no DarkerDB key: prices come from the in-game market
     let pollTimer = null;
     let disposed = false;
     let watching = false; // only announce completion for runs started from this page view
@@ -94,10 +95,12 @@
             const price = document.createElement('input');
             price.type = 'number';
             price.min = '1';
-            price.value = entry.price;
+            price.value = needsGamePricing ? '' : entry.price;
+            price.placeholder = needsGamePricing ? 'from game' : '';
+            price.disabled = needsGamePricing;
             price.dataset.index = index;
             price.className = 'mlPrice';
-            const fee = text('span', `${entry.fee}g`);
+            const fee = text('span', needsGamePricing ? '—' : `${entry.fee}g`);
             price.addEventListener('input', () => {
                 const value = Number(price.value);
                 fee.textContent = Number.isFinite(value) && value > 0 ? `${listingFee(value)}g` : '—';
@@ -110,6 +113,9 @@
         $('mlSkippedSummary').textContent = `Skipped (${plan.skipped.length})`;
         $('mlSkipped').replaceChildren(...plan.skipped.map((s) => text('li', `${s.name} — ${s.reason}`)));
         $('mlResults').replaceChildren();
+        $('mlPriceGame').hidden = !needsGamePricing || plan.entries.length === 0;
+        $('mlDryRun').hidden = needsGamePricing;
+        $('mlStart').hidden = needsGamePricing;
         const empty = plan.entries.length === 0;
         $('mlSkippedSummary').parentElement.open = empty;
         const planned = `Plan ready: ${plan.entries.length} item(s) to list, ${plan.skipped.length} skipped.`;
@@ -128,6 +134,7 @@
         $('mlDryRun').disabled = running;
         $('mlBuildPlan').disabled = running;
         $('mlHoverTest').disabled = running;
+        $('mlPriceGame').disabled = running;
         $('mlCancel').hidden = !running;
     };
 
@@ -147,6 +154,11 @@
                 pollTimer = setTimeout(poll, POLL_MS);
             } else if (status.state === 'done' && watching) {
                 watching = false;
+                if (status.mode === 'price' && status.plan) {
+                    plan = status.plan;
+                    needsGamePricing = false;
+                    renderPlan();
+                }
                 notify(status.stopped_reason || 'Market lister finished.', status.stopped_reason ? 'warning' : 'success');
             }
         } catch (error) {
@@ -162,12 +174,25 @@
             await post('/rules', rules);
             const data = await post('/plan', { character_id: $('mlCharacter').value, rules });
             plan = data.plan;
+            needsGamePricing = Boolean(data.needs_game_pricing);
             renderListingStatus(data.listings);
             renderPlan();
         } catch (error) {
             notify(error.message, 'error');
         } finally {
             $('mlBuildPlan').disabled = false;
+        }
+    };
+
+    const priceFromGame = async () => {
+        try {
+            await post('/price', { entries: plan.entries });
+            notify('Pricing from the in-game market — switching to the game…');
+            watching = true;
+            setRunning(true);
+            pollTimer = setTimeout(poll, POLL_MS);
+        } catch (error) {
+            notify(error.message, 'error');
         }
     };
 
@@ -246,6 +271,7 @@
             notify(error.message, 'error');
         }
         $('mlBuildPlan').addEventListener('click', buildPlan);
+        $('mlPriceGame').addEventListener('click', priceFromGame);
         $('mlDryRun').addEventListener('click', () => start(true));
         $('mlStart').addEventListener('click', () => start(false));
         $('mlCancel').addEventListener('click', () => post('/cancel').catch((e) => notify(e.message, 'error')));

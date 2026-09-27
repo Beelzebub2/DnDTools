@@ -9,6 +9,7 @@ from src.models.marketplace_state import (
 
 MAX_PAGES = 4
 CURSOR_DEVIATION_PX = 120
+SEARCH_SETTLE_PAUSES = 4  # the View Market screen needs a moment after each switch
 SAFETY_REASON_TEXT = {
     "game_window_unfocused": "the game lost focus",
     "mouse_interference": "the mouse was moved",
@@ -131,6 +132,56 @@ class MarketplaceRunner:
             return RunReport(tuple(results), f"Stopped: {exc}")
         return RunReport(tuple(results), None)
 
+    def price_all(self, entries, on_progress=None):
+        """Look up each entry's current market listings via the in-game Search flow.
+
+        Never clicks Create Listing. Returns ({unique_id: [(item_id, price)]}, RunReport).
+        """
+        snapshot = self._state.snapshot()
+        entries = list(entries)
+        refusal = self._refusal(snapshot) or self._unmapped_message(entries)
+        if refusal:
+            return {}, RunReport((), refusal)
+        if not snapshot.available:
+            return {}, RunReport((), "No free listing spots left.")
+        spot, rows_by_uid, results = min(snapshot.available), {}, []
+        try:
+            for entry in entries:
+                if not self._safety.checkpoint():
+                    raise _Stop(f"Stopped for safety: {_friendly_reason(self._safety.reason) or 'the game lost focus'}")
+                rows = self._search_market(entry, spot) or []
+                rows_by_uid[entry.unique_id] = rows
+                result = ItemResult(entry.unique_id, entry.name, "priced" if rows else "no_results",
+                                    f"{len(rows)} listings found")
+                results.append(result)
+                if on_progress:
+                    on_progress(result)
+                self._safety.snapshot_position()
+        except _Stop as stop:
+            return rows_by_uid, RunReport(tuple(results), str(stop))
+        except Exception as exc:
+            return rows_by_uid, RunReport(tuple(results), f"Stopped: {exc}")
+        return rows_by_uid, RunReport(tuple(results), None)
+
+    def _settle(self):
+        for _ in range(SEARCH_SETTLE_PAUSES):
+            self._pause()
+
+    def _search_market(self, entry, spot):
+        self._page = 0  # returning to My Listings shows page 1 again
+        self._go_to_spot(spot)
+        self._select_item(entry)
+        self._click(self._layout.point("form_search_button"))
+        self._settle()
+        self._click(self._layout.point("market_attr_reset"))  # search all rolls, not just ours
+        self._settle()
+        since = self._state.now()
+        self._click(self._layout.point("market_search_button"))
+        rows = self._state.wait_for_item_list(since, self._register_timeout)
+        self._click(self._layout.point("my_listings_tab"))
+        self._settle()
+        return rows
+
     def _check(self):
         if self._is_cancelled():
             reason = self._safety.reason
@@ -152,12 +203,15 @@ class MarketplaceRunner:
             self._page += 1
         self._click(self._layout.spot_row(row))
 
-    def _fill_form(self, entry):
+    def _select_item(self, entry):
         icon = tab_icon_index(entry.stash_id, self._tab_mapping)
         if icon is None:
             raise _Stop(f"Stash tab for {entry.name} is not mapped in DnDTools settings.")
         self._click(self._layout.tab_icon(icon))
         self._click(self._layout.item_centre(entry.stash_id, entry.slot_id, entry.width, entry.height))
+
+    def _fill_form(self, entry):
+        self._select_item(entry)
         self._click(self._layout.point("price_field"))
         self._check()
         self._driver.clear_and_type(str(entry.price))

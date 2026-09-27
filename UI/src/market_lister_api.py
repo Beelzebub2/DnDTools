@@ -5,7 +5,7 @@ from typing import Any, Callable
 
 from flask import Blueprint, jsonify, request
 
-from src.market_lister import PlanEntry, PlanError, build_plan
+from src.market_lister import PlanEntry, PlanError, apply_game_prices, build_plan
 from src.models.market_rules import ListerRules
 from src.models.marketplace_layout import BASE_LENGTHS, BASE_POINTS
 
@@ -106,17 +106,44 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         snapshot = deps.state.snapshot()
         free = None if snapshot is None else snapshot.free
         data_age_s = deps.get_data_age(character_id)
-        try:
-            result = build_plan(
-                deps.get_stashes(character_id, list(rules.source_stash_ids)), rules, deps.price_lookup,
-                tab_mapping=deps.tab_mapping(), free_spots=free,
+        stashes = deps.get_stashes(character_id, list(rules.source_stash_ids))
+
+        def build(price_lookup):
+            return build_plan(
+                stashes, rules, price_lookup, tab_mapping=deps.tab_mapping(), free_spots=free,
                 data_age_s=data_age_s, pause=deps.pause, exclude_unique_ids=deps.state.listed_ids(),
             )
+
+        needs_game_pricing = False
+        try:
+            result = build(deps.price_lookup)
         except PlanError as exc:
-            return _error(str(exc), 424)
+            if exc.code != "missing_api_key":
+                return _error(str(exc), 424)
+            result, needs_game_pricing = build(None), True  # no DarkerDB key: price from the game
         if _data_predates_last_run(deps.job, data_age_s):
             result = replace(result, warnings=result.warnings + (STALE_AFTER_RUN_WARNING,))
-        return jsonify({"success": True, "plan": result.to_dict(), "listings": _listings_info(deps.state)})
+        return jsonify({"success": True, "plan": result.to_dict(), "listings": _listings_info(deps.state),
+                        "needs_game_pricing": needs_game_pricing})
+
+    @bp.post("/api/market-lister/price")
+    def price_from_game():
+        payload = request.get_json(silent=True)
+        raw = payload.get("entries") if isinstance(payload, dict) else None
+        if not isinstance(raw, list) or not raw:
+            return _error("Nothing to price.")
+        if len(raw) > TOTAL_SPOTS:
+            return _error(f"At most {TOTAL_SPOTS} items can be priced at once.")
+        try:
+            entries = _unique_entries(PlanEntry.from_dict(e, allow_unpriced=True) for e in raw)
+        except ValueError as exc:
+            return _error(str(exc))
+        if deps.is_sort_running():
+            return _error("An inventory sort is running.", 409)
+        rules = current_rules()
+        if not deps.job.price(entries, lambda es, rows: apply_game_prices(es, rows, rules)):
+            return _error("The lister is already running.", 409)
+        return jsonify({"success": True})
 
     @bp.post("/api/market-lister/start")
     def start():
