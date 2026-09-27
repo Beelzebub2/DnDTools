@@ -110,6 +110,11 @@
         $('mlSkippedSummary').textContent = `Skipped (${plan.skipped.length})`;
         $('mlSkipped').replaceChildren(...plan.skipped.map((s) => text('li', `${s.name} — ${s.reason}`)));
         $('mlResults').replaceChildren();
+        const empty = plan.entries.length === 0;
+        $('mlSkippedSummary').parentElement.open = empty;
+        const planned = `Plan ready: ${plan.entries.length} item(s) to list, ${plan.skipped.length} skipped.`;
+        notify(empty ? (plan.warnings[plan.warnings.length - 1] || planned) : planned, empty ? 'warning' : 'success');
+        $('mlPlanCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
 
     const selectedEntries = () => [...document.querySelectorAll('.mlInclude:checked')].map((box) => {

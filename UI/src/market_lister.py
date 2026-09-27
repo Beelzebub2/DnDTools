@@ -6,6 +6,7 @@ from src.models.marketplace_layout import tab_icon_index
 
 MAX_LISTING_PRICE = 1_000_000
 STALE_DATA_SECONDS = 300
+UNMAPPED_TAB_REASON = "stash tab not mapped in DnDTools settings"
 
 
 class PlanError(Exception):
@@ -112,7 +113,7 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
         if len(entries) >= limit:
             break
         if tab_icon_index(candidate.stash_id, tab_mapping) is None:
-            skipped.append(_skip(candidate, "stash tab not mapped in DnDTools settings"))
+            skipped.append(_skip(candidate, UNMAPPED_TAB_REASON))
             continue
         check = price_lookup(candidate.item)
         pause()
@@ -129,4 +130,16 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
             skipped.append(_skip(candidate, decision.reason))
     if free_spots is not None and len(entries) >= free_spots and len(candidates) > len(entries):
         warnings.append(f"Only {free_spots} free listing spots — some items were left out.")
+    warnings.extend(_explain(entries, skipped))
     return Plan(tuple(entries), tuple(skipped), tuple(warnings))
+
+
+def _explain(entries, skipped):
+    """User-facing hints so an empty or thin plan never looks like nothing happened."""
+    hints = []
+    if any(s.reason == UNMAPPED_TAB_REASON for s in skipped):
+        hints.append("Some stash tabs aren't mapped — set them in Settings → Stash Tab Mapping "
+                     "so the lister knows which icon opens which stash.")
+    if not entries:
+        hints.append(f"No items to list — {len(skipped)} skipped. Open \"Skipped\" below to see why.")
+    return hints

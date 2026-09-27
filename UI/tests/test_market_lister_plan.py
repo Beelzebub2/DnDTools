@@ -56,6 +56,20 @@ def test_build_plan_skips_unmapped_tabs():
     assert plan.skipped[0].reason == "stash tab not mapped in DnDTools settings"
 
 
+def test_build_plan_explains_unmapped_tabs_and_empty_plan():
+    stashes = {"4": [_item("x", 0)]}
+    rules = ListerRules(source_stash_ids=("4",))
+    plan = _plan(stashes, lambda item: _ok(), rules=rules, tab_mapping=[0] * 8)
+    assert plan.entries == ()
+    assert any("Stash Tab Mapping" in w for w in plan.warnings)
+    assert any("No items to list" in w for w in plan.warnings)
+
+
+def test_build_plan_has_no_empty_warning_when_items_found():
+    plan = _plan({"2": [_item("a", 0)]}, lambda item: _ok())
+    assert not any("No items to list" in w for w in plan.warnings)
+
+
 def test_build_plan_warns_on_stale_data():
     plan = _plan({"2": []}, lambda item: _ok(), data_age_s=900.0)
     assert any("minutes old" in w for w in plan.warnings)
