@@ -1946,6 +1946,16 @@ class Api:
     def _trigger_sort_current(self):
         """Triggered by global hotkey to sort current stash"""
         logger.info(f"Sort hotkey activated: {self.settings_manager.get('sortHotkey')}")
+        if market_lister_job.is_running():
+            logger.info("Sort hotkey ignored while the market lister is running")
+            if self.window:
+                try:
+                    self.window.evaluate_js(
+                        f"showNotification({json.dumps(MARKET_LISTER_RUNNING_ERROR)}, 'warning');"
+                    )
+                except Exception:
+                    logger.debug("Unable to surface market lister busy warning to UI", exc_info=True)
+            return
         current_char_id = self._current_char_id
         current_stash_id = self._current_stash_id
 
@@ -2730,6 +2740,9 @@ marketplace_state = MarketplaceState()
 from src.market_lister_api import ListerDeps, create_market_lister_blueprint
 from src.market_lister_job import ListerJob
 
+GAME_WINDOW_TITLE = "Dark and Darker  "
+MARKET_LISTER_RUNNING_ERROR = "The market lister is running — cancel it before sorting."
+
 
 def _lister_price_lookup(item):
     from src.models.game_data import ItemDataManager
@@ -2775,7 +2788,9 @@ def _lister_hover_factory(event):
     driver = marketplace_input.MacrosInputDriver()
 
     def hover():
-        _focus_game_window()
+        _focus_game_window(wait=event.wait)
+        if event.is_set():
+            return
         for _name, point in marketplace_input.current_layout().hover_targets():
             if event.is_set():
                 return
@@ -2784,20 +2799,28 @@ def _lister_hover_factory(event):
     return hover
 
 
-def _focus_game_window():
+def _focus_game_window(wait=time.sleep):
     import pygetwindow as gw
+    import win32gui
     from src.models import macros
-    windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker  "]
+    windows = [w for w in gw.getAllWindows() if w.title == GAME_WINDOW_TITLE]
     if not windows:
         raise RuntimeError("Dark and Darker window not found.")
     windows[0].activate()
     if macros.get_game_window_mode() == 0:
-        time.sleep(1.0)
+        wait(1.0)
     macros.tap_alt()
     macros.release_modifiers()
+    if win32gui.GetWindowText(win32gui.GetForegroundWindow()) != GAME_WINDOW_TITLE:
+        raise RuntimeError("Couldn't bring Dark and Darker to the front — click the game window and try again.")
 
 
 market_lister_job = ListerJob(_lister_runner_factory, _lister_hover_factory)
+
+
+def _sort_is_running():
+    """Read-only: True while a sort / transfer holds the single sort slot."""
+    return api is not None and api.current_sort_event is not None
 
 
 def _lister_resolution_key():
@@ -2822,6 +2845,7 @@ if not _is_child_process:
         resolution_key=_lister_resolution_key,
         job=market_lister_job,
         pause=lambda: time.sleep(0.05),
+        is_sort_running=_sort_is_running,
     )))
 
 @server.route('/api/download_update')
@@ -3782,6 +3806,8 @@ def api_sort_stash(character_id, stash_id):
     stash_id = validate_stash_id(stash_id)
     if stash_id is None:
         return jsonify({'success': False, 'error': 'Invalid stash ID'}), 400
+    if market_lister_job.is_running():
+        return jsonify({'success': False, 'error': MARKET_LISTER_RUNNING_ERROR}), 409
     payload = request.get_json(silent=True) or {}
     pack_mode = None
     stack_mode = None

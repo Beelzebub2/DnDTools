@@ -13,6 +13,7 @@ RULES_KEY = "marketListerRules"
 CALIBRATION_KEY = "marketplaceCalibrationOverride"
 MAX_CALIBRATION_PX = 400
 TOTAL_SPOTS = 40
+SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
 
 
@@ -28,6 +29,7 @@ class ListerDeps:
     resolution_key: Callable[[], str]
     job: Any
     pause: Callable[[], None]
+    is_sort_running: Callable[[], bool]
 
 
 def _error(message, status=400):
@@ -60,6 +62,15 @@ def _listings_info(state):
         return {"seen": False, "used": None, "age_s": None}
     age = max(state.now() - snapshot.received_at, 0)
     return {"seen": True, "used": snapshot.used, "age_s": round(age)}
+
+
+def _unique_entries(entries):
+    seen, unique = set(), []
+    for entry in entries:
+        if entry.unique_id not in seen:
+            seen.add(entry.unique_id)
+            unique.append(entry)
+    return unique
 
 
 def _data_predates_last_run(job, data_age_s):
@@ -113,10 +124,14 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         raw = payload.get("entries")
         if not isinstance(raw, list) or not raw:
             return _error("Nothing to list.")
+        if len(raw) > TOTAL_SPOTS:
+            return _error(f"At most {TOTAL_SPOTS} items can be listed at once.")
         try:
-            entries = [PlanEntry.from_dict(e) for e in raw]
+            entries = _unique_entries(PlanEntry.from_dict(e) for e in raw)
         except ValueError as exc:
             return _error(str(exc))
+        if deps.is_sort_running():
+            return _error(SORT_RUNNING_ERROR, 409)
         if not deps.job.start(entries, bool(payload.get("dry_run"))):
             return _error("The lister is already running.", 409)
         return jsonify({"success": True})
@@ -148,6 +163,8 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
 
     @bp.post("/api/market-lister/hover-test")
     def hover_test():
+        if deps.is_sort_running():
+            return _error(SORT_RUNNING_ERROR, 409)
         if not deps.job.hover_test():
             return _error("The lister is already running.", 409)
         return jsonify({"success": True})

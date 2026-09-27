@@ -61,6 +61,7 @@ def client_and_deps():
         resolution_key=lambda: "1920x1080",
         job=job,
         pause=lambda: None,
+        is_sort_running=lambda: False,
     )
     app = Flask(__name__)
     app.register_blueprint(create_market_lister_blueprint(deps))
@@ -199,3 +200,29 @@ def test_plan_still_warns_when_dry_run_follows_list_run(client_and_deps):
     deps.get_data_age = lambda cid: 60.0
     warnings = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()["plan"]["warnings"]
     assert STALE_AFTER_RUN_WARNING in warnings
+
+
+def test_start_and_hover_refused_while_sort_running(client_and_deps):
+    client, deps, _ = client_and_deps
+    deps.is_sort_running = lambda: True
+    for path, body in (("/start", {"entries": [ENTRY]}), ("/hover-test", {})):
+        resp = client.post(f"/api/market-lister{path}", json=body)
+        assert resp.status_code == 409
+        assert resp.get_json()["error"] == "An inventory sort is running."
+    assert not deps.job.is_running()
+
+
+def test_start_rejects_more_than_40_entries(client_and_deps):
+    client, deps, _ = client_and_deps
+    entries = [{**ENTRY, "unique_id": str(i)} for i in range(41)]
+    assert client.post("/api/market-lister/start", json={"entries": entries}).status_code == 400
+    assert not deps.job.is_running()
+
+
+def test_start_drops_duplicate_unique_ids(client_and_deps):
+    client, deps, _ = client_and_deps
+    entries = [ENTRY, {**ENTRY, "price": 500}, {**ENTRY, "unique_id": "b"}]
+    assert client.post("/api/market-lister/start", json={"entries": entries}).status_code == 200
+    _wait_done(deps.job)
+    results = client.get("/api/market-lister/status").get_json()["results"]
+    assert [r["unique_id"] for r in results] == ["a", "b"]
