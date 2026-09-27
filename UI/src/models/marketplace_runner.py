@@ -9,7 +9,9 @@ from src.models.marketplace_state import (
 
 MAX_PAGES = 4
 CURSOR_DEVIATION_PX = 120
-SEARCH_SETTLE_PAUSES = 4  # the View Market screen needs a moment after each switch
+SEARCH_SETTLE_PAUSES = 4
+MARKET_PAGES = 3        # result pages read per search
+MARKET_PAGE_SIZE = 10   # listings per View Market page  # the View Market screen needs a moment after each switch
 SAFETY_REASON_TEXT = {
     "game_window_unfocused": "the game lost focus",
     "mouse_interference": "the mouse was moved",
@@ -182,9 +184,23 @@ class MarketplaceRunner:
         since = self._state.now()
         self._click(self._layout.point("market_search_button"))
         every = self._state.wait_for_item_list(since, self._register_timeout) or []
+        every = every + self._more_pages(len(every))
         self._click(self._layout.point("my_listings_tab"))
         self._settle()
         return {"same": same, "all": every}
+
+    def _more_pages(self, first_page_size):
+        """Read further result pages (cheapest first) so better rolls further down are seen."""
+        extra, size = [], first_page_size
+        for _ in range(MARKET_PAGES - 1):
+            if size < MARKET_PAGE_SIZE:
+                break
+            since = self._state.now()
+            self._click(self._layout.point("market_next_page"))
+            rows = self._state.wait_for_item_list(since, self._register_timeout) or []
+            extra.extend(rows)
+            size = len(rows)
+        return extra
 
     def _check(self):
         if self._is_cancelled():

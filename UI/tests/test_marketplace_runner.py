@@ -400,3 +400,15 @@ def test_price_all_runs_the_search_flow_per_item():
 def test_price_all_refuses_without_listings_snapshot():
     rows, report = _runner(FakeDriver(), MarketplaceState()).price_all([_entry("a")])
     assert rows == {} and "My Listings" in report.stopped_reason
+
+
+def test_price_all_reads_up_to_three_pages_of_all_roll_results():
+    driver = FakeDriver()
+    page = [MarketRow("HeaterShield_5001", 300 + i, (), ()) for i in range(10)]
+    page2 = [MarketRow("HeaterShield_5001", 400 + i, (), ()) for i in range(10)]
+    page3 = [MarketRow("HeaterShield_5001", 500 + i, (), ()) for i in range(3)]
+    state = PricingState([[], page, page2, page3], available=(2,))
+    rows, _ = _runner(driver, state).price_all([_entry("a")])
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks.count(LAYOUT.point("market_next_page")) == 2   # stops once a page is short
+    assert len(rows["a"]["all"]) == 23

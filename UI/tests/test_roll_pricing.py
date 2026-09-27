@@ -79,3 +79,24 @@ def test_duplicate_rows_from_both_searches_are_counted_once():
     row = _row(400, rolls=(("Luck", 17), ("MagicalPower", 3)))
     result = _price([row], same=[_row(400, rolls=(("Luck", 17), ("MagicalPower", 3)))])
     assert result.compared.startswith("1 listings with the same rolls")
+
+
+def test_best_single_roll_prices_items_without_an_exact_match():
+    # Nobody sells Luck+MagicalPower together, but single-roll listings exist.
+    rows = [
+        _row(450, rolls=(("Luck", 18), ("Strength", 1))),       # Luck >= 17 -> supports 450
+        _row(300, rolls=(("Luck", 12), ("Agility", 2))),        # Luck too low — doesn't count
+        _row(180, rolls=(("MagicalPower", 2), ("Vigor", 1))),   # MagicalPower >= 2 -> supports 180
+        _row(120, rolls=(("Strength", 3),)),                    # no shared roll
+    ]
+    result = _price(rows)
+    assert result.price == 405  # best roll (Luck) listing 450g, undercut 10%
+    assert result.compared == "matched on your best roll: Luck 17 (cheapest listing with it at least as good: 450g)"
+    assert "best single roll" in result.flag
+
+
+def test_best_single_roll_ignores_listings_with_worse_base_stats():
+    rows = [_row(450, rolls=(("Luck", 18),), base=(("ArmorRating", 20),)),
+            _row(200, rolls=(("Luck", 17),), base=(("ArmorRating", 30),))]
+    result = _price(rows)
+    assert result.price == 180

@@ -55,6 +55,24 @@ def _unique(rows):
     return list({(r.listing_id or (r.item_id, r.price, r.base, r.rolls)): r for r in rows}.values())
 
 
+def _best_single_roll(rows, base, rolls):
+    """((stat, value), price) for the roll of ours that the market values most, or None.
+
+    For each of our rolls, the cheapest listing carrying that stat at least as high (and
+    base stats at least as good) shows what buyers pay for it; our item offers the same,
+    so its value is set by whichever roll commands the highest such price.
+    """
+    best = None
+    for stat, value in rolls:
+        supporters = [r.price for r in rows
+                      if dict(r.rolls).get(stat, float("-inf")) >= value and _at_least_as_good(r, base, ())]
+        if supporters:
+            cheapest = _sane_min(supporters)
+            if best is None or cheapest > best[1]:
+                best = ((stat, value), cheapest)
+    return best
+
+
 def _undercut(reference, rules) -> int:
     return math.floor(reference * (1 - rules.undercut_pct / 100))
 
@@ -75,6 +93,13 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules):
         top = max(r.price for r in similar)
         flag = f"Your rolls are better than every similar listing (best asks {top}g) — set this price yourself."
         return top, flag, f"{len(similar)} listings with the same rolls, all worse"
+    best = _best_single_roll(rows, base, rolls)
+    if best is not None:
+        (stat, value), cheapest = best
+        compared = (f"matched on your best roll: {stat} {value} "
+                    f"(cheapest listing with it at least as good: {cheapest}g)")
+        flag = "Priced from your best single roll (no exact roll match) — check this price."
+        return _undercut(cheapest, rules), flag, compared
     cheapest = _sane_min([r.price for r in rows])
     flag = "There are no listings with the same rolls — priced against all rolls; check this price."
     return _undercut(cheapest, rules), flag, f"{len(rows)} listings of any roll; cheapest {cheapest}g"

@@ -22,6 +22,7 @@ BASE_POINTS = {
     "market_attr_reset": (1677, 207),      # reset icon of View Market's Random Attribute filter
     "market_search_button": (1794, 277),   # View Market "Search" button
     "my_listings_tab": (1062, 123),        # "My Listings" tab header
+    "market_next_page": (1032, 1015),      # View Market next-page arrow
 }
 BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3}
 
