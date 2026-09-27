@@ -19,6 +19,7 @@ RARITY_NAMES = {1: "Poor", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Epic", 6: 
                 7: "Unique", 8: "Artifact"}
 NEXT_PAGE_ATTEMPTS = 6
 NEXT_PAGE_TIMEOUT_S = 1.5
+CRAWL_PROGRESS_EVERY = 100
 MARKET_PAGES = 10       # all-roll result pages read per item (cheapest first)
 SAME_SEARCH_PAGES = 5   # same-roll search result pages read per item
 MARKET_PAGE_SIZE = 10   # listings per View Market page  # the View Market screen needs a moment after each switch
@@ -217,7 +218,7 @@ class MarketplaceRunner:
             return RunReport(tuple(results + stop_results), str(stop))
         return RunReport(tuple(results), None)
 
-    def crawl_market(self, pages: int, on_progress=None, rarities=CRAWL_RARITIES, gear_only=True,
+    def crawl_market(self, pages: int, on_progress=None, rarities=CRAWL_RARITIES, gear_only=False,
                      is_old_page=None) -> RunReport:
         """Read the newest listings of every item, one rarity at a time (View Market filter).
 
@@ -232,7 +233,8 @@ class MarketplaceRunner:
         results = []
         try:
             for rarity in rarities:
-                read, total = self._crawl_rarity(rarity, pages, gear_only, is_old_page)
+                read, total = self._crawl_rarity(rarity, pages, gear_only, is_old_page,
+                                                 self._crawl_progress_reporter(on_progress))
                 result = ItemResult(f"rarity-{rarity}", RARITY_NAMES.get(rarity, str(rarity)), "crawled",
                                     f"{read} pages, {total} listings")
                 results.append(result)
@@ -243,7 +245,7 @@ class MarketplaceRunner:
             return RunReport(tuple(results), str(stop))
         return RunReport(tuple(results), None)
 
-    def _crawl_rarity(self, rarity, pages, gear_only=True, is_old_page=None):
+    def _crawl_rarity(self, rarity, pages, gear_only=True, is_old_page=None, on_page=None):
         self._click(self._layout.point("view_market_tab"))
         self._settle()
         self._click(self._layout.point("market_reset_filters"))
@@ -252,9 +254,8 @@ class MarketplaceRunner:
         self._settle()
         self._click(self._layout.rarity_option(rarity))
         if gear_only:
-            self._click(self._layout.point("class_dropdown"))
-            self._settle()
-            for index in range(CLASS_COUNT):
+            for index in range(CLASS_COUNT):  # ticking a class closes the dropdown: reopen each time
+                self._click(self._layout.point("class_dropdown"))
                 self._click(self._layout.class_option(index))
         since = self._state.now()
         self._click(self._layout.point("market_search_button"))
@@ -262,17 +263,30 @@ class MarketplaceRunner:
         read, total = 0, 0
         while rows:
             read, total = read + 1, total + len(rows)
+            if on_page and read % CRAWL_PROGRESS_EVERY == 0:
+                on_page(rarity, read, total)
             if read >= pages or len(rows) < MARKET_PAGE_SIZE or (is_old_page and is_old_page(rows)):
                 break
             rows = self._next_page() or []
         return read, total
+
+    def _crawl_progress_reporter(self, on_progress):
+        if not on_progress:
+            return None
+
+        def report(rarity, read, total):
+            name = RARITY_NAMES.get(rarity, str(rarity))
+            on_progress(ItemResult(f"rarity-{rarity}-{read}", name, "crawling", f"{read} pages, {total} listings so far"))
+        return report
 
     def _next_page(self):
         """Click the next-page arrow (its position depends on the page counter width)."""
         attempts = [self._arrow_attempt] + [a for a in range(NEXT_PAGE_ATTEMPTS) if a != self._arrow_attempt]
         for attempt in attempts:
             since = self._state.now()
-            self._click(self._layout.next_page_candidate(attempt))
+            self._check()
+            # No fixed pause: the server's reply (awaited below) is the only wait between pages.
+            self._driver.click(*self._layout.next_page_candidate(attempt))
             rows = self._state.wait_for_item_list(since, NEXT_PAGE_TIMEOUT_S)
             if rows is not None:
                 self._arrow_attempt = attempt

@@ -14,7 +14,7 @@ CALIBRATION_KEY = "marketplaceCalibrationOverride"
 MAX_CALIBRATION_PX = 400
 TOTAL_SPOTS = 40
 DEFAULT_CRAWL_PAGES = 100
-MAX_CRAWL_PAGES = 500
+MAX_CRAWL_PAGES = 6000
 SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
 

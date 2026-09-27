@@ -326,10 +326,13 @@ def test_crawl_gear_only_ticks_every_class_and_stops_at_known_listings():
     driver = FakeDriver()
     full = [MarketRow("X_5001", 100 + i, (), (), str(i)) for i in range(10)]
     state = PricingState([full, full, full], available=(2,))
-    report = _runner(driver, state).crawl_market(pages=10, rarities=(5,), is_old_page=lambda rows: rows is full)
+    report = _runner(driver, state).crawl_market(pages=10, rarities=(5,), gear_only=True,
+                                                 is_old_page=lambda rows: rows is full)
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
-    assert clicks[4] == LAYOUT.point("class_dropdown")
-    assert [LAYOUT.class_option(i) for i in range(10)] == clicks[5:15]
+    expected = []
+    for i in range(10):   # the dropdown closes after each tick, so it is reopened every time
+        expected += [LAYOUT.point("class_dropdown"), LAYOUT.class_option(i)]
+    assert clicks[4:24] == expected
     assert report.results[0].message == "1 pages, 10 listings"   # first page already known -> stop
 
 
