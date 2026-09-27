@@ -2774,6 +2774,23 @@ def _lister_old_page_detector():
 OLD_PAGE_SHARE = 0.8
 
 
+def _lister_price_search(query):
+    """Local price guide: items whose name contains `query`, with live listing prices per unit."""
+    from src.models.game_data import item_data_manager
+    from src.models.market_history import rarity_of
+    needle = query.lower()
+    matches = {}
+    for item_id in market_history.known_item_ids():
+        meta = item_data_manager.get_item_data(item_id) or {}
+        name = meta.get("name") or item_id
+        if needle in name.lower() or needle in item_id.lower():
+            matches[item_id] = (name, meta.get("vendor_price", 0))
+    guide = market_history.price_guide(matches)
+    rows = [{"item_id": item_id, "name": matches[item_id][0], "rarity": rarity_of(item_id),
+             "vendor_price": matches[item_id][1], **stats} for item_id, stats in guide.items()]
+    return sorted(rows, key=lambda r: (r["name"], r["rarity"]))
+
+
 def _lister_extra_roll_share():
     """Share of each extra good roll's premium to add — learned by scripts/market_patterns_report.py."""
     from src.models.roll_pricing import EXTRA_ROLL_SHARE
@@ -2925,6 +2942,7 @@ if not _is_child_process:
         history_rows=lambda item_id: market_history.active_rows(item_id, HISTORY_MAX_AGE_S),
         extra_roll_share=_lister_extra_roll_share,
         old_page_detector=_lister_old_page_detector,
+        price_search=_lister_price_search,
     )))
 
 @server.route('/api/download_update')

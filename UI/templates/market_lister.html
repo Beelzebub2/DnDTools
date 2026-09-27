@@ -79,6 +79,13 @@
         <h2>Market data</h2>
         <p class="ml-muted">Every Marketplace page DnDTools sees is saved locally (items, rolls, prices) — including pages you browse yourself. Pricing uses it alongside the live search, and listings that vanish before expiring are tracked as likely sales.</p>
         <div class="ml-stats" id="mlHistory"></div>
+        <label class="ml-search">Look up market prices
+            <input type="search" id="mlPriceQuery" placeholder="Item name, e.g. Heater Shield" autocomplete="off">
+        </label>
+        <table class="ml-table" id="mlPriceTable" hidden>
+            <thead><tr><th>Item</th><th>Rarity</th><th>Listings</th><th>Cheapest</th><th>Typical</th><th>Highest</th><th>Merchant</th></tr></thead>
+            <tbody id="mlPriceRows"></tbody>
+        </table>
         <div class="ml-actions">
             <button type="button" class="ml-btn ml-btn-secondary" id="mlCrawlUpdate" title="Reads only new listings since the last update"><span class="material-icons">sync</span>Update market data</button>
             <button type="button" class="ml-btn ml-btn-secondary" id="mlCrawlDeep" title="Reads 60 pages of gear per rarity"><span class="material-icons">travel_explore</span>Deep crawl</button>

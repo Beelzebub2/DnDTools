@@ -60,3 +60,5 @@
 .ml-stats { color: var(--text-secondary); }
 .ml-result-collected, .ml-result-crawled, .ml-result-priced { color: #9ccc65; }
 .ml-result-skipped { color: var(--text-secondary); }
+.ml-search { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; color: var(--text-secondary); }
+.ml-search input { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); max-width: 420px; }

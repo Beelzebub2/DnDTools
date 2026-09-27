@@ -14,6 +14,8 @@ CALIBRATION_KEY = "marketplaceCalibrationOverride"
 MAX_CALIBRATION_PX = 400
 TOTAL_SPOTS = 40
 DEFAULT_CRAWL_PAGES = 100
+MIN_PRICE_QUERY = 2
+MAX_PRICE_RESULTS = 60
 MAX_CRAWL_PAGES = 6000
 SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
@@ -36,6 +38,7 @@ class ListerDeps:
     history_rows: Callable[[str], list] = lambda item_id: []
     extra_roll_share: Callable[[], float] = lambda: 0.5
     old_page_detector: Callable[[], Any] = lambda: None
+    price_search: Callable[[str], list] = lambda query: []
 
 
 def _error(message, status=400):
@@ -185,6 +188,13 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
     @bp.post("/api/market-lister/collect")
     def collect():
         return _launch_job(deps.job.collect)
+
+    @bp.get("/api/market-lister/prices")
+    def prices():
+        query = str(request.args.get("q") or "").strip()[:64]
+        if len(query) < MIN_PRICE_QUERY:
+            return _error(f"Type at least {MIN_PRICE_QUERY} letters of an item name.")
+        return jsonify({"success": True, "items": deps.price_search(query)[:MAX_PRICE_RESULTS]})
 
     @bp.get("/api/market-lister/history")
     def history():

@@ -119,3 +119,16 @@ def test_count_seen_before_supports_incremental_crawls():
     history.record_item_list(_page((3, "A_5001", 100, DAY_MS, 1)))
     assert history.count_seen_before(["1", "2", "3", "4"], started) == 2
     assert history.count_seen_before([], started) == 0
+
+
+def test_price_guide_summarises_each_item_per_unit():
+    clock = Clock()
+    history = _history(clock)
+    msg = _page((1, "Bandage_2001", 300, DAY_MS, 1), (2, "Bandage_2001", 90, DAY_MS, 1),
+                (3, "Bandage_2001", 120, DAY_MS, 1), (4, "HeaterShield_5001", 300, DAY_MS, 17))
+    msg.itemInfos[0].item.itemCount = 3    # 300g for 3 -> 100 each
+    history.record_item_list(msg)
+    guide = history.price_guide(["Bandage_2001", "HeaterShield_5001", "Missing_1001"])
+    assert guide["Bandage_2001"] == {"listings": 3, "min_unit": 90.0, "median_unit": 100.0, "max_unit": 120.0}
+    assert guide["HeaterShield_5001"]["listings"] == 1
+    assert "Missing_1001" not in guide

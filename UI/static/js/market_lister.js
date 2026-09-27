@@ -113,6 +113,31 @@
     };
 
     const CONFIDENCE_LABELS = { high: 'High', medium: 'Medium', low: 'Low' };
+    const RARITY_LABELS = { 0: '—', 1: 'Poor', 2: 'Common', 3: 'Uncommon', 4: 'Rare', 5: 'Epic', 6: 'Legendary',
+        7: 'Unique', 8: 'Artifact' };
+    let priceQueryTimer = null;
+
+    const gold = (value) => `${Math.round(value).toLocaleString()}g`;
+
+    const searchPrices = async () => {
+        const query = $('mlPriceQuery').value.trim();
+        if (query.length < 2) { $('mlPriceTable').hidden = true; return; }
+        try {
+            const data = await api(`/prices?q=${encodeURIComponent(query)}`);
+            $('mlPriceRows').replaceChildren(...data.items.map((row) => {
+                const tr = document.createElement('tr');
+                const cells = [row.name, RARITY_LABELS[row.rarity] || row.rarity, String(row.listings),
+                    gold(row.min_unit), gold(row.median_unit), gold(row.max_unit),
+                    row.vendor_price ? gold(row.vendor_price) : '—'];
+                tr.replaceChildren(...cells.map((value) => { const td = document.createElement('td'); td.textContent = value; return td; }));
+                return tr;
+            }));
+            $('mlPriceTable').hidden = data.items.length === 0;
+            if (!data.items.length) notify('No saved listings match that name yet.', 'info');
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    };
 
     const renderPlan = () => {
         $('mlPlanCard').hidden = false;
@@ -341,6 +366,10 @@
         $('mlCrawlUpdate').addEventListener('click', () => runJob('/crawl', { pages: 20 }, 'Updating market data…'));
         $('mlCrawlDeep').addEventListener('click', () => runJob('/crawl', { pages: 60, incremental: false },
             'Deep crawl started — this reads a few hundred pages…'));
+        $('mlPriceQuery').addEventListener('input', () => {
+            clearTimeout(priceQueryTimer);
+            priceQueryTimer = setTimeout(searchPrices, 300);
+        });
         document.querySelectorAll('.ml-chip[data-undercut]').forEach((chip) => chip.addEventListener('click', () => {
             $('mlUndercut').value = chip.dataset.undercut;
         }));
@@ -350,6 +379,7 @@
     window.__pageCleanup.push(() => {
         disposed = true;
         clearTimeout(pollTimer);
+        clearTimeout(priceQueryTimer);
     });
 
     if (document.readyState === 'loading') {

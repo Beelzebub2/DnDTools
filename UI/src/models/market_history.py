@@ -187,6 +187,31 @@ class MarketHistory:
                 f"SELECT COUNT(*) FROM listings WHERE first_seen < ? AND listing_id IN ({','.join('?' * len(ids))})",
                 (before, *ids)).fetchone()[0]
 
+    def price_guide(self, item_ids) -> dict:
+        """{item_id: {listings, min_unit, median_unit, max_unit}} over live (unexpired, not vanished) listings."""
+        ids = list(dict.fromkeys(str(i) for i in item_ids))
+        if not ids:
+            return {}
+        now = self._clock()
+        with self._lock:
+            records = self._db.execute(
+                f"""SELECT item_id, price * 1.0 / item_count FROM listings
+                    WHERE vanished_at IS NULL AND expires_at > ? AND item_id IN ({','.join('?' * len(ids))})""",
+                (now, *ids)).fetchall()
+        units = {}
+        for item_id, unit in records:
+            units.setdefault(item_id, []).append(unit)
+        guide = {}
+        for item_id, values in units.items():
+            values.sort()
+            guide[item_id] = {"listings": len(values), "min_unit": round(values[0], 1),
+                              "median_unit": round(values[len(values) // 2], 1), "max_unit": round(values[-1], 1)}
+        return guide
+
+    def known_item_ids(self) -> list:
+        with self._lock:
+            return [r[0] for r in self._db.execute("SELECT DISTINCT item_id FROM listings").fetchall()]
+
     def summary(self) -> dict:
         with self._lock:
             listings, items, vanished = self._db.execute(

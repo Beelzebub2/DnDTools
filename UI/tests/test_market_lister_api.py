@@ -304,3 +304,11 @@ def test_crawl_backfill_skips_the_incremental_stop(client_and_deps):
     client.post("/api/market-lister/crawl", json={"pages": 2})
     _wait_done(deps.job)
     assert calls == ["made"]
+
+
+def test_price_search_endpoint(client_and_deps):
+    client, deps, _ = client_and_deps
+    deps.price_search = lambda q: [{"item_id": "HeaterShield_5001", "name": "Heater Shield", "listings": 131}]
+    data = client.get("/api/market-lister/prices?q=heater").get_json()
+    assert data["items"][0]["listings"] == 131
+    assert client.get("/api/market-lister/prices?q=h").status_code == 400
