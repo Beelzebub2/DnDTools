@@ -288,15 +288,49 @@ class FakeClock:
         return self.t
 
 
-def test_run_refuses_on_stale_listings_snapshot():
+def test_run_refuses_when_my_listings_was_seen_long_ago():
+    # Seen more than REOPEN_WINDOW_S ago: the player may be anywhere, so nothing is clicked.
+    from src.models.marketplace_runner import REOPEN_WINDOW_S
     clock = FakeClock()
     state = ScriptedState(used=0, clock=clock)
-    clock.t += MAX_SNAPSHOT_AGE_S + 1
+    clock.t += REOPEN_WINDOW_S + 1
     driver = FakeDriver()
     report = _runner(driver, state).run([_entry("a")])
     assert report.results == ()
     assert report.stopped_reason == "Open (or re-open) Trade → Marketplace → My Listings in the game first."
     assert driver.actions == []
+
+
+class ReopenState(ScriptedState):
+    """Stale snapshot that becomes fresh once My Listings is re-opened."""
+
+    def wait_for_snapshot(self, since, timeout):
+        from src.models.marketplace_state import ListingsSnapshot
+        self._snapshot = ListingsSnapshot(received_at=self.now(), available=tuple(range(2, 40)))
+        return self._snapshot
+
+
+def test_run_reopens_a_recently_seen_marketplace_then_lists():
+    clock = FakeClock()
+    state = ReopenState(used=0, clock=clock)
+    clock.t += MAX_SNAPSHOT_AGE_S + 1   # stale, but seen within the last 10 minutes
+    driver = FakeDriver()
+    report = _runner(driver, state).run([_entry("a")])
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks[:3] == [LAYOUT.point("trade_tab"), LAYOUT.point("marketplace_button"),
+                          LAYOUT.point("my_listings_tab")]
+    assert [r.status for r in report.results] == ["listed"]
+
+
+def test_crawl_gear_only_ticks_every_class_and_stops_at_known_listings():
+    driver = FakeDriver()
+    full = [MarketRow("X_5001", 100 + i, (), (), str(i)) for i in range(10)]
+    state = PricingState([full, full, full], available=(2,))
+    report = _runner(driver, state).crawl_market(pages=10, rarities=(5,), is_old_page=lambda rows: rows is full)
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks[4] == LAYOUT.point("class_dropdown")
+    assert [LAYOUT.class_option(i) for i in range(10)] == clicks[5:15]
+    assert report.results[0].message == "1 pages, 10 listings"   # first page already known -> stop
 
 
 def test_run_accepts_recent_listings_snapshot():
@@ -489,7 +523,7 @@ def test_crawl_market_reads_each_rarity_newest_first():
     driver = FakeDriver()
     full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
     state = PricingState([full, full, full[:4]], available=(2,))
-    report = _runner(driver, state).crawl_market(pages=5, rarities=(5,))
+    report = _runner(driver, state).crawl_market(pages=5, rarities=(5,), gear_only=False)
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
     assert clicks[:5] == [LAYOUT.point("view_market_tab"), LAYOUT.point("market_reset_filters"),
                           LAYOUT.point("rarity_dropdown"), LAYOUT.rarity_option(5),

@@ -177,6 +177,16 @@ class MarketHistory:
                 (item_id,)).fetchall()
         return [_to_market_row(r) for r in records]
 
+    def count_seen_before(self, listing_ids, before: float) -> int:
+        """How many of these listings were already recorded before `before` (incremental crawls)."""
+        ids = [str(i) for i in listing_ids]
+        if not ids:
+            return 0
+        with self._lock:
+            return self._db.execute(
+                f"SELECT COUNT(*) FROM listings WHERE first_seen < ? AND listing_id IN ({','.join('?' * len(ids))})",
+                (before, *ids)).fetchone()[0]
+
     def summary(self) -> dict:
         with self._lock:
             listings, items, vanished = self._db.execute(

@@ -29,6 +29,10 @@ BASE_POINTS = {
     "market_reset_filters": (1794, 207),   # View Market "Reset Filters" button
     "rarity_dropdown": (375, 207),         # View Market "Rarity" filter
     "rarity_option_first": (298, 281),     # "Poor" checkbox; the other rarities follow below
+    "class_dropdown": (612, 207),          # View Market "Class" filter
+    "class_option_first": (535, 281),      # "Barbarian" checkbox; Bard .. Wizard follow below
+    "trade_tab": (1200, 42),               # lobby "Trade" tab
+    "marketplace_button": (1190, 252),     # Trade screen "Marketplace" channel button
 }
 BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3,
                 "rarity_option_spacing": 24.9, "next_page_step": 17.0}
@@ -84,6 +88,10 @@ class MarketplaceLayout:
     def rarity_option(self, rarity: int):
         """Checkbox for rarity 1 (Poor) .. 8 (Artifact) in the open Rarity dropdown."""
         return self._offset("rarity_option_first", 0, self.lengths["rarity_option_spacing"] * (rarity - 1))
+
+    def class_option(self, index: int):
+        """Checkbox for class index 0 (Barbarian) .. 9 (Wizard) in the open Class dropdown."""
+        return self._offset("class_option_first", 0, self.lengths["rarity_option_spacing"] * index)
 
     def next_page_candidate(self, attempt: int):
         """The next-page arrow shifts right as the page counter widens ("1 / 13" vs "1 / 5,704")."""

@@ -35,6 +35,7 @@ class ListerDeps:
     history_summary: Callable[[], dict] = lambda: {}
     history_rows: Callable[[str], list] = lambda item_id: []
     extra_roll_share: Callable[[], float] = lambda: 0.5
+    old_page_detector: Callable[[], Any] = lambda: None
 
 
 def _error(message, status=400):
@@ -176,7 +177,8 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         pages = payload.get("pages", DEFAULT_CRAWL_PAGES) if isinstance(payload, dict) else DEFAULT_CRAWL_PAGES
         if isinstance(pages, bool) or not isinstance(pages, int) or not 1 <= pages <= MAX_CRAWL_PAGES:
             return _error(f"pages must be 1-{MAX_CRAWL_PAGES}")
-        return _launch_job(lambda: deps.job.crawl(pages))
+        detector = deps.old_page_detector()
+        return _launch_job(lambda: deps.job.crawl(pages, detector))
 
     @bp.post("/api/market-lister/collect")
     def collect():

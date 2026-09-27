@@ -102,8 +102,9 @@ class ListerJob:
                 self._finish(f"Unexpected error: {exc}")
         return self._launch(mode, target)
 
-    def crawl(self, pages) -> bool:
-        return self._run_report("crawl", lambda runner: runner.crawl_market(pages, on_progress=self._record))
+    def crawl(self, pages, is_old_page=None) -> bool:
+        return self._run_report("crawl", lambda runner: runner.crawl_market(
+            pages, on_progress=self._record, is_old_page=is_old_page))
 
     def collect(self) -> bool:
         return self._run_report("collect", lambda runner: runner.collect_payouts(on_progress=self._record))

@@ -11,6 +11,8 @@ CLICK_HOLD_SECONDS = 0.12
 APPROACH_OFFSET_PX = 5
 APPROACH_SECONDS = 0.12
 HOVER_SETTLE_SECONDS = 0.15
+SAME_SPOT_PX = 2
+REPEAT_CLICK_SETTLE_SECONDS = 0.05
 KEY_GAP_SECONDS = 0.03
 MIN_STEP_DELAY = 0.15
 STEP_JITTER = 0.07
@@ -32,10 +34,14 @@ class MacrosInputDriver:
     def click(self, x, y):
         # The game ignores instant clicks: arrive with a small approach move, let the
         # hover register, then hold the button briefly (verified in game).
-        macros.move_mouse(x - APPROACH_OFFSET_PX, y - APPROACH_OFFSET_PX)
-        time.sleep(APPROACH_SECONDS)
-        macros.move_mouse(x, y)
-        time.sleep(HOVER_SETTLE_SECONDS)
+        cx, cy = self.position()
+        if abs(cx - x) <= SAME_SPOT_PX and abs(cy - y) <= SAME_SPOT_PX:
+            time.sleep(REPEAT_CLICK_SETTLE_SECONDS)  # already hovering (e.g. paging): no approach needed
+        else:
+            macros.move_mouse(x - APPROACH_OFFSET_PX, y - APPROACH_OFFSET_PX)
+            time.sleep(APPROACH_SECONDS)
+            macros.move_mouse(x, y)
+            time.sleep(HOVER_SETTLE_SECONDS)
         macros.mouse_down()
         try:
             time.sleep(CLICK_HOLD_SECONDS)

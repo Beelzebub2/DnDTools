@@ -108,3 +108,14 @@ def test_my_listings_record_when_ours_sold():
     assert history.summary()["my_sold"] == 1
     sold_at = history.connection().execute("SELECT sold_at FROM my_listings").fetchone()[0]
     assert sold_at == clock.t
+
+
+def test_count_seen_before_supports_incremental_crawls():
+    clock = Clock()
+    history = _history(clock)
+    history.record_item_list(_page((1, "A_5001", 100, DAY_MS, 1), (2, "A_5001", 100, DAY_MS, 1)))
+    clock.t += 10
+    started = clock.t
+    history.record_item_list(_page((3, "A_5001", 100, DAY_MS, 1)))
+    assert history.count_seen_before(["1", "2", "3", "4"], started) == 2
+    assert history.count_seen_before([], started) == 0

@@ -34,7 +34,7 @@ class FakeRunner:
             on_progress(r)
         return RunReport(tuple(results), None)
 
-    def crawl_market(self, pages, on_progress=None):
+    def crawl_market(self, pages, on_progress=None, **options):
         result = ItemResult("crawl", "market", "crawled", f"{pages} pages, {pages * 10} listings")
         on_progress(result)
         return RunReport((result,), None)

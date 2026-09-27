@@ -11,11 +11,13 @@ MAX_PAGES = 4
 CURSOR_DEVIATION_PX = 120
 SEARCH_SETTLE_PAUSES = 4
 MAX_PAYOUTS_PER_RUN = 40
+CLASS_COUNT = 10  # Barbarian .. Wizard in the View Market class filter
+REOPEN_WINDOW_S = 600
 CRAWL_RARITIES = (5, 6, 4, 7)  # Epic, Legendary, Rare, Unique
 RARITY_NAMES = {1: "Poor", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Epic", 6: "Legendary",
                 7: "Unique", 8: "Artifact"}
 NEXT_PAGE_ATTEMPTS = 6
-NEXT_PAGE_TIMEOUT_S = 2.0
+NEXT_PAGE_TIMEOUT_S = 1.5
 MARKET_PAGES = 10       # all-roll result pages read per item (cheapest first)
 SAME_SEARCH_PAGES = 5   # same-roll search result pages read per item
 MARKET_PAGE_SIZE = 10   # listings per View Market page  # the View Market screen needs a moment after each switch
@@ -106,11 +108,11 @@ class MarketplaceRunner:
         return None
 
     def run(self, entries, dry_run=False, on_progress=None) -> RunReport:
-        snapshot = self._state.snapshot()
         entries = list(entries)
-        refusal = self._refusal(snapshot) or self._unmapped_message(entries)
+        refusal = self._unmapped_message(entries) or self.ensure_marketplace()
         if refusal:
             return RunReport((), refusal)
+        snapshot = self._state.snapshot()
         # availableOrderIndexes lists the free spots (verified in game); use them in order.
         free_spots, consumed, self._page = sorted(snapshot.available), 0, 0
         results = []
@@ -148,11 +150,11 @@ class MarketplaceRunner:
 
         Never clicks Create Listing. Returns ({unique_id: {"same": [MarketRow], "all": [MarketRow]}}, RunReport).
         """
-        snapshot = self._state.snapshot()
         entries = list(entries)
-        refusal = self._refusal(snapshot) or self._unmapped_message(entries)
+        refusal = self._unmapped_message(entries) or self.ensure_marketplace()
         if refusal:
             return {}, RunReport((), refusal)
+        snapshot = self._state.snapshot()
         if not snapshot.available:
             return {}, RunReport((), "No free listing spots left.")
         spot, rows_by_uid, results = min(snapshot.available), {}, []
@@ -181,7 +183,7 @@ class MarketplaceRunner:
         The game destroys uncollected payouts after 7 days. Listings shift up after each
         transfer, so the My Listings tab is re-opened to get fresh positions every time.
         """
-        refusal = self._refusal(self._state.snapshot())
+        refusal = self.ensure_marketplace()
         if refusal:
             return RunReport((), refusal)
         results = []
@@ -212,19 +214,22 @@ class MarketplaceRunner:
             return RunReport(tuple(results + stop_results), str(stop))
         return RunReport(tuple(results), None)
 
-    def crawl_market(self, pages: int, on_progress=None, rarities=CRAWL_RARITIES) -> RunReport:
+    def crawl_market(self, pages: int, on_progress=None, rarities=CRAWL_RARITIES, gear_only=True,
+                     is_old_page=None) -> RunReport:
         """Read the newest listings of every item, one rarity at a time (View Market filter).
 
         Nothing is bought or listed (the Buy buttons are never clicked); the captured pages
-        feed the local market history.
+        feed the local market history. gear_only ticks every class so materials, potions and
+        treasure drop out. is_old_page(rows) -> True stops a rarity early once the newest-first
+        results reach listings we already had (incremental top-up).
         """
-        refusal = self._refusal(self._state.snapshot())
+        refusal = self.ensure_marketplace()
         if refusal:
             return RunReport((), refusal)
         results = []
         try:
             for rarity in rarities:
-                read, total = self._crawl_rarity(rarity, pages)
+                read, total = self._crawl_rarity(rarity, pages, gear_only, is_old_page)
                 result = ItemResult(f"rarity-{rarity}", RARITY_NAMES.get(rarity, str(rarity)), "crawled",
                                     f"{read} pages, {total} listings")
                 results.append(result)
@@ -235,7 +240,7 @@ class MarketplaceRunner:
             return RunReport(tuple(results), str(stop))
         return RunReport(tuple(results), None)
 
-    def _crawl_rarity(self, rarity, pages):
+    def _crawl_rarity(self, rarity, pages, gear_only=True, is_old_page=None):
         self._click(self._layout.point("view_market_tab"))
         self._settle()
         self._click(self._layout.point("market_reset_filters"))
@@ -243,13 +248,18 @@ class MarketplaceRunner:
         self._click(self._layout.point("rarity_dropdown"))
         self._settle()
         self._click(self._layout.rarity_option(rarity))
+        if gear_only:
+            self._click(self._layout.point("class_dropdown"))
+            self._settle()
+            for index in range(CLASS_COUNT):
+                self._click(self._layout.class_option(index))
         since = self._state.now()
         self._click(self._layout.point("market_search_button"))
         rows = self._state.wait_for_item_list(since, self._register_timeout) or []
         read, total = 0, 0
         while rows:
             read, total = read + 1, total + len(rows)
-            if read >= pages or len(rows) < MARKET_PAGE_SIZE:
+            if read >= pages or len(rows) < MARKET_PAGE_SIZE or (is_old_page and is_old_page(rows)):
                 break
             rows = self._next_page() or []
         return read, total
@@ -265,6 +275,26 @@ class MarketplaceRunner:
                 self._arrow_attempt = attempt
                 return rows
         return None
+
+    def ensure_marketplace(self):
+        """None when My Listings is open (re-opening it if we were there recently), else why not.
+
+        Only re-opens when My Listings was seen in the last REOPEN_WINDOW_S seconds, i.e. the
+        player is almost certainly still in the lobby — never clicks blindly elsewhere.
+        """
+        snapshot = self._state.snapshot()
+        refusal = self._refusal(snapshot)
+        if refusal is None or snapshot is None:
+            return refusal
+        age = self._state.now() - snapshot.received_at
+        if not MAX_SNAPSHOT_AGE_S < age <= REOPEN_WINDOW_S:  # only a stale-but-recent My Listings is re-opened
+            return refusal
+        self._click(self._layout.point("trade_tab"))
+        self._settle()
+        self._click(self._layout.point("marketplace_button"))
+        self._settle()
+        fresh = self._reopen_my_listings()
+        return self._refusal(fresh) if fresh is not None and fresh.received_at > snapshot.received_at else refusal
 
     def _reopen_my_listings(self):
         since = self._state.now()

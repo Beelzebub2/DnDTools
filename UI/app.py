@@ -2761,6 +2761,19 @@ def _lister_scan_observer(item_id, started_monotonic, rows, complete):
         logger.exception("Failed to record market scan for %s", item_id)
 
 
+def _lister_old_page_detector():
+    """For incremental crawls: a page is 'old' once most of it was already in the history."""
+    started = time.time()
+
+    def is_old_page(rows):
+        ids = [r.listing_id for r in rows if r.listing_id]
+        return bool(ids) and market_history.count_seen_before(ids, started) >= OLD_PAGE_SHARE * len(ids)
+    return is_old_page
+
+
+OLD_PAGE_SHARE = 0.8
+
+
 def _lister_extra_roll_share():
     """Share of each extra good roll's premium to add — learned by scripts/market_patterns_report.py."""
     from src.models.roll_pricing import EXTRA_ROLL_SHARE
@@ -2911,6 +2924,7 @@ if not _is_child_process:
         history_summary=market_history.summary,
         history_rows=lambda item_id: market_history.active_rows(item_id, HISTORY_MAX_AGE_S),
         extra_roll_share=_lister_extra_roll_share,
+        old_page_detector=_lister_old_page_detector,
     )))
 
 @server.route('/api/download_update')
