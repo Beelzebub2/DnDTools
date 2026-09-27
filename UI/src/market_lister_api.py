@@ -90,15 +90,73 @@ def _data_predates_last_run(job, data_age_s):
     return time.time() - data_age_s < finished_at
 
 
-def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
-    bp = Blueprint("market_lister", __name__)
+def _current_rules(deps):
+    return ListerRules.from_dict(deps.settings_get(RULES_KEY) or {})
 
-    def current_rules():
-        return ListerRules.from_dict(deps.settings_get(RULES_KEY) or {})
 
+def _launch_job(deps, start):
+    if deps.is_sort_running():
+        return _error(SORT_RUNNING_ERROR, 409)
+    if not start():
+        return _error("The lister is already running.", 409)
+    return jsonify({"success": True})
+
+
+def _parse_entries(payload, verb, past_tense, allow_unpriced=False):
+    """(entries, None) or (None, error response) for a request body with an "entries" list."""
+    raw = payload.get("entries") if isinstance(payload, dict) else None
+    if not isinstance(raw, list) or not raw:
+        return None, _error(f"Nothing to {verb}.")
+    if len(raw) > TOTAL_SPOTS:
+        return None, _error(f"At most {TOTAL_SPOTS} items can be {past_tense} at once.")
+    try:
+        return _unique_entries(PlanEntry.from_dict(e, allow_unpriced=allow_unpriced) for e in raw), None
+    except ValueError as exc:
+        return None, _error(str(exc))
+
+
+def _repricer(deps, rules):
+    """Re-price one entry from a fresh market search just before it is listed."""
+    share = deps.extra_roll_share()
+
+    def reprice(entry, market):
+        plan = apply_game_prices([replace(entry, price=0, fee=0)], {entry.unique_id: market}, rules,
+                                 extra_rows=deps.history_rows, extra_share=share)
+        return plan.entries[0].price if plan.entries else None
+    return reprice
+
+
+def _build_plan_response(deps, payload):
+    character_id = str(payload.get("character_id") or "").strip()
+    if not character_id:
+        return _error("Pick a character first.")
+    rules = ListerRules.from_dict(payload["rules"]) if isinstance(payload.get("rules"), dict) else _current_rules(deps)
+    snapshot = deps.state.snapshot()
+    data_age_s = deps.get_data_age(character_id)
+    stashes = deps.get_stashes(character_id, list(rules.source_stash_ids))
+
+    def build(price_lookup):
+        return build_plan(stashes, rules, price_lookup, tab_mapping=deps.tab_mapping(),
+                          free_spots=None if snapshot is None else snapshot.free, data_age_s=data_age_s,
+                          pause=deps.pause, exclude_unique_ids=deps.state.listed_ids())
+
+    needs_game_pricing = False
+    try:
+        result = build(deps.price_lookup)
+    except PlanError as exc:
+        if exc.code != "missing_api_key":
+            return _error(str(exc), 424)
+        result, needs_game_pricing = build(None), True  # no DarkerDB key: price from the game
+    if _data_predates_last_run(deps.job, data_age_s):
+        result = replace(result, warnings=result.warnings + (STALE_AFTER_RUN_WARNING,))
+    return jsonify({"success": True, "plan": result.to_dict(), "listings": _listings_info(deps.state),
+                    "needs_game_pricing": needs_game_pricing})
+
+
+def _register_plan_routes(bp, deps):
     @bp.get("/api/market-lister/rules")
     def get_rules():
-        return jsonify(current_rules().to_dict())
+        return jsonify(_current_rules(deps).to_dict())
 
     @bp.post("/api/market-lister/rules")
     def save_rules():
@@ -108,87 +166,55 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
 
     @bp.post("/api/market-lister/plan")
     def plan():
-        payload = request.get_json(silent=True) or {}
-        character_id = str(payload.get("character_id") or "").strip()
-        if not character_id:
-            return _error("Pick a character first.")
-        rules = ListerRules.from_dict(payload["rules"]) if isinstance(payload.get("rules"), dict) else current_rules()
-        snapshot = deps.state.snapshot()
-        free = None if snapshot is None else snapshot.free
-        data_age_s = deps.get_data_age(character_id)
-        stashes = deps.get_stashes(character_id, list(rules.source_stash_ids))
+        return _build_plan_response(deps, request.get_json(silent=True) or {})
 
-        def build(price_lookup):
-            return build_plan(
-                stashes, rules, price_lookup, tab_mapping=deps.tab_mapping(), free_spots=free,
-                data_age_s=data_age_s, pause=deps.pause, exclude_unique_ids=deps.state.listed_ids(),
-            )
 
-        needs_game_pricing = False
-        try:
-            result = build(deps.price_lookup)
-        except PlanError as exc:
-            if exc.code != "missing_api_key":
-                return _error(str(exc), 424)
-            result, needs_game_pricing = build(None), True  # no DarkerDB key: price from the game
-        if _data_predates_last_run(deps.job, data_age_s):
-            result = replace(result, warnings=result.warnings + (STALE_AFTER_RUN_WARNING,))
-        return jsonify({"success": True, "plan": result.to_dict(), "listings": _listings_info(deps.state),
-                        "needs_game_pricing": needs_game_pricing})
-
+def _register_run_routes(bp, deps):
     @bp.post("/api/market-lister/price")
     def price_from_game():
-        payload = request.get_json(silent=True)
-        raw = payload.get("entries") if isinstance(payload, dict) else None
-        if not isinstance(raw, list) or not raw:
-            return _error("Nothing to price.")
-        if len(raw) > TOTAL_SPOTS:
-            return _error(f"At most {TOTAL_SPOTS} items can be priced at once.")
-        try:
-            entries = _unique_entries(PlanEntry.from_dict(e, allow_unpriced=True) for e in raw)
-        except ValueError as exc:
-            return _error(str(exc))
-        if deps.is_sort_running():
-            return _error("An inventory sort is running.", 409)
-        rules = current_rules()
-        share = deps.extra_roll_share()
-        if not deps.job.price(entries, lambda es, rows: apply_game_prices(
-                es, rows, rules, extra_rows=deps.history_rows, extra_share=share)):
-            return _error("The lister is already running.", 409)
-        return jsonify({"success": True})
+        entries, error = _parse_entries(request.get_json(silent=True), "price", "priced", allow_unpriced=True)
+        if error:
+            return error
+        rules, share = _current_rules(deps), deps.extra_roll_share()
+        return _launch_job(deps, lambda: deps.job.price(entries, lambda es, rows: apply_game_prices(
+            es, rows, rules, extra_rows=deps.history_rows, extra_share=share)))
 
     @bp.post("/api/market-lister/start")
     def start():
         payload = request.get_json(silent=True) or {}
-        raw = payload.get("entries")
-        if not isinstance(raw, list) or not raw:
-            return _error("Nothing to list.")
-        if len(raw) > TOTAL_SPOTS:
-            return _error(f"At most {TOTAL_SPOTS} items can be listed at once.")
-        try:
-            entries = _unique_entries(PlanEntry.from_dict(e) for e in raw)
-        except ValueError as exc:
-            return _error(str(exc))
-        if deps.is_sort_running():
-            return _error(SORT_RUNNING_ERROR, 409)
-        reprice = _repricer(current_rules()) if payload.get("recheck", True) else None
-        if not deps.job.start(entries, bool(payload.get("dry_run")), reprice):
-            return _error("The lister is already running.", 409)
-        return jsonify({"success": True})
+        entries, error = _parse_entries(payload, "list", "listed")
+        if error:
+            return error
+        reprice = _repricer(deps, _current_rules(deps)) if payload.get("recheck", True) else None
+        return _launch_job(deps, lambda: deps.job.start(entries, bool(payload.get("dry_run")), reprice))
 
+    @bp.post("/api/market-lister/cancel")
+    def cancel():
+        return jsonify({"success": deps.job.cancel()})
+
+    @bp.get("/api/market-lister/status")
+    def status():
+        return jsonify({**deps.job.status(), "listings": _listings_info(deps.state)})
+
+    @bp.post("/api/market-lister/hover-test")
+    def hover_test():
+        return _launch_job(deps, deps.job.hover_test)
+
+
+def _register_data_routes(bp, deps):
     @bp.post("/api/market-lister/crawl")
     def crawl():
         payload = request.get_json(silent=True)
-        pages = payload.get("pages", DEFAULT_CRAWL_PAGES) if isinstance(payload, dict) else DEFAULT_CRAWL_PAGES
+        payload = payload if isinstance(payload, dict) else {}
+        pages = payload.get("pages", DEFAULT_CRAWL_PAGES)
         if isinstance(pages, bool) or not isinstance(pages, int) or not 1 <= pages <= MAX_CRAWL_PAGES:
             return _error(f"pages must be 1-{MAX_CRAWL_PAGES}")
-        incremental = payload.get("incremental", True) if isinstance(payload, dict) else True
-        detector = deps.old_page_detector() if incremental else None  # backfills read past known pages
-        return _launch_job(lambda: deps.job.crawl(pages, detector))
+        detector = deps.old_page_detector() if payload.get("incremental", True) else None  # backfills read on
+        return _launch_job(deps, lambda: deps.job.crawl(pages, detector))
 
     @bp.post("/api/market-lister/collect")
     def collect():
-        return _launch_job(deps.job.collect)
+        return _launch_job(deps, deps.job.collect)
 
     @bp.get("/api/market-lister/prices")
     def prices():
@@ -205,31 +231,8 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
     def history():
         return jsonify(deps.history_summary())
 
-    def _repricer(rules):
-        """Re-price one entry from a fresh market search just before it is listed."""
-        share = deps.extra_roll_share()
 
-        def reprice(entry, market):
-            plan = apply_game_prices([replace(entry, price=0, fee=0)], {entry.unique_id: market}, rules,
-                                     extra_rows=deps.history_rows, extra_share=share)
-            return plan.entries[0].price if plan.entries else None
-        return reprice
-
-    def _launch_job(start):
-        if deps.is_sort_running():
-            return _error("An inventory sort is running.", 409)
-        if not start():
-            return _error("The lister is already running.", 409)
-        return jsonify({"success": True})
-
-    @bp.post("/api/market-lister/cancel")
-    def cancel():
-        return jsonify({"success": deps.job.cancel()})
-
-    @bp.get("/api/market-lister/status")
-    def status():
-        return jsonify({**deps.job.status(), "listings": _listings_info(deps.state)})
-
+def _register_calibration_routes(bp, deps):
     @bp.get("/api/market-lister/calibration")
     def get_calibration():
         overrides = deps.settings_get(CALIBRATION_KEY) or {}
@@ -247,12 +250,11 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         deps.settings_update({CALIBRATION_KEY: overrides})
         return jsonify({"success": True})
 
-    @bp.post("/api/market-lister/hover-test")
-    def hover_test():
-        if deps.is_sort_running():
-            return _error(SORT_RUNNING_ERROR, 409)
-        if not deps.job.hover_test():
-            return _error("The lister is already running.", 409)
-        return jsonify({"success": True})
 
+def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
+    bp = Blueprint("market_lister", __name__)
+    _register_plan_routes(bp, deps)
+    _register_run_routes(bp, deps)
+    _register_data_routes(bp, deps)
+    _register_calibration_routes(bp, deps)
     return bp
