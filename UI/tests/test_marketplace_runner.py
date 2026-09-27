@@ -583,3 +583,14 @@ def test_recheck_skips_items_no_longer_worth_listing():
                                         reprice=lambda entry, market: None if entry.unique_id == "a" else 900)
     assert [(r.unique_id, r.status) for r in report.results] == [("a", "skipped"), ("b", "listed")]
     assert ("type", "900") in driver.actions and driver.actions.count(("click", LAYOUT.point("create_listing_button"))) == 1
+
+
+def test_stacks_fill_the_quantity_box_before_the_price():
+    from dataclasses import replace as _replace
+    driver = FakeDriver()
+    entry = _replace(_entry("a", price=270), quantity=3)
+    _runner(driver, ScriptedState(used=2)).run([entry])
+    typed = [a for a in driver.actions if a[0] == "type"]
+    assert typed == [("type", "3"), ("type", "270")]
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks.index(LAYOUT.point("quantity_field")) < clicks.index(LAYOUT.point("price_field"))

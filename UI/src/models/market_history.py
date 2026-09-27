@@ -93,9 +93,9 @@ def rows_from_item_list(message) -> list:
 
 
 def _to_market_row(record) -> MarketRow:
-    listing_id, item_id, price, base, rolls = record
+    listing_id, item_id, price, base, rolls, count = record
     return MarketRow(item_id, int(price), tuple(map(tuple, json.loads(base))),
-                     tuple(map(tuple, json.loads(rolls))), listing_id)
+                     tuple(map(tuple, json.loads(rolls))), listing_id, int(count))
 
 
 class MarketHistory:
@@ -165,7 +165,7 @@ class MarketHistory:
         now = self._clock()
         with self._lock:
             records = self._db.execute(
-                """SELECT listing_id, item_id, price, base, rolls FROM listings
+                """SELECT listing_id, item_id, price, base, rolls, item_count FROM listings
                    WHERE item_id = ? AND vanished_at IS NULL AND last_seen >= ? AND expires_at > ?""",
                 (item_id, now - max_age_s, now)).fetchall()
         return [_to_market_row(r) for r in records]
@@ -173,7 +173,8 @@ class MarketHistory:
     def vanished_rows(self, item_id: str) -> list:
         with self._lock:
             records = self._db.execute(
-                "SELECT listing_id, item_id, price, base, rolls FROM listings WHERE item_id = ? AND vanished_at IS NOT NULL",
+                "SELECT listing_id, item_id, price, base, rolls, item_count FROM listings "
+                "WHERE item_id = ? AND vanished_at IS NOT NULL",
                 (item_id,)).fetchall()
         return [_to_market_row(r) for r in records]
 

@@ -114,3 +114,12 @@ def test_worse_base_stats_do_not_count_on_the_ladder():
     rows = [_row(450, rolls=(("Luck", 18),), base=(("ArmorRating", 20),)),
             _row(200, rolls=(("Luck", 17),), base=(("ArmorRating", 30),))]
     assert _price(rows).price == 180
+
+
+def test_stacks_are_priced_per_unit_times_our_quantity():
+    rows = [MarketRow("Bandage_2001", 300, (), (), "1", 3),    # 100 each
+            MarketRow("Bandage_2001", 110, (), (), "2", 1),    # 110 each
+            MarketRow("Bandage_2001", 500, (), (), "3", 4)]    # 125 each
+    result = price_from_market("Bandage_2001", (), (), 5, [], rows, RULES, quantity=3)
+    assert (result.ok, result.price) == (True, 270)   # 100/unit, -10%, x3
+    assert "per unit" in result.compared

@@ -46,6 +46,7 @@ class ListerRules:
     max_items_per_run: int = 20
     exclude_item_ids: frozenset = field(default_factory=frozenset)
     min_net_ratio: float = 0.5
+    allow_stacks: bool = False   # list stackable items (priced per unit x stack size)
 
     @classmethod
     def from_dict(cls, data: dict) -> "ListerRules":
@@ -61,6 +62,7 @@ class ListerRules:
             max_items_per_run=int(_clamp(data.get("max_items_per_run"), 1, 40, d.max_items_per_run)),
             exclude_item_ids=frozenset(str(i) for i in data.get("exclude_item_ids") or ()),
             min_net_ratio=_clamp(data.get("min_net_ratio"), 0, 1, d.min_net_ratio),
+            allow_stacks=data.get("allow_stacks") is True,
         )
 
     def to_dict(self) -> dict:
@@ -73,6 +75,7 @@ class ListerRules:
             "max_items_per_run": self.max_items_per_run,
             "exclude_item_ids": sorted(self.exclude_item_ids),
             "min_net_ratio": self.min_net_ratio,
+            "allow_stacks": self.allow_stacks,
         }
 
 
@@ -97,7 +100,7 @@ def _is_currency(item_id: str) -> bool:
 def _skip_reason(item: dict, rules: ListerRules):
     if _is_currency(str(item.get("itemId", ""))):
         return "gold is never listed"
-    if int(item.get("max_stack_size") or 1) > 1:
+    if int(item.get("max_stack_size") or 1) > 1 and not rules.allow_stacks:
         return "stackable items not supported yet"
     if str(item.get("itemId", "")) in rules.exclude_item_ids:
         return "on your never-sell list"

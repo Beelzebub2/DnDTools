@@ -38,7 +38,7 @@ def _market_row(info) -> MarketRow:
     item = info.item
     return MarketRow(str(item.itemId).split(ITEM_ID_PREFIX)[-1], int(info.price),
                      _stats(item.primaryPropertyArray), _stats(item.secondaryPropertyArray),
-                     str(info.listingId))
+                     str(info.listingId), max(int(item.itemCount), 1))
 
 
 def describe_fail_code(code: int) -> str:

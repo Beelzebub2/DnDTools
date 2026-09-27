@@ -390,6 +390,11 @@ class MarketplaceRunner:
 
     def _fill_form(self, entry):
         self._select_item(entry)
+        if getattr(entry, "quantity", 1) > 1:  # stacks: list the whole stack
+            self._click(self._layout.point("quantity_field"))
+            self._check()
+            self._driver.clear_and_type(str(entry.quantity))
+            self._pause()
         self._click(self._layout.point("price_field"))
         self._check()
         self._driver.clear_and_type(str(entry.price))

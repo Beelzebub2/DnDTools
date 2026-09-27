@@ -19,6 +19,7 @@ BASE_POINTS = {
     "create_listing_button": (960, 968),
     # In-game pricing flow (measured at 3840x2160, halved):
     "form_search_button": (960, 467),      # "Search" under the selected item in List an Item
+    "quantity_field": (960, 402),          # quantity box under the selected item (stacks)
     "market_attr_reset": (1677, 207),      # reset icon of View Market's Random Attribute filter
     "market_search_button": (1794, 277),   # View Market "Search" button
     "my_listings_tab": (1062, 123),        # "My Listings" tab header

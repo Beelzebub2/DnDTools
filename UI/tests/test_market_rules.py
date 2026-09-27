@@ -104,3 +104,12 @@ def test_compute_price_ignores_outlier_low_lowest_ask():
     assert compute_price(_check(lowest_ask=100, avg_price=1000), 0, ListerRules()).price == 900  # priced off avg
     assert compute_price(_check(lowest_ask=500, avg_price=1000), 0, ListerRules()).price == 450  # exactly 0.5 kept
     assert compute_price(_check(lowest_ask=100, avg_price=None), 0, ListerRules(min_price=1)).price == 90
+
+
+def test_stacks_are_listed_only_when_allowed():
+    stashes = {"2": [_item(itemUniqueId="pots", max_stack_size=3, slotId=0)]}
+    assert select_candidates(stashes, ListerRules())[0] == []
+    candidates, _ = select_candidates(stashes, ListerRules(allow_stacks=True))
+    assert [c.item["itemUniqueId"] for c in candidates] == ["pots"]
+    assert ListerRules.from_dict({"allow_stacks": True}).allow_stacks is True
+    assert ListerRules.from_dict({"allow_stacks": "yes"}).allow_stacks is False

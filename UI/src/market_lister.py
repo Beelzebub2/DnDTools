@@ -18,6 +18,7 @@ class PlanError(Exception):
 
 MAX_STATS = 16
 CONFIDENCE_LEVELS = ("high", "medium", "low")
+MAX_QUANTITY = 999
 
 
 def _stat_pairs(raw) -> tuple:
@@ -55,6 +56,7 @@ class PlanEntry:
     flag: str = ""           # pricing warning for the user to review
     compared: str = ""       # what the price was compared against
     confidence: str = ""     # "high" | "medium" | "low" — how well the market backs the price
+    quantity: int = 1        # stack size to list (the price is for the whole stack)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -81,6 +83,7 @@ class PlanEntry:
             flag=str(data.get("flag") or "")[:300],
             compared=str(data.get("compared") or "")[:300],
             confidence=str(data.get("confidence") or "") if data.get("confidence") in CONFIDENCE_LEVELS else "",
+            quantity=_positive_int(data.get("quantity", 1), "quantity", 1, MAX_QUANTITY),
         )
 
 
@@ -109,6 +112,7 @@ def _entry(candidate, decision=None) -> PlanEntry:
         price=decision.price if decision else 0, fee=decision.fee if decision else 0,
         vendor_price=int(item.get("vendor_price") or 0), item_id=str(item.get("itemId") or ""),
         base_rolls=_stat_pairs(item.get("pp")), rolls=_stat_pairs(item.get("sp")),
+        quantity=max(int(item.get("itemCount") or 1), 1),
     )
 
 
@@ -187,7 +191,7 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
         history = list(extra_rows(entry.item_id)) if extra_rows else []
         result = price_from_market(entry.item_id, entry.base_rolls, entry.rolls, entry.vendor_price,
                                    market.get("same") or [], (market.get("all") or []) + history, rules,
-                                   extra_share=extra_share)
+                                   extra_share=extra_share, quantity=entry.quantity)
         if result.ok:
             priced.append(replace(entry, price=result.price, fee=result.fee, flag=result.flag,
                                   compared=result.compared, confidence=result.confidence))

@@ -38,6 +38,7 @@ class MarketRow:
     base: tuple   # ((stat, value), ...) primary properties
     rolls: tuple  # ((stat, value), ...) random secondary properties
     listing_id: str = ""
+    count: int = 1  # stack size of the listing; its price is for the whole stack
 
 
 @dataclass(frozen=True)
@@ -141,14 +142,23 @@ def _combine(rows, base, rolls, baseline, extra_share):
     return best.value + bonus, how, best.confidence, best.beats_all
 
 
-def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share):
+def _stack_reference(rows, quantity):
+    units = [r.price / max(r.count, 1) for r in rows]
+    unit = _sane_min(units)
+    confidence = "high" if len(rows) >= 3 else "medium"
+    if quantity == 1 and all(r.count == 1 for r in rows):
+        return round(unit), "", f"cheapest of {len(rows)} listings: {round(unit)}g", confidence
+    return unit * quantity, "", f"cheapest of {len(rows)} listings: {unit:.1f}g per unit x {quantity}", confidence
+
+
+def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, quantity=1):
     """(reference price, flag, explanation, confidence) or None when nobody sells this item."""
     rows = _unique(r for r in list(same_rows) + list(all_rows) if r.item_id == item_id)
     if not rows:
         return None
-    baseline = _sane_min([r.price for r in rows])
     if not rolls:
-        return baseline, "", f"cheapest of {len(rows)} listings: {baseline}g", "high" if len(rows) >= 3 else "medium"
+        return _stack_reference(rows, quantity)
+    baseline = _sane_min([r.price for r in rows])
     combined = _combine(rows, base, rolls, baseline, extra_share)
     roll_set = {stat for stat, _ in rolls}
     dominating = [r.price for r in rows if {s for s, _ in r.rolls} == roll_set and _dominates(r, base, rolls)]
@@ -169,8 +179,9 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share):
 
 
 def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, rules,
-                      extra_share=EXTRA_ROLL_SHARE) -> RollPrice:
-    found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules, extra_share)
+                      extra_share=EXTRA_ROLL_SHARE, quantity=1) -> RollPrice:
+    """Price for our copy (or our stack of `quantity`); vendor_price is per unit."""
+    found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules, extra_share, quantity)
     if found is None:
         return RollPrice(False, None, 0, NO_SELLERS_REASON)
     reference, flag, compared, confidence = found
@@ -179,7 +190,7 @@ def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, r
         return RollPrice(False, None, 0, "below min price", flag, compared, confidence)
     fee = listing_fee(price)
     net = price - fee
-    if net <= int(vendor_price or 0):
+    if net <= int(vendor_price or 0) * quantity:
         return RollPrice(False, None, 0, "vendor pays more", flag, compared, confidence)
     if net / price < rules.min_net_ratio:
         return RollPrice(False, None, 0, "fee too high", flag, compared, confidence)

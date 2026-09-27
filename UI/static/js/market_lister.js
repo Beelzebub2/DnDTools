@@ -47,6 +47,7 @@
         min_price: Number($('mlMinPrice').value),
         undercut_pct: Number($('mlUndercut').value),
         max_items_per_run: Number($('mlMaxItems').value),
+        allow_stacks: $('mlAllowStacks').checked,
         source_stash_ids: [...document.querySelectorAll('.mlSource:checked')].map((c) => c.value),
     });
 
@@ -55,6 +56,7 @@
         $('mlMinPrice').value = rules.min_price;
         $('mlUndercut').value = rules.undercut_pct;
         $('mlMaxItems').value = rules.max_items_per_run;
+        $('mlAllowStacks').checked = Boolean(rules.allow_stacks);
         renderSources(rules.source_stash_ids);
     };
 
