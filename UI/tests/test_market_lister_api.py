@@ -34,6 +34,16 @@ class FakeRunner:
             on_progress(r)
         return RunReport(tuple(results), None)
 
+    def crawl_market(self, pages, on_progress=None):
+        result = ItemResult("crawl", "market", "crawled", f"{pages} pages, {pages * 10} listings")
+        on_progress(result)
+        return RunReport((result,), None)
+
+    def collect_payouts(self, on_progress=None):
+        result = ItemResult("1", "GreatHelm_3001", "collected", "200g collected")
+        on_progress(result)
+        return RunReport((result,), None)
+
     def price_all(self, entries, on_progress=None):
         rows = {e.unique_id: {"same": [], "all": [MarketRow(e.item_id, p, (), ()) for p in (300, 320, 340)]}
                 for e in entries}
@@ -259,3 +269,26 @@ def test_price_endpoint_rejects_bad_entries(client_and_deps):
     client, _, _ = client_and_deps
     assert client.post("/api/market-lister/price", json={"entries": []}).status_code == 400
     assert client.post("/api/market-lister/price", json={"entries": [{**ENTRY, "price": -1}]}).status_code == 400
+
+
+def test_crawl_and_collect_endpoints_run_jobs(client_and_deps):
+    client, deps, _ = client_and_deps
+    assert client.post("/api/market-lister/crawl", json={"pages": 5}).status_code == 200
+    _wait_done(deps.job)
+    status = client.get("/api/market-lister/status").get_json()
+    assert status["mode"] == "crawl" and status["results"][0]["message"] == "5 pages, 50 listings"
+    assert client.post("/api/market-lister/collect").status_code == 200
+    _wait_done(deps.job)
+    assert client.get("/api/market-lister/status").get_json()["results"][0]["status"] == "collected"
+
+
+def test_crawl_rejects_bad_page_counts(client_and_deps):
+    client, _, _ = client_and_deps
+    for bad in (0, -1, 10_000, "x", True):
+        assert client.post("/api/market-lister/crawl", json={"pages": bad}).status_code == 400
+
+
+def test_history_summary_endpoint(client_and_deps):
+    client, deps, _ = client_and_deps
+    deps.history_summary = lambda: {"listings": 12, "items": 3, "vanished": 1, "my_sold": 1}
+    assert client.get("/api/market-lister/history").get_json()["listings"] == 12

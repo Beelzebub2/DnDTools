@@ -92,6 +92,22 @@ class ListerJob:
                 self._finish(f"Unexpected error: {exc}")
         return self._launch("price", target)
 
+    def _run_report(self, mode, action):
+        def target(event):
+            try:
+                report = action(self._runner_factory(event))
+                self._finish(report.stopped_reason)
+            except Exception as exc:
+                logger.exception("Market lister %s failed", mode)
+                self._finish(f"Unexpected error: {exc}")
+        return self._launch(mode, target)
+
+    def crawl(self, pages) -> bool:
+        return self._run_report("crawl", lambda runner: runner.crawl_market(pages, on_progress=self._record))
+
+    def collect(self) -> bool:
+        return self._run_report("collect", lambda runner: runner.collect_payouts(on_progress=self._record))
+
     def hover_test(self) -> bool:
         def target(event):
             try:

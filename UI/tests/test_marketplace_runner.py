@@ -483,3 +483,16 @@ def test_collect_payouts_stops_on_transfer_failure():
     report = _runner(FakeDriver(), state).collect_payouts()
     assert report.results[0].status == "failed"
     assert "Marketplace error 658" in report.stopped_reason or "space" in report.stopped_reason.lower()
+
+
+def test_crawl_market_pages_through_unfiltered_listings():
+    driver = FakeDriver()
+    full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([full, full, full[:4]], available=(2,))
+    report = _runner(driver, state).crawl_market(pages=5)
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks[:3] == [LAYOUT.point("view_market_tab"), LAYOUT.point("market_reset_filters"),
+                          LAYOUT.point("market_search_button")]
+    assert clicks.count(LAYOUT.point("market_next_page")) == 2  # stops after the short third page
+    assert clicks[-1] == LAYOUT.point("my_listings_tab")
+    assert report.results[0].message == "3 pages, 24 listings"

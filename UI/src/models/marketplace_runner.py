@@ -204,6 +204,38 @@ class MarketplaceRunner:
             return RunReport(tuple(results + stop_results), str(stop))
         return RunReport(tuple(results), None)
 
+    def crawl_market(self, pages: int, on_progress=None) -> RunReport:
+        """Page through the unfiltered View Market (newest listings of every item).
+
+        Nothing is bought or listed; the captured pages feed the local market history.
+        """
+        refusal = self._refusal(self._state.snapshot())
+        if refusal:
+            return RunReport((), refusal)
+        read, total = 0, 0
+        try:
+            self._click(self._layout.point("view_market_tab"))
+            self._settle()
+            self._click(self._layout.point("market_reset_filters"))
+            self._settle()
+            since = self._state.now()
+            self._click(self._layout.point("market_search_button"))  # "Refresh" when unfiltered
+            rows = self._state.wait_for_item_list(since, self._register_timeout) or []
+            while rows:
+                read, total = read + 1, total + len(rows)
+                if read >= pages or len(rows) < MARKET_PAGE_SIZE:
+                    break
+                since = self._state.now()
+                self._click(self._layout.point("market_next_page"))
+                rows = self._state.wait_for_item_list(since, self._register_timeout) or []
+            self._click(self._layout.point("my_listings_tab"))
+        except _Stop as stop:
+            return RunReport((ItemResult("crawl", "market", "crawled", f"{read} pages, {total} listings"),), str(stop))
+        result = ItemResult("crawl", "market", "crawled", f"{read} pages, {total} listings")
+        if on_progress:
+            on_progress(result)
+        return RunReport((result,), None)
+
     def _reopen_my_listings(self):
         since = self._state.now()
         self._click(self._layout.point("my_listings_tab"))

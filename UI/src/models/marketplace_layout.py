@@ -25,6 +25,8 @@ BASE_POINTS = {
     "market_next_page": (1032, 1015),      # View Market next-page arrow
     "confirm_listing_yes": (861, 620),     # "Would you like to list the item?" -> Yes
     "transfer_all_button": (960, 657),     # "Transfer All Items" on a sold / expired listing
+    "view_market_tab": (862, 123),         # "View Market" tab header
+    "market_reset_filters": (1794, 207),   # View Market "Reset Filters" button
 }
 BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3}
 

@@ -2740,6 +2740,7 @@ from src.models.market_history import MarketHistory
 
 marketplace_state = MarketplaceState()
 market_history = None if _is_child_process else MarketHistory(os.path.join(get_data_dir(), 'market_history.sqlite'))
+HISTORY_MAX_AGE_S = 6 * 3600  # listings seen in the last 6 hours count as live market data
 
 
 def _on_item_list(message):
@@ -2776,25 +2777,22 @@ def _lister_price_lookup(item):
 
 
 class _MonitoredRunner:
-    """Starts the sorter's safety monitor for exactly one lister run."""
+    """Runs each runner action (list, price, crawl, collect) under the sorter's safety monitor."""
 
     def __init__(self, runner, monitor):
         self._runner = runner
         self._monitor = monitor
 
-    def run(self, *args, **kwargs):
-        self._monitor.start()
-        try:
-            return self._runner.run(*args, **kwargs)
-        finally:
-            self._monitor.stop()
+    def __getattr__(self, name):
+        action = getattr(self._runner, name)
 
-    def price_all(self, *args, **kwargs):
-        self._monitor.start()
-        try:
-            return self._runner.price_all(*args, **kwargs)
-        finally:
-            self._monitor.stop()
+        def monitored(*args, **kwargs):
+            self._monitor.start()
+            try:
+                return action(*args, **kwargs)
+            finally:
+                self._monitor.stop()
+        return monitored
 
 
 def _lister_runner_factory(event):
@@ -2889,6 +2887,8 @@ if not _is_child_process:
         job=market_lister_job,
         pause=lambda: time.sleep(0.05),
         is_sort_running=_sort_is_running,
+        history_summary=market_history.summary,
+        history_rows=lambda item_id: market_history.active_rows(item_id, HISTORY_MAX_AGE_S),
     )))
 
 @server.route('/api/download_update')

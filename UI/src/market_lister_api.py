@@ -13,6 +13,8 @@ RULES_KEY = "marketListerRules"
 CALIBRATION_KEY = "marketplaceCalibrationOverride"
 MAX_CALIBRATION_PX = 400
 TOTAL_SPOTS = 40
+DEFAULT_CRAWL_PAGES = 100
+MAX_CRAWL_PAGES = 500
 SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
 
@@ -30,6 +32,8 @@ class ListerDeps:
     job: Any
     pause: Callable[[], None]
     is_sort_running: Callable[[], bool]
+    history_summary: Callable[[], dict] = lambda: {}
+    history_rows: Callable[[str], list] = lambda item_id: []
 
 
 def _error(message, status=400):
@@ -160,6 +164,29 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         if deps.is_sort_running():
             return _error(SORT_RUNNING_ERROR, 409)
         if not deps.job.start(entries, bool(payload.get("dry_run"))):
+            return _error("The lister is already running.", 409)
+        return jsonify({"success": True})
+
+    @bp.post("/api/market-lister/crawl")
+    def crawl():
+        payload = request.get_json(silent=True)
+        pages = payload.get("pages", DEFAULT_CRAWL_PAGES) if isinstance(payload, dict) else DEFAULT_CRAWL_PAGES
+        if isinstance(pages, bool) or not isinstance(pages, int) or not 1 <= pages <= MAX_CRAWL_PAGES:
+            return _error(f"pages must be 1-{MAX_CRAWL_PAGES}")
+        return _launch_job(lambda: deps.job.crawl(pages))
+
+    @bp.post("/api/market-lister/collect")
+    def collect():
+        return _launch_job(deps.job.collect)
+
+    @bp.get("/api/market-lister/history")
+    def history():
+        return jsonify(deps.history_summary())
+
+    def _launch_job(start):
+        if deps.is_sort_running():
+            return _error("An inventory sort is running.", 409)
+        if not start():
             return _error("The lister is already running.", 409)
         return jsonify({"success": True})
 
