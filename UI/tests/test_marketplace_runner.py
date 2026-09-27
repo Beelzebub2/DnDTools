@@ -48,10 +48,13 @@ class FakeDriver:
 class ScriptedState(MarketplaceState):
     """Answers register / listing waits from a script instead of packets."""
 
-    def __init__(self, used=2, outcomes=(), confirm=True, available=(), clock=None, page=FIRST_PAGE):
+    def __init__(self, used=2, outcomes=(), confirm=True, available=None, clock=None, page=FIRST_PAGE):
         super().__init__(clock or time.monotonic)
+        # The game reports free spots in availableOrderIndexes; `used` is shorthand for
+        # "spots 0..used-1 are taken" out of 40.
+        free = tuple(range(used, 40)) if available is None else tuple(available)
         msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(
-            totalItemCount=used, availableOrderIndexes=available, currentPage=page)
+            availableOrderIndexes=free, currentPage=page)
         self.handle_my_item_list(msg)
         self.outcomes = list(outcomes)
         self.confirm = confirm
@@ -228,21 +231,20 @@ def test_run_continues_on_fail_code_662():
     assert report.stopped_reason is None
 
 
-def test_run_accepts_available_guard_normal():
-    # used=2, available=(2,3,4) — index 2 is available, should proceed normally
+def test_run_uses_free_spots_from_the_game_in_order():
+    # Spots 0-4 taken except a gap at 2 (e.g. something sold): fill 2, then 5.
     driver = FakeDriver()
-    report = _runner(driver, ScriptedState(used=2, available=(2, 3, 4))).run([_entry("a")])
-    assert report.results[0].status == "listed"
-    assert report.stopped_reason is None
+    report = _runner(driver, ScriptedState(available=(2, 5, 6))).run([_entry("a"), _entry("b", slot=1)])
+    assert [r.status for r in report.results] == ["listed", "listed"]
+    spot_clicks = [a[1] for a in driver.actions if a[1] in (LAYOUT.spot_row(2), LAYOUT.spot_row(5))]
+    assert spot_clicks == [LAYOUT.spot_row(2), LAYOUT.spot_row(5)]
 
 
-def test_run_stops_on_available_guard_blocked():
-    # used=2, available=(5,6) — index 2 is not available, should stop without clicks
+def test_run_stops_when_free_spots_run_out():
     driver = FakeDriver()
-    report = _runner(driver, ScriptedState(used=2, available=(5, 6))).run([_entry("a")])
-    assert report.results == ()
-    assert "not laid out as expected" in report.stopped_reason
-    assert driver.actions == []
+    report = _runner(driver, ScriptedState(available=(38,))).run([_entry("a"), _entry("b", slot=1)])
+    assert [r.status for r in report.results] == ["listed"]
+    assert report.stopped_reason == "No free listing spots left."
 
 
 def test_run_calls_on_progress_for_failed_items():

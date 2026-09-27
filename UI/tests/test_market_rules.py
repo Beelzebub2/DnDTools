@@ -58,6 +58,16 @@ def test_select_candidates_filters_with_reasons():
     assert reasons == {5: "below minimum rarity", 7: "stackable items not supported yet", 0: "on your never-sell list"}
 
 
+def test_select_candidates_never_lists_currency():
+    stashes = {"4": [_item(itemUniqueId="bag", itemId="GoldCoinBag", slotId=0),
+                     _item(itemUniqueId="purse", itemId="GoldCoinPurse", slotId=1),
+                     _item(itemUniqueId="pouch", itemId="GoldCoinPouch", slotId=2),
+                     _item(itemUniqueId="ring", itemId="GemRing_5001", slotId=3)]}
+    candidates, skipped = select_candidates(stashes, ListerRules(source_stash_ids=("4",)))
+    assert [c.item["itemUniqueId"] for c in candidates] == ["ring"]
+    assert {s.reason for s in skipped} == {"gold is never listed"}
+
+
 def test_select_candidates_orders_by_source_then_slot():
     stashes = {"4": [_item(itemUniqueId="b", slotId=9), _item(itemUniqueId="a", slotId=1)],
                "2": [_item(itemUniqueId="c", slotId=4)]}

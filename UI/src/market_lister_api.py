@@ -59,9 +59,9 @@ def _clean_calibration(payload):
 def _listings_info(state):
     snapshot = state.snapshot()
     if snapshot is None:
-        return {"seen": False, "used": None, "age_s": None}
+        return {"seen": False, "free": None, "age_s": None}
     age = max(state.now() - snapshot.received_at, 0)
-    return {"seen": True, "used": snapshot.used, "age_s": round(age)}
+    return {"seen": True, "free": snapshot.free, "age_s": round(age)}
 
 
 def _unique_entries(entries):
@@ -104,7 +104,7 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
             return _error("Pick a character first.")
         rules = ListerRules.from_dict(payload["rules"]) if isinstance(payload.get("rules"), dict) else current_rules()
         snapshot = deps.state.snapshot()
-        free = None if snapshot is None else max(TOTAL_SPOTS - snapshot.used, 0)
+        free = None if snapshot is None else snapshot.free
         data_age_s = deps.get_data_age(character_id)
         try:
             result = build_plan(

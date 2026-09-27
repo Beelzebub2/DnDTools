@@ -45,7 +45,7 @@ def _wait_done(job):
 def client_and_deps():
     settings = {}
     state = MarketplaceState()
-    state.handle_my_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=2))
+    state.handle_my_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(availableOrderIndexes=range(2, 40)))
     job = ListerJob(runner_factory=FakeRunner, hover_factory=lambda event: (lambda: None))
     item = {"name": "Gloves", "itemId": "G_1", "itemUniqueId": "a", "slotId": 0, "itemCount": 1,
             "rarity": 5, "width": 1, "height": 1, "pp": [], "sp": [], "vendor_price": 10, "max_stack_size": 1}
@@ -80,7 +80,7 @@ def test_plan_returns_entries_and_listing_info(client_and_deps):
     data = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()
     assert data["success"] is True
     assert data["plan"]["entries"][0]["price"] == 900
-    assert data["listings"] == {"seen": True, "used": 2, "age_s": 0}
+    assert data["listings"] == {"seen": True, "free": 38, "age_s": 0}
 
 
 def test_plan_requires_character(client_and_deps):
@@ -141,10 +141,10 @@ def test_listings_report_snapshot_age(client_and_deps):
     client, deps, _ = client_and_deps
     clock = {"t": 500.0}
     state = MarketplaceState(clock=lambda: clock["t"])
-    state.handle_my_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=3))
+    state.handle_my_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(availableOrderIndexes=range(3, 40)))
     deps.state = state
     clock["t"] += 42.4
-    assert client.get("/api/market-lister/status").get_json()["listings"] == {"seen": True, "used": 3, "age_s": 42}
+    assert client.get("/api/market-lister/status").get_json()["listings"] == {"seen": True, "free": 37, "age_s": 42}
     plan = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()
     assert plan["listings"]["age_s"] == 42
 
@@ -152,7 +152,7 @@ def test_listings_report_snapshot_age(client_and_deps):
 def test_listings_age_is_none_without_snapshot(client_and_deps):
     client, deps, _ = client_and_deps
     deps.state = MarketplaceState()
-    assert client.get("/api/market-lister/status").get_json()["listings"] == {"seen": False, "used": None, "age_s": None}
+    assert client.get("/api/market-lister/status").get_json()["listings"] == {"seen": False, "free": None, "age_s": None}
 
 
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."

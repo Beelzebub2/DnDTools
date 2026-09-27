@@ -7,6 +7,8 @@ LISTING_FEE_RATE = 0.05
 LISTING_FEE_MIN = 15
 MAX_UNDERCUT_PCT = 90.0
 LOWEST_ASK_MIN_RATIO = 0.5
+# Gold coins and their containers (bags, purses, pouches, chests) plus silver are currency.
+CURRENCY_ITEM_PREFIXES = ("GoldCoin", "SilverCoin")
 
 _RARITY_IDS = {
     "poor": 1, "common": 2, "uncommon": 3, "rare": 4, "epic": 5,
@@ -88,7 +90,13 @@ class Candidate:
     item: dict
 
 
+def _is_currency(item_id: str) -> bool:
+    return item_id.startswith(CURRENCY_ITEM_PREFIXES)
+
+
 def _skip_reason(item: dict, rules: ListerRules):
+    if _is_currency(str(item.get("itemId", ""))):
+        return "gold is never listed"
     if int(item.get("max_stack_size") or 1) > 1:
         return "stackable items not supported yet"
     if str(item.get("itemId", "")) in rules.exclude_item_ids:

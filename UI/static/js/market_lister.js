@@ -74,7 +74,7 @@
         if (!listings) return;
         const fresh = listings.seen && listings.age_s !== null && listings.age_s <= MAX_SNAPSHOT_AGE_S;
         if (fresh) {
-            el.textContent = `My Listings detected ${listings.age_s} s ago — ${listings.used} of 40 spots used.`;
+            el.textContent = `My Listings detected ${listings.age_s} s ago — ${listings.free} free listing spots.`;
         } else {
             el.textContent = listings.seen ? LISTINGS_STALE_TEXT : LISTINGS_MISSING_TEXT;
         }

@@ -36,12 +36,13 @@ def test_snapshot_none_until_listing_packet():
     assert MarketplaceState().snapshot() is None
 
 
-def test_my_item_list_records_used_and_available():
+def test_my_item_list_records_free_spots_not_total_item_count():
+    # Real packet: totalItemCount=35 while only spots 0-1 were used; free spots are the truth.
     clock = FakeClock()
     state = MarketplaceState(clock=clock)
-    state.handle_my_item_list(_my_list(2, available=[2, 3, 4]))
+    state.handle_my_item_list(_my_list(35, available=[2, 3, 4]))
     snap = state.snapshot()
-    assert (snap.used, snap.available, snap.received_at) == (2, (2, 3, 4), 100.0)
+    assert (snap.free, snap.available, snap.received_at) == (3, (2, 3, 4), 100.0)
 
 
 def test_register_success_and_failure():

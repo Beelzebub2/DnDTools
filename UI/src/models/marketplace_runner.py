@@ -99,17 +99,21 @@ class MarketplaceRunner:
         refusal = self._refusal(snapshot) or self._unmapped_message(entries)
         if refusal:
             return RunReport((), refusal)
-        results, used, self._page = [], snapshot.used, 0
+        # availableOrderIndexes lists the free spots (verified in game); use them in order.
+        free_spots, consumed, self._page = sorted(snapshot.available), 0, 0
+        results = []
         current = None
         try:
             for entry in entries:
                 current = entry
-                result = self._list_one(entry, used, snapshot.available, dry_run)
+                if consumed >= len(free_spots):
+                    raise _Stop("No free listing spots left.")
+                result = self._list_one(entry, free_spots[consumed], dry_run)
                 results.append(result)
                 if on_progress:
                     on_progress(result)
                 if result.status in ("listed", "dry_run"):
-                    used += 1
+                    consumed += 1
         except _Stop as stop:
             stop_results = list(results) + getattr(stop, "results", [])
             for r in getattr(stop, "results", []):
@@ -137,11 +141,11 @@ class MarketplaceRunner:
         self._driver.click(*point)
         self._pause()
 
-    def _go_to_spot(self, index, available):
+    def _go_to_spot(self, index):
         page, row = spot_location(index)
         if page >= MAX_PAGES:
             raise _Stop("No free listing spots left.")
-        if available and index not in available:
+        if page < self._page:
             raise _Stop("Listing spots are not laid out as expected — check My Listings.")
         while self._page < page:
             self._click(self._layout.point("next_page_arrow"))
@@ -194,10 +198,10 @@ class MarketplaceRunner:
         self._pause()
         return ItemResult(entry.unique_id, entry.name, "listed", f"{entry.price}g")
 
-    def _list_one(self, entry, used, available, dry_run) -> ItemResult:
+    def _list_one(self, entry, spot_index, dry_run) -> ItemResult:
         if not self._safety.checkpoint():
             raise _Stop(f"Stopped for safety: {_friendly_reason(self._safety.reason) or 'the game lost focus'}")
-        self._go_to_spot(used, available)
+        self._go_to_spot(spot_index)
         self._fill_form(entry)
         if dry_run:
             result = ItemResult(entry.unique_id, entry.name, "dry_run", f"would list at {entry.price}g")

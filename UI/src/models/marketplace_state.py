@@ -30,9 +30,12 @@ def describe_fail_code(code: int) -> str:
 @dataclass(frozen=True)
 class ListingsSnapshot:
     received_at: float
-    used: int
-    available: tuple
+    available: tuple  # free spot order indexes (availableOrderIndexes)
     current_page: int = FIRST_PAGE
+
+    @property
+    def free(self) -> int:
+        return len(self.available)
 
 
 @dataclass(frozen=True)
@@ -57,7 +60,6 @@ class MarketplaceState:
         with self._cond:
             self._snapshot = ListingsSnapshot(
                 received_at=received,
-                used=int(message.totalItemCount),
                 available=tuple(int(i) for i in message.availableOrderIndexes),
                 current_page=int(message.currentPage),
             )
