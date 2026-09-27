@@ -6,6 +6,7 @@ INVENTORY_STASH_ID = "2"
 LISTING_FEE_RATE = 0.05
 LISTING_FEE_MIN = 15
 MAX_UNDERCUT_PCT = 90.0
+LOWEST_ASK_MIN_RATIO = 0.5
 
 _RARITY_IDS = {
     "poor": 1, "common": 2, "uncommon": 3, "rare": 4, "epic": 5,
@@ -122,9 +123,16 @@ def _no(reason: str) -> PriceDecision:
     return PriceDecision(False, None, 0, reason)
 
 
+def _positive_number(value):
+    return value if isinstance(value, (int, float)) and not isinstance(value, bool) and value > 0 else None
+
+
 def _reference_price(price_check: dict):
-    refs = [p for p in (price_check.get("lowest_ask"), price_check.get("avg_price"))
-            if isinstance(p, (int, float)) and not isinstance(p, bool) and p > 0]
+    lowest = _positive_number(price_check.get("lowest_ask"))
+    avg = _positive_number(price_check.get("avg_price"))
+    if lowest is not None and avg is not None and lowest < LOWEST_ASK_MIN_RATIO * avg:
+        lowest = None  # a lone lowball listing shouldn't drag our price down
+    refs = [p for p in (lowest, avg) if p is not None]
     return min(refs) if refs else None
 
 

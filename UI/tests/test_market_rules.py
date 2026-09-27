@@ -88,3 +88,9 @@ def test_compute_price_skip_reasons():
     assert compute_price(_check(), vendor_price=900, rules=rules).reason == "vendor pays more"
     cheap = ListerRules(min_price=1, min_net_ratio=0.5)
     assert compute_price(_check(lowest_ask=30, avg_price=30), 0, cheap).reason == "fee too high"  # 27 - 15
+
+
+def test_compute_price_ignores_outlier_low_lowest_ask():
+    assert compute_price(_check(lowest_ask=100, avg_price=1000), 0, ListerRules()).price == 900  # priced off avg
+    assert compute_price(_check(lowest_ask=500, avg_price=1000), 0, ListerRules()).price == 450  # exactly 0.5 kept
+    assert compute_price(_check(lowest_ask=100, avg_price=None), 0, ListerRules(min_price=1)).price == 90
