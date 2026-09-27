@@ -10,6 +10,7 @@ import win32gui
 
 from src.models.point import Point
 from src.models.settings import settings_manager
+from src.models.screen_scaling import scale_for, scale_length, scale_point
 
 logger = logging.getLogger(__name__)
 
@@ -160,43 +161,18 @@ def _is_ultrawide(resolution):
 
 
 def _scaled_layout(resolution):
-    w, h = resolution
+    scale = scale_for(resolution)
 
-    if _is_ultrawide(resolution):
-        # Ultrawide / super-ultrawide: the game UI is rendered within a
-        # centred 16:9 viewport.  We scale uniformly by height and add a
-        # horizontal pillarbox offset so coordinates land inside that
-        # viewport instead of being stretched across the full width.
-        scale = h / BASE_RESOLUTION[1]
-        viewport_w = h * STANDARD_ASPECT
-        pillarbox = (w - viewport_w) / 2.0
-
-        return {
-            'stash': Point(int(round(BASE_LAYOUT['stash'].x * scale + pillarbox)),
-                           int(round(BASE_LAYOUT['stash'].y * scale))),
-            'inv': Point(int(round(BASE_LAYOUT['inv'].x * scale + pillarbox)),
-                         int(round(BASE_LAYOUT['inv'].y * scale))),
-            'jump': max(BASE_LAYOUT['jump'] * scale, 1.0),
-            'stash_tab_origin': Point(
-                int(round(BASE_LAYOUT['stash_tab_origin'].x * scale + pillarbox)),
-                int(round(BASE_LAYOUT['stash_tab_origin'].y * scale))),
-            'stash_tab_spacing': max(BASE_LAYOUT['stash_tab_spacing'] * scale, 1.0),
-        }
-
-    # Standard (≤16:9) aspect ratio – independent axis scaling
-    scale_x = w / BASE_RESOLUTION[0]
-    scale_y = h / BASE_RESOLUTION[1]
+    def point(key):
+        base = BASE_LAYOUT[key]
+        return Point(*scale_point(base.x, base.y, scale))
 
     return {
-        'stash': Point(int(round(BASE_LAYOUT['stash'].x * scale_x)),
-                       int(round(BASE_LAYOUT['stash'].y * scale_y))),
-        'inv': Point(int(round(BASE_LAYOUT['inv'].x * scale_x)),
-                     int(round(BASE_LAYOUT['inv'].y * scale_y))),
-        'jump': max(BASE_LAYOUT['jump'] * scale_y, 1.0),
-        'stash_tab_origin': Point(
-            int(round(BASE_LAYOUT['stash_tab_origin'].x * scale_x)),
-            int(round(BASE_LAYOUT['stash_tab_origin'].y * scale_y))),
-        'stash_tab_spacing': max(BASE_LAYOUT['stash_tab_spacing'] * scale_y, 1.0),
+        'stash': point('stash'),
+        'inv': point('inv'),
+        'jump': scale_length(BASE_LAYOUT['jump'], scale),
+        'stash_tab_origin': point('stash_tab_origin'),
+        'stash_tab_spacing': scale_length(BASE_LAYOUT['stash_tab_spacing'], scale),
     }
 
 
