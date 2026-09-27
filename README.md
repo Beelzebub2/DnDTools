@@ -32,6 +32,7 @@ All game content and materials are trademarks and copyrights of IRONMACE Co., Lt
 - Visualizes your characters, stashs and inventory in a clean layout
 - Allows sorting of your stashes using inventory for temporary storage
 - Includes a search box to quickly find items across all characters
+- **Market Lister**: prices items from the live Marketplace (roll-aware), lists them for you, collects sold gold and keeps a local market price history — see [docs/market-lister.md](docs/market-lister.md)
 
 ## 📋 Requirements
 
