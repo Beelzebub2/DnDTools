@@ -167,7 +167,8 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
             return _error(str(exc))
         if deps.is_sort_running():
             return _error(SORT_RUNNING_ERROR, 409)
-        if not deps.job.start(entries, bool(payload.get("dry_run"))):
+        reprice = _repricer(current_rules()) if payload.get("recheck", True) else None
+        if not deps.job.start(entries, bool(payload.get("dry_run")), reprice):
             return _error("The lister is already running.", 409)
         return jsonify({"success": True})
 
@@ -177,7 +178,8 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         pages = payload.get("pages", DEFAULT_CRAWL_PAGES) if isinstance(payload, dict) else DEFAULT_CRAWL_PAGES
         if isinstance(pages, bool) or not isinstance(pages, int) or not 1 <= pages <= MAX_CRAWL_PAGES:
             return _error(f"pages must be 1-{MAX_CRAWL_PAGES}")
-        detector = deps.old_page_detector()
+        incremental = payload.get("incremental", True) if isinstance(payload, dict) else True
+        detector = deps.old_page_detector() if incremental else None  # backfills read past known pages
         return _launch_job(lambda: deps.job.crawl(pages, detector))
 
     @bp.post("/api/market-lister/collect")
@@ -187,6 +189,16 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
     @bp.get("/api/market-lister/history")
     def history():
         return jsonify(deps.history_summary())
+
+    def _repricer(rules):
+        """Re-price one entry from a fresh market search just before it is listed."""
+        share = deps.extra_roll_share()
+
+        def reprice(entry, market):
+            plan = apply_game_prices([replace(entry, price=0, fee=0)], {entry.unique_id: market}, rules,
+                                     extra_rows=deps.history_rows, extra_share=share)
+            return plan.entries[0].price if plan.entries else None
+        return reprice
 
     def _launch_job(start):
         if deps.is_sort_running():

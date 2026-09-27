@@ -28,7 +28,7 @@ class FakeRunner:
     def __init__(self, event):
         self.event = event
 
-    def run(self, entries, dry_run=False, on_progress=None):
+    def run(self, entries, dry_run=False, on_progress=None, reprice=None):
         results = [ItemResult(e.unique_id, e.name, "dry_run" if dry_run else "listed") for e in entries]
         for r in results:
             on_progress(r)
@@ -128,7 +128,7 @@ class SlowRunner:
     def __init__(self, gate):
         self.gate = gate
 
-    def run(self, entries, dry_run=False, on_progress=None):
+    def run(self, entries, dry_run=False, on_progress=None, reprice=None):
         self.gate.wait(2)
         return RunReport((), None)
 
@@ -292,3 +292,15 @@ def test_history_summary_endpoint(client_and_deps):
     client, deps, _ = client_and_deps
     deps.history_summary = lambda: {"listings": 12, "items": 3, "vanished": 1, "my_sold": 1}
     assert client.get("/api/market-lister/history").get_json()["listings"] == 12
+
+
+def test_crawl_backfill_skips_the_incremental_stop(client_and_deps):
+    client, deps, _ = client_and_deps
+    calls = []
+    deps.old_page_detector = lambda: calls.append("made") or (lambda rows: True)
+    client.post("/api/market-lister/crawl", json={"pages": 2, "incremental": False})
+    _wait_done(deps.job)
+    assert calls == []
+    client.post("/api/market-lister/crawl", json={"pages": 2})
+    _wait_done(deps.job)
+    assert calls == ["made"]

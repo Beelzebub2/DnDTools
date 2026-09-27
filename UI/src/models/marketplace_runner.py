@@ -1,7 +1,8 @@
 """Drives the Marketplace 'List an Item' flow one plan entry at a time."""
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Protocol
 
+from src.models.market_rules import listing_fee
 from src.models.marketplace_layout import spot_location, tab_icon_index
 from src.models.marketplace_state import (
     FIRST_PAGE, ITEM_LEVEL_FAIL_CODES, MAX_SNAPSHOT_AGE_S, MY_ITEM_SOLD, REGISTER_SUCCESS, describe_fail_code,
@@ -107,7 +108,9 @@ class MarketplaceRunner:
                 return f"Stash tab for {entry.name} is not mapped in DnDTools settings."
         return None
 
-    def run(self, entries, dry_run=False, on_progress=None) -> RunReport:
+    def run(self, entries, dry_run=False, on_progress=None, reprice=None) -> RunReport:
+        """List each entry. reprice(entry, market) -> price | None re-checks the market right
+        before listing: a lower price is used if the market dropped, None skips the item."""
         entries = list(entries)
         refusal = self._unmapped_message(entries) or self.ensure_marketplace()
         if refusal:
@@ -122,7 +125,7 @@ class MarketplaceRunner:
                 current = entry
                 if consumed >= len(free_spots):
                     raise _Stop("No free listing spots left.")
-                result = self._list_one(entry, free_spots[consumed], dry_run)
+                result = self._list_one(entry, free_spots[consumed], dry_run, reprice)
                 results.append(result)
                 if on_progress:
                     on_progress(result)
@@ -325,6 +328,7 @@ class MarketplaceRunner:
         if self._scan_observer:
             self._scan_observer(entry.item_id, started, every, complete)
         self._click(self._layout.point("my_listings_tab"))
+        self._page = 0
         self._settle()
         return {"same": same, "all": every}
 
@@ -416,15 +420,26 @@ class MarketplaceRunner:
         self._pause()
         return ItemResult(entry.unique_id, entry.name, "listed", f"{entry.price}g")
 
-    def _list_one(self, entry, spot_index, dry_run) -> ItemResult:
+    def _list_one(self, entry, spot_index, dry_run, reprice=None) -> ItemResult:
         if not self._safety.checkpoint():
             raise _Stop(f"Stopped for safety: {_friendly_reason(self._safety.reason) or 'the game lost focus'}")
+        note = ""
+        if reprice is not None:
+            fresh = reprice(entry, self._search_market(entry, spot_index))
+            if fresh is None:
+                self._safety.snapshot_position()
+                return ItemResult(entry.unique_id, entry.name, "skipped", "no longer worth listing at today's prices")
+            if fresh < entry.price:
+                note = f" (market moved: planned {entry.price}g)"
+                entry = replace(entry, price=fresh, fee=listing_fee(fresh))
         self._go_to_spot(spot_index)
         self._fill_form(entry)
         if dry_run:
-            result = ItemResult(entry.unique_id, entry.name, "dry_run", f"would list at {entry.price}g")
+            result = ItemResult(entry.unique_id, entry.name, "dry_run", f"would list at {entry.price}g{note}")
         else:
             result = self._submit(entry)
+            if note and result.status == "listed":
+                result = replace(result, message=result.message + note)
         # Snapshot after the last click so the next checkpoint only sees user movement.
         self._safety.snapshot_position()
         return result

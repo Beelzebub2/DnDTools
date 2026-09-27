@@ -555,3 +555,28 @@ def test_price_all_reports_each_scan_to_the_observer():
     assert len(scans) == 1
     item_id, started, rows, complete = scans[0]
     assert (item_id, len(rows), complete) == ("", 4, True)   # _entry has no item_id; a short page means we saw all
+
+
+def test_recheck_lowers_price_when_the_market_dropped():
+    driver = FakeDriver()
+    rows = [MarketRow("", 700, (), ())]
+    state = PricingState([[], rows], available=(2, 3))
+    report = _runner(driver, state).run([_entry("a", price=900)], reprice=lambda entry, market: 630)
+    assert ("type", "630") in driver.actions
+    assert report.results[0].message == "630g (market moved: planned 900g)"
+
+
+def test_recheck_keeps_the_approved_price_when_market_rose():
+    driver = FakeDriver()
+    state = PricingState([[], []], available=(2, 3))
+    _runner(driver, state).run([_entry("a", price=900)], reprice=lambda entry, market: 1200)
+    assert ("type", "900") in driver.actions
+
+
+def test_recheck_skips_items_no_longer_worth_listing():
+    driver = FakeDriver()
+    state = PricingState([[], [], [], []], available=(2, 3))
+    report = _runner(driver, state).run([_entry("a"), _entry("b", slot=1)],
+                                        reprice=lambda entry, market: None if entry.unique_id == "a" else 900)
+    assert [(r.unique_id, r.status) for r in report.results] == [("a", "skipped"), ("b", "listed")]
+    assert ("type", "900") in driver.actions and driver.actions.count(("click", LAYOUT.point("create_listing_button"))) == 1

@@ -68,10 +68,11 @@ class ListerJob:
         with self._lock:
             self._status["results"].append(asdict(result))
 
-    def start(self, entries, dry_run) -> bool:
+    def start(self, entries, dry_run, reprice=None) -> bool:
         def target(event):
             try:
-                report = self._runner_factory(event).run(entries, dry_run=dry_run, on_progress=self._record)
+                report = self._runner_factory(event).run(entries, dry_run=dry_run, on_progress=self._record,
+                                                         reprice=reprice)
                 self._finish(report.stopped_reason)
             except Exception as exc:  # never leave the job stuck in "running"
                 logger.exception("Market lister run failed")
