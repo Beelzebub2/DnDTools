@@ -23,6 +23,7 @@ UI/assets/checksums.json
 !/UI/tests/test_proto_coverage.py
 !/UI/tests/test_tshark_cleanup.py
 !/UI/tests/test_market_service.py
+!/UI/tests/test_market_rules.py
 website/
 githelp.md
 TODO
