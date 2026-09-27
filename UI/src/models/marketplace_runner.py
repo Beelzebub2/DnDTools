@@ -71,8 +71,10 @@ class MarketplaceRunner:
         if snapshot is None:
             return RunReport((), "Open Trade → Marketplace → My Listings in the game first.")
         results, used, self._page = [], snapshot.used, 0
+        current = None
         try:
             for entry in entries:
+                current = entry
                 result = self._list_one(entry, used, snapshot.available, dry_run)
                 results.append(result)
                 if on_progress:
@@ -87,7 +89,9 @@ class MarketplaceRunner:
             return RunReport(tuple(stop_results), str(stop))
         except Exception as exc:
             # Catch unexpected exceptions to preserve already-listed results
-            failed = ItemResult("", "", "failed", str(exc))
+            failed_uid = current.unique_id if current else ""
+            failed_name = current.name if current else ""
+            failed = ItemResult(failed_uid, failed_name, "failed", str(exc))
             results.append(failed)
             if on_progress:
                 on_progress(failed)

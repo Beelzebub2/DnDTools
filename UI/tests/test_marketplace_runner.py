@@ -148,6 +148,7 @@ def test_run_stops_when_driver_click_raises():
     driver = FakeDriver()
     original_click = driver.click
     call_count = [0]
+    progress_results = []
 
     def raising_click(x, y):
         call_count[0] += 1
@@ -156,12 +157,21 @@ def test_run_stops_when_driver_click_raises():
         original_click(x, y)
 
     driver.click = raising_click
-    report = _runner(driver, ScriptedState(outcomes=[RegisterOutcome("ok"), RegisterOutcome("ok")])).run([_entry("a"), _entry("b", slot=1)])
+    def track_progress(result):
+        progress_results.append(result)
+
+    report = _runner(driver, ScriptedState(outcomes=[RegisterOutcome("ok"), RegisterOutcome("ok")])).run([_entry("a"), _entry("b", slot=1)], on_progress=track_progress)
     assert len(report.results) == 2
     assert report.results[0].status == "listed"
     assert report.results[1].status == "failed"
+    assert report.results[1].unique_id == "b"
+    assert report.results[1].name == "Item b"
     assert report.results[1].message == "Driver crashed"
     assert "Stopped:" in report.stopped_reason
+    # Verify on_progress received both items
+    assert len(progress_results) == 2
+    assert progress_results[0].unique_id == "a"
+    assert progress_results[1].unique_id == "b"
 
 
 def test_run_stops_for_safety_checkpoint_false():
