@@ -90,8 +90,20 @@ def _limit(rules, free_spots):
     return rules.max_items_per_run if free_spots is None else min(rules.max_items_per_run, max(free_spots, 0))
 
 
-def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_age_s, pause=lambda: None) -> Plan:
+def _drop_listed(candidates, skipped, exclude_unique_ids):
+    kept = []
+    for candidate in candidates:
+        if str(candidate.item.get("itemUniqueId")) in exclude_unique_ids:
+            skipped.append(_skip(candidate, "already listed"))
+        else:
+            kept.append(candidate)
+    return kept
+
+
+def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_age_s, pause=lambda: None,
+               exclude_unique_ids: frozenset = frozenset()) -> Plan:
     candidates, skipped = select_candidates(stashes, rules)
+    candidates = _drop_listed(candidates, skipped, exclude_unique_ids)
     warnings, entries = [], []
     if data_age_s is not None and data_age_s > STALE_DATA_SECONDS:
         warnings.append(f"Stash data is {int(data_age_s // 60)} minutes old — reopen your character to refresh.")

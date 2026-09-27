@@ -88,3 +88,17 @@ def test_plan_entry_round_trip_and_validation():
             PlanEntry.from_dict({**entry.to_dict(), "price": bad})
     with pytest.raises(ValueError):
         PlanEntry.from_dict({**entry.to_dict(), "slot_id": -1})
+
+
+def test_build_plan_skips_already_listed_unique_ids():
+    stashes = {"2": [_item("a", 0), _item("b", 1)]}
+    looked_up = []
+
+    def lookup(item):
+        looked_up.append(item["itemUniqueId"])
+        return _ok()
+
+    plan = _plan(stashes, lookup, exclude_unique_ids=frozenset({"a"}))
+    assert [e.unique_id for e in plan.entries] == ["b"]
+    assert [(s.name, s.reason) for s in plan.skipped] == [("Item a", "already listed")]
+    assert looked_up == ["b"]

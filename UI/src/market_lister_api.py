@@ -1,5 +1,6 @@
 """Flask blueprint for the auto market lister page."""
-from dataclasses import dataclass
+import time
+from dataclasses import dataclass, replace
 from typing import Any, Callable
 
 from flask import Blueprint, jsonify, request
@@ -12,6 +13,7 @@ RULES_KEY = "marketListerRules"
 CALIBRATION_KEY = "marketplaceCalibrationOverride"
 MAX_CALIBRATION_PX = 400
 TOTAL_SPOTS = 40
+STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
 
 
 @dataclass
@@ -60,6 +62,12 @@ def _listings_info(state):
     return {"seen": True, "used": snapshot.used, "age_s": round(age)}
 
 
+def _data_predates_last_run(job, data_age_s):
+    if data_age_s is None or job.last_finished_mode != "list" or job.last_finished_at is None:
+        return False
+    return time.time() - data_age_s < job.last_finished_at
+
+
 def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
     bp = Blueprint("market_lister", __name__)
 
@@ -85,14 +93,17 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         rules = ListerRules.from_dict(payload["rules"]) if isinstance(payload.get("rules"), dict) else current_rules()
         snapshot = deps.state.snapshot()
         free = None if snapshot is None else max(TOTAL_SPOTS - snapshot.used, 0)
+        data_age_s = deps.get_data_age(character_id)
         try:
             result = build_plan(
                 deps.get_stashes(character_id, list(rules.source_stash_ids)), rules, deps.price_lookup,
                 tab_mapping=deps.tab_mapping(), free_spots=free,
-                data_age_s=deps.get_data_age(character_id), pause=deps.pause,
+                data_age_s=data_age_s, pause=deps.pause, exclude_unique_ids=deps.state.listed_ids(),
             )
         except PlanError as exc:
             return _error(str(exc), 424)
+        if _data_predates_last_run(deps.job, data_age_s):
+            result = replace(result, warnings=result.warnings + (STALE_AFTER_RUN_WARNING,))
         return jsonify({"success": True, "plan": result.to_dict(), "listings": _listings_info(deps.state)})
 
     @bp.post("/api/market-lister/start")

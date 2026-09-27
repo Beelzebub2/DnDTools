@@ -152,3 +152,39 @@ def test_listings_age_is_none_without_snapshot(client_and_deps):
     client, deps, _ = client_and_deps
     deps.state = MarketplaceState()
     assert client.get("/api/market-lister/status").get_json()["listings"] == {"seen": False, "used": None, "age_s": None}
+
+
+STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
+
+
+def test_plan_skips_items_already_in_my_listings(client_and_deps):
+    client, deps, _ = client_and_deps
+    item = {**deps.get_stashes("c1", ["2"])["2"][0], "itemUniqueId": 777}
+    deps.get_stashes = lambda cid, ids: {"2": [item]}
+    msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=1)
+    msg.myItemInfos.add().itemInfo.item.itemUniqueId = 777
+    deps.state.handle_my_item_list(msg)
+    data = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()
+    assert data["plan"]["entries"] == []
+    assert data["plan"]["skipped"][0]["reason"] == "already listed"
+
+
+def test_plan_warns_when_stash_data_predates_last_list_run(client_and_deps):
+    client, deps, _ = client_and_deps
+    assert STALE_AFTER_RUN_WARNING not in client.post(
+        "/api/market-lister/plan", json={"character_id": "c1"}).get_json()["plan"]["warnings"]
+    client.post("/api/market-lister/start", json={"entries": [ENTRY]})
+    _wait_done(deps.job)
+    assert deps.job.last_finished_at is not None
+    deps.get_data_age = lambda cid: 60.0  # captured before the run finished
+    warnings = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()["plan"]["warnings"]
+    assert STALE_AFTER_RUN_WARNING in warnings
+
+
+def test_plan_does_not_warn_after_dry_run_only(client_and_deps):
+    client, deps, _ = client_and_deps
+    client.post("/api/market-lister/start", json={"entries": [ENTRY], "dry_run": True})
+    _wait_done(deps.job)
+    deps.get_data_age = lambda cid: 60.0
+    warnings = client.post("/api/market-lister/plan", json={"character_id": "c1"}).get_json()["plan"]["warnings"]
+    assert STALE_AFTER_RUN_WARNING not in warnings

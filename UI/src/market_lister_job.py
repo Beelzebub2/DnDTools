@@ -1,9 +1,11 @@
 """Runs one market lister operation at a time on a background thread."""
 import logging
 import threading
+import time
 from dataclasses import asdict
 
 logger = logging.getLogger(__name__)
+LISTING_MODES = ("list", "dry_run")
 
 
 class ListerJob:
@@ -14,6 +16,19 @@ class ListerJob:
         self._thread = None
         self._event = None
         self._status = {"state": "idle", "mode": None, "results": [], "stopped_reason": None}
+        self._last_finished_at = None
+        self._last_finished_mode = None
+
+    @property
+    def last_finished_at(self):
+        """time.time() when the last list / dry-run finished, or None."""
+        with self._lock:
+            return self._last_finished_at
+
+    @property
+    def last_finished_mode(self):
+        with self._lock:
+            return self._last_finished_mode
 
     def is_running(self) -> bool:
         with self._lock:
@@ -43,6 +58,9 @@ class ListerJob:
     def _finish(self, stopped_reason):
         with self._lock:
             self._status = {**self._status, "state": "done", "stopped_reason": stopped_reason}
+            if self._status["mode"] in LISTING_MODES:
+                self._last_finished_at = time.time()
+                self._last_finished_mode = self._status["mode"]
 
     def _record(self, result):
         with self._lock:
