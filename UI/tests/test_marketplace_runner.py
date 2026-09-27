@@ -508,3 +508,16 @@ def test_next_page_tries_arrow_positions_until_one_works():
     tried = [c for c in clicks if c[1] == LAYOUT.point("market_next_page")[1]]
     assert tried == [LAYOUT.next_page_candidate(0), LAYOUT.next_page_candidate(1),
                      LAYOUT.next_page_candidate(2), LAYOUT.next_page_candidate(2)]  # remembers the one that worked
+
+
+def test_price_all_reports_each_scan_to_the_observer():
+    scans = []
+    driver = FakeDriver()
+    page = [MarketRow("HeaterShield_5001", 300 + i, (), ()) for i in range(4)]
+    state = PricingState([[], page], available=(2,))
+    runner = MarketplaceRunner(driver, LAYOUT, state, tab_mapping=MAPPING, is_cancelled=lambda: False,
+                               pause=lambda: None, scan_observer=lambda *a: scans.append(a))
+    runner.price_all([_entry("a", stash="20")])
+    assert len(scans) == 1
+    item_id, started, rows, complete = scans[0]
+    assert (item_id, len(rows), complete) == ("", 4, True)   # _entry has no item_id; a short page means we saw all

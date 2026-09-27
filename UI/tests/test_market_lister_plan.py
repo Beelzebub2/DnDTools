@@ -147,3 +147,13 @@ def test_apply_game_prices_marks_unsearched_items_not_priced():
     unpriced = _plan({"2": [_item("a", 0)]}, None).entries
     plan = apply_game_prices(unpriced, {}, ListerRules(source_stash_ids=("2",)))
     assert [(s.name, s.reason) for s in plan.skipped] == [("Item a", "not priced — the pricing run stopped first")]
+
+
+def test_apply_game_prices_merges_history_rows_and_records_confidence():
+    from src.market_lister import apply_game_prices
+    from src.models.roll_pricing import MarketRow
+    unpriced = _plan({"2": [_item("a", 0)]}, None).entries
+    history = {"Id_a": [MarketRow("Id_a", p, (), ()) for p in (300, 320, 340)]}
+    plan = apply_game_prices(unpriced, {"a": {"same": [], "all": []}}, ListerRules(source_stash_ids=("2",)),
+                             extra_rows=lambda item_id: history.get(item_id, []))
+    assert [(e.unique_id, e.price, e.confidence) for e in plan.entries] == [("a", 270, "high")]

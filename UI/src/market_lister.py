@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass, replace
 
 from src.models.market_rules import Skip, compute_price, listing_fee, rarity_id, select_candidates
 from src.models.marketplace_layout import tab_icon_index
-from src.models.roll_pricing import price_from_market
+from src.models.roll_pricing import EXTRA_ROLL_SHARE, price_from_market
 
 MAX_LISTING_PRICE = 1_000_000
 STALE_DATA_SECONDS = 300
@@ -17,6 +17,7 @@ class PlanError(Exception):
 
 
 MAX_STATS = 16
+CONFIDENCE_LEVELS = ("high", "medium", "low")
 
 
 def _stat_pairs(raw) -> tuple:
@@ -53,6 +54,7 @@ class PlanEntry:
     rolls: tuple = ()        # ((stat, value), ...) random secondary properties
     flag: str = ""           # pricing warning for the user to review
     compared: str = ""       # what the price was compared against
+    confidence: str = ""     # "high" | "medium" | "low" — how well the market backs the price
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -78,6 +80,7 @@ class PlanEntry:
             rolls=_stat_pairs(data.get("rolls")),
             flag=str(data.get("flag") or "")[:300],
             compared=str(data.get("compared") or "")[:300],
+            confidence=str(data.get("confidence") or "") if data.get("confidence") in CONFIDENCE_LEVELS else "",
         )
 
 
@@ -168,10 +171,12 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
 NOT_PRICED_REASON = "not priced — the pricing run stopped first"
 
 
-def apply_game_prices(entries, market_by_unique_id, rules) -> Plan:
+def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
+                      extra_share=EXTRA_ROLL_SHARE) -> Plan:
     """Price unpriced entries from in-game search results, comparing like rolls with like.
 
     market_by_unique_id: {unique_id: {"same": [MarketRow], "all": [MarketRow]}}.
+    extra_rows(item_id): recent listings from the local market history to widen the view.
     """
     priced, skipped = [], []
     for entry in entries:
@@ -179,11 +184,13 @@ def apply_game_prices(entries, market_by_unique_id, rules) -> Plan:
         if market is None:
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, NOT_PRICED_REASON))
             continue
+        history = list(extra_rows(entry.item_id)) if extra_rows else []
         result = price_from_market(entry.item_id, entry.base_rolls, entry.rolls, entry.vendor_price,
-                                   market.get("same") or [], market.get("all") or [], rules)
+                                   market.get("same") or [], (market.get("all") or []) + history, rules,
+                                   extra_share=extra_share)
         if result.ok:
-            priced.append(replace(entry, price=result.price, fee=result.fee,
-                                  flag=result.flag, compared=result.compared))
+            priced.append(replace(entry, price=result.price, fee=result.fee, flag=result.flag,
+                                  compared=result.compared, confidence=result.confidence))
         else:
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, result.reason))
     warnings = list(_explain(priced, skipped))

@@ -1,9 +1,22 @@
 """Roll-aware pricing from in-game Marketplace search results (pure, no I/O).
 
-An item is compared only with listings that have the same random attributes. The
-cheapest listing whose base stats and rolls are all at least as good as ours sets the
-price ceiling; we undercut it. When nothing comparable exists the price falls back to
-all rolls and the entry is flagged for the user to check.
+How a price is built:
+
+1. Price ladders. For each of our random rolls, listings of the same item carrying that
+   stat form a ladder: the cheapest copy with the stat at least as high as ours is the
+   most a buyer who wants that stat would pay elsewhere. We place our value on that
+   ladder between the nearest weaker roll and the nearest equal-or-better one, so a small
+   roll is not priced as if it were a god roll.
+2. Best roll + extra good rolls. The best roll's ladder price is the base. Every other
+   roll that commands a premium over a plain copy adds a share of that premium
+   (EXTRA_ROLL_SHARE by default, learned from market data when available).
+3. Ceiling. A listing with the same rolls that is at least as good on every stat caps
+   the price: nobody pays more for ours than for a better copy.
+4. Items without rolls use the cheapest real (non-lowball) listing.
+
+Base stats count toward "at least as good" with a small tolerance, since they vary a
+little between otherwise identical copies. Every price carries a confidence level and a
+plain explanation for the review table.
 """
 import math
 from dataclasses import dataclass
@@ -12,8 +25,10 @@ from src.models.market_rules import listing_fee
 
 PROPERTY_PREFIX = "Effect_"
 NO_SELLERS_REASON = "nobody is selling this right now"
-LOWBALL_RATIO = 0.5  # a listing under half the average ask is treated as a lowball outlier
-CLOSE_ROLL_RATIO = 1.5  # a roll up to 1.5x ours counts as comparable; beyond that we scale
+LOWBALL_RATIO = 0.5       # a listing under half the average ask is treated as a lowball outlier
+CLOSE_ROLL_RATIO = 1.5    # with no weaker listing, a roll up to 1.5x ours still counts as comparable
+BASE_TOLERANCE = 0.05     # base stats within 5% (at least 1 point) count as equal
+EXTRA_ROLL_SHARE = 0.5    # default share of each extra good roll's premium added to the price
 
 
 @dataclass(frozen=True)
@@ -33,6 +48,15 @@ class RollPrice:
     reason: str
     flag: str = ""
     compared: str = ""
+    confidence: str = ""
+
+
+@dataclass(frozen=True)
+class _Estimate:
+    value: float
+    how: str
+    confidence: str  # "high" | "medium" | "low"
+    beats_all: bool = False
 
 
 def stat_name(property_type_id: str) -> str:
@@ -40,9 +64,15 @@ def stat_name(property_type_id: str) -> str:
     return str(property_type_id).split(PROPERTY_PREFIX)[-1]
 
 
-def _at_least_as_good(row: MarketRow, base: tuple, rolls: tuple) -> bool:
-    theirs = dict(row.base) | dict(row.rolls)
-    return all(theirs.get(stat, float("-inf")) >= value for stat, value in base + rolls)
+def _base_ok(row: MarketRow, base: tuple) -> bool:
+    theirs = dict(row.base)
+    return all(theirs.get(stat, float("-inf")) >= value - max(1.0, abs(value) * BASE_TOLERANCE)
+               for stat, value in base)
+
+
+def _dominates(row: MarketRow, base: tuple, rolls: tuple) -> bool:
+    theirs = dict(row.rolls)
+    return _base_ok(row, base) and all(theirs.get(stat, float("-inf")) >= value for stat, value in rolls)
 
 
 def _sane_min(prices) -> int:
@@ -56,85 +86,101 @@ def _unique(rows):
     return list({(r.listing_id or (r.item_id, r.price, r.base, r.rolls)): r for r in rows}.values())
 
 
-def _roll_value(row, stat):
-    return dict(row.rolls).get(stat, float("-inf"))
-
-
-def _single_roll_reference(rows, base, stat, value):
-    """(reference price, explanation) that one of our rolls supports, or None."""
-    eligible = [r for r in rows if _at_least_as_good(r, base, ())]
-    supporters = [r for r in eligible if _roll_value(r, stat) >= value]
-    if not supporters:
-        return None
-    cheapest = _sane_min([r.price for r in supporters])
-    match = min((r for r in supporters if r.price == cheapest), key=lambda r: _roll_value(r, stat))
-    theirs = _roll_value(match, stat)
-    if value <= 0 or theirs <= value * CLOSE_ROLL_RATIO:
-        return cheapest, f"cheapest listing with it at least as good: {cheapest}g"
-    # Only much stronger rolls are listed: scale by roll strength, floored by weaker listings.
-    estimate = cheapest * value / theirs
-    weaker = [r.price for r in eligible if value > _roll_value(r, stat) > float("-inf")]
-    if weaker:
-        estimate = max(estimate, max(weaker))
-    return estimate, f"scaled from a {stat} {theirs} listing at {cheapest}g"
-
-
-def _best_single_roll(rows, base, rolls):
-    """((stat, value), reference, explanation) for our roll the market values most, or None.
-
-    A buyer after one of our rolls pays at least what the cheapest comparable listing with
-    that roll costs, so the item's value is set by whichever roll supports the highest price.
-    """
-    best = None
-    for stat, value in rolls:
-        found = _single_roll_reference(rows, base, stat, value)
-        if found and (best is None or found[0] > best[1]):
-            best = ((stat, value), found[0], found[1])
-    return best
-
-
 def _undercut(reference, rules) -> int:
     return math.floor(reference * (1 - rules.undercut_pct / 100))
 
 
-def _reference(item_id, base, rolls, same_rows, all_rows, rules):
-    """Return (price, flag, compared) or None when nobody sells this item."""
+def _roll(row, stat):
+    return dict(row.rolls).get(stat)
+
+
+def _ladder_estimate(rows, base, stat, value) -> _Estimate | None:
+    """Where our `value` of `stat` sits on this item's price ladder for that stat."""
+    points = [(v, r.price) for r in rows if _base_ok(r, base) and (v := _roll(r, stat)) is not None]
+    if not points:
+        return None
+    above = [(v, p) for v, p in points if v >= value]
+    below = [(v, p) for v, p in points if v < value]
+    if not above:
+        best_v, best_p = max(below)
+        return _Estimate(best_p, f"{stat} {value} beats every listing (best {stat} {best_v} asks {best_p}g)",
+                         "low", beats_all=True)
+    ceiling = _sane_min([p for _, p in above])
+    ceiling_v = min(v for v, p in above if p == ceiling)
+    if ceiling_v == value:
+        return _Estimate(ceiling, f"{stat} {value}: cheapest copy with it at least as good asks {ceiling}g",
+                         "high" if below else "medium")
+    if below:
+        low_v = max(v for v, _ in below)
+        low_p = _sane_min([p for v, p in points if v >= low_v])  # what the next-weaker roll level costs
+        share = (value - low_v) / (ceiling_v - low_v)
+        estimate = low_p + (ceiling - low_p) * share
+        return _Estimate(estimate, f"{stat} {value} sits between {stat} {low_v} ({low_p}g) and "
+                                   f"{stat} {ceiling_v} ({ceiling}g)", "high")
+    if value > 0 and ceiling_v > value * CLOSE_ROLL_RATIO:
+        estimate = ceiling * value / ceiling_v
+        return _Estimate(estimate, f"{stat} {value}: only stronger rolls listed — scaled from "
+                                   f"{stat} {ceiling_v} at {ceiling}g", "low")
+    return _Estimate(ceiling, f"{stat} {value}: cheapest copy with it at least as good asks {ceiling}g", "medium")
+
+
+def _combine(rows, base, rolls, baseline, extra_share):
+    """Best roll's ladder price plus a share of every other roll's premium over a plain copy."""
+    estimates = [(stat, value, est) for stat, value in rolls
+                 if (est := _ladder_estimate(rows, base, stat, value)) is not None]
+    if not estimates:
+        return None
+    estimates.sort(key=lambda e: -e[2].value)
+    best_stat, best_value, best = estimates[0]
+    extras = [(s, v, e.value - baseline) for s, v, e in estimates[1:] if e.value - baseline > 0]
+    bonus = sum(premium for _, _, premium in extras) * extra_share
+    how = best.how
+    if extras:
+        names = ", ".join(f"{s} {v}" for s, v, _ in extras)
+        how += f"; +{round(bonus)}g for extra good rolls ({names})"
+    return best.value + bonus, how, best.confidence, best.beats_all
+
+
+def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share):
+    """(reference price, flag, explanation, confidence) or None when nobody sells this item."""
     rows = _unique(r for r in list(same_rows) + list(all_rows) if r.item_id == item_id)
     if not rows:
         return None
+    baseline = _sane_min([r.price for r in rows])
+    if not rolls:
+        return baseline, "", f"cheapest of {len(rows)} listings: {baseline}g", "high" if len(rows) >= 3 else "medium"
+    combined = _combine(rows, base, rolls, baseline, extra_share)
     roll_set = {stat for stat, _ in rolls}
-    similar = [r for r in rows if {s for s, _ in r.rolls} == roll_set]
-    better = [r for r in similar if _at_least_as_good(r, base, rolls)]
-    if better:
-        cheapest = _sane_min([r.price for r in better])
-        compared = f"{len(similar)} listings with the same rolls; cheapest at least as good: {cheapest}g"
-        return _undercut(cheapest, rules), "", compared
-    if similar:
-        top = max(r.price for r in similar)
-        flag = f"Your rolls are better than every similar listing (best asks {top}g) — set this price yourself."
-        return top, flag, f"{len(similar)} listings with the same rolls, all worse"
-    best = _best_single_roll(rows, base, rolls)
-    if best is not None:
-        (stat, value), reference, how = best
-        compared = f"matched on your best roll: {stat} {value} ({how})"
-        flag = "Priced from your best single roll (no exact roll match) — check this price."
-        return _undercut(reference, rules), flag, compared
-    cheapest = _sane_min([r.price for r in rows])
-    flag = "There are no listings with the same rolls — priced against all rolls; check this price."
-    return _undercut(cheapest, rules), flag, f"{len(rows)} listings of any roll; cheapest {cheapest}g"
+    dominating = [r.price for r in rows if {s for s, _ in r.rolls} == roll_set and _dominates(r, base, rolls)]
+    if combined is None:
+        flag = "There are no listings with any of your rolls — priced against all rolls; check this price."
+        return baseline, flag, f"{len(rows)} listings of any roll; cheapest {baseline}g", "low"
+    value, how, confidence, beats_all = combined
+    if dominating:
+        ceiling = _sane_min(dominating)
+        if value > ceiling:
+            value, how = ceiling, how + f"; capped at {ceiling}g (a copy at least as good on every stat)"
+    flag = ""
+    if beats_all and not dominating:
+        flag = "Your rolls beat everything listed — consider pricing higher yourself."
+    elif confidence == "low":
+        flag = "Few comparable listings — check this price."
+    return value, flag, how, confidence
 
 
-def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, rules) -> RollPrice:
-    found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules)
+def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, rules,
+                      extra_share=EXTRA_ROLL_SHARE) -> RollPrice:
+    found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules, extra_share)
     if found is None:
         return RollPrice(False, None, 0, NO_SELLERS_REASON)
-    price, flag, compared = found
+    reference, flag, compared, confidence = found
+    price = _undercut(reference, rules)
     if price < max(rules.min_price, 1):
-        return RollPrice(False, None, 0, "below min price", flag, compared)
+        return RollPrice(False, None, 0, "below min price", flag, compared, confidence)
     fee = listing_fee(price)
     net = price - fee
     if net <= int(vendor_price or 0):
-        return RollPrice(False, None, 0, "vendor pays more", flag, compared)
+        return RollPrice(False, None, 0, "vendor pays more", flag, compared, confidence)
     if net / price < rules.min_net_ratio:
-        return RollPrice(False, None, 0, "fee too high", flag, compared)
-    return RollPrice(True, price, fee, "ok", flag, compared)
+        return RollPrice(False, None, 0, "fee too high", flag, compared, confidence)
+    return RollPrice(True, price, fee, "ok", flag, compared, confidence)

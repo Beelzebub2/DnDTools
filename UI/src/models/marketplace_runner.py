@@ -16,7 +16,8 @@ RARITY_NAMES = {1: "Poor", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Epic", 6: 
                 7: "Unique", 8: "Artifact"}
 NEXT_PAGE_ATTEMPTS = 6
 NEXT_PAGE_TIMEOUT_S = 2.0
-MARKET_PAGES = 3        # result pages read per search
+MARKET_PAGES = 10       # all-roll result pages read per item (cheapest first)
+SAME_SEARCH_PAGES = 5   # same-roll search result pages read per item
 MARKET_PAGE_SIZE = 10   # listings per View Market page  # the View Market screen needs a moment after each switch
 SAFETY_REASON_TEXT = {
     "game_window_unfocused": "the game lost focus",
@@ -75,7 +76,7 @@ class _Stop(Exception):
 
 class MarketplaceRunner:
     def __init__(self, driver, layout, state, *, tab_mapping, is_cancelled, pause,
-                 safety=None, register_timeout=5.0, confirm_timeout=3.0):
+                 safety=None, register_timeout=5.0, confirm_timeout=3.0, scan_observer=None):
         self._driver = driver
         self._layout = layout
         self._state = state
@@ -85,6 +86,7 @@ class MarketplaceRunner:
         self._safety = safety or _NullSafety()
         self._register_timeout = register_timeout
         self._confirm_timeout = confirm_timeout
+        self._scan_observer = scan_observer  # (item_id, started_at, rows, complete) after each item scan
         self._page = 0
         self._arrow_attempt = 0
 
@@ -249,7 +251,7 @@ class MarketplaceRunner:
             read, total = read + 1, total + len(rows)
             if read >= pages or len(rows) < MARKET_PAGE_SIZE:
                 break
-            rows = self._next_page()
+            rows = self._next_page() or []
         return read, total
 
     def _next_page(self):
@@ -262,7 +264,7 @@ class MarketplaceRunner:
             if rows is not None:
                 self._arrow_attempt = attempt
                 return rows
-        return []
+        return None
 
     def _reopen_my_listings(self):
         since = self._state.now()
@@ -281,28 +283,34 @@ class MarketplaceRunner:
         since = self._state.now()
         # The game pre-fills the search with our item's random attributes: same-roll listings.
         self._click(self._layout.point("form_search_button"))
-        same = self._state.wait_for_item_list(since, self._register_timeout) or []
+        same, _ = self._read_pages(self._state.wait_for_item_list(since, self._register_timeout) or [],
+                                   SAME_SEARCH_PAGES)
         self._settle()
         self._click(self._layout.point("market_attr_reset"))  # then every roll of this item
         self._settle()
-        since = self._state.now()
+        started = self._state.now()
         self._click(self._layout.point("market_search_button"))
-        every = self._state.wait_for_item_list(since, self._register_timeout) or []
-        every = every + self._more_pages(len(every))
+        every, complete = self._read_pages(self._state.wait_for_item_list(started, self._register_timeout) or [],
+                                           MARKET_PAGES)
+        if self._scan_observer:
+            self._scan_observer(entry.item_id, started, every, complete)
         self._click(self._layout.point("my_listings_tab"))
         self._settle()
         return {"same": same, "all": every}
 
-    def _more_pages(self, first_page_size):
-        """Read further result pages (cheapest first) so better rolls further down are seen."""
-        extra, size = [], first_page_size
-        for _ in range(MARKET_PAGES - 1):
-            if size < MARKET_PAGE_SIZE:
-                break
-            rows = self._next_page()
-            extra.extend(rows)
-            size = len(rows)
-        return extra
+    def _read_pages(self, first_page, max_pages):
+        """(rows, complete) — keep paging (cheapest first) until results end or max_pages.
+
+        complete is True only when the results ran out, i.e. every listing was seen.
+        """
+        rows, size, pages = list(first_page), len(first_page), 1
+        while size >= MARKET_PAGE_SIZE and pages < max_pages:
+            page = self._next_page()
+            if page is None:  # couldn't turn the page
+                return rows, False
+            rows.extend(page)
+            size, pages = len(page), pages + 1
+        return rows, size < MARKET_PAGE_SIZE
 
     def _check(self):
         if self._is_cancelled():

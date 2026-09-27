@@ -34,6 +34,7 @@ class ListerDeps:
     is_sort_running: Callable[[], bool]
     history_summary: Callable[[], dict] = lambda: {}
     history_rows: Callable[[str], list] = lambda item_id: []
+    extra_roll_share: Callable[[], float] = lambda: 0.5
 
 
 def _error(message, status=400):
@@ -145,7 +146,9 @@ def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
         if deps.is_sort_running():
             return _error("An inventory sort is running.", 409)
         rules = current_rules()
-        if not deps.job.price(entries, lambda es, rows: apply_game_prices(es, rows, rules)):
+        share = deps.extra_roll_share()
+        if not deps.job.price(entries, lambda es, rows: apply_game_prices(
+                es, rows, rules, extra_rows=deps.history_rows, extra_share=share)):
             return _error("The lister is already running.", 409)
         return jsonify({"success": True})
 

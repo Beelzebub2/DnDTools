@@ -2752,6 +2752,26 @@ def _on_item_list(message):
         logger.exception("Failed to record marketplace listings")
 
 
+def _lister_scan_observer(item_id, started_monotonic, rows, complete):
+    """After each item scan, let the history mark listings that vanished (most likely sold)."""
+    started_wall = time.time() - (marketplace_state.now() - started_monotonic)
+    try:
+        market_history.note_scan(item_id, started_wall, max((r.price for r in rows), default=0), complete)
+    except Exception:
+        logger.exception("Failed to record market scan for %s", item_id)
+
+
+def _lister_extra_roll_share():
+    """Share of each extra good roll's premium to add — learned by scripts/market_patterns_report.py."""
+    from src.models.roll_pricing import EXTRA_ROLL_SHARE
+    try:
+        with open(os.path.join(get_data_dir(), 'market_model.json'), encoding='utf-8') as fh:
+            factor = json.load(fh).get('extra_good_roll_factor')
+        return min(max(float(factor), 0.0), 1.0) if factor is not None else EXTRA_ROLL_SHARE
+    except (OSError, ValueError, TypeError):
+        return EXTRA_ROLL_SHARE
+
+
 def _on_my_item_list(message):
     marketplace_state.handle_my_item_list(message)
     try:
@@ -2805,6 +2825,7 @@ def _lister_runner_factory(event):
         marketplace_input.MacrosInputDriver(), marketplace_input.current_layout(), marketplace_state,
         tab_mapping=_lister_tab_mapping(), is_cancelled=event.is_set,
         pause=marketplace_input.make_pause(event.is_set), safety=monitor,
+        scan_observer=_lister_scan_observer,
     )
     return _MonitoredRunner(runner, monitor)
 
@@ -2889,6 +2910,7 @@ if not _is_child_process:
         is_sort_running=_sort_is_running,
         history_summary=market_history.summary,
         history_rows=lambda item_id: market_history.active_rows(item_id, HISTORY_MAX_AGE_S),
+        extra_roll_share=_lister_extra_roll_share,
     )))
 
 @server.route('/api/download_update')
