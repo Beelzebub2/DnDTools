@@ -16,7 +16,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 GOOD_ROLL_PERCENTILE = 0.7   # a roll in the top 30% of its observed range counts as "good"
-MIN_ITEM_LISTINGS = 5        # items with fewer listings are too thin to compare within
+MIN_ITEM_LISTINGS = 8        # items with fewer listings are too thin to compare within
 MIN_STAT_SUPPORT = 8         # stats / pairs need this many listings before we trust them
 LOWBALL_RATIO = 0.5
 
@@ -54,12 +54,16 @@ def percentile(value, low, high) -> float:
 
 
 def _relative_prices(groups):
-    """[(listing, log price minus the item's median log price)]"""
+    """[(listing, log price minus the median log price of the *other* listings of that item)]
+
+    Leaving the listing itself out keeps small groups from pinning results to exactly 0.
+    """
     out = []
     for rows in groups.values():
         logs = [math.log(r.price) for r in rows]
-        median = statistics.median(logs)
-        out.extend((r, lp - median) for r, lp in zip(rows, logs))
+        for i, (r, lp) in enumerate(zip(rows, logs)):
+            others = logs[:i] + logs[i + 1:]
+            out.append((r, lp - statistics.median(others)))
     return out
 
 
@@ -218,9 +222,18 @@ def seller_concentration(listings, top=5) -> list:
             for _, c in sorted(counts.items(), key=lambda kv: -kv[1])[:top]] if total else []
 
 
-def analyze(listings, vendor_prices=None) -> dict:
+def stat_premiums_by_type(listings, item_types: dict) -> dict:
+    """stat_premiums split by item type (weapon / armor / accessory ...)."""
+    by_type = defaultdict(list)
+    for listing in listings:
+        by_type[item_types.get(listing.item_id, "other")].append(listing)
+    return {t: stat_premiums(rows) for t, rows in by_type.items() if len(rows) >= MIN_ITEM_LISTINGS * 2}
+
+
+def analyze(listings, vendor_prices=None, item_types=None) -> dict:
     counts = good_roll_counts(listings)
     return {
+        "stat_premiums_by_type": stat_premiums_by_type(listings, item_types or {}),
         "listings": len(listings),
         "items": len({l.item_id for l in listings}),
         "stat_premiums": stat_premiums(listings),

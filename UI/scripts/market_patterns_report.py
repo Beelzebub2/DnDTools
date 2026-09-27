@@ -23,10 +23,12 @@ def load_listings(db_path):
             for i, r, p, c, b, ro, s in rows]
 
 
-def load_vendor_prices():
+def load_items():
     with open(ITEMS_JSON, encoding="utf-8") as fh:
         items = json.load(fh)
-    return {item_id: meta.get("vendor_price", 0) for item_id, meta in items.items()}
+    vendor = {item_id: meta.get("vendor_price", 0) for item_id, meta in items.items()}
+    types = {item_id: meta.get("item_type") or "other" for item_id, meta in items.items()}
+    return vendor, types
 
 
 def print_report(report):
@@ -37,6 +39,11 @@ def print_report(report):
     print("\nLeast valuable stats:")
     for stat, p in list(report["stat_premiums"].items())[-8:]:
         print(f"  {stat:28} {p['per_quality']:+7.1f}%   (n={p['support']})")
+    print("\nBy item type:")
+    for item_type, premiums in report["stat_premiums_by_type"].items():
+        top = [f"{s} {p['per_quality']:+.0f}%" for s, p in list(premiums.items())[:6]]
+        if top:
+            print(f"  [{item_type}] most valuable: {', '.join(top)}")
     print("\nGood rolls (top 30% of range) vs price, relative to the item's median:")
     for k, v in report["good_roll_counts"].items():
         print(f"  {k} good rolls: {v['median_uplift']:+.1f}%  (n={v['support']})")
@@ -52,12 +59,14 @@ def print_report(report):
     print("\nListed below merchant value (buy & vendor):")
     for deal in report["below_vendor"]:
         print(f"  {deal['item']:30} {deal['price']}g  (merchant pays {deal['vendor']}g, +{deal['gain']}g)")
-    print(f"\nTop sellers' share: {report['seller_concentration']}")
+    if report["seller_concentration"]:
+        print(f"\nTop sellers' share: {report['seller_concentration']}")
 
 
 def main():
     data_dir = get_data_dir()
-    report = analyze(load_listings(os.path.join(data_dir, "market_history.sqlite")), load_vendor_prices())
+    vendor, types = load_items()
+    report = analyze(load_listings(os.path.join(data_dir, "market_history.sqlite")), vendor, types)
     model = {k: report[k] for k in ("stat_premiums", "good_roll_counts", "extra_good_roll_factor", "roll_ranges")}
     with open(os.path.join(data_dir, "market_model.json"), "w", encoding="utf-8") as fh:
         json.dump(model, fh, indent=1)
