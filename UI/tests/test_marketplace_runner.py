@@ -1,0 +1,135 @@
+import sys
+
+import networking.protos
+
+# Generated *_pb2 modules import siblings by bare name (e.g. `import _Item_pb2`).
+_PROTOS_PATH = str(next(iter(networking.protos.__path__)))
+if _PROTOS_PATH not in sys.path:
+    sys.path.insert(0, _PROTOS_PATH)
+
+from networking.protos import MarketPlace_pb2
+
+from src.market_lister import PlanEntry
+from src.models.marketplace_layout import build_layout
+from src.models.marketplace_runner import MarketplaceRunner
+from src.models.marketplace_state import MarketplaceState, RegisterOutcome
+
+MAPPING = [4, 20, 5, 6, 7, 8, 9, 30]
+LAYOUT = build_layout((1920, 1080))
+
+
+class FakeDriver:
+    def __init__(self):
+        self.actions = []
+        self.on_create = None
+
+    def click(self, x, y):
+        self.actions.append(("click", (x, y)))
+        if (x, y) == LAYOUT.point("create_listing_button") and self.on_create:
+            self.on_create()
+
+    def move_to(self, x, y):
+        self.actions.append(("move", (x, y)))
+
+    def clear_and_type(self, text):
+        self.actions.append(("type", text))
+
+
+class ScriptedState(MarketplaceState):
+    """Answers register / listing waits from a script instead of packets."""
+
+    def __init__(self, used=2, outcomes=(), confirm=True):
+        super().__init__()
+        msg = MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(totalItemCount=used)
+        self.handle_my_item_list(msg)
+        self.outcomes = list(outcomes)
+        self.confirm = confirm
+
+    def wait_for_register(self, timeout):
+        return self.outcomes.pop(0) if self.outcomes else RegisterOutcome("ok")
+
+    def wait_for_listing(self, unique_id, since, timeout):
+        return self.confirm
+
+
+def _entry(uid, stash="2", slot=0, price=900):
+    return PlanEntry(uid, f"Item {uid}", 5, stash, slot, 1, 1, price, 45, 10)
+
+
+def _runner(driver, state, cancelled=lambda: False):
+    return MarketplaceRunner(driver, LAYOUT, state, tab_mapping=MAPPING, is_cancelled=cancelled, pause=lambda: None)
+
+
+def test_run_clicks_full_sequence_for_one_item():
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=2)).run([_entry("a", stash="4", slot=13)])
+    assert report.stopped_reason is None
+    assert [r.status for r in report.results] == ["listed"]
+    assert driver.actions == [
+        ("click", LAYOUT.spot_row(2)),
+        ("click", LAYOUT.tab_icon(1)),
+        ("click", LAYOUT.item_centre("4", 13, 1, 1)),
+        ("click", LAYOUT.point("price_field")),
+        ("type", "900"),
+        ("click", LAYOUT.point("create_listing_button")),
+    ]
+
+
+def test_run_turns_pages_when_spots_full():
+    driver = FakeDriver()
+    _runner(driver, ScriptedState(used=19)).run([_entry("a"), _entry("b", slot=1)])
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    arrow = LAYOUT.point("next_page_arrow")
+    assert clicks[0] == arrow and clicks[1] == LAYOUT.spot_row(9)   # index 19 → page 1, row 9
+    assert clicks.count(arrow) == 2                                  # index 20 → page 2
+    assert clicks[clicks.index(arrow, 1) + 1] == LAYOUT.spot_row(0)
+
+
+def test_dry_run_never_clicks_create_listing():
+    driver = FakeDriver()
+    report = _runner(driver, ScriptedState(used=0)).run([_entry("a"), _entry("b", slot=1)], dry_run=True)
+    assert [r.status for r in report.results] == ["dry_run", "dry_run"]
+    assert ("click", LAYOUT.point("create_listing_button")) not in driver.actions
+    assert ("click", LAYOUT.spot_row(1)) in driver.actions  # second item uses next spot
+
+
+def test_run_refuses_without_listings_snapshot():
+    driver = FakeDriver()
+    report = _runner(driver, MarketplaceState()).run([_entry("a")])
+    assert report.results == ()
+    assert "My Listings" in report.stopped_reason
+    assert driver.actions == []
+
+
+def test_run_stops_on_timeout_and_general_failure():
+    for outcome, text in ((RegisterOutcome("timeout"), "not confirmed"), (RegisterOutcome("failed", 657), "gold")):
+        report = _runner(FakeDriver(), ScriptedState(outcomes=[outcome])).run([_entry("a"), _entry("b", slot=1)])
+        assert len(report.results) == 1 and report.results[0].status == "failed"
+        assert text in report.stopped_reason.lower()
+
+
+def test_run_continues_after_item_level_failure():
+    state = ScriptedState(outcomes=[RegisterOutcome("failed", 666), RegisterOutcome("ok")])
+    report = _runner(FakeDriver(), state).run([_entry("a"), _entry("b", slot=1)])
+    assert [r.status for r in report.results] == ["failed", "listed"]
+    assert report.stopped_reason is None
+
+
+def test_run_stops_when_listing_not_confirmed():
+    report = _runner(FakeDriver(), ScriptedState(confirm=False)).run([_entry("a"), _entry("b", slot=1)])
+    assert len(report.results) == 1
+    assert "couldn't confirm" in report.stopped_reason
+
+
+def test_run_stops_when_cancelled():
+    flag = {"cancel": False}
+    driver = FakeDriver()
+    driver.on_create = lambda: flag.update(cancel=True)
+    report = _runner(driver, ScriptedState(), cancelled=lambda: flag["cancel"]).run([_entry("a"), _entry("b", slot=1)])
+    assert [r.status for r in report.results] == ["listed"]
+    assert report.stopped_reason == "Cancelled"
+
+
+def test_run_stops_when_no_free_spots():
+    report = _runner(FakeDriver(), ScriptedState(used=40)).run([_entry("a")])
+    assert "No free listing spots" in report.stopped_reason
