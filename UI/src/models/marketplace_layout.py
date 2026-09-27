@@ -27,8 +27,11 @@ BASE_POINTS = {
     "transfer_all_button": (960, 657),     # "Transfer All Items" on a sold / expired listing
     "view_market_tab": (862, 123),         # "View Market" tab header
     "market_reset_filters": (1794, 207),   # View Market "Reset Filters" button
+    "rarity_dropdown": (375, 207),         # View Market "Rarity" filter
+    "rarity_option_first": (298, 281),     # "Poor" checkbox; the other rarities follow below
 }
-BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3}
+BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3,
+                "rarity_option_spacing": 24.9, "next_page_step": 17.0}
 
 
 def spot_location(order_index: int):
@@ -77,6 +80,14 @@ class MarketplaceLayout:
 
     def spot_row(self, row: int):
         return self._offset("spot_row_origin", 0, self.lengths["spot_row_spacing"] * row)
+
+    def rarity_option(self, rarity: int):
+        """Checkbox for rarity 1 (Poor) .. 8 (Artifact) in the open Rarity dropdown."""
+        return self._offset("rarity_option_first", 0, self.lengths["rarity_option_spacing"] * (rarity - 1))
+
+    def next_page_candidate(self, attempt: int):
+        """The next-page arrow shifts right as the page counter widens ("1 / 13" vs "1 / 5,704")."""
+        return self._offset("market_next_page", self.lengths["next_page_step"] * attempt, 0)
 
     def tab_icon(self, icon_index: int):
         return self._offset("tab_icon_origin", 0, self.lengths["tab_icon_spacing"] * icon_index)

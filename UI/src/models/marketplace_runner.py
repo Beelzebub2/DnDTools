@@ -11,6 +11,11 @@ MAX_PAGES = 4
 CURSOR_DEVIATION_PX = 120
 SEARCH_SETTLE_PAUSES = 4
 MAX_PAYOUTS_PER_RUN = 40
+CRAWL_RARITIES = (5, 6, 4, 7)  # Epic, Legendary, Rare, Unique
+RARITY_NAMES = {1: "Poor", 2: "Common", 3: "Uncommon", 4: "Rare", 5: "Epic", 6: "Legendary",
+                7: "Unique", 8: "Artifact"}
+NEXT_PAGE_ATTEMPTS = 6
+NEXT_PAGE_TIMEOUT_S = 2.0
 MARKET_PAGES = 3        # result pages read per search
 MARKET_PAGE_SIZE = 10   # listings per View Market page  # the View Market screen needs a moment after each switch
 SAFETY_REASON_TEXT = {
@@ -81,6 +86,7 @@ class MarketplaceRunner:
         self._register_timeout = register_timeout
         self._confirm_timeout = confirm_timeout
         self._page = 0
+        self._arrow_attempt = 0
 
     def _refusal(self, snapshot):
         if snapshot is None:
@@ -204,37 +210,59 @@ class MarketplaceRunner:
             return RunReport(tuple(results + stop_results), str(stop))
         return RunReport(tuple(results), None)
 
-    def crawl_market(self, pages: int, on_progress=None) -> RunReport:
-        """Page through the unfiltered View Market (newest listings of every item).
+    def crawl_market(self, pages: int, on_progress=None, rarities=CRAWL_RARITIES) -> RunReport:
+        """Read the newest listings of every item, one rarity at a time (View Market filter).
 
-        Nothing is bought or listed; the captured pages feed the local market history.
+        Nothing is bought or listed (the Buy buttons are never clicked); the captured pages
+        feed the local market history.
         """
         refusal = self._refusal(self._state.snapshot())
         if refusal:
             return RunReport((), refusal)
-        read, total = 0, 0
+        results = []
         try:
-            self._click(self._layout.point("view_market_tab"))
-            self._settle()
-            self._click(self._layout.point("market_reset_filters"))
-            self._settle()
-            since = self._state.now()
-            self._click(self._layout.point("market_search_button"))  # "Refresh" when unfiltered
-            rows = self._state.wait_for_item_list(since, self._register_timeout) or []
-            while rows:
-                read, total = read + 1, total + len(rows)
-                if read >= pages or len(rows) < MARKET_PAGE_SIZE:
-                    break
-                since = self._state.now()
-                self._click(self._layout.point("market_next_page"))
-                rows = self._state.wait_for_item_list(since, self._register_timeout) or []
+            for rarity in rarities:
+                read, total = self._crawl_rarity(rarity, pages)
+                result = ItemResult(f"rarity-{rarity}", RARITY_NAMES.get(rarity, str(rarity)), "crawled",
+                                    f"{read} pages, {total} listings")
+                results.append(result)
+                if on_progress:
+                    on_progress(result)
             self._click(self._layout.point("my_listings_tab"))
         except _Stop as stop:
-            return RunReport((ItemResult("crawl", "market", "crawled", f"{read} pages, {total} listings"),), str(stop))
-        result = ItemResult("crawl", "market", "crawled", f"{read} pages, {total} listings")
-        if on_progress:
-            on_progress(result)
-        return RunReport((result,), None)
+            return RunReport(tuple(results), str(stop))
+        return RunReport(tuple(results), None)
+
+    def _crawl_rarity(self, rarity, pages):
+        self._click(self._layout.point("view_market_tab"))
+        self._settle()
+        self._click(self._layout.point("market_reset_filters"))
+        self._settle()
+        self._click(self._layout.point("rarity_dropdown"))
+        self._settle()
+        self._click(self._layout.rarity_option(rarity))
+        since = self._state.now()
+        self._click(self._layout.point("market_search_button"))
+        rows = self._state.wait_for_item_list(since, self._register_timeout) or []
+        read, total = 0, 0
+        while rows:
+            read, total = read + 1, total + len(rows)
+            if read >= pages or len(rows) < MARKET_PAGE_SIZE:
+                break
+            rows = self._next_page()
+        return read, total
+
+    def _next_page(self):
+        """Click the next-page arrow (its position depends on the page counter width)."""
+        attempts = [self._arrow_attempt] + [a for a in range(NEXT_PAGE_ATTEMPTS) if a != self._arrow_attempt]
+        for attempt in attempts:
+            since = self._state.now()
+            self._click(self._layout.next_page_candidate(attempt))
+            rows = self._state.wait_for_item_list(since, NEXT_PAGE_TIMEOUT_S)
+            if rows is not None:
+                self._arrow_attempt = attempt
+                return rows
+        return []
 
     def _reopen_my_listings(self):
         since = self._state.now()
@@ -271,9 +299,7 @@ class MarketplaceRunner:
         for _ in range(MARKET_PAGES - 1):
             if size < MARKET_PAGE_SIZE:
                 break
-            since = self._state.now()
-            self._click(self._layout.point("market_next_page"))
-            rows = self._state.wait_for_item_list(since, self._register_timeout) or []
+            rows = self._next_page()
             extra.extend(rows)
             size = len(rows)
         return extra

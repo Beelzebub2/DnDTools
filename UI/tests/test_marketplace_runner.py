@@ -485,14 +485,26 @@ def test_collect_payouts_stops_on_transfer_failure():
     assert "Marketplace error 658" in report.stopped_reason or "space" in report.stopped_reason.lower()
 
 
-def test_crawl_market_pages_through_unfiltered_listings():
+def test_crawl_market_reads_each_rarity_newest_first():
     driver = FakeDriver()
     full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
     state = PricingState([full, full, full[:4]], available=(2,))
-    report = _runner(driver, state).crawl_market(pages=5)
+    report = _runner(driver, state).crawl_market(pages=5, rarities=(5,))
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
-    assert clicks[:3] == [LAYOUT.point("view_market_tab"), LAYOUT.point("market_reset_filters"),
+    assert clicks[:5] == [LAYOUT.point("view_market_tab"), LAYOUT.point("market_reset_filters"),
+                          LAYOUT.point("rarity_dropdown"), LAYOUT.rarity_option(5),
                           LAYOUT.point("market_search_button")]
     assert clicks.count(LAYOUT.point("market_next_page")) == 2  # stops after the short third page
     assert clicks[-1] == LAYOUT.point("my_listings_tab")
-    assert report.results[0].message == "3 pages, 24 listings"
+    assert (report.results[0].name, report.results[0].message) == ("Epic", "3 pages, 24 listings")
+
+
+def test_next_page_tries_arrow_positions_until_one_works():
+    driver = FakeDriver()
+    full = [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([full, None, None, full, full[:2]], available=(2,))
+    _runner(driver, state).crawl_market(pages=5, rarities=(5,))
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    tried = [c for c in clicks if c[1] == LAYOUT.point("market_next_page")[1]]
+    assert tried == [LAYOUT.next_page_candidate(0), LAYOUT.next_page_candidate(1),
+                     LAYOUT.next_page_candidate(2), LAYOUT.next_page_candidate(2)]  # remembers the one that worked
