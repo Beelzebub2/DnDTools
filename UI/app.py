@@ -2049,6 +2049,7 @@ class Api:
 
     def _trigger_cancel_sort(self):
         """Triggered by global hotkey to cancel current sort operation"""
+        market_lister_job.cancel()
         logger.info(f"Cancel hotkey activated: {self.settings_manager.get('cancelHotkey')}")
         if self.current_sort_event and not self.current_sort_event.is_set():
             self.current_sort_event.set()
@@ -2725,6 +2726,103 @@ class Api:
 from src.models.marketplace_state import MarketplaceState
 
 marketplace_state = MarketplaceState()
+
+from src.market_lister_api import ListerDeps, create_market_lister_blueprint
+from src.market_lister_job import ListerJob
+
+
+def _lister_price_lookup(item):
+    from src.models.game_data import ItemDataManager
+    rarity = item.get('rarity')
+    rarity_name = ItemDataManager.id_to_rarity(rarity) if isinstance(rarity, int) else (rarity or '')
+    return market_service.fetch_price_check(
+        item.get('name', ''), rarity_name or '', pp=item.get('pp') or None, sp=item.get('sp') or None,
+        item_id=item.get('itemId') or None,
+    )
+
+
+class _MonitoredRunner:
+    """Starts the sorter's safety monitor for exactly one lister run."""
+
+    def __init__(self, runner, monitor):
+        self._runner = runner
+        self._monitor = monitor
+
+    def run(self, *args, **kwargs):
+        self._monitor.start()
+        try:
+            return self._runner.run(*args, **kwargs)
+        finally:
+            self._monitor.stop()
+
+
+def _lister_runner_factory(event):
+    from src.models import marketplace_input
+    from src.models.marketplace_runner import MarketplaceRunner
+    from src.models.sort_safety import SortSafetyMonitor
+    _focus_game_window()
+    monitor = SortSafetyMonitor(event)
+    runner = MarketplaceRunner(
+        marketplace_input.MacrosInputDriver(), marketplace_input.current_layout(), marketplace_state,
+        tab_mapping=marketplace_input.current_tab_mapping(), is_cancelled=event.is_set,
+        pause=marketplace_input.make_pause(event.is_set), safety=monitor,
+    )
+    return _MonitoredRunner(runner, monitor)
+
+
+def _lister_hover_factory(event):
+    from src.models import marketplace_input
+    driver = marketplace_input.MacrosInputDriver()
+
+    def hover():
+        _focus_game_window()
+        for _name, point in marketplace_input.current_layout().hover_targets():
+            if event.is_set():
+                return
+            driver.move_to(*point)
+            event.wait(1.0)
+    return hover
+
+
+def _focus_game_window():
+    import pygetwindow as gw
+    from src.models import macros
+    windows = [w for w in gw.getAllWindows() if w.title == "Dark and Darker  "]
+    if not windows:
+        raise RuntimeError("Dark and Darker window not found.")
+    windows[0].activate()
+    if macros.get_game_window_mode() == 0:
+        time.sleep(1.0)
+    macros.tap_alt()
+    macros.release_modifiers()
+
+
+market_lister_job = ListerJob(_lister_runner_factory, _lister_hover_factory)
+
+
+def _lister_resolution_key():
+    from src.models import marketplace_input
+    return marketplace_input.resolution_key()
+
+
+def _lister_tab_mapping():
+    from src.models import marketplace_input
+    return marketplace_input.current_tab_mapping()
+
+
+if not _is_child_process:
+    server.register_blueprint(create_market_lister_blueprint(ListerDeps(
+        get_stashes=stash_manager.get_enhanced_stashes,
+        get_data_age=stash_manager.get_character_data_age,
+        price_lookup=_lister_price_lookup,
+        state=marketplace_state,
+        settings_get=settings_manager.get,
+        settings_update=settings_manager.update,
+        tab_mapping=_lister_tab_mapping,
+        resolution_key=_lister_resolution_key,
+        job=market_lister_job,
+        pause=lambda: time.sleep(0.05),
+    )))
 
 @server.route('/api/download_update')
 def download_update():
@@ -3942,6 +4040,10 @@ def search():
 @server.route('/quests')
 def quests():
     return render_template('quest.html')
+
+@server.route('/market')
+def market_lister_page():
+    return render_template('market_lister.html')
 
 @server.route('/faq')
 def faq():
