@@ -77,15 +77,26 @@ routes in `app.py`).
 
 ### 3. `src/models/marketplace_state.py` (packet tracking)
 
-New handlers registered in the `capture_info` map (app.py ~674):
+New handlers registered in the `capture_info` map (app.py ~674). The capture
+BPF filter only sees **server→client** packets (`tcp src portrange … and dst
+host <local>`), so client requests such as `C2S_…_REGISTER_REQ` are not
+available; widening the filter is out of scope (CPU regression risk, #121).
 
-- `S2C_MARKETPLACE_MY_ITEM_LIST_RES` → used count, `availableOrderIndexes`,
-  slot infos, total pages. Also proves the user is on My Listings.
-- `C2S_MARKETPLACE_ITEM_REGISTER_REQ` → `uniqueId` actually submitted.
-- `S2C_MARKETPLACE_ITEM_REGISTER_RES` → `result` (success or fail code 650–668).
+- `S2C_MARKETPLACE_MY_ITEM_LIST_RES` → `totalItemCount` (used spots),
+  `availableOrderIndexes`, and every listed item's
+  `myItemInfos[].itemInfo.item.itemUniqueId` + `itemInfo.price`. Also proves
+  the user is on My Listings.
+- `S2C_MARKETPLACE_ITEM_REGISTER_RES` → `result` (`1` assumed success —
+  verify in first manual test; fail codes 650–668).
 
-Exposes a thread-safe `wait_for_register(timeout) -> RegisterOutcome`
-(`ok`, `fail_code`, `submitted_unique_id`, or `timeout`).
+Exposes thread-safe `wait_for_register(timeout) -> RegisterOutcome`
+(`ok` / `failed(code)` / `timeout`) and
+`wait_for_listing(unique_id, since, timeout) -> bool`: true once a
+MY_ITEM_LIST_RES received after `since` contains that `itemUniqueId`.
+This replaces the request-side uniqueId check: after a successful register,
+if the planned item does not show up in My Listings within 3 s the run stops
+("listed something but couldn't confirm it was <item> — check My Listings
+and recalibrate").
 
 ### 4. `src/models/marketplace_layout.py` (coordinates)
 
@@ -132,8 +143,12 @@ run(plan, layout, state, dry_run):
     if dry_run: record + continue (no Create Listing) 
     click Create Listing
     outcome = state.wait_for_register(timeout=5s)
-    if outcome.submitted_unique_id != entry.itemUniqueId → STOP "wrong item"
-    if not outcome.ok → STOP with fail-code text
+    timeout → STOP
+    failed with item-level code (662 non-trade looted, 666 non-tradable)
+      → record item failed, continue (next item re-opens a spot row)
+    failed with any other code → STOP with fail-code text
+    ok → state.wait_for_listing(entry.itemUniqueId, since=click time, 3s)
+      not seen → STOP "couldn't confirm"
     record success; update used-spot count
 ```
 
@@ -148,15 +163,28 @@ index instead.
 
 ### 6. Calibration
 
-Extend `calibration_overlay.py` with a "Marketplace" mode: drag markers for
-spot row 0, row 9 (derives spacing), ➤ arrow, inventory grid, stash grid,
-first/last tab icon, price field, Create Listing. Saved to
-`marketplaceCalibrationOverride`. Opened from the Market Lister page.
+v1 uses a lightweight calibration on the Market Lister page instead of
+extending the 900-line native `calibration_overlay.py`:
+
+- **Hover test**: moves the cursor (no clicks) to each marketplace point in
+  turn — spot row 0 and 9, ➤ arrow, inventory icon, first stash tab icon,
+  inventory cell (0,0) and (9,4), stash cell (0,0) and (11,19), price field,
+  Create Listing — pausing ~1 s on each, so the user sees where it lands.
+- **Nudge offsets**: per point group, X/Y pixel offsets (and cell-size /
+  spacing deltas) the user adjusts until the hover test lands correctly.
+  Saved per resolution in settings under `marketplaceCalibrationOverride`
+  as `{"3840x2160": {"points": {key: [dx, dy]}, "lengths": {key: d}}}`.
+
+A drag-to-calibrate overlay mode can follow in v2 if nudging proves tedious.
 
 ### 7. UI: Market Lister page
 
-`templates/market_lister.html` + `static/js/market_lister.js`, router entry,
-nav link. Endpoints in `app.py`:
+`templates/market_lister.html` + `static/js/market_lister.js` +
+`static/css/market_lister.css`, extending `base.html`, registered in
+`router.js` `PAGE_SCRIPTS`, and wired to the sidebar's existing disabled
+**Market (Soon)** link under Tools (enable it, point it at `/market`).
+Styling reuses the Quest page's header/toolbar patterns. Endpoints live in a
+Flask blueprint `src/market_lister_api.py` registered by `app.py`:
 
 - `POST /api/market-lister/plan` (rules → plan + skipped)
 - `POST /api/market-lister/start` (approved entries with edited prices, `dry_run`)
@@ -178,7 +206,8 @@ Rules persist in settings (`marketListerRules`).
 | No free spots | Refuse to start / stop run, report remaining |
 | Register fail code | Stop, show decoded reason (e.g. insufficient gold, non-tradable) |
 | No register response in 5 s | Stop ("listing not confirmed — check the game") |
-| Submitted uniqueId ≠ planned | Stop ("clicked wrong item — recalibrate") |
+| Register ok but planned item not in My Listings within 3 s | Stop ("couldn't confirm — check My Listings and recalibrate") |
+| Item-level fail (662 non-trade looted, 666 non-tradable) | Mark item failed, continue |
 | Focus loss / mouse moved / Ctrl+F12 | Stop (existing safety monitor) |
 
 ## Testing
@@ -189,8 +218,8 @@ Rules persist in settings (`marketListerRules`).
 - **Clicker with fake input**: stub macros primitives + fake
   `marketplace_state`; assert exact click sequence, dry-run skips Create
   Listing, and each stop condition halts the run.
-- **Packet handlers**: feed recorded JSON of MY_ITEM_LIST_RES /
-  REGISTER_REQ / REGISTER_RES (captured once via Packet Viewer).
+- **Packet handlers**: feed MY_ITEM_LIST_RES / REGISTER_RES messages built
+  with the real generated `MarketPlace_pb2` classes.
 - **Manual in-game**: calibrate at 4K fullscreen → dry run → list 1 cheap item
   → list a 5-item plan across two tabs → verify page-2 behaviour.
 
