@@ -36,6 +36,9 @@ def _clamp(value, low, high, default):
     return min(max(number, low), high)
 
 
+PRICE_SOURCES = ("live", "database", "model")  # search in game / saved market data / value formula
+
+
 @dataclass(frozen=True)
 class ListerRules:
     source_stash_ids: tuple = (INVENTORY_STASH_ID,)
@@ -47,6 +50,7 @@ class ListerRules:
     exclude_item_ids: frozenset = field(default_factory=frozenset)
     min_net_ratio: float = 0.5
     allow_stacks: bool = False   # list stackable items (priced per unit x stack size)
+    price_source: str = "live"   # where prices come from, see PRICE_SOURCES
 
     @classmethod
     def from_dict(cls, data: dict) -> "ListerRules":
@@ -63,6 +67,7 @@ class ListerRules:
             exclude_item_ids=frozenset(str(i) for i in data.get("exclude_item_ids") or ()),
             min_net_ratio=_clamp(data.get("min_net_ratio"), 0, 1, d.min_net_ratio),
             allow_stacks=data.get("allow_stacks") is True,
+            price_source=data.get("price_source") if data.get("price_source") in PRICE_SOURCES else d.price_source,
         )
 
     def to_dict(self) -> dict:
@@ -76,6 +81,7 @@ class ListerRules:
             "exclude_item_ids": sorted(self.exclude_item_ids),
             "min_net_ratio": self.min_net_ratio,
             "allow_stacks": self.allow_stacks,
+            "price_source": self.price_source,
         }
 
 

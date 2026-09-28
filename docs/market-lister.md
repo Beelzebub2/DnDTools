@@ -20,6 +20,20 @@ replies through DnDTools' existing (read-only) packet capture.
    confidence badge. Edit prices, untick anything you want to keep.
 6. **Dry run** walks the listing steps without committing; **Start listing** lists for real.
 
+## Where prices come from ("Prices from")
+
+- **Live market** (default): each item is looked up in the game (listing form → Search) before
+  it is priced, and again right before it is listed.
+- **Local market database**: priced from the listings DnDTools has saved (crawls, searches,
+  pages you browsed) — no game searches, so planning is instant. Keep the data fresh with
+  "Update market data".
+- **Value formula**: the Item Worth model's *lowest reasonable price* for the exact rolls — the
+  price only ~20% of real asks sit below, where items actually sell. No market lookups at all;
+  items the model has no data for are skipped.
+
+For live pricing, fast sales list at the lower of the value formula's lowest reasonable price
+and the usual undercut, never below half of it.
+
 ## How prices are worked out
 
 Market listings of the same item and rarity are read from the game (up to 10 pages, cheapest

@@ -420,3 +420,36 @@ def test_game_pricer_passes_the_value_model_to_pricing():
                            own_listing_ids=lambda: frozenset(), worth_value=lambda entry: 500)
     plan = _game_pricer(deps, ListerRules(min_price=50))([_approved(0, recommended=0)], {"a": _market(880, 900)})
     assert plan.entries[0].price == 792   # 880 is the cheapest real listing: the model can't go below it
+
+
+def _priced_plan(client_and_deps, source, **deps_overrides):
+    client, deps, _ = client_and_deps
+    for key, value in deps_overrides.items():
+        setattr(deps, key, value)
+    return client.post("/api/market-lister/plan", json={"character_id": "c1", "rules": {
+        "source_stash_ids": ["2"], "min_price": 50, "price_source": source}}).get_json()
+
+
+def test_plan_can_price_from_the_local_database(client_and_deps):
+    rows = [MarketRow("G_1", p, (), (), str(p)) for p in (300, 320, 340)]
+    data = _priced_plan(client_and_deps, "database", history_rows=lambda item_id: rows)
+    assert data["needs_game_pricing"] is False
+    assert data["plan"]["entries"][0]["price"] == 270   # the cheapest saved listing, -10%
+
+
+def test_plan_can_price_from_the_value_formula(client_and_deps):
+    from types import SimpleNamespace
+    data = _priced_plan(client_and_deps, "model",
+                        worth_value=lambda entry: SimpleNamespace(value=500, floor=410, confidence="high"))
+    assert data["needs_game_pricing"] is False and data["plan"]["entries"][0]["price"] == 410
+
+
+def test_listing_rechecks_the_live_market_only_for_live_pricing(client_and_deps):
+    client, deps, settings = client_and_deps
+    calls = []
+    deps.job.start = lambda entries, dry_run, reprice=None: calls.append(reprice) or True
+    settings["marketListerRules"] = {"price_source": "database"}
+    client.post("/api/market-lister/start", json={"entries": [ENTRY]})
+    settings["marketListerRules"] = {"price_source": "live"}
+    client.post("/api/market-lister/start", json={"entries": [ENTRY]})
+    assert calls[0] is None and calls[1] is not None

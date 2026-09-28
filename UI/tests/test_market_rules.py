@@ -113,3 +113,11 @@ def test_stacks_are_listed_only_when_allowed():
     assert [c.item["itemUniqueId"] for c in candidates] == ["pots"]
     assert ListerRules.from_dict({"allow_stacks": True}).allow_stacks is True
     assert ListerRules.from_dict({"allow_stacks": "yes"}).allow_stacks is False
+
+
+def test_price_source_setting_accepts_live_database_or_formula():
+    assert ListerRules().price_source == "live"
+    for source in ("live", "database", "model"):
+        rules = ListerRules.from_dict({"price_source": source})
+        assert rules.price_source == source and ListerRules.from_dict(rules.to_dict()) == rules
+    assert ListerRules.from_dict({"price_source": "guess"}).price_source == "live"

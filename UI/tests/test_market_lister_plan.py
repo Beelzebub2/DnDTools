@@ -214,3 +214,21 @@ def test_game_prices_use_the_value_models_lowest_reasonable_price():
                                         MarketRow("Helm_5001", 300, (), (("Strength", 1),), "2")]}}
     estimate = SimpleNamespace(value=800, floor=560)
     assert apply_game_prices([entry], market, ListerRules(min_price=50), worth=lambda e: estimate).entries[0].price == 560
+
+
+def test_formula_pricing_lists_at_the_lowest_reasonable_price():
+    from types import SimpleNamespace
+    from src.market_lister import price_from_model
+    helm = PlanEntry("a", "Helm", 5, "2", 0, 1, 1, 0, 0, 10, item_id="Helm_5001", rolls=(("Luck", 17),))
+    cheap = PlanEntry("b", "Cap", 5, "2", 1, 1, 1, 0, 0, 10, item_id="Cap_5001")
+    rich_vendor = PlanEntry("c", "Crown", 5, "2", 2, 1, 1, 0, 0, 900, item_id="Crown_5001")
+    unknown = PlanEntry("d", "Rock", 5, "2", 3, 1, 1, 0, 0, 1, item_id="Rock_1001")
+    estimates = {"a": SimpleNamespace(value=400, floor=325.7, confidence="high"),
+                 "b": SimpleNamespace(value=40, floor=30, confidence="high"),
+                 "c": SimpleNamespace(value=900, floor=800, confidence="medium")}
+    plan = price_from_model([helm, cheap, rich_vendor, unknown], ListerRules(min_price=50),
+                            lambda e: estimates.get(e.unique_id))
+    assert [(e.unique_id, e.price, e.recommended) for e in plan.entries] == [("a", 325, 325)]
+    assert "lowest reasonable" in plan.entries[0].compared
+    assert {s.name: s.reason for s in plan.skipped} == {
+        "Cap": "below min price", "Crown": "vendor pays more", "Rock": "no market data for the value formula"}

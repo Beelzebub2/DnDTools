@@ -6,7 +6,7 @@ from typing import Any, Callable
 from flask import Blueprint, jsonify, request
 
 from src.market_lister import (
-    ABOVE_MAX_REASON, NOT_PRICED_REASON, PlanEntry, PlanError, apply_game_prices, build_plan,
+    ABOVE_MAX_REASON, NOT_PRICED_REASON, Plan, PlanEntry, PlanError, apply_game_prices, build_plan, price_from_model,
 )
 from src.models.market_rules import ListerRules
 from src.models.marketplace_layout import BASE_LENGTHS, BASE_POINTS
@@ -170,6 +170,17 @@ def _repricer(deps, rules):
     return reprice
 
 
+def _price_without_game(deps, rules, unpriced):
+    """Price a plan from saved market data or the value formula, keeping the plan's own skips."""
+    entries = list(unpriced.entries)
+    if rules.price_source == "model":
+        priced = price_from_model(entries, rules, deps.worth_value)
+    else:  # "database": the saved listings of each item stand in for a live search
+        priced = _game_pricer(deps, rules)(entries, {e.unique_id: {"same": [], "all": []} for e in entries})
+    return Plan(priced.entries, unpriced.skipped + priced.skipped, tuple(
+        w for w in unpriced.warnings + priced.warnings if "Price from game" not in w))
+
+
 def _build_plan_response(deps, payload):
     character_id = str(payload.get("character_id") or "").strip()
     if not character_id:
@@ -185,12 +196,15 @@ def _build_plan_response(deps, payload):
                           pause=deps.pause, exclude_unique_ids=deps.state.listed_ids())
 
     needs_game_pricing = False
-    try:
-        result = build(deps.price_lookup)
-    except PlanError as exc:
-        if exc.code != "missing_api_key":
-            return _error(str(exc), 424)
-        result, needs_game_pricing = build(None), True  # no DarkerDB key: price from the game
+    if rules.price_source != "live":
+        result = _price_without_game(deps, rules, build(None))
+    else:
+        try:
+            result = build(deps.price_lookup)
+        except PlanError as exc:
+            if exc.code != "missing_api_key":
+                return _error(str(exc), 424)
+            result, needs_game_pricing = build(None), True  # no DarkerDB key: price from the game
     if _data_predates_last_run(deps.job, data_age_s):
         result = replace(result, warnings=result.warnings + (STALE_AFTER_RUN_WARNING,))
     return jsonify({"success": True, "plan": result.to_dict(), "listings": _listings_info(deps.state),
@@ -228,7 +242,9 @@ def _register_run_routes(bp, deps):
         entries, error = _parse_entries(payload, "list", "listed")
         if error:
             return error
-        reprice = _repricer(deps, _current_rules(deps)) if payload.get("recheck", True) else None
+        rules = _current_rules(deps)
+        recheck = payload.get("recheck", rules.price_source == "live")  # other sources never search in game
+        reprice = _repricer(deps, rules) if recheck else None
         return _launch_job(deps, lambda: deps.job.start(entries, bool(payload.get("dry_run")), reprice))
 
     @bp.post("/api/market-lister/cancel")

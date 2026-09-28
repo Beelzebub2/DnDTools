@@ -52,6 +52,7 @@
         undercut_pct: Number($('mlUndercut').value),
         max_items_per_run: Number($('mlMaxItems').value),
         allow_stacks: $('mlAllowStacks').checked,
+        price_source: $('mlPriceSource').value,
         source_stash_ids: [...document.querySelectorAll('.mlSource:checked')].map((c) => c.value),
     });
 
@@ -61,6 +62,8 @@
         $('mlUndercut').value = rules.undercut_pct;
         $('mlMaxItems').value = rules.max_items_per_run;
         $('mlAllowStacks').checked = Boolean(rules.allow_stacks);
+        $('mlPriceSource').value = rules.price_source || 'live';
+        $('mlRecheck').checked = $('mlPriceSource').value === 'live';  // only live pricing searches in game
         renderSources(rules.source_stash_ids);
     };
 
@@ -461,6 +464,9 @@
         $('mlBuildPlan').addEventListener('click', buildPlan);
         $('mlCharacter').addEventListener('change', () => renderSources(readRules().source_stash_ids));
         $('mlPriceGame').addEventListener('click', priceFromGame);
+        $('mlPriceSource').addEventListener('change', () => {
+            $('mlRecheck').checked = $('mlPriceSource').value === 'live';
+        });
         $('mlDryRun').addEventListener('click', () => start(true));
         $('mlStart').addEventListener('click', () => start(false));
         $('mlCancel').addEventListener('click', () => post('/cancel').catch((e) => notify(e.message, 'error')));

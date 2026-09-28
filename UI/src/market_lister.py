@@ -1,4 +1,5 @@
 """Builds the auto market lister's reviewable listing plan."""
+import math
 from dataclasses import asdict, dataclass, replace
 
 from src.models.market_rules import Skip, compute_price, listing_fee, rarity_id, select_candidates
@@ -223,6 +224,34 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
     if flagged:
         warnings.insert(0, f"{flagged} price(s) marked ⚠️ need your check before listing.")
     return Plan(tuple(priced), tuple(skipped), tuple(warnings))
+
+
+MODEL_NO_DATA_REASON = "no market data for the value formula"
+
+
+def price_from_model(entries, rules, worth) -> Plan:
+    """Price entries at the value formula's lowest reasonable price — no market lookups at all."""
+    priced, skipped = [], []
+    for entry in entries:
+        estimate = worth(entry) if worth else None
+        floor = getattr(estimate, "floor", None)
+        if not floor:
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, MODEL_NO_DATA_REASON))
+            continue
+        price = int(math.floor(floor))
+        fee = listing_fee(price)
+        reason = (ABOVE_MAX_REASON if price > MAX_LISTING_PRICE else
+                  "below min price" if price < max(rules.min_price, 1) else
+                  "vendor pays more" if price - fee <= entry.vendor_price * entry.quantity else
+                  "fee too high" if (price - fee) / price < rules.min_net_ratio else None)
+        if reason:
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, reason))
+            continue
+        priced.append(replace(entry, price=price, fee=fee, recommended=price,
+                              confidence=getattr(estimate, "confidence", ""),
+                              compared=f"value formula: lowest reasonable price for these rolls {price}g "
+                                       f"(typical ask {round(estimate.value)}g)"))
+    return Plan(tuple(priced), tuple(skipped), tuple(_explain(priced, skipped)))
 
 
 def _model_prices(estimate):
