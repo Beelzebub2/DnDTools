@@ -164,3 +164,9 @@ def test_values_are_for_a_fresh_listing_because_old_listings_are_the_overpriced_
     fresh = model.predict("Helm_5001", (("Strength", 2), ("Luck", 2), ("Will", 2)))
     old = model.predict("Helm_5001", (("Strength", 2), ("Luck", 2), ("Will", 2)), age_days=6)
     assert abs(fresh.value - 600) / 600 < 0.06 and abs(old.value / fresh.value - 1.2) < 0.06
+
+
+def test_items_from_a_group_with_no_market_data_get_no_value():
+    model = _train(_market())
+    guess = model.predict("Bandage_2001", (), slot="utility")
+    assert guess.confidence == "unknown"

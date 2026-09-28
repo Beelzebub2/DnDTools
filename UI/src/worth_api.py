@@ -53,6 +53,8 @@ def value_item(model, item: dict) -> dict:
     if not item_id:
         return {**row, "value": None, "confidence": None, "known": False, "verdict": verdict(None, merchant)}
     est = model.predict(item_id, stat_pairs(item.get("sp")), quantity=quantity)
+    if est.confidence == "unknown":  # no market data for it or anything like it: no made-up number
+        return {**row, "value": None, "confidence": None, "known": False, "verdict": verdict(None, merchant)}
     value = round(est.value)
     return {**row, "value": value, "low": round(est.low), "high": round(est.high), "confidence": est.confidence,
             "known": model.knows(item_id), "verdict": verdict(value, merchant)}
@@ -104,6 +106,8 @@ def create_worth_blueprint(deps: WorthDeps) -> Blueprint:
         vendor = vendor if isinstance(vendor, (int, float)) and not isinstance(vendor, bool) and vendor > 0 else 0
         rolls, base = stat_pairs(payload.get("rolls")), stat_pairs(payload.get("base"))
         est = model.predict(item_id, rolls, quantity=quantity)
+        if est.confidence == "unknown":
+            return _error("No market data for this item (or anything like it) yet.", 404)
         live = deps.live_rows(item_id)
         suggestion = price_from_market(item_id, base, rolls, vendor, [], live, deps.rules(), quantity=quantity,
                                        model_value=est.value)

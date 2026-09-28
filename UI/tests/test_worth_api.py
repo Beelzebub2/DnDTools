@@ -76,3 +76,11 @@ def test_model_info_and_retraining():
     client = _client(trained_calls=calls)
     assert client.get("/api/worth/model").get_json() == {"success": True, "trained": True, "listings": 320}
     assert client.post("/api/worth/train").get_json()["accuracy"] == {"model_mdape": 20.0} and calls == [1]
+
+
+def test_items_the_market_has_no_data_for_are_left_unvalued():
+    from src.worth_api import value_item
+    model = train(_market(), META, min_pair_support=30)
+    bandage = {"itemId": "Bandage_2001", "itemUniqueId": "b1", "name": "Bandage", "itemCount": 3, "vendor_price": 5, "sp": []}
+    row = value_item(model, bandage)
+    assert row["value"] is None and row["known"] is False and row["verdict"] == "merchant"

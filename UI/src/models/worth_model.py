@@ -72,7 +72,7 @@ class Estimate:
     value: float       # for the whole quantity
     low: float
     high: float
-    confidence: str    # "high" | "medium" | "low"
+    confidence: str    # "high" | "medium" | "low", or "unknown": no market data for its item or group
     typical: float     # the same item with average rolls
     rolls: tuple       # RollWorth per roll
     pairs: tuple       # PairWorth per stat pair bonus
@@ -191,7 +191,9 @@ class WorthModel:
         spread = d["spread"].get(item_id) or d["group_spread"].get(f"{slot}|{rarity}") or d["global_spread"]
         band = math.exp(MAD_TO_SIGMA * spread)
         support = int(d["support"].get(item_id, 0))
-        if support >= HIGH_CONFIDENCE_SUPPORT and spread <= HIGH_CONFIDENCE_SPREAD:
+        if not support and f"g|{slot}|{rarity}" not in coef:
+            confidence = "unknown"  # neither the item nor anything like it was ever listed: no real estimate
+        elif support >= HIGH_CONFIDENCE_SUPPORT and spread <= HIGH_CONFIDENCE_SPREAD:
             confidence = "high"
         elif support >= MEDIUM_CONFIDENCE_SUPPORT:
             confidence = "medium"
