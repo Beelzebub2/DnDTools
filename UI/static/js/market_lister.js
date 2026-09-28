@@ -25,8 +25,8 @@
         if (typeof showNotification === 'function') showNotification(msg, type, { duration: 5000 });
     };
 
-    const api = async (path, options = {}) => {
-        const response = await fetch(API + path, {
+    const api = async (path, options = {}, base = API) => {
+        const response = await fetch(base + path, {
             headers: { 'Content-Type': 'application/json' }, ...options,
         });
         const data = await response.json().catch(() => ({}));
@@ -34,6 +34,10 @@
         return data;
     };
     const post = (path, body) => api(path, { method: 'POST', body: JSON.stringify(body || {}) });
+
+    // Item Worth (value model) lives under /api/worth, not /api/market-lister.
+    const WORTH_API = '/api/worth';
+    const worthApi = (path, options = {}) => api(path, options, WORTH_API);
 
     const text = (tag, value, className) => {
         const el = document.createElement(tag);
@@ -152,10 +156,67 @@
                     .map((d) => `${d.name}: ${d.price}g (merchant pays ${d.vendor}g, +${d.gain}g)`)),
             );
             $('mlInsights').hidden = false;
+            if (report.worth) renderWorthAccuracy(report.worth);
         } catch (error) {
             notify(error.message, 'error');
         } finally {
             $('mlAnalyze').disabled = false;
+        }
+    };
+
+    // --- Item value model (Item Worth) card ---
+    const worthPct = (v) => `${v}%`;
+
+    const formatWorthSummary = (listings, evaluation) => {
+        const n = listings || 0;
+        if (!evaluation || evaluation.model_mdape === undefined) {
+            return `Trained on ${n} listing(s) so far — not enough held-out data yet to measure accuracy.`;
+        }
+        return `Trained on ${n} listings — typical error ${worthPct(evaluation.model_mdape)} `
+            + `(${worthPct(evaluation.model_within_25)} within ±25%); simple item-median guess: `
+            + `${worthPct(evaluation.baseline_mdape)} (${worthPct(evaluation.baseline_within_25)} within ±25%).`;
+    };
+
+    // Shape from GET /api/worth/model: {success, trained, listings?, evaluation?}
+    const renderWorthInfo = (data) => {
+        $('mlWorthStatus').textContent = data && data.trained
+            ? formatWorthSummary(data.listings, data.evaluation)
+            : 'Not trained yet — press "Train now" once you have market data saved.';
+    };
+
+    // Shape from POST /api/worth/train's `accuracy`, and from /analyze's `report.worth`:
+    // either the evaluation dict (+ listings), or {trained: 0[, error]} when there was nothing to train on.
+    const renderWorthAccuracy = (accuracy) => {
+        if (!accuracy || accuracy.model_mdape === undefined) {
+            $('mlWorthStatus').textContent = (accuracy && accuracy.error)
+                ? `Training failed: ${accuracy.error}`
+                : 'Not enough market data saved yet — crawl the market first, then train.';
+            return;
+        }
+        $('mlWorthStatus').textContent = formatWorthSummary(accuracy.listings, accuracy);
+    };
+
+    const loadWorthInfo = async () => {
+        try {
+            renderWorthInfo(await worthApi('/model'));
+        } catch (error) {
+            $('mlWorthStatus').textContent = 'Item value model status unavailable.';
+        }
+    };
+
+    const trainWorthModel = async () => {
+        $('mlWorthTrain').disabled = true;
+        const previousStatus = $('mlWorthStatus').textContent;
+        $('mlWorthStatus').textContent = 'Training the item value model (about 15s)…';
+        try {
+            const data = await worthApi('/train', { method: 'POST', body: JSON.stringify({}) });
+            renderWorthAccuracy(data.accuracy);
+            notify('Item value model trained.', 'success');
+        } catch (error) {
+            $('mlWorthStatus').textContent = previousStatus;
+            notify(error.message, 'error');
+        } finally {
+            $('mlWorthTrain').disabled = false;
         }
     };
 
@@ -396,6 +457,7 @@
         } catch (error) {
             notify(error.message, 'error');
         }
+        loadWorthInfo();
         $('mlBuildPlan').addEventListener('click', buildPlan);
         $('mlCharacter').addEventListener('change', () => renderSources(readRules().source_stash_ids));
         $('mlPriceGame').addEventListener('click', priceFromGame);
@@ -409,6 +471,7 @@
         $('mlCrawlDeep').addEventListener('click', () => runJob('/crawl', { pages: 60, incremental: false },
             'Deep crawl started — this reads a few hundred pages…'));
         $('mlAnalyze').addEventListener('click', analyzeMarket);
+        $('mlWorthTrain').addEventListener('click', trainWorthModel);
         $('mlPriceQuery').addEventListener('input', () => {
             clearTimeout(priceQueryTimer);
             priceQueryTimer = setTimeout(searchPrices, 300);

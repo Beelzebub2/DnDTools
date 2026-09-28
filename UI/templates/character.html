@@ -2,6 +2,7 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/character.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/worth.css') }}">
 {% endblock %}
 
 {% block header %}
@@ -29,7 +30,12 @@
                     <span class="material-icons market-value-icon">storefront</span>
                     <span id="totalMarketValue" class="market-value-number">--</span>
                     <span class="stash-value-label">market</span>
+                    <span class="stash-value-divider worth-value-part hidden">|</span>
+                    <span class="material-icons worth-value-icon worth-value-part hidden">military_tech</span>
+                    <span id="totalWorthValue" class="worth-value-number worth-value-part hidden">--</span>
+                    <span class="stash-value-label worth-value-part hidden">worth</span>
                 </div>
+                <span class="worth-hint hidden" id="worthHint">Train the value model on the Market page to see item values</span>
             </div>
 
             <div id="marketAdvisor" class="market-advisor hidden" aria-live="polite">

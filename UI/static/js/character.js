@@ -1969,6 +1969,9 @@ const renderInteractiveGrid = (stashId, items) => {
             _applyProfitAdvisorGlow(prices);
         });
     }
+
+    // Fetch/apply Item Worth (value model) badges and this stash's total.
+    ensureCharacterWorth().then((worth) => _onCharacterWorthReady(worth, stashId));
 };
 
 // --- Event delegation for grid tooltips (set up once per container) ---
@@ -2005,6 +2008,15 @@ function _ensureGridTooltipDelegation(container) {
         if (_currentHoveredItem && globalTooltip && globalTooltip.style.display === 'block') {
             showGlobalTooltip(globalTooltip.innerHTML, e.clientX, e.clientY);
         }
+    }, false);
+
+    // Click opens the Item Worth detail panel (see "Item Worth" section below).
+    container.addEventListener('click', (e) => {
+        const itemEl = e.target.closest('.stash-item');
+        if (!itemEl) return;
+        const data = _gridItemDataMap.get(itemEl);
+        if (!data || !data.item) return;
+        openItemWorthPanel(data.item);
     }, false);
 }
 
@@ -2941,6 +2953,9 @@ const loadStashes = async () => {
     const previewImage = document.getElementById('currentStashPreview');
     const gridContainer = document.getElementById('interactiveStashGrid');
 
+    // The stash view is refreshing (sort, deposit, manual refresh, ...) — item worth may be stale.
+    invalidateCharacterWorth();
+
     if (!spinner || !selector || !previewContainer || !previewImage) {
         console.error('Required DOM elements not found for stash display');
         return;
@@ -3283,6 +3298,12 @@ async function _characterPageInit1() {
             updateCharacterInfoFromPayload(initData.details),
             loadStashesFromPayload(initData.stashes)
         ]);
+
+        // The character hero header is done rendering now, so it's safe to add the
+        // Item Worth character-total stat (the stash renders above already kicked off
+        // their own worth fetch/badges; this just re-applies the character stat if a
+        // race made it render before the hero header replaced its contents).
+        ensureCharacterWorth().then((worth) => _onCharacterWorthReady(worth, null));
 
         // Sort order is applied after stashes render to avoid double-render
         if (initData.sortOrder) {
@@ -3656,6 +3677,473 @@ function _applyProfitAdvisorGlow(prices) {
     });
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  Item Worth (local value model) — badges, stash/character totals,
+//  and the click-to-open item value detail panel.
+//  Backend: UI/src/worth_api.py (GET /api/worth/character/<id>,
+//  POST /api/worth/item). Frontend-only; never sends secrets.
+// ═══════════════════════════════════════════════════════════════════
+
+const CURRENCY_ITEM_ID_PREFIXES = ['GoldCoin', 'SilverCoin']; // mirrors src/models/market_rules.CURRENCY_ITEM_PREFIXES
+const WORTH_COMPACT_K_THRESHOLD = 1000;
+const WORTH_COMPACT_ROUND_THRESHOLD = 10000;
+
+function _isCurrencyItemId(itemId) {
+    const id = String(itemId || '');
+    return CURRENCY_ITEM_ID_PREFIXES.some((prefix) => id.startsWith(prefix));
+}
+
+// Confidence drives a CSS class name — constrain it to the known enum (defense in depth)
+// even though it's trusted backend data, not user input.
+const WORTH_CONFIDENCE_LEVELS = new Set(['high', 'medium', 'low']);
+function _normalizeConfidence(value) {
+    return WORTH_CONFIDENCE_LEVELS.has(value) ? value : 'medium';
+}
+
+// Compact gold format: 85g, 850g, 1.2k, 12k (spaced: "850 g", "12.4k g" — used for totals).
+function formatCompactGold(value, { spaced = false } = {}) {
+    const amount = Math.round(Number(value) || 0);
+    if (amount < WORTH_COMPACT_K_THRESHOLD) {
+        return spaced ? `${amount} g` : `${amount}g`;
+    }
+    // Round to one decimal of "k" first so e.g. 9,960 shows as "10k", not "10.0k".
+    const oneDecimalK = Math.round(amount / 100) / 10;
+    const compact = oneDecimalK < WORTH_COMPACT_ROUND_THRESHOLD / 1000
+        ? `${oneDecimalK.toFixed(1)}k`
+        : `${Math.round(amount / 1000)}k`;
+    return spaced ? `${compact} g` : compact;
+}
+
+// "PhysicalWeaponDamageAdd" -> "Physical Weapon Damage Add"
+function prettifyStatName(raw) {
+    if (!raw) return '';
+    return String(raw)
+        .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+        .trim();
+}
+
+function _itemUniqueIdOf(item) {
+    const raw = item && (item.itemUniqueId ?? item.uniqueId ?? item.item_unique_id ?? item.unique_id);
+    return raw === undefined || raw === null ? '' : String(raw);
+}
+
+// --- Character-wide worth fetch (one network call, cached; refetched by loadStashes()) ---
+// Character pages always full-reload (router.js's AJAX_ROUTES doesn't include them), so this
+// script's top-level `charId` never changes underneath a cached promise within one page load.
+let _worthPromise = null;
+let _lastWorthIndex = null;
+
+function _buildWorthIndex(data) {
+    const byUniqueId = new Map();
+    const stashes = data.stashes || {};
+    Object.keys(stashes).forEach((stashId) => {
+        (stashes[stashId].items || []).forEach((entry) => {
+            if (entry && entry.unique_id) byUniqueId.set(String(entry.unique_id), entry);
+        });
+    });
+    return { value: data.value || 0, merchant: data.merchant || 0, stashes, byUniqueId };
+}
+
+async function _fetchCharacterWorth() {
+    try {
+        const response = await fetch(`/api/worth/character/${encodeURIComponent(charId)}`);
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data || data.success === false) {
+            return null; // no model yet (409) or a transient error — callers show nothing
+        }
+        return _buildWorthIndex(data);
+    } catch (error) {
+        console.error('Failed to load item worth for character:', error);
+        return null;
+    }
+}
+
+function ensureCharacterWorth() {
+    if (!_worthPromise) {
+        _worthPromise = _fetchCharacterWorth();
+    }
+    return _worthPromise;
+}
+
+// Call when the stash view is known to be stale (sort/deposit/manual refresh) so the
+// next render fetches fresh values instead of reusing the cached promise.
+function invalidateCharacterWorth() {
+    _worthPromise = null;
+}
+
+function _worthEntryForItem(worth, item) {
+    if (!worth || !item) return null;
+    const uniqueId = _itemUniqueIdOf(item);
+    if (!uniqueId) return null;
+    return worth.byUniqueId.get(uniqueId) || null;
+}
+
+// One place to fan a resolved worth fetch out to every UI piece that depends on it.
+function _onCharacterWorthReady(worth, stashIdForTotal) {
+    _lastWorthIndex = worth;
+    _applyItemWorthBadges(worth);
+    _renderCharacterWorthStat(worth);
+    if (stashIdForTotal) _updateStashWorthTotal(stashIdForTotal, worth);
+}
+
+// --- Badges on stash item cells ---
+function _buildWorthBadge(entry) {
+    const confidence = _normalizeConfidence(entry.confidence);
+    const badge = document.createElement('div');
+    badge.className = `worth-badge worth-badge-${confidence}`;
+    const amountText = formatCompactGold(entry.value);
+    badge.appendChild(document.createTextNode(confidence === 'low' ? `~${amountText}` : amountText));
+    if (entry.verdict === 'merchant') {
+        const marker = document.createElement('span');
+        marker.className = 'worth-badge-merchant';
+        marker.textContent = 'M';
+        marker.title = 'A merchant pays more than a listing would net';
+        badge.appendChild(marker);
+    }
+    return badge;
+}
+
+function _applyItemWorthBadges(worth) {
+    document.querySelectorAll('.stash-item').forEach((itemEl) => {
+        const existing = itemEl.querySelector('.worth-badge');
+        if (existing) existing.remove();
+        const data = _gridItemDataMap.get(itemEl);
+        const entry = _worthEntryForItem(worth, data && data.item);
+        if (!entry || entry.currency || entry.value === null || entry.value === undefined) return;
+        itemEl.appendChild(_buildWorthBadge(entry));
+    });
+}
+
+// --- Totals: current stash view (toolbar) and character-wide (hero stat) ---
+function _updateStashWorthTotal(stashId, worth) {
+    const parts = document.querySelectorAll('#stashValueToolbar .worth-value-part');
+    const hint = document.getElementById('worthHint');
+    const valueEl = document.getElementById('totalWorthValue');
+    if (!valueEl || !parts.length) return;
+
+    if (!worth) {
+        parts.forEach((el) => el.classList.add('hidden'));
+        if (hint) hint.classList.remove('hidden');
+        return;
+    }
+    if (hint) hint.classList.add('hidden');
+
+    const ids = stashId === 'character' ? ['2', '3'] : [String(stashId)];
+    let total = 0;
+    let merchantTotal = 0;
+    let found = false;
+    ids.forEach((id) => {
+        const stashEntry = worth.stashes && worth.stashes[id];
+        if (stashEntry) {
+            total += stashEntry.value || 0;
+            merchantTotal += stashEntry.merchant || 0;
+            found = true;
+        }
+    });
+
+    if (!found) {
+        parts.forEach((el) => el.classList.add('hidden'));
+        return;
+    }
+    valueEl.textContent = `≈ ${formatCompactGold(total, { spaced: true })}`;
+    valueEl.title = `${total.toLocaleString()} g by listing vs ${merchantTotal.toLocaleString()} g to a merchant`;
+    parts.forEach((el) => el.classList.remove('hidden'));
+}
+
+const WORTH_CHARACTER_STAT_ID = 'worthCharacterStat';
+
+function _renderCharacterWorthStat(worth) {
+    const grid = document.querySelector('.character-stats-grid');
+    if (!grid) return;
+    const existing = document.getElementById(WORTH_CHARACTER_STAT_ID);
+    if (existing) existing.remove();
+    if (!worth || typeof worth.value !== 'number') return;
+
+    const item = document.createElement('div');
+    item.className = 'stat-item';
+    item.id = WORTH_CHARACTER_STAT_ID;
+    const icon = document.createElement('span');
+    icon.className = 'material-icons';
+    icon.textContent = 'military_tech';
+    const content = document.createElement('div');
+    content.className = 'stat-content';
+    const label = document.createElement('div');
+    label.className = 'stat-label';
+    label.textContent = 'Item Worth';
+    const value = document.createElement('div');
+    value.className = 'stat-value';
+    value.textContent = `≈ ${formatCompactGold(worth.value, { spaced: true })}`;
+    value.title = `${worth.value.toLocaleString()} g across all stashes (listing value)`;
+    content.appendChild(label);
+    content.appendChild(value);
+    item.appendChild(icon);
+    item.appendChild(content);
+    grid.appendChild(item);
+}
+
+// --- Item detail panel (click a stash item) ---
+const _itemWorthDetailCache = new Map(); // unique id (or item id fallback) -> Promise<detail>
+let _activeWorthModalClose = null; // the open modal's close(), if any (closed by __pageCleanup on navigation)
+
+function _fetchItemWorthDetail(item) {
+    const uniqueId = _itemUniqueIdOf(item);
+    const itemId = String(item.itemId || item.item_id || '');
+    // Only cache when we have a real unique id — without one, two different item
+    // instances that share an itemId (but roll differently) must not share a result.
+    if (uniqueId && _itemWorthDetailCache.has(uniqueId)) return _itemWorthDetailCache.get(uniqueId);
+
+    const promise = fetch('/api/worth/item', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            item_id: itemId,
+            rolls: item.sp || [],
+            base: item.pp || [],
+            quantity: item.itemCount || 1,
+            vendor_price: item.vendor_price || 0,
+        }),
+    }).then(async (response) => {
+        const data = await response.json().catch(() => null);
+        if (!response.ok || !data || data.success === false) {
+            throw new Error((data && data.error) || `Request failed (${response.status})`);
+        }
+        return data;
+    }).catch((error) => {
+        if (uniqueId) _itemWorthDetailCache.delete(uniqueId); // don't cache failures
+        throw error;
+    });
+    if (uniqueId) _itemWorthDetailCache.set(uniqueId, promise);
+    return promise;
+}
+
+function _createWorthModal() {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal worth-modal';
+    const content = document.createElement('div');
+    content.className = 'modal-content worth-modal-content';
+    const header = document.createElement('div');
+    header.className = 'modal-header';
+    const title = document.createElement('h2');
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'worth-modal-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    closeBtn.textContent = '×';
+    header.appendChild(title);
+    header.appendChild(closeBtn);
+    const body = document.createElement('div');
+    body.className = 'modal-body worth-modal-body';
+    content.appendChild(header);
+    content.appendChild(body);
+    overlay.appendChild(content);
+
+    const close = () => {
+        overlay.remove();
+        document.removeEventListener('keydown', onKeyDown);
+        if (_activeWorthModalClose === close) _activeWorthModalClose = null;
+    };
+    const onKeyDown = (event) => { if (event.key === 'Escape') close(); };
+    closeBtn.addEventListener('click', close);
+    overlay.addEventListener('click', (event) => { if (event.target === overlay) close(); });
+    document.addEventListener('keydown', onKeyDown);
+
+    // Track the open modal so a page navigation (see __pageCleanup below) can close it
+    // and remove its document-level keydown listener instead of leaking it.
+    if (_activeWorthModalClose) _activeWorthModalClose();
+    _activeWorthModalClose = close;
+
+    return { overlay, title, body, close };
+}
+
+function _buildWorthLoadingRow() {
+    const row = document.createElement('div');
+    row.className = 'worth-empty';
+    row.textContent = 'Loading value…';
+    return row;
+}
+
+function _renderWorthModalError(container, error) {
+    const p = document.createElement('p');
+    p.className = 'worth-error';
+    p.textContent = (error && error.message) || 'Could not load item value.';
+    container.appendChild(p);
+}
+
+function _buildSectionTitle(text) {
+    const h3 = document.createElement('h3');
+    h3.className = 'worth-section-title';
+    h3.textContent = text;
+    return h3;
+}
+
+function _buildValueHeadline(est) {
+    const row = document.createElement('div');
+    row.className = 'worth-value-row';
+    const headline = document.createElement('span');
+    headline.className = 'worth-value-headline';
+    headline.textContent = typeof est.value === 'number' ? formatCompactGold(est.value, { spaced: true }) : '—';
+    row.appendChild(headline);
+    if (typeof est.low === 'number' && typeof est.high === 'number') {
+        const band = document.createElement('span');
+        band.className = 'worth-value-band';
+        band.textContent = `${est.low.toLocaleString()} – ${est.high.toLocaleString()} g`;
+        row.appendChild(band);
+    }
+    if (est.confidence) {
+        const badge = document.createElement('span');
+        badge.className = `worth-confidence worth-confidence-${_normalizeConfidence(est.confidence)}`;
+        badge.textContent = est.confidence;
+        row.appendChild(badge);
+    }
+    return row;
+}
+
+function _buildFactGrid(data) {
+    const grid = document.createElement('div');
+    grid.className = 'worth-fact-grid';
+    const add = (label, valueText, valueClass) => {
+        const wrap = document.createElement('div');
+        const l = document.createElement('span');
+        l.className = 'worth-fact-label';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.className = valueClass ? `worth-fact-value ${valueClass}` : 'worth-fact-value';
+        v.textContent = valueText;
+        wrap.appendChild(l);
+        wrap.appendChild(v);
+        grid.appendChild(wrap);
+    };
+
+    add('Suggested price', typeof data.suggested === 'number'
+        ? `${data.suggested.toLocaleString()} g`
+        : (data.suggested_reason || 'No suggestion'));
+    add('Lowest ask', typeof data.lowest_ask === 'number' ? `${data.lowest_ask.toLocaleString()} g` : 'No live listings');
+    add('Merchant pays', `${(data.merchant || 0).toLocaleString()} g`);
+    add('Verdict',
+        data.verdict === 'merchant' ? 'Sell to merchant' : (data.verdict === 'list' ? 'List on market' : 'Unknown'),
+        data.verdict === 'merchant' ? 'worth-verdict-merchant' : 'worth-verdict-list');
+    const market = data.market || {};
+    add('Market activity', `${market.live || 0} live · ${market.likely_sold || 0} likely sold`);
+    return grid;
+}
+
+function _buildRollRow(roll) {
+    const row = document.createElement('div');
+    row.className = 'worth-roll-row';
+
+    const label = document.createElement('div');
+    label.className = 'worth-roll-label';
+    const rollValue = Number(roll.value) || 0;
+    label.textContent = `${prettifyStatName(roll.stat)} ${rollValue >= 0 ? '+' : ''}${rollValue}`;
+
+    const track = document.createElement('div');
+    track.className = 'worth-roll-track';
+    const fill = document.createElement('div');
+    fill.className = 'worth-roll-fill';
+    const quality = Math.max(0, Math.min(1, Number(roll.quality) || 0));
+    fill.style.width = `${Math.round(quality * 100)}%`;
+    track.appendChild(fill);
+
+    const effect = document.createElement('span');
+    const effectPct = Number(roll.effect_pct) || 0;
+    effect.className = `worth-roll-effect ${effectPct > 0 ? 'worth-positive' : (effectPct < 0 ? 'worth-negative' : '')}`;
+    effect.textContent = `${effectPct > 0 ? '+' : ''}${effectPct}%`;
+
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(effect);
+    return row;
+}
+
+function _buildPairRow(pair) {
+    const row = document.createElement('div');
+    row.className = 'worth-pair-row';
+    const stats = (pair.stats || []).map(prettifyStatName).join(' + ');
+    const effectPct = Number(pair.effect_pct) || 0;
+    row.appendChild(document.createTextNode(`${stats}: `));
+    const span = document.createElement('span');
+    span.className = effectPct > 0 ? 'worth-positive' : (effectPct < 0 ? 'worth-negative' : '');
+    span.textContent = `${effectPct > 0 ? '+' : ''}${effectPct}%`;
+    row.appendChild(span);
+    return row;
+}
+
+function _buildSimilarTable(list) {
+    const table = document.createElement('table');
+    table.className = 'worth-similar-table';
+    const tbody = document.createElement('tbody');
+    list.slice(0, 5).forEach((row) => {
+        const tr = document.createElement('tr');
+        const priceTd = document.createElement('td');
+        priceTd.className = 'worth-similar-price';
+        const price = Number(row.price) || 0;
+        priceTd.textContent = row.count > 1 ? `${price.toLocaleString()} g (×${row.count})` : `${price.toLocaleString()} g`;
+        const rollsTd = document.createElement('td');
+        rollsTd.className = 'worth-similar-rolls';
+        const rollsText = (row.rolls || [])
+            .map(([stat, value]) => `${prettifyStatName(stat)} ${value >= 0 ? '+' : ''}${value}`)
+            .join(', ');
+        rollsTd.textContent = rollsText || '—';
+        tr.appendChild(priceTd);
+        tr.appendChild(rollsTd);
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    return table;
+}
+
+function _renderWorthModalBody(container, data) {
+    const est = data.estimate || {};
+    container.appendChild(_buildValueHeadline(est));
+    container.appendChild(_buildFactGrid(data));
+
+    if (!data.known) {
+        const note = document.createElement('p');
+        note.className = 'worth-known-note';
+        note.textContent = 'This item type has little market history yet — the estimate may be rough.';
+        container.appendChild(note);
+    }
+
+    if (Array.isArray(est.rolls) && est.rolls.length) {
+        container.appendChild(_buildSectionTitle('Rolls'));
+        est.rolls.forEach((roll) => container.appendChild(_buildRollRow(roll)));
+    }
+
+    if (Array.isArray(est.pairs) && est.pairs.length) {
+        container.appendChild(_buildSectionTitle('Roll combinations'));
+        est.pairs.forEach((pair) => container.appendChild(_buildPairRow(pair)));
+    }
+
+    if (Array.isArray(data.similar) && data.similar.length) {
+        container.appendChild(_buildSectionTitle('Similar listings'));
+        container.appendChild(_buildSimilarTable(data.similar));
+    }
+}
+
+function openItemWorthPanel(item) {
+    if (!item) return;
+    const itemId = String(item.itemId || item.item_id || '');
+    if (!itemId) return;
+
+    const entry = _worthEntryForItem(_lastWorthIndex, item);
+    const isCurrency = entry ? Boolean(entry.currency) : _isCurrencyItemId(itemId);
+    if (isCurrency) return;
+
+    const modal = _createWorthModal();
+    modal.title.textContent = item.name || 'Item';
+    document.body.appendChild(modal.overlay);
+    modal.body.appendChild(_buildWorthLoadingRow());
+
+    _fetchItemWorthDetail(item).then((data) => {
+        modal.body.replaceChildren();
+        _renderWorthModalBody(modal.body, data);
+    }).catch((error) => {
+        modal.body.replaceChildren();
+        _renderWorthModalError(modal.body, error);
+    });
+}
+
 // --- GLOBAL TOOLTIP SINGLETON ---
 let globalTooltip = null;
 let tooltipHideTimeout = null;
@@ -3998,6 +4486,9 @@ const renderCombinedCharacterView = async (stashes = null) => {
             _applyProfitAdvisorGlow(prices);
         });
     }
+
+    // Fetch/apply Item Worth (value model) badges and the combined (equipment + bag) total.
+    ensureCharacterWorth().then((worth) => _onCharacterWorthReady(worth, 'character'));
 };
 
 function updatePreviewForCurrentStash() {
@@ -4875,6 +5366,12 @@ function _characterPageInitAll() {
         var tooltip = document.querySelector('.item-tooltip');
         if (tooltip && tooltip.parentNode) {
             tooltip.parentNode.removeChild(tooltip);
+        }
+
+        // Close an open Item Worth modal (it's appended to <body>, outside the routed content,
+        // and its own close() also detaches its document-level keydown listener).
+        if (_activeWorthModalClose) {
+            try { _activeWorthModalClose(); } catch (e) { /* noop */ }
         }
 
         // Clear window globals

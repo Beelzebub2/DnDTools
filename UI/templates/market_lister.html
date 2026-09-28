@@ -96,6 +96,15 @@
     </section>
 
     <section class="ml-card">
+        <h2>Item value model</h2>
+        <p class="ml-muted">Learns what each item is worth for its exact rolls from your saved market history (like the paid overlays, but local). Values and a click-to-inspect breakdown show up on the Characters page once trained.</p>
+        <div class="ml-stats" id="mlWorthStatus">Loading…</div>
+        <div class="ml-actions">
+            <button type="button" class="ml-btn ml-btn-secondary" id="mlWorthTrain" title="Retrains on everything saved so far (about 15s)"><span class="material-icons">model_training</span>Train now</button>
+        </div>
+    </section>
+
+    <section class="ml-card">
         <details>
             <summary><h2 class="ml-inline">Calibration</h2></summary>
             <p class="ml-muted">Hover test moves the mouse (no clicks) over each Marketplace spot for 1 second. If a point is off, nudge it here and test again. Saved for <span id="mlResolution"></span>.</p>
