@@ -264,3 +264,21 @@ def test_stacks_are_compared_with_stacks_and_singles_with_singles():
     single = price_from_market("Bolt_2001", (), (), 1, [], rows, RULES, quantity=1)
     assert stack.price == 677    # 753g for 20 is the bulk price: 37.65g each, -10%
     assert single.price == 80    # a single bolt competes with single bolts (89g)
+
+
+def test_nobody_pays_more_than_the_merchant_shop_price():
+    rows = [MarketRow("Bolt_2001", 753, (), (), "1", 20)]
+    result = price_from_market("Bolt_2001", (), (), 0, [], rows, RULES, quantity=20, merchant_unit_price=2.0)
+    assert not result.ok and result.reason == "a merchant sells it for 40g"
+
+
+def test_a_merchant_price_above_the_market_changes_nothing():
+    rows = [MarketRow("Potion_2001", 100, (), (), "1", 1), MarketRow("Potion_2001", 110, (), (), "2", 1)]
+    result = price_from_market("Potion_2001", (), (), 0, [], rows, RULES, merchant_unit_price=150)
+    assert result.price == 90
+
+
+def test_a_merchant_price_below_the_market_caps_the_listing():
+    rows = [MarketRow("Potion_2001", 200, (), (), "1", 1), MarketRow("Potion_2001", 210, (), (), "2", 1)]
+    result = price_from_market("Potion_2001", (), (), 0, [], rows, RULES, merchant_unit_price=120)
+    assert result.price == 108 and "merchant" in result.compared

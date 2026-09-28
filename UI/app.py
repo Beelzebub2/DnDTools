@@ -687,6 +687,7 @@ class Api:
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_LIST_RES: _on_item_list,
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_TRANSFER_ITEMS_RES: marketplace_state.handle_transfer_res,
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_HAS_SOLD_NOT: _on_item_sold,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_STOCK_BUY_ITEM_LIST_RES: _on_merchant_stock,
         }
         self._capture_controller = CaptureController(
             self._capture_settings, capture_info, wireshark_path=self._wireshark_path
@@ -2921,6 +2922,14 @@ SOLD_NOTIFICATION_JS = (
 )
 
 
+def _on_merchant_stock(message):
+    """S2C_MERCHANT_STOCK_BUY_ITEM_LIST_RES: remember what merchants sell items for (a market ceiling)."""
+    try:
+        market_history.record_merchant_stock(message)
+    except Exception:
+        logger.exception("Failed to record merchant stock prices")
+
+
 def _on_item_sold(message):
     """S2C_MARKETPLACE_ITEM_HAS_SOLD_NOT: tell the player a listing sold."""
     try:
@@ -3055,6 +3064,7 @@ if not _is_child_process:
         synergies=_lister_synergies,
         own_listing_ids=lambda: marketplace_state.own_listing_ids() | market_history.my_listing_ids(),
         worth_value=_lister_worth_value,
+        merchant_price=market_history.merchant_price,
         old_page_detector=_lister_old_page_detector,
         price_search=_lister_price_search,
         analyze_market=_lister_analyze_market,

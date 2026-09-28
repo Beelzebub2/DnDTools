@@ -200,3 +200,22 @@ def test_worth_listings_know_how_long_each_listing_had_been_up():
                                    (2, "HeaterShield_5001", 350, 2 * DAY_MS, 12)))    # up for 5 days
     ages = {listing.price: round(listing.age_days, 1) for listing in history.worth_listings()}
     assert ages == {300: 0.0, 350: 5.0}
+
+
+def _shop(*offers):
+    from networking.protos import Merchant_pb2
+    msg = Merchant_pb2.SS2C_MERCHANT_STOCK_BUY_ITEM_LIST_RES(result=1)
+    for item, count, price in offers:
+        stock = msg.stockList.add()
+        stock.itemInfo.itemId = f"DesignDataItem:Id_Item_{item}"
+        stock.itemInfo.itemCount = count
+        stock.originPrice = stock.finalPrice = price
+    return msg
+
+
+def test_merchant_shop_prices_are_recorded_per_unit_keeping_the_cheapest():
+    history = _history(Clock())
+    history.record_merchant_stock(_shop(("Bolt_2001", 20, 40), ("Bandage_2001", 1, 15)))
+    history.record_merchant_stock(_shop(("Bandage_2001", 1, 12)))   # another merchant sells it cheaper
+    assert history.merchant_prices() == {"Bolt_2001": 2.0, "Bandage_2001": 12.0}
+    assert history.merchant_price("Bolt_2001") == 2.0 and history.merchant_price("Ale_2001") is None

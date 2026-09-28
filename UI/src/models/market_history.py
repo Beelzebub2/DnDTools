@@ -56,6 +56,11 @@ CREATE TABLE IF NOT EXISTS scans (
     max_price INTEGER NOT NULL,
     complete INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS merchant_prices (
+    item_id TEXT PRIMARY KEY,
+    unit_price REAL NOT NULL,
+    seen_at REAL NOT NULL
+);
 CREATE TABLE IF NOT EXISTS my_listings (
     listing_id TEXT PRIMARY KEY,
     item_id TEXT NOT NULL,
@@ -257,6 +262,35 @@ class MarketHistory:
                 "SELECT item_id, rarity, price, item_count, base, rolls, seller FROM listings").fetchall()
         return [Listing(i, r, p, c, tuple(map(tuple, json.loads(b))), tuple(map(tuple, json.loads(ro))), s)
                 for i, r, p, c, b, ro, s in records]
+
+    def record_merchant_stock(self, message) -> int:
+        """S2C_MERCHANT_STOCK_BUY_ITEM_LIST_RES: what a merchant sells and for how much (per unit).
+
+        Several merchants can sell the same item; the cheapest offer is kept."""
+        now = self._clock()
+        offers = []
+        for stock in message.stockList:
+            item_id = str(stock.itemInfo.itemId).split(ITEM_ID_PREFIX)[-1]
+            count = max(int(stock.itemInfo.itemCount or 1), 1)
+            if item_id and stock.finalPrice > 0:
+                offers.append((item_id, stock.finalPrice / count, now))
+        with self._lock:
+            self._db.executemany(
+                """INSERT INTO merchant_prices (item_id, unit_price, seen_at) VALUES (?, ?, ?)
+                   ON CONFLICT(item_id) DO UPDATE SET unit_price=MIN(unit_price, excluded.unit_price),
+                       seen_at=excluded.seen_at""", offers)
+            self._db.commit()
+        return len(offers)
+
+    def merchant_prices(self) -> dict:
+        with self._lock:
+            return dict(self._db.execute("SELECT item_id, unit_price FROM merchant_prices").fetchall())
+
+    def merchant_price(self, item_id: str):
+        """Cheapest per-unit price a merchant sells this item for, or None if no merchant was seen selling it."""
+        with self._lock:
+            row = self._db.execute("SELECT unit_price FROM merchant_prices WHERE item_id = ?", (str(item_id),)).fetchone()
+        return row[0] if row else None
 
     def worth_listings(self) -> list:
         """Every saved listing with how long it had been up when first seen (Item Worth training)."""

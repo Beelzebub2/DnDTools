@@ -240,7 +240,7 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, qu
 
 def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, rules,
                       extra_share=EXTRA_ROLL_SHARE, quantity=1, synergies=None, model_value=None,
-                      model_floor=None) -> RollPrice:
+                      model_floor=None, merchant_unit_price=None) -> RollPrice:
     """Price for our copy (or our stack of `quantity`); vendor_price is per unit.
 
     synergies: {frozenset({stat_a, stat_b}): percent} learned from market data.
@@ -249,6 +249,7 @@ def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, r
     and never drops below the cheapest real listing of the item.
     model_floor: the model's lowest reasonable price for these rolls (whole quantity). For a fast
     sale we list at the lower of it and the usual undercut, but never below half of it (dumps).
+    merchant_unit_price: what a merchant sells one for — nobody pays more on the market.
     """
     found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules, extra_share, quantity,
                        synergies)
@@ -262,8 +263,12 @@ def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, r
             compared += f"; capped at the value model's {round(model_value)}g for these exact rolls"
             if flag.startswith("Your rolls beat"):
                 flag = ""  # beating every listing on a stat buyers don't value is no reason to price higher
+    shop = merchant_unit_price * quantity if merchant_unit_price else None
+    if shop is not None and shop < reference:
+        reference = shop
+        compared += f"; capped at the merchant's shop price ({round(shop)}g)"
     price = _undercut(reference, rules)
-    if model_floor:
+    if model_floor and (shop is None or model_floor <= shop):
         fast = max(min(price, math.floor(model_floor)), math.floor(LOWBALL_RATIO * model_floor))
         if fast != price:
             compared += (f"; fast sale at the lowest reasonable price for these rolls ({math.floor(model_floor)}g)"
@@ -271,7 +276,8 @@ def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, r
                          f"; not below half the lowest reasonable price ({math.floor(model_floor)}g)")
         price = fast
     if price < max(rules.min_price, 1):
-        return RollPrice(False, None, 0, "below min price", flag, compared, confidence)
+        reason = f"a merchant sells it for {round(shop)}g" if shop is not None and shop == reference else "below min price"
+        return RollPrice(False, None, 0, reason, flag, compared, confidence)
     fee = listing_fee(price)
     net = price - fee
     if net <= int(vendor_price or 0) * quantity:
