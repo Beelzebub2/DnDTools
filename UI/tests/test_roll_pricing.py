@@ -255,3 +255,12 @@ def test_fast_sale_never_goes_below_half_the_floor():
     result = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES,
                                model_value=500, model_floor=400)
     assert result.price == 200   # the market's 120g copies are dumps next to a 400g floor
+
+
+def test_stacks_are_compared_with_stacks_and_singles_with_singles():
+    rows = [MarketRow("Bolt_2001", 753, (), (), "1", 20), MarketRow("Bolt_2001", 89, (), (), "2", 1),
+            MarketRow("Bolt_2001", 52499, (), (), "3", 1)]
+    stack = price_from_market("Bolt_2001", (), (), 1, [], rows, RULES, quantity=20)
+    single = price_from_market("Bolt_2001", (), (), 1, [], rows, RULES, quantity=1)
+    assert stack.price == 677    # 753g for 20 is the bulk price: 37.65g each, -10%
+    assert single.price == 80    # a single bolt competes with single bolts (89g)

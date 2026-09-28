@@ -178,8 +178,21 @@ def _combine(rows, base, rolls, baseline, extra_share, synergies=None):
     return best.value + bonus, best.how + extra_how, best.confidence, beats_any
 
 
+def _like_for_like(rows, quantity):
+    """Stacks sell for less per unit than single items: compare a stack with other stacks and a
+    single item with other singles whenever the market has any."""
+    bulk = [r for r in rows if r.count > 1]
+    singles = [r for r in rows if r.count <= 1]
+    if quantity > 1 and bulk:
+        return bulk
+    if quantity <= 1 and singles:
+        return singles
+    return rows
+
+
 def _stack_reference(rows, quantity):
     """(reference, flag, explanation, confidence, floor) for items without rolls."""
+    rows = _like_for_like(rows, quantity)
     units = [r.price / max(r.count, 1) for r in rows]
     unit = _sane_min(units)
     confidence, flag = ("high" if len(rows) >= 3 else "medium"), ""
