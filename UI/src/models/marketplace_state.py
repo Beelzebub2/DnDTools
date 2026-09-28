@@ -72,7 +72,7 @@ class MarketplaceState:
         self._listing_state = {}  # itemUniqueId(str) -> latest myItemState
         self._own_listings = {}   # listingId(str) -> latest myItemState, for excluding our own asks
         self._register_result = None
-        self._item_list = None  # (received_at, [MarketRow])
+        self._item_list = None  # (received_at, [MarketRow], currentPage, maxPage)
         self._transfer_result = None
 
     def now(self) -> float:
@@ -103,8 +103,13 @@ class MarketplaceState:
         received = self._clock()
         rows = [_market_row(info) for info in message.itemInfos]
         with self._cond:
-            self._item_list = (received, rows)
+            self._item_list = (received, rows, int(message.currentPage), int(message.maxPage))
             self._cond.notify_all()
+
+    def last_item_page(self):
+        """(currentPage, maxPage) of the latest search result page, or None."""
+        with self._cond:
+            return None if self._item_list is None else self._item_list[2:4]
 
     def wait_for_item_list(self, since: float, timeout: float):
         """MarketRows from the first search result page received after `since`."""

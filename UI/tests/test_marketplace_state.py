@@ -171,3 +171,10 @@ def test_own_listing_ids_and_fresh_snapshot():
     clock.t = 101.0
     state.handle_my_item_list(msg)
     assert state.wait_for_fresh_snapshot(since=100.0, timeout=0.05).received_at == 101.0
+
+
+def test_item_list_remembers_the_page_numbers():
+    state = MarketplaceState()
+    assert state.last_item_page() is None
+    state.handle_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_ITEM_LIST_RES(currentPage=3, maxPage=12))
+    assert state.last_item_page() == (3, 12)

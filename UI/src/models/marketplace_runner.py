@@ -308,15 +308,19 @@ class MarketplaceRunner:
             read, total = read + 1, total + len(rows)
             if on_page and read % CRAWL_PROGRESS_EVERY == 0:
                 on_page(rarity, read, total)
-            if len(rows) < MARKET_PAGE_SIZE:  # a short page is the last one: the whole rarity was read
+            if len(rows) < MARKET_PAGE_SIZE or self._results_ended(strict=True):  # the last page: all read
                 complete = True
                 break
             if read >= pages or (is_old_page and is_old_page(rows)):
                 break
             self._safety_checkpoint()
             self._check_mouse_still()
-            rows = self._next_page() or []
+            next_rows = self._next_page()
             self._safety.snapshot_position()
+            if next_rows is None:
+                complete = self._results_ended(strict=False)
+                break
+            rows = next_rows
         return read, total, complete
 
     def _crawl_progress_reporter(self, on_progress):
@@ -402,6 +406,19 @@ class MarketplaceRunner:
         self._confirm_my_listings()
         return {"same": same, "all": every, "degraded": same_failed or every_failed}
 
+    def _results_ended(self, strict):
+        """True when the game's page numbers say the page just read was the last one.
+
+        The game may count pages from 0 or 1: before clicking on, only "current == max" (last page
+        when counting from 1) stops us; after a page turn failed, being on the last page by either
+        count means the results simply ended.
+        """
+        numbers = self._state.last_item_page()
+        if not numbers or numbers[1] <= 0:
+            return False
+        current, total = numbers
+        return current >= total if strict else current >= total - 1
+
     def _check_search_matches(self, entry, rows):
         """The form's Search looks up the *selected* item: other items mean we picked the wrong one."""
         others = sorted({r.item_id for r in rows if r.item_id != entry.item_id}) if entry.item_id else []
@@ -419,9 +436,12 @@ class MarketplaceRunner:
             return [], False, True
         rows, size, pages = list(first_page), len(first_page), 1
         while size >= MARKET_PAGE_SIZE and pages < max_pages:
+            if self._results_ended(strict=True):
+                return rows, True, False
             page = self._next_page()
-            if page is None:  # couldn't turn the page
-                return rows, False, True
+            if page is None:  # no next page: the end (a full last page) or a failed turn
+                ended = self._results_ended(strict=False)
+                return rows, ended, not ended
             rows.extend(page)
             size, pages = len(page), pages + 1
         return rows, size < MARKET_PAGE_SIZE, False

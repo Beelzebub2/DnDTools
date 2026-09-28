@@ -490,12 +490,24 @@ def test_safety_stop_uses_friendly_reason_text():
 
 
 class PricingState(ScriptedState):
-    def __init__(self, rows_per_search, **kw):
+    """Serves scripted result pages; page_numbers gives each page's (currentPage, maxPage)."""
+
+    def __init__(self, rows_per_search, page_numbers=(), **kw):
         super().__init__(**kw)
         self.rows_per_search = list(rows_per_search)
+        self.page_numbers = list(page_numbers)
+        self.shown_numbers = None
 
     def wait_for_item_list(self, since, timeout):
-        return self.rows_per_search.pop(0) if self.rows_per_search else None
+        if not self.rows_per_search:
+            return None
+        rows = self.rows_per_search.pop(0)
+        if rows and self.page_numbers:
+            self.shown_numbers = self.page_numbers.pop(0)
+        return rows
+
+    def last_item_page(self):
+        return self.shown_numbers
 
 
 def test_price_all_runs_the_search_flow_per_item():
@@ -780,3 +792,35 @@ def test_limited_or_incremental_crawls_are_not_complete_passes():
     _crawl_runner(FakeDriver(), PricingState([full, full[:4]], available=(2,)), passes).crawl_market(
         pages=50, rarities=(5,), is_old_page=lambda rows: False)
     assert passes == []
+
+
+def test_search_stops_at_the_last_page_the_game_reports():
+    driver = FakeDriver()
+    page = [MarketRow("GoldBand_3001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([[], page, page], page_numbers=[(1, 2), (2, 2)], available=(2,))  # 1-based: 2 of 2
+    rows, _ = _runner(driver, state).price_all([_entry("a")])
+    assert len(rows["a"]["all"]) == 20 and rows["a"]["degraded"] is False
+    assert [a[1] for a in driver.actions].count(LAYOUT.point("market_next_page")) == 1   # no click past the end
+
+
+def test_a_full_last_page_is_the_end_not_a_failed_search():
+    driver = FakeDriver()
+    page = [MarketRow("GoldBand_3001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([[], page, page], page_numbers=[(0, 2), (1, 2)], available=(2,))  # 0-based: last is 1
+    rows, report = _runner(driver, state).price_all([_entry("a")])
+    assert len(rows["a"]["all"]) == 20 and rows["a"]["degraded"] is False
+    assert "incomplete" not in report.results[0].message
+
+
+def test_a_failed_page_turn_mid_results_is_still_incomplete():
+    page = [MarketRow("GoldBand_3001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([[], page], page_numbers=[(0, 5)], available=(2,))
+    rows, _ = _runner(FakeDriver(), state).price_all([_entry("a")])
+    assert rows["a"]["degraded"] is True
+
+
+def test_crawl_ending_on_a_full_last_page_is_a_complete_pass():
+    passes, full = [], [MarketRow("X_5001", 100 + i, (), ()) for i in range(10)]
+    state = PricingState([full, full], page_numbers=[(1, 2), (2, 2)], available=(2,))
+    _crawl_runner(FakeDriver(), state, passes).crawl_market(pages=50, rarities=(5,))
+    assert passes == [5]
