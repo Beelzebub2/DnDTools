@@ -191,7 +191,8 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
     market_by_unique_id: {unique_id: {"same": [MarketRow], "all": [MarketRow]}}.
     extra_rows(item_id): recent listings from the local market history to widen the view.
     exclude_listing_ids: our own listings, which must not set our prices.
-    worth(entry): the Item Worth model's value for the entry's exact rolls (or None); caps the price.
+    worth(entry): the Item Worth estimate for the entry's exact rolls (value and floor), a plain value, or
+    None; the value caps the price and the floor sets the fast-sale price.
     """
     priced, skipped = [], []
     for entry in entries:
@@ -206,7 +207,7 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
         result = price_from_market(entry.item_id, entry.base_rolls, entry.rolls, entry.vendor_price,
                                    others(market.get("same") or []), others((market.get("all") or []) + history),
                                    rules, extra_share=extra_share, quantity=entry.quantity, synergies=synergies,
-                                   model_value=worth(entry) if worth else None)
+                                   **_model_prices(worth(entry) if worth else None))
         if result.ok and result.price > MAX_LISTING_PRICE:
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, ABOVE_MAX_REASON,
                                 result.flag, result.confidence))
@@ -222,6 +223,15 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
     if flagged:
         warnings.insert(0, f"{flagged} price(s) marked ⚠️ need your check before listing.")
     return Plan(tuple(priced), tuple(skipped), tuple(warnings))
+
+
+def _model_prices(estimate):
+    """price_from_market keywords from an Item Worth estimate (or a bare value)."""
+    if estimate is None:
+        return {}
+    if isinstance(estimate, (int, float)):
+        return {"model_value": estimate}
+    return {"model_value": estimate.value, "model_floor": getattr(estimate, "floor", None)}
 
 
 def _explain(entries, skipped):

@@ -27,7 +27,7 @@ class WorthDeps:
 
 
 def _estimate_dict(est) -> dict:
-    return {"value": round(est.value), "low": round(est.low), "high": round(est.high),
+    return {"value": round(est.value), "floor": round(est.floor), "low": round(est.low), "high": round(est.high),
             "confidence": est.confidence, "typical": round(est.typical), "listings": est.listings,
             "rolls": [{"stat": r.stat, "value": r.value, "quality": r.quality, "effect_pct": r.effect_pct}
                       for r in est.rolls],
@@ -110,7 +110,7 @@ def create_worth_blueprint(deps: WorthDeps) -> Blueprint:
             return _error("No market data for this item (or anything like it) yet.", 404)
         live = deps.live_rows(item_id)
         suggestion = price_from_market(item_id, base, rolls, vendor, [], live, deps.rules(), quantity=quantity,
-                                       model_value=est.value)
+                                       model_value=est.value, model_floor=est.floor)
         units = [r.price / max(r.count, 1) for r in live]
         return jsonify({
             "success": True, "item_id": item_id, "quantity": quantity, "known": model.knows(item_id),

@@ -234,3 +234,24 @@ def test_a_higher_model_value_never_raises_the_market_price():
     rows = [_row(700, rolls=(("Luck", 17),)), _row(300, rolls=(("Strength", 1),))]
     result = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES, model_value=5000)
     assert result.price == 630
+
+
+def test_fast_sale_lists_at_the_lowest_reasonable_price():
+    rows = [_row(700, rolls=(("Luck", 17),)), _row(300, rolls=(("Strength", 1),))]
+    result = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES,
+                               model_value=800, model_floor=560)
+    assert result.price == 560 and "lowest reasonable" in result.compared   # under the 630 undercut
+
+
+def test_a_cheaper_comparable_listing_is_still_undercut():
+    rows = [_row(400, rolls=(("Luck", 17),)), _row(300, rolls=(("Strength", 1),))]
+    result = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES,
+                               model_value=600, model_floor=480)
+    assert result.price == 360   # 10% under the 400g copy beats waiting at the floor
+
+
+def test_fast_sale_never_goes_below_half_the_floor():
+    rows = [_row(120, rolls=(("Luck", 17),)), _row(110, rolls=(("Strength", 1),)), _row(130, rolls=(("Will", 1),))]
+    result = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES,
+                               model_value=500, model_floor=400)
+    assert result.price == 200   # the market's 120g copies are dumps next to a 400g floor

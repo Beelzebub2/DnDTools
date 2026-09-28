@@ -203,3 +203,14 @@ def test_game_prices_are_capped_by_the_value_model():
     assert apply_game_prices([entry], market, rules).entries[0].price == 630
     capped = apply_game_prices([entry], market, rules, worth=lambda e: 400).entries[0]
     assert capped.price == 360 and "value model" in capped.compared
+
+
+def test_game_prices_use_the_value_models_lowest_reasonable_price():
+    from types import SimpleNamespace
+    from src.market_lister import apply_game_prices
+    from src.models.roll_pricing import MarketRow
+    entry = PlanEntry("a", "Helm", 5, "2", 0, 1, 1, 0, 0, 10, item_id="Helm_5001", rolls=(("Luck", 17),))
+    market = {"a": {"same": [], "all": [MarketRow("Helm_5001", 700, (), (("Luck", 17),), "1"),
+                                        MarketRow("Helm_5001", 300, (), (("Strength", 1),), "2")]}}
+    estimate = SimpleNamespace(value=800, floor=560)
+    assert apply_game_prices([entry], market, ListerRules(min_price=50), worth=lambda e: estimate).entries[0].price == 560

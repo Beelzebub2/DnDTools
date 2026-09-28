@@ -226,13 +226,16 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, qu
 
 
 def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, rules,
-                      extra_share=EXTRA_ROLL_SHARE, quantity=1, synergies=None, model_value=None) -> RollPrice:
+                      extra_share=EXTRA_ROLL_SHARE, quantity=1, synergies=None, model_value=None,
+                      model_floor=None) -> RollPrice:
     """Price for our copy (or our stack of `quantity`); vendor_price is per unit.
 
     synergies: {frozenset({stat_a, stat_b}): percent} learned from market data.
     model_value: the Item Worth model's value for these exact rolls (whole quantity). The reference
     never exceeds it — a price inherited from a listing's *other* stats can't stick to junk rolls —
     and never drops below the cheapest real listing of the item.
+    model_floor: the model's lowest reasonable price for these rolls (whole quantity). For a fast
+    sale we list at the lower of it and the usual undercut, but never below half of it (dumps).
     """
     found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules, extra_share, quantity,
                        synergies)
@@ -247,6 +250,13 @@ def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, r
             if flag.startswith("Your rolls beat"):
                 flag = ""  # beating every listing on a stat buyers don't value is no reason to price higher
     price = _undercut(reference, rules)
+    if model_floor:
+        fast = max(min(price, math.floor(model_floor)), math.floor(LOWBALL_RATIO * model_floor))
+        if fast != price:
+            compared += (f"; fast sale at the lowest reasonable price for these rolls ({math.floor(model_floor)}g)"
+                         if fast == math.floor(model_floor) else
+                         f"; not below half the lowest reasonable price ({math.floor(model_floor)}g)")
+        price = fast
     if price < max(rules.min_price, 1):
         return RollPrice(False, None, 0, "below min price", flag, compared, confidence)
     fee = listing_fee(price)

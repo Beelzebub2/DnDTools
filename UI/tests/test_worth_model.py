@@ -170,3 +170,15 @@ def test_items_from_a_group_with_no_market_data_get_no_value():
     model = _train(_market())
     guess = model.predict("Bandage_2001", (), slot="utility")
     assert guess.confidence == "unknown"
+
+
+def test_the_lowest_reasonable_price_is_the_low_end_of_asks_for_the_exact_rolls():
+    rows = _market(n=900, seed=4)
+    model = _train(rows)
+    est = model.predict("Helm_5001", (("Strength", 3), ("Luck", 2), ("Will", 2)))
+    assert est.floor < est.value
+    assert 0.8 < est.floor / est.value < 0.97   # 8% noise: the 20th percentile sits a little under the norm
+    same = [r.price for r in rows if r.item_id == "Helm_5001" and dict(r.rolls).get("Strength") == 3
+            and not any(s == "UndeadDamageMod" for s, _ in r.rolls) and len(r.rolls) == 3]
+    below = sum(p < est.floor for p in same) / len(same)
+    assert 0.08 < below < 0.35   # roughly a fifth of real asks sit under it

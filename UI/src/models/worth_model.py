@@ -32,6 +32,9 @@ MEDIUM_CONFIDENCE_SUPPORT = 8
 HIGH_CONFIDENCE_SPREAD = 0.35  # typical log error below this counts as a tight fit
 UNKNOWN_SLOT = "?"
 PAIR_REPORT_PCT = 1.0          # pair bonuses smaller than this count in the value but aren't listed
+LOW_QUANTILE = 0.2             # the lowest reasonable price: only this share of real asks sits below it
+LOW_MIN_ROWS = 15              # asks needed before an item gets its own low end (else its group's)
+DEFAULT_LOW_OFFSET = math.log(0.81)  # typical low end vs value across the market (older saved models)
 AGE_EDGES_DAYS = (1, 3, 5)     # how long a listing had been up when first seen: 0 = fresh .. 3 = old
 FRESH = 0
 
@@ -69,7 +72,8 @@ class PairWorth:
 
 @dataclass(frozen=True)
 class Estimate:
-    value: float       # for the whole quantity
+    value: float       # for the whole quantity: the typical ask for these exact rolls
+    floor: float       # lowest reasonable price: only ~20% of real asks for these rolls sit below it
     low: float
     high: float
     confidence: str    # "high" | "medium" | "low", or "unknown": no market data for its item or group
@@ -163,6 +167,12 @@ class WorthModel:
         bounds = self._range(item_id, slot, rarity, stat)
         return roll_quality(value, *bounds) if bounds else 0.5
 
+    def _low_offset(self, item_id, slot, rarity):
+        d = self._d
+        if item_id in d.get("low_offset", {}):
+            return d["low_offset"][item_id]
+        return d.get("group_low_offset", {}).get(f"{slot}|{rarity}", d.get("global_low_offset", DEFAULT_LOW_OFFSET))
+
     def _roll_effect(self, stat, slot, rarity, quality):
         coef = self._d["coef"]
         tiers = sum(coef.get(name, 0.0) for name in _roll_names(stat, slot, rarity, _tier(quality)))
@@ -190,6 +200,7 @@ class WorthModel:
         value = math.exp(log_value) * quantity
         spread = d["spread"].get(item_id) or d["group_spread"].get(f"{slot}|{rarity}") or d["global_spread"]
         band = math.exp(MAD_TO_SIGMA * spread)
+        floor = min(value, value * math.exp(self._low_offset(item_id, slot, rarity)))
         support = int(d["support"].get(item_id, 0))
         if not support and f"g|{slot}|{rarity}" not in coef:
             confidence = "unknown"  # neither the item nor anything like it was ever listed: no real estimate
@@ -200,7 +211,7 @@ class WorthModel:
         else:
             confidence = "low"
         return Estimate(
-            value=value, low=value / band, high=value * band, confidence=confidence,
+            value=value, floor=floor, low=value / band, high=value * band, confidence=confidence,
             typical=math.exp(log_base + average * len(rolls)) * quantity,
             rolls=tuple(RollWorth(s, v, round(q, 3), round((math.exp(e - average) - 1) * 100, 1))
                         for s, v, q, e in roll_parts),
@@ -241,6 +252,11 @@ def _fit(matrix, targets, alpha):
     model = Ridge(alpha=alpha, solver="sparse_cg", max_iter=5000, tol=1e-6)
     model.fit(matrix, targets)
     return model
+
+
+def _quantile(values, q):
+    ordered = sorted(values)
+    return ordered[min(int(len(ordered) * q), len(ordered) - 1)]
 
 
 def _mad(values):
@@ -316,6 +332,9 @@ def _finish(model, rows, residuals):
         by_item[row.item_id].append(res)
         by_group[f"{row.slot}|{row.rarity}"].append(res)
     d["spread"] = {k: _mad(v) for k, v in by_item.items() if len(v) >= MIN_SPREAD_ROWS}
+    d["low_offset"] = {k: _quantile(v, LOW_QUANTILE) for k, v in by_item.items() if len(v) >= LOW_MIN_ROWS}
+    d["group_low_offset"] = {k: _quantile(v, LOW_QUANTILE) for k, v in by_group.items() if len(v) >= LOW_MIN_ROWS}
+    d["global_low_offset"] = _quantile(residuals, LOW_QUANTILE) if residuals else DEFAULT_LOW_OFFSET
     d["group_spread"] = {k: _mad(v) for k, v in by_group.items() if len(v) >= MIN_SPREAD_ROWS}
     d["global_spread"] = _mad(residuals) if residuals else 0.3
 

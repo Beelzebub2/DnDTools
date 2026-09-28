@@ -2892,11 +2892,11 @@ def _worth_model_info():
 
 
 def _lister_worth_value(entry):
-    """Item Worth value for a plan entry's exact rolls, only for items the model has seen."""
+    """Item Worth estimate (value + lowest reasonable price) for a plan entry, only for items the model has seen."""
     model = _worth_model()
     if model is None or not entry.item_id or not model.knows(entry.item_id):
         return None
-    return model.predict(entry.item_id, entry.rolls, quantity=entry.quantity).value
+    return model.predict(entry.item_id, entry.rolls, quantity=entry.quantity)
 
 
 def _market_model_path():
