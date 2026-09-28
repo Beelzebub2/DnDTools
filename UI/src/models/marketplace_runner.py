@@ -349,10 +349,11 @@ class MarketplaceRunner:
         return None
 
     def _verify_my_listings(self, via_market=False):
-        """Open My Listings; the fresh page-1 snapshot the game answers with, or None.
+        """Open My Listings; the fresh snapshot the game answers with, or None.
 
         Clicking the tab of the screen already shown may not make the game re-send the list,
-        so from My Listings itself View Market is opened first.
+        so from My Listings itself View Market is opened first. The game reopens My Listings on
+        the page last used, so the page it reports is tracked rather than required to be page 1.
         """
         if via_market:
             self._click(self._layout.point("view_market_tab"))
@@ -360,9 +361,9 @@ class MarketplaceRunner:
         since = self._state.now()
         self._click(self._layout.point("my_listings_tab"))
         snapshot = self._state.wait_for_fresh_snapshot(since, self._register_timeout)
-        if snapshot is None or snapshot.current_page != FIRST_PAGE:
+        if snapshot is None or snapshot.current_page < FIRST_PAGE:
             return None
-        self._page = 0
+        self._page = snapshot.current_page - FIRST_PAGE
         return snapshot
 
     def _confirm_my_listings(self, via_market=False):
@@ -469,15 +470,14 @@ class MarketplaceRunner:
         page, row = spot_location(index)
         if page >= MAX_PAGES:
             raise _Stop(NO_FREE_SPOTS)
-        if page < self._page:
-            self._confirm_my_listings(via_market=True)  # back to page 1, then forward again
-        while self._page < page:
+        while self._page != page:
+            step = 1 if self._page < page else -1
             since = self._state.now()
-            self._click(self._layout.point("next_page_arrow"))
+            self._click(self._layout.point("next_page_arrow" if step > 0 else "prev_page_arrow"))
             snapshot = self._state.wait_for_fresh_snapshot(since, self._register_timeout)
-            if snapshot is None or snapshot.current_page != FIRST_PAGE + self._page + 1:
-                raise _Stop(f"Couldn't turn My Listings to page {self._page + 2}, so nothing was clicked there.")
-            self._page += 1
+            if snapshot is None or snapshot.current_page != FIRST_PAGE + self._page + step:
+                raise _Stop(f"Couldn't turn My Listings to page {self._page + step + 1}, so nothing was clicked there.")
+            self._page += step
         self._click(self._layout.spot_row(row))
 
     def _select_item(self, entry):

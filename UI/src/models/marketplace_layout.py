@@ -12,6 +12,7 @@ STASH_COLUMNS, STASH_ROWS = 12, 20
 BASE_POINTS = {
     "spot_row_origin": (298, 516),
     "next_page_arrow": (374, 1025),
+    "prev_page_arrow": (219, 1026),        # My Listings previous-page arrow
     "tab_icon_origin": (1315, 196),
     "inv_grid_origin": (1443, 622),
     "stash_grid_origin": (1369, 184),

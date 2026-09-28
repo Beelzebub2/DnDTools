@@ -77,6 +77,8 @@ class ScriptedState(MarketplaceState):
             self.shown_page = self.answers_page
         elif point == LAYOUT.point("next_page_arrow") and self.turns_pages:
             self.shown_page += 1
+        elif point == LAYOUT.point("prev_page_arrow") and self.turns_pages:
+            self.shown_page -= 1
 
     def wait_for_fresh_snapshot(self, since, timeout):
         """Stands in for the game re-sending My Listings when its tab is opened or a page turns."""
@@ -371,14 +373,16 @@ def test_run_stops_when_the_game_does_not_confirm_my_listings():
     assert [a[1] for a in driver.actions] == VERIFY_CLICKS   # nothing after the unanswered check
 
 
-def test_run_stops_when_my_listings_opens_on_another_page():
+def test_my_listings_on_another_page_is_tracked_and_walked_back():
+    # The game reopens My Listings on the page last used (here page 2); the free spot is on page 1.
     driver = FakeDriver()
-    report = _runner(driver, ScriptedState(used=0, answers_page=FIRST_PAGE + 1)).run([_entry("a")])
-    assert (report.results, report.stopped_reason) == ((), NOT_ON_MY_LISTINGS)
-    assert [a[1] for a in driver.actions] == VERIFY_CLICKS
+    report = _runner(driver, ScriptedState(available=(3,), answers_page=FIRST_PAGE + 1)).run([_entry("a")])
+    assert [r.status for r in report.results] == ["listed"]
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks[len(VERIFY_CLICKS):len(VERIFY_CLICKS) + 2] == [LAYOUT.point("prev_page_arrow"), LAYOUT.spot_row(3)]
 
 
-def test_going_back_a_page_reopens_my_listings_before_moving_on():
+def test_going_back_a_page_uses_the_previous_page_arrow():
     # After the first listing the game shows page 3; the next free spot is on page 2.
     driver = FakeDriver()
     state = ScriptedState(available=(3, 12), after_listing_page=FIRST_PAGE + 2)
@@ -386,7 +390,15 @@ def test_going_back_a_page_reopens_my_listings_before_moving_on():
     assert [r.status for r in report.results] == ["listed", "listed"]
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
     after_first = clicks[clicks.index(LAYOUT.point("confirm_listing_yes")) + 1:]
-    assert after_first[:4] == VERIFY_CLICKS + [LAYOUT.point("next_page_arrow"), LAYOUT.spot_row(2)]
+    assert after_first[:2] == [LAYOUT.point("prev_page_arrow"), LAYOUT.spot_row(2)]
+
+
+def test_a_search_that_returns_to_a_later_page_keeps_going():
+    # Returning from a market search, the game shows the page of the spot the form was opened on.
+    driver = FakeDriver()
+    state = PricingState([[], [], [], []], available=(12, 13), answers_page=FIRST_PAGE + 1)
+    report = _runner(driver, state).run([_entry("a"), _entry("b", slot=1)], reprice=lambda e, m: Recheck(e.price))
+    assert [r.status for r in report.results] == ["listed", "listed"]
 
 
 def test_crawl_gear_only_ticks_every_class_and_stops_at_known_listings():

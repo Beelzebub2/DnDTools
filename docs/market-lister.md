@@ -67,7 +67,8 @@ Listing (checked right before the fee is charged), a fail code from the game (no
 are skipped instead), no free spots, or My Listings not having been seen recently.
 
 Before the first click of any run, and after every market search, My Listings is re-opened
-and the game must confirm it is showing page 1; otherwise the run stops. The market search
+and the game must confirm it (and which page it shows — it reopens on the page last used);
+otherwise the run stops. Pages are turned with the arrows, each turn confirmed by the game. The market search
 must show the item that was meant to be selected, or the run stops before listing anything.
 Every page turn in My Listings must be confirmed by the game before a spot is clicked, and after
 a listing the game refuses (for example an untradable item) My Listings is re-confirmed before
