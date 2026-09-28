@@ -2875,6 +2875,22 @@ def _worth_model():
     return _worth_cache["model"]
 
 
+WORTH_LIVE_MAX_AGE_S = 3 * 86400  # listings seen in the last 3 days count as the live market
+
+
+def _worth_character_stashes(character_id):
+    """Every stash (and the inventory) of a character, as enhanced item dicts."""
+    return stash_manager.get_enhanced_stashes(character_id, list(stash_manager.get_character_stashes(character_id)))
+
+
+def _worth_model_info():
+    model = _worth_model()
+    if model is None:
+        return {}
+    data = model.to_dict()
+    return {"listings": data.get("listings", 0), "evaluation": data.get("evaluation") or {}}
+
+
 def _lister_worth_value(entry):
     """Item Worth value for a plan entry's exact rolls, only for items the model has seen."""
     model = _worth_model()
@@ -2921,7 +2937,9 @@ def _on_my_item_list(message):
     except Exception:
         logger.exception("Failed to record my marketplace listings")
 
-from src.market_lister_api import ListerDeps, create_market_lister_blueprint
+from src.market_lister_api import RULES_KEY as LISTER_RULES_KEY, ListerDeps, create_market_lister_blueprint
+from src.models.market_rules import ListerRules
+from src.worth_api import WorthDeps, create_worth_blueprint
 from src.market_lister_job import ListerJob, MonitoredRunner
 
 GAME_WINDOW_TITLE = "Dark and Darker  "
@@ -3040,6 +3058,15 @@ if not _is_child_process:
         old_page_detector=_lister_old_page_detector,
         price_search=_lister_price_search,
         analyze_market=_lister_analyze_market,
+    )))
+    server.register_blueprint(create_worth_blueprint(WorthDeps(
+        model=_worth_model,
+        stashes=_worth_character_stashes,
+        live_rows=lambda item_id: market_history.active_rows(item_id, WORTH_LIVE_MAX_AGE_S),
+        rules=lambda: ListerRules.from_dict(settings_manager.get(LISTER_RULES_KEY) or {}),
+        sold_rows=market_history.vanished_rows,
+        train=_train_worth_model,
+        info=_worth_model_info,
     )))
 
 @server.route('/api/download_update')

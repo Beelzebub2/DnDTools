@@ -21,7 +21,7 @@ CONFIDENCE_LEVELS = ("high", "medium", "low")
 MAX_QUANTITY = 999
 
 
-def _stat_pairs(raw) -> tuple:
+def stat_pairs(raw) -> tuple:
     """[[stat, value], ...] from JSON / enhanced items -> ((stat, int), ...); junk is dropped."""
     pairs = []
     for pair in raw if isinstance(raw, (list, tuple)) else ():
@@ -79,8 +79,8 @@ class PlanEntry:
             fee=listing_fee(price) if price else 0,
             vendor_price=_positive_int(data.get("vendor_price", 0), "vendor_price", 0),
             item_id=str(data.get("item_id") or "")[:128],
-            base_rolls=_stat_pairs(data.get("base_rolls")),
-            rolls=_stat_pairs(data.get("rolls")),
+            base_rolls=stat_pairs(data.get("base_rolls")),
+            rolls=stat_pairs(data.get("rolls")),
             flag=str(data.get("flag") or "")[:300],
             compared=str(data.get("compared") or "")[:300],
             confidence=str(data.get("confidence") or "") if data.get("confidence") in CONFIDENCE_LEVELS else "",
@@ -114,7 +114,7 @@ def _entry(candidate, decision=None) -> PlanEntry:
         price=decision.price if decision else 0, fee=decision.fee if decision else 0,
         recommended=decision.price if decision else 0,
         vendor_price=int(item.get("vendor_price") or 0), item_id=str(item.get("itemId") or ""),
-        base_rolls=_stat_pairs(item.get("pp")), rolls=_stat_pairs(item.get("sp")),
+        base_rolls=stat_pairs(item.get("pp")), rolls=stat_pairs(item.get("sp")),
         quantity=max(int(item.get("itemCount") or 1), 1),
     )
 
