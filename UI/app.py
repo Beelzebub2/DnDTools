@@ -2820,8 +2820,67 @@ def _lister_analyze_market():
         logger.exception("Couldn't save market_model.json; pricing keeps the previous model")
     names = {i: m.get("name") or i for i, m in metas.items()}
     summary = {k: v for k, v in report.items() if k != "roll_ranges"}
+    summary["worth"] = _train_worth_model()
     summary["below_vendor"] = [{**d, "name": names.get(d["item"], d["item"])} for d in report["below_vendor"]]
     return summary
+
+
+def _worth_model_path():
+    return os.path.join(get_data_dir(), 'worth_model.json')
+
+
+_worth_cache = {"mtime": None, "model": None}
+
+
+def _item_groups(item_ids):
+    """item id -> slot (gear) or item type (everything else): the Item Worth pricing groups."""
+    from src.models.game_data import item_data_manager
+    groups = {}
+    for item_id in item_ids:
+        meta = item_data_manager.get_item_data(item_id) or {}
+        groups[item_id] = meta.get("slot_type") or meta.get("item_type") or "other"
+    return groups
+
+
+def _train_worth_model():
+    """Retrain the Item Worth model on the whole market history; returns its held-out accuracy."""
+    from src.models.worth_model import evaluate, train
+    listings = market_history.worth_listings()
+    if not listings:
+        return {"trained": 0}
+    groups = _item_groups({listing.item_id for listing in listings})
+    try:
+        accuracy = evaluate(listings, groups)
+        model = train(listings, groups)
+        save_model(_worth_model_path(), {**model.to_dict(), "evaluation": accuracy})
+    except (ValueError, OSError):
+        logger.exception("Couldn't train the Item Worth model")
+        return {"trained": 0, "error": "training failed; see the log"}
+    return {**accuracy, "listings": model.listings}
+
+
+def _worth_model():
+    """The saved Item Worth model (reloaded when the file changes), or None before the first training."""
+    from src.models.worth_model import WorthModel
+    try:
+        mtime = os.path.getmtime(_worth_model_path())
+    except OSError:
+        return None
+    if _worth_cache["mtime"] != mtime:
+        try:
+            _worth_cache["model"] = WorthModel.from_dict(load_model(_worth_model_path()))
+        except ValueError:
+            _worth_cache["model"] = None
+        _worth_cache["mtime"] = mtime
+    return _worth_cache["model"]
+
+
+def _lister_worth_value(entry):
+    """Item Worth value for a plan entry's exact rolls, only for items the model has seen."""
+    model = _worth_model()
+    if model is None or not entry.item_id or not model.knows(entry.item_id):
+        return None
+    return model.predict(entry.item_id, entry.rolls, quantity=entry.quantity).value
 
 
 def _market_model_path():
@@ -2977,6 +3036,7 @@ if not _is_child_process:
         extra_roll_share=_lister_extra_roll_share,
         synergies=_lister_synergies,
         own_listing_ids=lambda: marketplace_state.own_listing_ids() | market_history.my_listing_ids(),
+        worth_value=_lister_worth_value,
         old_page_detector=_lister_old_page_detector,
         price_search=_lister_price_search,
         analyze_market=_lister_analyze_market,

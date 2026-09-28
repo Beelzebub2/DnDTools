@@ -213,3 +213,24 @@ def test_tied_rolls_give_the_same_result_in_any_order():
     backward = _price(rows, rolls=(("MagicalPower", 2), ("Luck", 17)))
     assert (forward.price, forward.confidence, forward.flag) == (backward.price, backward.confidence, backward.flag)
     assert "beat everything" in forward.flag   # still told that one roll beats every listing
+
+
+def test_the_value_model_caps_a_price_inherited_from_unrelated_stats():
+    rows = [_row(700, rolls=(("Luck", 17), ("Vigor", 3))), _row(300, rolls=(("Strength", 1),)),
+            _row(320, rolls=(("Will", 1),))]
+    plain = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES)
+    capped = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES, model_value=400)
+    assert plain.price == 630 and capped.price == 360
+    assert "value model" in capped.compared and capped.flag == ""
+
+
+def test_the_value_model_never_prices_below_the_cheapest_real_listing():
+    rows = [_row(700, rolls=(("Luck", 17),)), _row(300, rolls=(("Strength", 1),)), _row(320, rolls=(("Will", 1),))]
+    result = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES, model_value=100)
+    assert result.price == 270   # floored at the cheapest listing of any roll (300g), then undercut
+
+
+def test_a_higher_model_value_never_raises_the_market_price():
+    rows = [_row(700, rolls=(("Luck", 17),)), _row(300, rolls=(("Strength", 1),))]
+    result = price_from_market("HeaterShield_5001", OURS_BASE, (("Luck", 17),), 10, [], rows, RULES, model_value=5000)
+    assert result.price == 630

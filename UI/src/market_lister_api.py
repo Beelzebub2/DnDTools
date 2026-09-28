@@ -47,6 +47,7 @@ class ListerDeps:
     analyze_market: Callable[[], dict] = lambda: {}
     synergies: Callable[[], dict] = lambda: {}
     own_listing_ids: Callable[[], frozenset] = lambda: frozenset()
+    worth_value: Callable[[Any], Any] = lambda entry: None
 
 
 def _error(message, status=400):
@@ -132,7 +133,8 @@ def _game_pricer(deps, rules):
 
     def price(entries, rows):
         return apply_game_prices(entries, rows, rules, extra_rows=deps.history_rows, extra_share=share,
-                                 exclude_listing_ids=deps.own_listing_ids(), synergies=synergies)
+                                 exclude_listing_ids=deps.own_listing_ids(), synergies=synergies,
+                                 worth=deps.worth_value)
     return price
 
 

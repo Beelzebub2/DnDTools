@@ -327,7 +327,8 @@ def _recheck(entry, market, own=(), synergies=None):
     from src.market_lister_api import _repricer
     from src.models.market_rules import ListerRules
     deps = SimpleNamespace(extra_roll_share=lambda: 0.25, synergies=lambda: synergies or {},
-                           history_rows=lambda item_id: [], own_listing_ids=lambda: frozenset(own))
+                           history_rows=lambda item_id: [], own_listing_ids=lambda: frozenset(own),
+                           worth_value=lambda entry: None)
     return _repricer(deps, ListerRules(min_price=50))(entry, market)
 
 
@@ -393,7 +394,7 @@ def test_price_from_game_ignores_our_own_listings():
     from src.market_lister_api import _game_pricer
     from src.models.market_rules import ListerRules
     deps = SimpleNamespace(extra_roll_share=lambda: 0.25, synergies=lambda: {}, history_rows=lambda item_id: [],
-                           own_listing_ids=lambda: frozenset({"mine"}))
+                           own_listing_ids=lambda: frozenset({"mine"}), worth_value=lambda entry: None)
     plan = _game_pricer(deps, ListerRules(min_price=50))(
         [_approved(0, recommended=0)], {"a": _market(500, 880, ids=["mine", "b"])})
     assert plan.entries[0].price == 792
@@ -409,3 +410,13 @@ def test_recheck_keeps_the_approved_price_when_a_doubtful_fresh_price_is_below_t
 def test_recheck_keeps_the_approved_price_when_the_market_is_above_the_game_maximum():
     decision = _recheck(_approved(900), _market(2_000_000, 2_100_000))
     assert decision.price == 900 and "maximum" in decision.note
+
+
+def test_game_pricer_passes_the_value_model_to_pricing():
+    from types import SimpleNamespace
+    from src.market_lister_api import _game_pricer
+    from src.models.market_rules import ListerRules
+    deps = SimpleNamespace(extra_roll_share=lambda: 0.25, synergies=lambda: {}, history_rows=lambda item_id: [],
+                           own_listing_ids=lambda: frozenset(), worth_value=lambda entry: 500)
+    plan = _game_pricer(deps, ListerRules(min_price=50))([_approved(0, recommended=0)], {"a": _market(880, 900)})
+    assert plan.entries[0].price == 792   # 880 is the cheapest real listing: the model can't go below it

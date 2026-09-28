@@ -16,8 +16,21 @@ ITEM_ID_PREFIX = "Id_Item_"
 MS_PER_S = 1000.0
 VANISH_MARGIN_S = 600  # a listing gone >10 min before its expiry did not simply expire
 MY_STATE_LISTING = 1
+LISTING_DAYS = 7  # a Marketplace listing lasts a week
+DAY_S = 86400.0
 MY_STATE_SOLD = 3
 BUSY_TIMEOUT_S = 5.0  # wait this long for another connection (e.g. an analysis script) to finish writing
+
+@dataclass(frozen=True)
+class AgedListing:
+    item_id: str
+    rarity: int
+    price: int
+    item_count: int
+    base: tuple
+    rolls: tuple
+    age_days: float  # how long it had been listed when first seen
+
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS listings (
@@ -244,6 +257,15 @@ class MarketHistory:
                 "SELECT item_id, rarity, price, item_count, base, rolls, seller FROM listings").fetchall()
         return [Listing(i, r, p, c, tuple(map(tuple, json.loads(b))), tuple(map(tuple, json.loads(ro))), s)
                 for i, r, p, c, b, ro, s in records]
+
+    def worth_listings(self) -> list:
+        """Every saved listing with how long it had been up when first seen (Item Worth training)."""
+        with self._lock:
+            records = self._db.execute(
+                "SELECT item_id, rarity, price, item_count, base, rolls, first_seen, expires_at FROM listings").fetchall()
+        return [AgedListing(i, r, p, c, tuple(map(tuple, json.loads(b))), tuple(map(tuple, json.loads(ro))),
+                            max(0.0, LISTING_DAYS - (expires - first) / DAY_S))
+                for i, r, p, c, b, ro, first, expires in records]
 
     def known_item_ids(self) -> list:
         with self._lock:

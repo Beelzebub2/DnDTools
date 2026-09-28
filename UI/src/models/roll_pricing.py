@@ -179,18 +179,23 @@ def _combine(rows, base, rolls, baseline, extra_share, synergies=None):
 
 
 def _stack_reference(rows, quantity):
+    """(reference, flag, explanation, confidence, floor) for items without rolls."""
     units = [r.price / max(r.count, 1) for r in rows]
     unit = _sane_min(units)
     confidence, flag = ("high" if len(rows) >= 3 else "medium"), ""
     if len(units) == 2 and min(units) < LOWBALL_RATIO * max(units):  # can't tell which one is off
         confidence, flag = "low", FAR_APART_FLAG
     if quantity == 1 and all(r.count == 1 for r in rows):
-        return round(unit), flag, f"cheapest of {len(rows)} listings: {round(unit)}g", confidence
-    return unit * quantity, flag, f"cheapest of {len(rows)} listings: {unit:.1f}g per unit x {quantity}", confidence
+        return round(unit), flag, f"cheapest of {len(rows)} listings: {round(unit)}g", confidence, round(unit)
+    how = f"cheapest of {len(rows)} listings: {unit:.1f}g per unit x {quantity}"
+    return unit * quantity, flag, how, confidence, unit * quantity
 
 
 def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, quantity=1, synergies=None):
-    """(reference price, flag, explanation, confidence) or None when nobody sells this item."""
+    """(reference price, flag, explanation, confidence, floor) or None when nobody sells this item.
+
+    floor is the cheapest real listing of the item, whatever its rolls.
+    """
     rows = _unique(r for r in list(same_rows) + list(all_rows) if r.item_id == item_id)
     if not rows:
         return None
@@ -202,7 +207,7 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, qu
     dominating = [r.price for r in rows if {s for s, _ in r.rolls} == roll_set and _dominates(r, base, rolls)]
     if combined is None:
         flag = "There are no listings with rolls like yours — priced against copies of any roll; check this price."
-        return baseline, flag, f"{len(rows)} listings of any roll; cheapest {baseline}g", "low"
+        return baseline, flag, f"{len(rows)} listings of any roll; cheapest {baseline}g", "low", baseline
     value, how, confidence, beats_all = combined
     dearest = max(r.price for r in rows)
     if value > dearest:  # never above the most expensive listing of this item
@@ -217,20 +222,30 @@ def _reference(item_id, base, rolls, same_rows, all_rows, rules, extra_share, qu
         flag = "Your rolls beat everything listed — consider pricing higher yourself."
     elif confidence == "low":
         flag = "Few comparable listings — check this price."
-    return value, flag, how, confidence
+    return value, flag, how, confidence, baseline
 
 
 def price_from_market(item_id, base, rolls, vendor_price, same_rows, all_rows, rules,
-                      extra_share=EXTRA_ROLL_SHARE, quantity=1, synergies=None) -> RollPrice:
+                      extra_share=EXTRA_ROLL_SHARE, quantity=1, synergies=None, model_value=None) -> RollPrice:
     """Price for our copy (or our stack of `quantity`); vendor_price is per unit.
 
     synergies: {frozenset({stat_a, stat_b}): percent} learned from market data.
+    model_value: the Item Worth model's value for these exact rolls (whole quantity). The reference
+    never exceeds it — a price inherited from a listing's *other* stats can't stick to junk rolls —
+    and never drops below the cheapest real listing of the item.
     """
     found = _reference(item_id, tuple(base), tuple(rolls), same_rows, all_rows, rules, extra_share, quantity,
                        synergies)
     if found is None:
         return RollPrice(False, None, 0, NO_SELLERS_REASON)
-    reference, flag, compared, confidence = found
+    reference, flag, compared, confidence, floor = found
+    if model_value and model_value < reference:
+        capped = max(model_value, floor)
+        if capped < reference:
+            reference = capped
+            compared += f"; capped at the value model's {round(model_value)}g for these exact rolls"
+            if flag.startswith("Your rolls beat"):
+                flag = ""  # beating every listing on a stat buyers don't value is no reason to price higher
     price = _undercut(reference, rules)
     if price < max(rules.min_price, 1):
         return RollPrice(False, None, 0, "below min price", flag, compared, confidence)

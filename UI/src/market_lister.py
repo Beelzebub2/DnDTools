@@ -184,12 +184,14 @@ ABOVE_MAX_REASON = "price would be above the game's maximum listing price"
 
 
 def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
-                      extra_share=EXTRA_ROLL_SHARE, exclude_listing_ids=frozenset(), synergies=None) -> Plan:
+                      extra_share=EXTRA_ROLL_SHARE, exclude_listing_ids=frozenset(), synergies=None,
+                      worth=None) -> Plan:
     """Price unpriced entries from in-game search results, comparing like rolls with like.
 
     market_by_unique_id: {unique_id: {"same": [MarketRow], "all": [MarketRow]}}.
     extra_rows(item_id): recent listings from the local market history to widen the view.
     exclude_listing_ids: our own listings, which must not set our prices.
+    worth(entry): the Item Worth model's value for the entry's exact rolls (or None); caps the price.
     """
     priced, skipped = [], []
     for entry in entries:
@@ -203,7 +205,8 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
             return [r for r in rows if r.listing_id not in exclude_listing_ids]
         result = price_from_market(entry.item_id, entry.base_rolls, entry.rolls, entry.vendor_price,
                                    others(market.get("same") or []), others((market.get("all") or []) + history),
-                                   rules, extra_share=extra_share, quantity=entry.quantity, synergies=synergies)
+                                   rules, extra_share=extra_share, quantity=entry.quantity, synergies=synergies,
+                                   model_value=worth(entry) if worth else None)
         if result.ok and result.price > MAX_LISTING_PRICE:
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, ABOVE_MAX_REASON,
                                 result.flag, result.confidence))

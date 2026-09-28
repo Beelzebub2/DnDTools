@@ -192,3 +192,11 @@ def test_my_listing_ids_include_every_active_listing_ever_seen():
         info.itemInfo.item.itemId = "DesignDataItem:Id_Item_GemRing_5001"
     history.record_my_listings(msg)
     assert history.my_listing_ids() == frozenset({"501", "503"})   # 502 has sold
+
+
+def test_worth_listings_know_how_long_each_listing_had_been_up():
+    history = _history(Clock())
+    history.record_item_list(_page((1, "HeaterShield_5001", 300, 7 * DAY_MS, 17),     # just listed
+                                   (2, "HeaterShield_5001", 350, 2 * DAY_MS, 12)))    # up for 5 days
+    ages = {listing.price: round(listing.age_days, 1) for listing in history.worth_listings()}
+    assert ages == {300: 0.0, 350: 5.0}
