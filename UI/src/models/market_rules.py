@@ -85,6 +85,16 @@ class ListerRules:
         }
 
 
+# Skip reasons that mean a merchant is the better buyer (the page offers these to "Sell to merchant").
+MERCHANT_REASONS = frozenset({"vendor pays more", "below min price", "below minimum rarity"})
+MERCHANT_REASON_PREFIX = "a merchant sells it for"
+
+
+def is_merchant_reason(reason) -> bool:
+    reason = str(reason or "")
+    return reason in MERCHANT_REASONS or reason.startswith(MERCHANT_REASON_PREFIX)
+
+
 @dataclass(frozen=True)
 class Skip:
     name: str
@@ -93,6 +103,7 @@ class Skip:
     reason: str
     flag: str = ""        # a doubt about the price that led to the skip
     confidence: str = ""
+    unique_id: str = ""   # the item's itemUniqueId, so a skipped item can still be sold to a merchant
 
 
 @dataclass(frozen=True)
@@ -124,7 +135,8 @@ def select_candidates(stashes: dict, rules: ListerRules):
         for item in items:
             reason = _skip_reason(item, rules)
             if reason:
-                skipped.append(Skip(item.get("name", "?"), stash_id, int(item.get("slotId", 0)), reason))
+                skipped.append(Skip(item.get("name", "?"), stash_id, int(item.get("slotId", 0)), reason,
+                                    unique_id=str(item.get("itemUniqueId") or "")))
             else:
                 candidates.append(Candidate(stash_id, item))
     return candidates, skipped

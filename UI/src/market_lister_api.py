@@ -6,11 +6,14 @@ from typing import Any, Callable
 from flask import Blueprint, jsonify, request
 
 from src.market_lister import (
-    ABOVE_MAX_REASON, NOT_PRICED_REASON, Plan, PlanEntry, PlanError, apply_game_prices, build_plan, price_from_model,
+    ABOVE_MAX_REASON, NOT_PRICED_REASON, STALE_DATA_SECONDS, Plan, PlanEntry, PlanError, apply_game_prices,
+    build_plan, price_from_model,
 )
 from src.models.market_rules import ListerRules
 from src.models.marketplace_layout import BASE_LENGTHS, BASE_POINTS
 from src.models.marketplace_runner import Recheck
+from src.models.merchant_runner import MERCHANT_NAME
+from src.models.merchant_seller import merchant_value, resolve_sell_entries
 from src.models.roll_pricing import NO_SELLERS_REASON
 
 RULES_KEY = "marketListerRules"
@@ -23,6 +26,8 @@ MAX_PRICE_RESULTS = 60
 MAX_CRAWL_PAGES = 6000
 UNCAPPED_ITEMS = 10_000  # plans priced without the game are capped after pricing, not before
 MAX_RECHECK_DROP = 0.2  # a bigger fall is skipped for review, never listed far below what you approved
+MAX_MERCHANT_ITEMS = 240  # one full stash tab per request
+MAX_UNIQUE_ID_CHARS = 32
 SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
 
@@ -319,10 +324,68 @@ def _register_calibration_routes(bp, deps):
         return jsonify({"success": True})
 
 
+def _merchant_request(deps, payload):
+    """((entries, refused), None) for a merchant request, or (None, error response).
+
+    Items are looked up in the chosen stash tabs right now, so positions never come from the page.
+    """
+    character_id = str(payload.get("character_id") or "").strip()[:64]
+    if not character_id:
+        return None, _error("Pick a character first.")
+    raw = payload.get("unique_ids")
+    ids = [str(u)[:MAX_UNIQUE_ID_CHARS] for u in raw
+           if isinstance(u, (str, int)) and not isinstance(u, bool)] if isinstance(raw, list) else []
+    if not ids:
+        return None, _error("Tick at least one item to sell.")
+    if len(ids) > MAX_MERCHANT_ITEMS:
+        return None, _error(f"At most {MAX_MERCHANT_ITEMS} items can be sold at once.")
+    rules = _current_rules(deps)
+    stashes = deps.get_stashes(character_id, list(rules.source_stash_ids))
+    return resolve_sell_entries(stashes, ids, rules.source_stash_ids), None
+
+
+def _merchant_warnings(deps, character_id):
+    age = deps.get_data_age(character_id)
+    if age is not None and age > STALE_DATA_SECONDS:
+        return [f"Stash data is {int(age // 60)} minutes old — reopen your character to refresh."]
+    return []
+
+
+def _register_merchant_routes(bp, deps):
+    @bp.post("/api/market-lister/merchant-plan")
+    def merchant_plan():
+        payload = request.get_json(silent=True)
+        payload = payload if isinstance(payload, dict) else {}
+        resolved, error = _merchant_request(deps, payload)
+        if error:
+            return error
+        entries, refused = resolved
+        rows = [{"unique_id": e.unique_id, "name": e.name, "stash_id": e.stash_id, "quantity": e.quantity,
+                 "vendor_price": e.vendor_price, "value": merchant_value(e)} for e in entries]
+        return jsonify({"success": True, "merchant": MERCHANT_NAME, "entries": rows,
+                        "refused": [{"unique_id": uid, "reason": reason} for uid, reason in refused],
+                        "total": sum(row["value"] for row in rows),
+                        "warnings": _merchant_warnings(deps, str(payload.get("character_id")).strip())})
+
+    @bp.post("/api/market-lister/merchant-sell")
+    def merchant_sell():
+        payload = request.get_json(silent=True)
+        payload = payload if isinstance(payload, dict) else {}
+        resolved, error = _merchant_request(deps, payload)
+        if error:
+            return error
+        entries, refused = resolved
+        if not entries:
+            return _error("Nothing can be sold: " + "; ".join(sorted({reason for _, reason in refused})))
+        dry_run = payload.get("dry_run") is True
+        return _launch_job(deps, lambda: deps.job.sell_to_merchant(entries, dry_run))
+
+
 def create_market_lister_blueprint(deps: ListerDeps) -> Blueprint:
     bp = Blueprint("market_lister", __name__)
     _register_plan_routes(bp, deps)
     _register_run_routes(bp, deps)
     _register_data_routes(bp, deps)
     _register_calibration_routes(bp, deps)
+    _register_merchant_routes(bp, deps)
     return bp

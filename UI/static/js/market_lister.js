@@ -292,6 +292,7 @@
         const planned = `Plan ready: ${plan.entries.length} item(s) to list, ${plan.skipped.length} skipped.`;
         notify(empty ? (plan.warnings[plan.warnings.length - 1] || planned) : planned, empty ? 'warning' : 'success');
         $('mlPlanCard').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        renderMerchant();
     };
 
     const selectedEntries = () => [...document.querySelectorAll('.mlInclude:checked')].map((box) => {
@@ -309,11 +310,91 @@
         $('mlCollect').disabled = running;
         $('mlCrawlUpdate').disabled = running;
         $('mlCrawlDeep').disabled = running;
+        $('mlMerchantSell').disabled = running;
+        $('mlMerchantDryRun').disabled = running;
         $('mlCancel').hidden = !running;
     };
 
+    const RESULT_LABELS = { not_taken: 'not taken', dry_run: 'dry run' };
+    const isMerchantMode = (mode) => String(mode || '').startsWith('merchant');
+
     const renderResults = (status) => {
-        $('mlResults').replaceChildren(...status.results.map((r) => text('li', `${r.name}: ${r.status}${r.message ? ` — ${r.message}` : ''}`, `ml-result-${r.status}`)));
+        const target = isMerchantMode(status.mode) ? 'mlMerchantResults' : 'mlResults';
+        $(target).replaceChildren(...status.results.map((r) => text('li',
+            `${r.name}: ${RESULT_LABELS[r.status] || r.status}${r.message ? ` — ${r.message}` : ''}`, `ml-result-${r.status}`)));
+    };
+
+    // --- Sell to merchant: skipped items a merchant pays more for (or not worth listing) ---
+    let merchantRows = [];
+
+    const checkedMerchantRows = () => [...document.querySelectorAll('.mlMerchantInclude:checked')]
+        .map((box) => merchantRows[Number(box.dataset.index)]);
+
+    const updateMerchantTotal = () => {
+        const rows = checkedMerchantRows();
+        const total = rows.reduce((sum, row) => sum + row.value, 0);
+        $('mlMerchantTotal').textContent = `${rows.length} item(s) ticked — the merchant pays ${total}g.`;
+    };
+
+    const merchantRow = (row, index) => {
+        const tr = document.createElement('tr');
+        tr.dataset.uid = row.unique_id;
+        const include = document.createElement('input');
+        include.type = 'checkbox';
+        include.className = 'mlMerchantInclude';
+        include.dataset.index = index;
+        include.checked = row.value > 0;  // selling for 0g only clears the slot: opt in
+        include.addEventListener('change', updateMerchantTotal);
+        const name = row.quantity > 1 ? `${row.name} ×${row.quantity}` : row.name;
+        const cells = [include, text('span', name), text('span', STASH_NAMES[row.stash_id] || row.stash_id),
+            text('span', `${row.value}g`)];
+        tr.replaceChildren(...cells.map((c) => { const td = document.createElement('td'); td.append(c); return td; }));
+        return tr;
+    };
+
+    const renderMerchant = async () => {
+        const ids = plan.skipped.filter((s) => s.merchant && s.unique_id).map((s) => s.unique_id);
+        merchantRows = [];
+        $('mlMerchantCard').hidden = true;
+        if (!ids.length) return;
+        try {
+            const data = await post('/merchant-plan', { character_id: $('mlCharacter').value, unique_ids: ids });
+            merchantRows = data.entries;
+            $('mlMerchantName').textContent = data.merchant;
+            $('mlMerchantWarnings').replaceChildren(...data.warnings.map((w) => text('li', w)));
+            $('mlMerchantRows').replaceChildren(...merchantRows.map(merchantRow));
+            $('mlMerchantResults').replaceChildren();
+            updateMerchantTotal();
+            $('mlMerchantCard').hidden = merchantRows.length === 0;
+        } catch (error) {
+            notify(error.message, 'error');
+        }
+    };
+
+    const markMerchantSold = (results) => {
+        results.filter((r) => r.status === 'sold').forEach((r) => {
+            const row = document.querySelector(`#mlMerchantRows tr[data-uid="${CSS.escape(r.unique_id)}"]`);
+            if (!row) return;
+            const box = row.querySelector('.mlMerchantInclude');
+            box.checked = false;
+            box.disabled = true;
+            row.classList.add('ml-muted');
+        });
+        updateMerchantTotal();
+    };
+
+    const sellToMerchant = async (dryRun) => {
+        const ids = checkedMerchantRows().map((row) => row.unique_id);
+        if (!ids.length) { notify('Tick at least one item to sell.', 'warning'); return; }
+        try {
+            await post('/merchant-sell', { character_id: $('mlCharacter').value, unique_ids: ids, dry_run: dryRun });
+            notify(dryRun ? 'Merchant dry run started — switching to the game…' : 'Selling to the merchant — switching to the game…');
+            watching = true;
+            setRunning(true);
+            pollTimer = setTimeout(poll, POLL_MS);
+        } catch (error) {
+            notify(error.message, 'error');
+        }
     };
 
     const poll = async () => {
@@ -333,6 +414,7 @@
                     needsGamePricing = false;
                     renderPlan();
                 }
+                if (status.mode === 'merchant') markMerchantSold(status.results);
                 renderHistory();
                 notify(status.stopped_reason || 'Market lister finished.', status.stopped_reason ? 'warning' : 'success');
             }
@@ -469,6 +551,8 @@
         });
         $('mlDryRun').addEventListener('click', () => start(true));
         $('mlStart').addEventListener('click', () => start(false));
+        $('mlMerchantDryRun').addEventListener('click', () => sellToMerchant(true));
+        $('mlMerchantSell').addEventListener('click', () => sellToMerchant(false));
         $('mlCancel').addEventListener('click', () => post('/cancel').catch((e) => notify(e.message, 'error')));
         $('mlHoverTest').addEventListener('click', hoverTest);
         $('mlSaveCalibration').addEventListener('click', saveCalibration);

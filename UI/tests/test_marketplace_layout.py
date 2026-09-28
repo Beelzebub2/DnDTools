@@ -90,3 +90,29 @@ def test_hover_targets_cover_every_click_point():
     assert names == ["spot row 1", "spot row 10", "next page arrow", "inventory icon", "first stash tab icon",
                      "inventory first cell", "inventory last cell", "stash first cell", "stash last cell",
                      "price field", "create listing button"]
+
+
+def test_merchant_screen_points_match_the_4k_game():
+    # Measured in game at 3840x2160 on 2026-09-27.
+    layout = build_layout((3840, 2160))
+    assert layout.point("merchants_tab") == (2082, 84)
+    assert layout.point("merchant_sell_tab") == (663, 408)
+    assert layout.point("merchant_sell_mode") == (1812, 830)   # middle "Sell" (next to "Buyback")
+    assert layout.point("merchant_make_deal") == (1917, 2028)
+    cx, cy = layout.merchant_card(2)                 # The Collector: first row, third card
+    assert abs(cx - 1458) <= 3 and cy == 660
+    assert layout.merchant_card(7) == (543, 1233)    # Weaponsmith: second row, first card
+
+
+def test_sell_box_cells_at_4k():
+    # Sell box grid lines measured at x = 1470 + 90k, y = 885 + 90k (3840x2160).
+    layout = build_layout((3840, 2160))
+    assert layout.sell_box_centre(0, 0, 1, 1) == (1515, 930)
+    assert layout.sell_box_centre(9, 5, 1, 1) == (2325, 1380)
+    assert layout.sell_box_centre(2, 3, 2, 2) == (1740, 1245)
+
+
+def test_merchant_points_scale_to_1080p():
+    layout = build_layout((1920, 1080))
+    assert layout.point("merchant_make_deal") == (958, 1014)
+    assert layout.sell_box_centre(0, 0, 1, 1) == (758, 464)

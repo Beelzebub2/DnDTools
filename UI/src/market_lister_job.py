@@ -29,10 +29,14 @@ class MonitoredRunner:
         return monitored
 
 
+NO_MERCHANT_RUNNER = "Selling to merchants isn't available in this build."
+
+
 class ListerJob:
-    def __init__(self, runner_factory, hover_factory):
+    def __init__(self, runner_factory, hover_factory, merchant_factory=None):
         self._runner_factory = runner_factory
         self._hover_factory = hover_factory
+        self._merchant_factory = merchant_factory  # event -> MerchantRunner
         self._lock = threading.Lock()
         self._thread = None
         self._event = None
@@ -130,6 +134,20 @@ class ListerJob:
 
     def collect(self) -> bool:
         return self._run_report("collect", lambda runner: runner.collect_payouts(on_progress=self._record))
+
+    def sell_to_merchant(self, entries, dry_run) -> bool:
+        """Sell entries to a merchant (mode "merchant"); a dry run stages them and puts them back."""
+        def target(event):
+            try:
+                if self._merchant_factory is None:
+                    self._finish(NO_MERCHANT_RUNNER)
+                    return
+                report = self._merchant_factory(event).sell(entries, dry_run=dry_run, on_progress=self._record)
+                self._finish(report.stopped_reason)
+            except Exception as exc:
+                logger.exception("Merchant sale failed")
+                self._finish(f"Unexpected error: {exc}")
+        return self._launch("merchant_dry_run" if dry_run else "merchant", target)
 
     def hover_test(self) -> bool:
         def target(event):

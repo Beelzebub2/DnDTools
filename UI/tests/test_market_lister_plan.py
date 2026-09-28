@@ -232,3 +232,23 @@ def test_formula_pricing_lists_at_the_lowest_reasonable_price():
     assert "lowest reasonable" in plan.entries[0].compared
     assert {s.name: s.reason for s in plan.skipped} == {
         "Cap": "below min price", "Crown": "vendor pays more", "Rock": "no market data for the value formula"}
+
+
+def test_every_skip_names_its_item_so_it_can_be_sold_to_a_merchant():
+    from src.market_lister import apply_game_prices, price_from_model
+    from src.models.roll_pricing import MarketRow
+    stashes = {"2": [_item("gold", 0, itemId="GoldCoins"), _item("low", 1, rarity=1), _item("a", 2), _item("b", 3)]}
+    plan = _plan(stashes, None)
+    assert {s.name: s.unique_id for s in plan.skipped} == {"Item gold": "gold", "Item low": "low"}
+    unpriced = plan.entries
+    priced = apply_game_prices(unpriced, {"a": {"same": [], "all": [MarketRow("Id_a", 20, (), ())] * 3}},
+                               ListerRules(source_stash_ids=("2",)))
+    assert {s.name: s.unique_id for s in priced.skipped} == {"Item a": "a", "Item b": "b"}
+    modelled = price_from_model(unpriced, ListerRules(min_price=50), lambda e: None)
+    assert {s.unique_id for s in modelled.skipped} == {"a", "b"}
+
+
+def test_plan_json_flags_skips_a_merchant_should_buy():
+    stashes = {"2": [_item("gold", 0, itemId="GoldCoins"), _item("low", 1, rarity=1)]}
+    skipped = _plan(stashes, None).to_dict()["skipped"]
+    assert {s["unique_id"]: s["merchant"] for s in skipped} == {"gold": False, "low": True}

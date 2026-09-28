@@ -83,6 +83,22 @@
         <ol class="ml-results" id="mlResults"></ol>
     </section>
 
+    <section class="ml-card" id="mlMerchantCard" hidden>
+        <h2>Sell to merchant</h2>
+        <p class="ml-muted">These skipped items are worth more to a merchant, or too little to list. DnDTools sells them to <span id="mlMerchantName">The Collector</span> and checks each sale against the game's reply. Start from the lobby, for example the Merchants &amp; Workshops screen.</p>
+        <ul class="ml-warnings" id="mlMerchantWarnings"></ul>
+        <table class="ml-table">
+            <thead><tr><th></th><th>Item</th><th>From</th><th>Merchant pays</th></tr></thead>
+            <tbody id="mlMerchantRows"></tbody>
+        </table>
+        <p class="ml-muted ml-small" id="mlMerchantTotal"></p>
+        <div class="ml-actions">
+            <button type="button" class="ml-btn ml-btn-secondary" id="mlMerchantDryRun" title="Puts the items in the sell box, then back — nothing is sold"><span class="material-icons">visibility</span>Dry run</button>
+            <button type="button" class="ml-btn" id="mlMerchantSell"><span class="material-icons">storefront</span>Sell to merchant</button>
+        </div>
+        <ol class="ml-results" id="mlMerchantResults"></ol>
+    </section>
+
     <section class="ml-card">
         <h2>Market data</h2>
         <p class="ml-muted">Every Marketplace page DnDTools sees is saved locally (items, rolls, prices) — including pages you browse yourself. Pricing uses it alongside the live search, and listings that vanish before expiring are tracked as likely sales.</p>

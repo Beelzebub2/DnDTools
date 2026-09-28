@@ -1,4 +1,6 @@
 .ml-container { display: flex; flex-direction: column; gap: 18px; padding: 8px; }
+/* The hidden attribute loses to the display rules below (buttons, banner, insights); keep it winning. */
+.ml-container [hidden] { display: none !important; }
 .ml-header { display: flex; align-items: center; gap: 20px; padding: 24px 28px; border: 1px solid var(--border-color);
     border-radius: 16px; background: linear-gradient(135deg, rgba(25, 25, 25, 0.95) 0%, rgba(20, 20, 20, 0.9) 100%); }
 .ml-header-icon { width: 56px; height: 56px; border-radius: 14px; display: flex; align-items: center; justify-content: center;
@@ -58,7 +60,8 @@
 .ml-conf-low { color: #ff8a80; background: rgba(255, 138, 128, 0.12); }
 .ml-check { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--text-secondary); }
 .ml-stats { color: var(--text-secondary); }
-.ml-result-collected, .ml-result-crawled, .ml-result-priced { color: #9ccc65; }
+.ml-result-collected, .ml-result-crawled, .ml-result-priced, .ml-result-sold { color: #9ccc65; }
+.ml-result-not_taken { color: var(--accent-gold); }
 .ml-result-skipped { color: var(--text-secondary); }
 .ml-search { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; color: var(--text-secondary); }
 .ml-search input { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); max-width: 420px; }

@@ -53,6 +53,18 @@ class FakeRunner:
         return rows, RunReport(tuple(results), None)
 
 
+class FakeMerchantRunner:
+    def __init__(self, event):
+        self.event = event
+
+    def sell(self, entries, dry_run=False, on_progress=None):
+        results = [ItemResult(e.unique_id, e.name, "dry_run" if dry_run else "sold", f"{e.vendor_price}g")
+                   for e in entries]
+        for r in results:
+            on_progress(r)
+        return RunReport(tuple(results), None)
+
+
 def _wait_done(job):
     for _ in range(100):
         if not job.is_running():
@@ -65,9 +77,11 @@ def client_and_deps():
     settings = {}
     state = MarketplaceState()
     state.handle_my_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(availableOrderIndexes=range(2, 40)))
-    job = ListerJob(runner_factory=FakeRunner, hover_factory=lambda event: (lambda: None))
+    job = ListerJob(runner_factory=FakeRunner, hover_factory=lambda event: (lambda: None),
+                    merchant_factory=FakeMerchantRunner)
     item = {"name": "Gloves", "itemId": "G_1", "itemUniqueId": "a", "slotId": 0, "itemCount": 1,
-            "rarity": 5, "width": 1, "height": 1, "pp": [], "sp": [], "vendor_price": 10, "max_stack_size": 1}
+            "rarity": 5, "width": 1, "height": 1, "pp": [], "sp": [], "vendor_price": 10, "max_stack_size": 1,
+            "originalData": {"tradable": 1}}
     deps = ListerDeps(
         get_stashes=lambda cid, ids: {"2": [item]} if cid == "c1" else {},
         get_data_age=lambda cid: 5.0,
@@ -469,3 +483,55 @@ def test_free_spot_limit_counts_only_items_that_could_be_priced(client_and_deps)
     data = client.post("/api/market-lister/plan", json={"character_id": "c1", "rules": {
         "source_stash_ids": ["2"], "min_price": 50, "price_source": "database"}}).get_json()
     assert [e["name"] for e in data["plan"]["entries"]] == ["Ring"]   # the unpriceable two don't use the one spot
+
+
+def test_merchant_plan_values_items_and_explains_refusals(client_and_deps):
+    client, _, _ = client_and_deps
+    data = client.post("/api/market-lister/merchant-plan",
+                       json={"character_id": "c1", "unique_ids": ["a", "zzz"]}).get_json()
+    assert data["success"] is True
+    assert data["merchant"] == "The Collector"
+    assert [(e["unique_id"], e["name"], e["stash_id"], e["value"]) for e in data["entries"]] == [
+        ("a", "Gloves", "2", 10)]
+    assert data["total"] == 10
+    assert data["refused"] == [{"unique_id": "zzz", "reason": "not found in the chosen stash tabs"}]
+
+
+def test_merchant_endpoints_need_a_character_and_items(client_and_deps):
+    client, _, _ = client_and_deps
+    for path in ("/api/market-lister/merchant-plan", "/api/market-lister/merchant-sell"):
+        assert client.post(path, json={"unique_ids": ["a"]}).status_code == 400
+        assert client.post(path, json={"character_id": "c1", "unique_ids": []}).status_code == 400
+        assert client.post(path, json={"character_id": "c1", "unique_ids": "a"}).status_code == 400
+
+
+def test_merchant_sell_runs_the_job_with_fresh_positions(client_and_deps):
+    client, deps, _ = client_and_deps
+    resp = client.post("/api/market-lister/merchant-sell", json={"character_id": "c1", "unique_ids": ["a"]})
+    assert resp.status_code == 200
+    _wait_done(deps.job)
+    status = client.get("/api/market-lister/status").get_json()
+    assert status["state"] == "done" and status["mode"] == "merchant"
+    assert status["results"] == [{"unique_id": "a", "name": "Gloves", "status": "sold", "message": "10g"}]
+
+
+def test_merchant_dry_run_mode(client_and_deps):
+    client, deps, _ = client_and_deps
+    client.post("/api/market-lister/merchant-sell", json={"character_id": "c1", "unique_ids": ["a"], "dry_run": True})
+    _wait_done(deps.job)
+    status = client.get("/api/market-lister/status").get_json()
+    assert status["mode"] == "merchant_dry_run" and status["results"][0]["status"] == "dry_run"
+
+
+def test_merchant_sell_refuses_when_nothing_can_be_sold(client_and_deps):
+    client, _, _ = client_and_deps
+    resp = client.post("/api/market-lister/merchant-sell", json={"character_id": "c1", "unique_ids": ["zzz"]})
+    assert resp.status_code == 400
+    assert "not found in the chosen stash tabs" in resp.get_json()["error"]
+
+
+def test_merchant_sell_refused_while_sort_running(client_and_deps):
+    client, deps, _ = client_and_deps
+    deps.is_sort_running = lambda: True
+    resp = client.post("/api/market-lister/merchant-sell", json={"character_id": "c1", "unique_ids": ["a"]})
+    assert resp.status_code == 409

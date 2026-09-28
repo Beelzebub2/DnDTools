@@ -94,8 +94,32 @@ tells you to click No yourself. Collecting gold and crawling also stop when you 
 
 Sold listings keep their gold in My Listings until you press **Transfer All Items**, and the game
 **destroys uncollected payouts after 7 days**. The Market page shows a banner when sales are
-waiting; **Collect** transfers all of them (expired items come back to your stash too).
+waiting; **Collect** transfers all of them (expired items come back to your stash too). The game
+only reports the My Listings page on screen, so Collect turns through every page that holds
+listings. The banner only counts sales on the page shown last.
 DnDTools also pops up a notification when the game reports a sale.
+
+## Selling leftovers to a merchant
+
+Items the plan skips because a merchant pays more (**vendor pays more**), because they are worth
+too little to list (**below min price**, **below minimum rarity**) or because merchants sell them
+cheaply (**a merchant sells it for …**) appear in the **Sell to merchant** card under the plan,
+with what the merchant pays. Items a merchant pays 0g for start unticked. Gold, silver and items
+that aren't tradable (quest items such as the Huntress' emblems) are never offered.
+
+Start from the lobby (for example the Merchants & Workshops screen), then press **Sell to
+merchant**. DnDTools opens **The Collector** (he bought every kind of loot tried: treasure, gems,
+crafting materials, ammo) and confirms it is him from his quest list. It then drags your items
+into his Sell box, stash tab by stash tab, and presses **Make Deal**. The game's reply lists
+exactly which items were sold. Anything he didn't take stays in your stash and is reported as
+*not taken*. More than one Sell box of items is sold in several deals.
+
+**Dry run** fills the Sell box and then presses Escape, which puts everything back, so you can
+watch the positions without selling. The run stops on the same things as listing (Ctrl+F12, the
+game losing focus, the mouse moving, Cancel) and never presses Make Deal after a stop. If items
+were already in the Sell box, press Escape in the game to put them back. If the game ever sells
+something that wasn't picked, the run stops and names it. Buy it back from the merchant's
+**Buyback** tab straight away, because only the most recent sale can be bought back.
 
 ## Market data (local history)
 

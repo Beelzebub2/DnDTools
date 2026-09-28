@@ -19,6 +19,14 @@ STEP_JITTER = 0.07
 VK_BACK = 0x08
 VK_A = 0x41
 VK_DIGIT_0 = 0x30
+# Drag timing: hold, glide in steps, hold, release — the timing used for the first merchant sales
+# in game (2026-09-27); shorter timings were never tried.
+DRAG_HOLD_SECONDS = 0.25
+DRAG_STEPS = 12
+DRAG_STEP_SECONDS = 0.03
+KEYEVENTF_SCANCODE = 0x0008
+ESC_SCAN_CODE = 0x01
+KEY_HOLD_SECONDS = 0.08
 
 
 class MacrosInputDriver:
@@ -47,6 +55,30 @@ class MacrosInputDriver:
             time.sleep(CLICK_HOLD_SECONDS)
         finally:
             macros.mouse_up()
+
+    def drag(self, x1, y1, x2, y2):
+        """Pick the item up at (x1, y1), glide to (x2, y2) and drop it there (verified in game)."""
+        macros.move_mouse(x1 - APPROACH_OFFSET_PX, y1 - APPROACH_OFFSET_PX)
+        time.sleep(APPROACH_SECONDS)
+        macros.move_mouse(x1, y1)
+        time.sleep(HOVER_SETTLE_SECONDS)
+        macros.mouse_down()
+        try:
+            time.sleep(DRAG_HOLD_SECONDS)
+            for step in range(1, DRAG_STEPS + 1):
+                macros.move_mouse(round(x1 + (x2 - x1) * step / DRAG_STEPS), round(y1 + (y2 - y1) * step / DRAG_STEPS))
+                time.sleep(DRAG_STEP_SECONDS)
+            time.sleep(DRAG_HOLD_SECONDS)
+        finally:
+            macros.mouse_up()
+
+    def press_escape(self):
+        """Escape by hardware scan code: the game reads raw input and ignores virtual-key Escape."""
+        for flags in (KEYEVENTF_SCANCODE, KEYEVENTF_SCANCODE | macros.KEYEVENTF_KEYUP):
+            key = macros.INPUT(type=macros.INPUT_KEYBOARD)
+            key.ki = macros.KEYBDINPUT(wVk=0, wScan=ESC_SCAN_CODE, dwFlags=flags, time=0, dwExtraInfo=None)
+            ctypes.windll.user32.SendInput(1, ctypes.byref(key), ctypes.sizeof(key))
+            time.sleep(KEY_HOLD_SECONDS)
 
     def _tap(self, vk):
         macros.send_key(vk)

@@ -2,7 +2,9 @@
 import math
 from dataclasses import asdict, dataclass, replace
 
-from src.models.market_rules import Skip, compute_price, listing_fee, rarity_id, select_candidates
+from src.models.market_rules import (
+    Skip, compute_price, is_merchant_reason, listing_fee, rarity_id, select_candidates,
+)
 from src.models.marketplace_layout import tab_icon_index
 from src.models.roll_pricing import EXTRA_ROLL_SHARE, price_from_market
 
@@ -99,12 +101,12 @@ class Plan:
     def to_dict(self) -> dict:
         return {
             "entries": [e.to_dict() for e in self.entries],
-            "skipped": [asdict(s) for s in self.skipped],
+            "skipped": [{**asdict(s), "merchant": is_merchant_reason(s.reason)} for s in self.skipped],
             "warnings": list(self.warnings),
         }
 
 
-def _entry(candidate, decision=None) -> PlanEntry:
+def plan_entry(candidate, decision=None) -> PlanEntry:
     """A plan entry; without a decision it is unpriced (price 0) until the game prices it."""
     item = candidate.item
     return PlanEntry(
@@ -121,7 +123,8 @@ def _entry(candidate, decision=None) -> PlanEntry:
 
 
 def _skip(candidate, reason) -> Skip:
-    return Skip(candidate.item.get("name", "?"), candidate.stash_id, int(candidate.item.get("slotId", 0)), reason)
+    return Skip(candidate.item.get("name", "?"), candidate.stash_id, int(candidate.item.get("slotId", 0)), reason,
+                unique_id=str(candidate.item.get("itemUniqueId") or ""))
 
 
 def _limit(rules, free_spots):
@@ -153,7 +156,7 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
             skipped.append(_skip(candidate, UNMAPPED_TAB_REASON))
             continue
         if price_lookup is None:
-            entries.append(_entry(candidate))
+            entries.append(plan_entry(candidate))
             continue
         if int(candidate.item.get("itemCount") or 1) > 1:  # DarkerDB quotes one unit, not the stack
             skipped.append(_skip(candidate, STACK_NEEDS_GAME_PRICING))
@@ -168,7 +171,7 @@ def build_plan(stashes, rules, price_lookup, *, tab_mapping, free_spots, data_ag
             break
         decision = compute_price(check, int(candidate.item.get("vendor_price") or 0), rules)
         if decision.ok:
-            entries.append(_entry(candidate, decision))
+            entries.append(plan_entry(candidate, decision))
         else:
             skipped.append(_skip(candidate, decision.reason))
     if free_spots is not None and len(entries) >= free_spots and len(candidates) > len(entries):
@@ -200,7 +203,8 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
     for entry in entries:
         market = market_by_unique_id.get(entry.unique_id)
         if market is None:
-            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, NOT_PRICED_REASON))
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, NOT_PRICED_REASON,
+                                unique_id=entry.unique_id))
             continue
         history = list(extra_rows(entry.item_id)) if extra_rows else []
 
@@ -213,14 +217,14 @@ def apply_game_prices(entries, market_by_unique_id, rules, extra_rows=None,
                                    **_model_prices(worth(entry) if worth else None))
         if result.ok and result.price > MAX_LISTING_PRICE:
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, ABOVE_MAX_REASON,
-                                result.flag, result.confidence))
+                                result.flag, result.confidence, entry.unique_id))
         elif result.ok:
             priced.append(replace(entry, price=result.price, fee=result.fee, flag=result.flag,
                                   compared=result.compared, confidence=result.confidence,
                                   recommended=result.price))
         else:
             skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, result.reason,
-                                result.flag, result.confidence))
+                                result.flag, result.confidence, entry.unique_id))
     warnings = list(_explain(priced, skipped))
     flagged = sum(1 for e in priced if e.flag)
     if flagged:
@@ -238,7 +242,8 @@ def price_from_model(entries, rules, worth) -> Plan:
         estimate = worth(entry) if worth else None
         floor = getattr(estimate, "floor", None)
         if not floor:
-            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, MODEL_NO_DATA_REASON))
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, MODEL_NO_DATA_REASON,
+                                unique_id=entry.unique_id))
             continue
         price = int(math.floor(floor))
         fee = listing_fee(price)
@@ -247,7 +252,7 @@ def price_from_model(entries, rules, worth) -> Plan:
                   "vendor pays more" if price - fee <= entry.vendor_price * entry.quantity else
                   "fee too high" if (price - fee) / price < rules.min_net_ratio else None)
         if reason:
-            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, reason))
+            skipped.append(Skip(entry.name, entry.stash_id, entry.slot_id, reason, unique_id=entry.unique_id))
             continue
         priced.append(replace(entry, price=price, fee=fee, recommended=price,
                               confidence=getattr(estimate, "confidence", ""),

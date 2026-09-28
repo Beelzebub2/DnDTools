@@ -676,7 +676,7 @@ class Api:
             _PacketCommand_pb2.PacketCommand.S2C_ALIVE_RES: handle_alive_packet,
             # Quest auto-tracking handlers
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_LIST_RES: self._quest_packet_handler.handle_merchant_list,
-            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_LIST_INFO_RES: self._quest_packet_handler.handle_quest_list,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_LIST_INFO_RES: self._on_merchant_quest_list,
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_LOG_LIST_RES: self._quest_packet_handler.handle_quest_log,
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_SELECT_RES: self._quest_packet_handler.handle_quest_select,
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_QUEST_COMPLETE_RES: self._quest_packet_handler.handle_quest_complete,
@@ -688,6 +688,7 @@ class Api:
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_TRANSFER_ITEMS_RES: marketplace_state.handle_transfer_res,
             _PacketCommand_pb2.PacketCommand.S2C_MARKETPLACE_ITEM_HAS_SOLD_NOT: _on_item_sold,
             _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_STOCK_BUY_ITEM_LIST_RES: _on_merchant_stock,
+            _PacketCommand_pb2.PacketCommand.S2C_MERCHANT_STOCK_SELL_BACK_RES: merchant_state.handle_sell_back,
         }
         self._capture_controller = CaptureController(
             self._capture_settings, capture_info, wireshark_path=self._wireshark_path
@@ -695,6 +696,11 @@ class Api:
         # Normalize settings from controller (ensures tuple types)
         self._capture_settings = self._capture_controller.settings()
         self._apply_wireshark_path(self._wireshark_path)
+
+    def _on_merchant_quest_list(self, message):
+        """A merchant's window opened: quest tracking and the merchant seller both read its quest list."""
+        merchant_state.handle_quest_list(message)
+        return self._quest_packet_handler.handle_quest_list(message)
 
     # Notification templates for quest packet events.
     # showNotification(msg, type, {id, duration}) is provided globally by app.js
@@ -2739,8 +2745,10 @@ class Api:
 # ── Market lister ──
 from src.models.marketplace_state import MarketplaceState
 from src.models.market_history import MarketHistory
+from src.models.merchant_state import MerchantState
 
 marketplace_state = MarketplaceState()
+merchant_state = MerchantState()  # which merchant window opened, and the replies to Make Deal
 market_history = None if _is_child_process else MarketHistory(os.path.join(get_data_dir(), 'market_history.sqlite'))
 HISTORY_MAX_AGE_S = 6 * 3600  # listings seen in the last 6 hours count as live market data
 
@@ -3016,7 +3024,21 @@ def _focus_game_window(wait=time.sleep):
         raise RuntimeError("Couldn't bring Dark and Darker to the front — click the game window and try again.")
 
 
-market_lister_job = ListerJob(_lister_runner_factory, _lister_hover_factory)
+def _merchant_runner_factory(event):
+    from src.models import marketplace_input
+    from src.models.merchant_runner import MerchantRunner
+    from src.models.sort_safety import SortSafetyMonitor
+    _focus_game_window()
+    monitor = SortSafetyMonitor(event)
+    runner = MerchantRunner(
+        marketplace_input.MacrosInputDriver(), marketplace_input.current_layout(), merchant_state,
+        tab_mapping=_lister_tab_mapping(), is_cancelled=event.is_set,
+        pause=marketplace_input.make_pause(event.is_set), safety=monitor,
+    )
+    return MonitoredRunner(runner, monitor)
+
+
+market_lister_job = ListerJob(_lister_runner_factory, _lister_hover_factory, _merchant_runner_factory)
 
 
 def _sort_is_running():

@@ -36,9 +36,19 @@ BASE_POINTS = {
     "class_option_first": (535, 281),      # "Barbarian" checkbox; Bard .. Wizard follow below
     "trade_tab": (1200, 42),               # lobby "Trade" tab
     "marketplace_button": (1190, 252),     # Trade screen "Marketplace" channel button
+    # Merchant screens (measured at 3840x2160, halved). The right-hand stash panel is the same
+    # as the Marketplace's, so tab_icon() and item_centre() work there too.
+    "merchants_tab": (1041, 42),           # lobby "Merchants & Workshops" tab
+    "merchant_card_origin": (271.5, 330),  # first merchant card (Alchemist) on Merchants & Travelers
+    "merchant_sell_tab": (331.5, 204),     # merchant window "Sell" tab (next to Buy)
+    "merchant_sell_mode": (906, 415),      # "Sell" above the Sell box (next to "Buyback")
+    "merchant_make_deal": (958.5, 1014),   # merchant window "Make Deal" button
+    "sell_box_origin": (735, 442.5),       # top-left corner of the 10x6 Sell box
 }
 BASE_LENGTHS = {"spot_row_spacing": 50.0, "tab_icon_spacing": 46.5, "cell": 41.3,
-                "rarity_option_spacing": 24.9, "next_page_step": 17.0}
+                "rarity_option_spacing": 24.9, "next_page_step": 17.0,
+                "merchant_card_dx": 229.0, "merchant_card_dy": 286.5, "sell_cell": 45.0}
+MERCHANT_CARD_COLUMNS = 7  # cards per row on the Merchants & Travelers grid
 
 
 def spot_location(order_index: int):
@@ -102,6 +112,17 @@ class MarketplaceLayout:
 
     def tab_icon(self, icon_index: int):
         return self._offset("tab_icon_origin", 0, self.lengths["tab_icon_spacing"] * icon_index)
+
+    def merchant_card(self, index: int):
+        """Centre of the index-th card (row by row) on the Merchants & Travelers grid."""
+        row, col = divmod(int(index), MERCHANT_CARD_COLUMNS)
+        return self._offset("merchant_card_origin", self.lengths["merchant_card_dx"] * col,
+                            self.lengths["merchant_card_dy"] * row)
+
+    def sell_box_centre(self, col: int, row: int, width: int, height: int):
+        """Centre of the cells an item of width x height takes in the Sell box from (col, row)."""
+        cell = self.lengths["sell_cell"]
+        return self._offset("sell_box_origin", cell * (col + width / 2), cell * (row + height / 2))
 
     def item_centre(self, stash_id: str, slot_id: int, width: int, height: int):
         is_inv = str(stash_id) == INVENTORY_STASH_ID
