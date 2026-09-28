@@ -530,11 +530,11 @@ def test_price_all_runs_the_search_flow_per_item():
     progress = []
     rows, report = _runner(driver, state).price_all(entries, on_progress=progress.append)
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
-    assert clicks[:9] == VERIFY_CLICKS + [
+    assert clicks[:10] == VERIFY_CLICKS + [
         LAYOUT.spot_row(2), LAYOUT.tab_icon(tab_icon_index("20", MAPPING)),
         LAYOUT.item_centre("20", 13, 1, 1), LAYOUT.point("form_search_button"),
         LAYOUT.point("market_attr_reset"), LAYOUT.point("market_search_button"),
-        LAYOUT.point("my_listings_tab"),   # back, and confirmed, before the next item
+        LAYOUT.point("view_market_tab"), LAYOUT.point("my_listings_tab"),   # back, and confirmed, before the next item
     ]
     assert LAYOUT.point("create_listing_button") not in clicks
     # Item b's searches never answered: its (empty) view is marked incomplete.
@@ -836,3 +836,14 @@ def test_crawl_ending_on_a_full_last_page_is_a_complete_pass():
     state = PricingState([full, full], page_numbers=[(1, 2), (2, 2)], available=(2,))
     _crawl_runner(FakeDriver(), state, passes).crawl_market(pages=50, rarities=(5,))
     assert passes == [5]
+
+
+def test_a_search_that_never_opened_still_returns_to_a_confirmed_my_listings():
+    # No results ever arrive (e.g. an item the market won't search): we are still on My Listings,
+    # where clicking its own tab would not make the game resend the list.
+    driver = FakeDriver()
+    state = PricingState([None, None], available=(2,))
+    rows, report = _runner(driver, state).price_all([_entry("a")])
+    assert report.stopped_reason is None and rows["a"]["degraded"] is True
+    clicks = [a[1] for a in driver.actions if a[0] == "click"]
+    assert clicks[-2:] == VERIFY_CLICKS

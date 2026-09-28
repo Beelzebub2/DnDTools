@@ -14,7 +14,7 @@ SEARCH_SETTLE_PAUSES = 4
 MAX_PAYOUTS_PER_RUN = 40
 CLASS_COUNT = 10  # Barbarian .. Wizard in the View Market class filter
 NO_FREE_SPOTS = "No free listing spots left."
-NOT_ON_MY_LISTINGS = ("Couldn't confirm My Listings is open on page 1 — open Trade → Marketplace → "
+NOT_ON_MY_LISTINGS = ("Couldn't confirm My Listings is open — open Trade → Marketplace → "
                       "My Listings in the game and try again.")
 DEFAULT_SKIP_NOTE = "no longer worth listing at today's prices"
 MOUSE_MOVED = "Stopped for safety: the mouse was moved"
@@ -404,7 +404,9 @@ class MarketplaceRunner:
         self._check_search_matches(entry, same + every)
         if self._scan_observer:
             self._scan_observer(entry.item_id, started, every, complete)
-        self._confirm_my_listings()
+        # Via View Market: if the search never opened we are still on My Listings, and clicking
+        # its own tab would not make the game resend the list.
+        self._confirm_my_listings(via_market=True)
         return {"same": same, "all": every, "degraded": same_failed or every_failed}
 
     def _results_ended(self, strict):
