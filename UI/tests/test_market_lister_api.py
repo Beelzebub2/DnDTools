@@ -453,3 +453,16 @@ def test_listing_rechecks_the_live_market_only_for_live_pricing(client_and_deps)
     settings["marketListerRules"] = {"price_source": "live"}
     client.post("/api/market-lister/start", json={"entries": [ENTRY]})
     assert calls[0] is None and calls[1] is not None
+
+
+def test_free_spot_limit_counts_only_items_that_could_be_priced(client_and_deps):
+    client, deps, _ = client_and_deps
+    items = [{"name": n, "itemId": i, "itemUniqueId": u, "slotId": s, "itemCount": 1, "rarity": 5, "width": 1,
+              "height": 1, "pp": [], "sp": [], "vendor_price": 10, "max_stack_size": 1}
+             for n, i, u, s in (("Arrow", "Arrow_2001", "x1", 0), ("Bolt", "Bolt_2001", "x2", 1), ("Ring", "G_1", "x3", 2))]
+    deps.get_stashes = lambda cid, ids: {"2": items}
+    deps.history_rows = lambda item_id: [MarketRow("G_1", p, (), (), str(p)) for p in (300, 320)] if item_id == "G_1" else []
+    deps.state.handle_my_item_list(MarketPlace_pb2.SS2C_MARKETPLACE_MY_ITEM_LIST_RES(availableOrderIndexes=[7]))
+    data = client.post("/api/market-lister/plan", json={"character_id": "c1", "rules": {
+        "source_stash_ids": ["2"], "min_price": 50, "price_source": "database"}}).get_json()
+    assert [e["name"] for e in data["plan"]["entries"]] == ["Ring"]   # the unpriceable two don't use the one spot

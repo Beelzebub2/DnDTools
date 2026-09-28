@@ -21,6 +21,7 @@ DEFAULT_CRAWL_PAGES = 100
 MIN_PRICE_QUERY = 2
 MAX_PRICE_RESULTS = 60
 MAX_CRAWL_PAGES = 6000
+UNCAPPED_ITEMS = 10_000  # plans priced without the game are capped after pricing, not before
 MAX_RECHECK_DROP = 0.2  # a bigger fall is skipped for review, never listed far below what you approved
 SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
@@ -170,15 +171,19 @@ def _repricer(deps, rules):
     return reprice
 
 
-def _price_without_game(deps, rules, unpriced):
-    """Price a plan from saved market data or the value formula, keeping the plan's own skips."""
+def _price_without_game(deps, rules, unpriced, free_spots):
+    """Price an uncapped plan from saved market data or the value formula, then keep as many priced
+    items as there are free spots (so items that can't be priced don't use them up)."""
     entries = list(unpriced.entries)
     if rules.price_source == "model":
         priced = price_from_model(entries, rules, deps.worth_value)
     else:  # "database": the saved listings of each item stand in for a live search
         priced = _game_pricer(deps, rules)(entries, {e.unique_id: {"same": [], "all": []} for e in entries})
-    return Plan(priced.entries, unpriced.skipped + priced.skipped, tuple(
-        w for w in unpriced.warnings + priced.warnings if "Price from game" not in w))
+    limit = rules.max_items_per_run if free_spots is None else min(rules.max_items_per_run, max(free_spots, 0))
+    warnings = [w for w in unpriced.warnings + priced.warnings if "Price from game" not in w]
+    if len(priced.entries) > limit:
+        warnings.append(f"Only {limit} can be listed now (free spots / max per run) — the rest were left out.")
+    return Plan(priced.entries[:limit], unpriced.skipped + priced.skipped, tuple(warnings))
 
 
 def _build_plan_response(deps, payload):
@@ -190,14 +195,17 @@ def _build_plan_response(deps, payload):
     data_age_s = deps.get_data_age(character_id)
     stashes = deps.get_stashes(character_id, list(rules.source_stash_ids))
 
-    def build(price_lookup):
-        return build_plan(stashes, rules, price_lookup, tab_mapping=deps.tab_mapping(),
-                          free_spots=None if snapshot is None else snapshot.free, data_age_s=data_age_s,
+    free_spots = None if snapshot is None else snapshot.free
+
+    def build(price_lookup, capped=True):
+        plan_rules = rules if capped else replace(rules, max_items_per_run=UNCAPPED_ITEMS)
+        return build_plan(stashes, plan_rules, price_lookup, tab_mapping=deps.tab_mapping(),
+                          free_spots=free_spots if capped else None, data_age_s=data_age_s,
                           pause=deps.pause, exclude_unique_ids=deps.state.listed_ids())
 
     needs_game_pricing = False
     if rules.price_source != "live":
-        result = _price_without_game(deps, rules, build(None))
+        result = _price_without_game(deps, rules, build(None, capped=False), free_spots)
     else:
         try:
             result = build(deps.price_lookup)
