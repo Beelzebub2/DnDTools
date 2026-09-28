@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 SELL_SUCCESS = 1
 QUEST_MARK = "Id_Quest_"
-MERCHANT_MARK = "Id_Merchant_"
+UINT64 = 1 << 64  # deleteUniqueIds is int64, itemUniqueId uint64: ids from 2**63 arrive negative
 
 
 @dataclass(frozen=True)
@@ -20,19 +20,19 @@ def _bare(design_id) -> str:
     return str(design_id).split(":")[-1]
 
 
-def _names_merchant(quests, key: str) -> bool:
-    """True when a merchant's quest list belongs to `key` (e.g. Id_Quest_TheCollector_01)."""
-    for quest_id, required in quests:
-        if quest_id.startswith(f"{QUEST_MARK}{key}_") or required == f"{MERCHANT_MARK}{key}":
-            return True
-    return False
+def _names_merchant(quest_ids, key: str) -> bool:
+    """True when a merchant's quest list belongs to `key` (e.g. Id_Quest_TheCollector_01).
+
+    requiredQuestMerchantId is ignored: it names a prerequisite merchant, not the owner.
+    """
+    return any(quest_id.startswith(f"{QUEST_MARK}{key}_") for quest_id in quest_ids)
 
 
 class MerchantState:
     def __init__(self, clock=time.monotonic):
         self._clock = clock
         self._cond = threading.Condition()
-        self._quest_list = None  # (received_at, ((quest_id, required_merchant_id), ...))
+        self._quest_list = None  # (received_at, (quest_id, ...))
         self._sell_back = None
 
     def now(self) -> float:
@@ -40,14 +40,14 @@ class MerchantState:
 
     def handle_quest_list(self, message) -> None:
         """S2C_MERCHANT_QUEST_LIST_INFO_RES arrives whenever a merchant's window opens."""
-        quests = tuple((_bare(q.questId), _bare(q.requiredQuestMerchantId)) for q in message.quests)
+        quests = tuple(_bare(q.questId) for q in message.quests)
         with self._cond:
             self._quest_list = (self._clock(), quests)
             self._cond.notify_all()
 
     def handle_sell_back(self, message) -> None:
         reply = SellBack(self._clock(), int(message.result),
-                         tuple(str(i) for i in message.merchantResult.deleteUniqueIds))
+                         tuple(str(int(i) % UINT64) for i in message.merchantResult.deleteUniqueIds))
         with self._cond:
             self._sell_back = reply
             self._cond.notify_all()

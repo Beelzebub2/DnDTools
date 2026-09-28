@@ -30,6 +30,7 @@ class MonitoredRunner:
 
 
 NO_MERCHANT_RUNNER = "Selling to merchants isn't available in this build."
+SELL_BOX_HINT = " If items are in the Sell box, press Escape in the game to put them back."
 
 
 class ListerJob:
@@ -43,6 +44,7 @@ class ListerJob:
         self._status = {"state": "idle", "mode": None, "results": [], "stopped_reason": None}
         self._last_finished_at = None
         self._last_list_finished_at = None
+        self._sold_ids = frozenset()  # unique ids sold to merchants by this app session
 
     @property
     def last_finished_at(self):
@@ -55,6 +57,11 @@ class ListerJob:
         """time.time() when the last real (non-dry) list run finished, or None."""
         with self._lock:
             return self._last_list_finished_at
+
+    def sold_ids(self) -> frozenset:
+        """Items sold to a merchant; if the stash data still shows one, the data predates the sale."""
+        with self._lock:
+            return self._sold_ids
 
     def is_running(self) -> bool:
         with self._lock:
@@ -92,6 +99,8 @@ class ListerJob:
     def _record(self, result):
         with self._lock:
             self._status["results"].append(asdict(result))
+            if self._status["mode"] == "merchant" and result.status == "sold":
+                self._sold_ids = self._sold_ids | {result.unique_id}
 
     def start(self, entries, dry_run, reprice=None) -> bool:
         def target(event):
@@ -146,7 +155,7 @@ class ListerJob:
                 self._finish(report.stopped_reason)
             except Exception as exc:
                 logger.exception("Merchant sale failed")
-                self._finish(f"Unexpected error: {exc}")
+                self._finish(f"Unexpected error: {exc}.{SELL_BOX_HINT}")
         return self._launch("merchant_dry_run" if dry_run else "merchant", target)
 
     def hover_test(self) -> bool:

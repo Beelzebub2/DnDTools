@@ -27,6 +27,9 @@ MAX_CRAWL_PAGES = 6000
 UNCAPPED_ITEMS = 10_000  # plans priced without the game are capped after pricing, not before
 MAX_RECHECK_DROP = 0.2  # a bigger fall is skipped for review, never listed far below what you approved
 MAX_MERCHANT_ITEMS = 240  # one full stash tab per request
+ALREADY_SOLD = "already sold"
+STALE_AFTER_SALE = ("DnDTools hasn't seen your stash since the last sale (it still shows items already sold), "
+                    "so item positions may be wrong — reopen your character to refresh, then build the plan again.")
 MAX_UNIQUE_ID_CHARS = 32
 SORT_RUNNING_ERROR = "An inventory sort is running."
 STALE_AFTER_RUN_WARNING = "Stash data is older than your last listing run — reopen your character to refresh."
@@ -341,7 +344,12 @@ def _merchant_request(deps, payload):
         return None, _error(f"At most {MAX_MERCHANT_ITEMS} items can be sold at once.")
     rules = _current_rules(deps)
     stashes = deps.get_stashes(character_id, list(rules.source_stash_ids))
-    return resolve_sell_entries(stashes, ids, rules.source_stash_ids), None
+    entries, refused = resolve_sell_entries(stashes, ids, rules.source_stash_ids)
+    sold = deps.job.sold_ids()
+    refused = refused + [(e.unique_id, ALREADY_SOLD) for e in entries if e.unique_id in sold]
+    entries = [e for e in entries if e.unique_id not in sold]
+    in_stash = {str(item.get("itemUniqueId")) for items in stashes.values() for item in items or []}
+    return (entries, refused, bool(sold & in_stash)), None
 
 
 def _merchant_warnings(deps, character_id):
@@ -359,25 +367,30 @@ def _register_merchant_routes(bp, deps):
         resolved, error = _merchant_request(deps, payload)
         if error:
             return error
-        entries, refused = resolved
+        entries, refused, stale = resolved
         rows = [{"unique_id": e.unique_id, "name": e.name, "stash_id": e.stash_id, "quantity": e.quantity,
                  "vendor_price": e.vendor_price, "value": merchant_value(e)} for e in entries]
         return jsonify({"success": True, "merchant": MERCHANT_NAME, "entries": rows,
                         "refused": [{"unique_id": uid, "reason": reason} for uid, reason in refused],
                         "total": sum(row["value"] for row in rows),
-                        "warnings": _merchant_warnings(deps, str(payload.get("character_id")).strip())})
+                        "warnings": ([STALE_AFTER_SALE] if stale else [])
+                                    + _merchant_warnings(deps, str(payload.get("character_id")).strip())})
 
     @bp.post("/api/market-lister/merchant-sell")
     def merchant_sell():
         payload = request.get_json(silent=True)
         payload = payload if isinstance(payload, dict) else {}
+        dry_run = payload.get("dry_run", False)
+        if not isinstance(dry_run, bool):
+            return _error("dry_run must be true or false.")
         resolved, error = _merchant_request(deps, payload)
         if error:
             return error
-        entries, refused = resolved
+        entries, refused, stale = resolved
+        if stale:
+            return _error(STALE_AFTER_SALE, 409)
         if not entries:
             return _error("Nothing can be sold: " + "; ".join(sorted({reason for _, reason in refused})))
-        dry_run = payload.get("dry_run") is True
         return _launch_job(deps, lambda: deps.job.sell_to_merchant(entries, dry_run))
 
 

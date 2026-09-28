@@ -20,6 +20,10 @@ NOT_AT_MERCHANT = (f"Couldn't open {MERCHANT_NAME} — show the lobby in the gam
                    "Marketplace or menu window) and try again.")
 NO_DEAL_REPLY = f"The game didn't confirm the sale — check {MERCHANT_NAME}'s Buyback tab before trying again."
 ITEMS_LEFT_STAGED = " Nothing in the sell box was sold — press Escape in the game to put the items back."
+NOTHING_SELLABLE = "Nothing could be sold — see each item for why."
+NOTHING_SOLD = f"The game answered Make Deal but sold none of the picked items — check {MERCHANT_NAME}'s Sell box."
+DRY_RUN_FIRST_BOX = "not staged — a dry run fills only the first Sell box"
+DRY_RUN_CANCELLED = "Cancelled — the dry run's items were put back."
 
 
 class MerchantInput(Protocol):
@@ -67,27 +71,37 @@ class MerchantRunner:
         if not entries:
             return RunReport((), NOTHING_TO_SELL)
         batches = self._batches(entries, record)
+        if not batches:
+            return RunReport(tuple(results), NOTHING_SELLABLE)
         try:
-            if batches:
-                self._safety_checkpoint()
-                self._open_merchant()
-                self._click(self._layout.point("merchant_sell_tab"))
-                self._click(self._layout.point("merchant_sell_mode"))  # Make Deal sells, never buys back
-            for batch in batches:
-                self._stage(batch)
-                if dry_run:
-                    for placement in batch:
-                        entry = placement.entry
-                        record(ItemResult(entry.unique_id, entry.name, "dry_run",
-                                          f"staged — {MERCHANT_NAME} would pay {merchant_value(entry)}g"))
-                    self._leave()
-                    return RunReport(tuple(results), None)
-                self._deal(batch, record)
-            if batches:
+            self._safety_checkpoint()
+            self._open_merchant()
+            self._click(self._layout.point("merchant_sell_tab"))
+            self._click(self._layout.point("merchant_sell_mode"))  # Make Deal sells, never buys back
+            if dry_run:
+                self._dry_run(batches, record)
+            else:
+                for batch in batches:
+                    self._stage(batch)
+                    self._deal(batch, record)
                 self._leave()
         except _Stop as stop:
             return RunReport(tuple(results), str(stop))
         return RunReport(tuple(results), None)
+
+    def _dry_run(self, batches, record):
+        """Stage the first Sell box, report every item, then put the items back."""
+        self._stage(batches[0])
+        for placement in batches[0]:
+            entry = placement.entry
+            record(ItemResult(entry.unique_id, entry.name, "dry_run",
+                              f"staged — {MERCHANT_NAME} would pay {merchant_value(entry)}g"))
+        for batch in batches[1:]:
+            for placement in batch:
+                record(ItemResult(placement.entry.unique_id, placement.entry.name, "skipped", DRY_RUN_FIRST_BOX))
+        self._leave(staged=True)
+        if self._is_cancelled():
+            raise _Stop(DRY_RUN_CANCELLED)
 
     def _batches(self, entries, record):
         """Sell-box batches for the entries that can be sold; the rest are reported as failed."""
@@ -142,6 +156,8 @@ class MerchantRunner:
         if reply.result != SELL_SUCCESS:
             raise _Stop(f"{MERCHANT_NAME} refused the deal (game code {reply.result}).{ITEMS_LEFT_STAGED}")
         outcome = sale_outcome(entries, reply.deleted_ids)
+        if not outcome.sold and not outcome.unexpected:
+            raise _Stop(f"{NOTHING_SOLD}{ITEMS_LEFT_STAGED}")
         for entry in outcome.sold:
             record(ItemResult(entry.unique_id, entry.name, "sold", f"{merchant_value(entry)}g"))
         for entry in outcome.not_taken:
@@ -151,8 +167,16 @@ class MerchantRunner:
             raise _Stop(f"Sold an item that wasn't picked (id {', '.join(outcome.unexpected)}) — "
                         f"buy it back from {MERCHANT_NAME}'s Buyback tab now.")
 
-    def _leave(self):
-        self._driver.press_escape()  # back to the merchant grid; staged items go back to the stash
+    def _leave(self, staged=False):
+        """Escape back to the merchant grid (staged items go back to the stash) — but never after a
+        safety stop, when the key could land in another window."""
+        try:
+            self._safety_checkpoint()
+            if self._is_cancelled() and self._safety.reason:
+                raise _Stop(f"Stopped for safety: {friendly_reason(self._safety.reason)}")
+        except _Stop as stop:
+            raise _Stop(f"{stop}.{ITEMS_LEFT_STAGED}" if staged else str(stop)) from None
+        self._driver.press_escape()
         self._pause()
 
     def _check(self):

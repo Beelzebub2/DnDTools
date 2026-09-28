@@ -1,7 +1,7 @@
 from src.market_lister import PlanEntry
 from src.models.marketplace_layout import build_layout, tab_icon_index
 from src.models.merchant_runner import (
-    MERCHANT_CARD_INDEX, NOT_AT_MERCHANT, NO_DEAL_REPLY, MerchantRunner,
+    DRY_RUN_FIRST_BOX, MERCHANT_CARD_INDEX, NOT_AT_MERCHANT, NO_DEAL_REPLY, NOTHING_SELLABLE, MerchantRunner,
 )
 from src.models.merchant_seller import SELL_BOX_COLUMNS, SELL_BOX_ROWS
 from src.models.merchant_state import SELL_SUCCESS, MerchantState, SellBack
@@ -52,11 +52,12 @@ class FakeDriver:
 class FakeGame(MerchantState):
     """Opens the merchant whose card is clicked and sells what was dragged into the Sell box."""
 
-    def __init__(self, entries, opens=COLLECTOR, answers=True, refuses=(), extra_sold=(), result=SELL_SUCCESS):
+    def __init__(self, entries, opens=COLLECTOR, answers=True, refuses=(), extra_sold=(), result=SELL_SUCCESS,
+                 sells_nothing=False):
         super().__init__(clock=lambda: 50.0)
         self.by_point = {LAYOUT.item_centre(e.stash_id, e.slot_id, e.width, e.height): e.unique_id for e in entries}
         self.opens, self.answers, self.refuses = opens, answers, set(refuses)
-        self.extra_sold, self.result = tuple(extra_sold), result
+        self.extra_sold, self.result, self.sells_nothing = tuple(extra_sold), result, sells_nothing
         self.opened, self.staged, self.reply, self.deals = None, [], None, []
 
     def on_action(self, action):
@@ -68,6 +69,7 @@ class FakeGame(MerchantState):
                 self.staged.append(uid)
         elif action[0] == "click" and action[1] == LAYOUT.point("merchant_make_deal"):
             sold = tuple(self.staged) + self.extra_sold if self.result == SELL_SUCCESS else ()
+            sold = () if self.sells_nothing else sold
             self.deals.append(sold)
             self.reply = SellBack(51.0, self.result, sold) if self.answers else None
             self.staged = []
@@ -241,3 +243,67 @@ def test_nothing_to_sell_does_not_touch_the_game():
     report, driver, _ = _run([])
     assert driver.actions == []
     assert report.stopped_reason == "Nothing to sell."
+
+
+def _make_deal_clicks(driver):
+    return driver.actions.count(("click", LAYOUT.point("merchant_make_deal")))
+
+
+def test_a_success_reply_that_sold_none_of_the_items_stops():
+    entries = [_entry("a", slot=0), _entry("b", slot=1)]
+    report, driver, _ = _run(entries, game=FakeGame(entries, sells_nothing=True))
+    assert report.results == ()
+    assert "sold none" in report.stopped_reason and "Escape" in report.stopped_reason
+
+
+def test_cancel_after_the_last_drag_never_clicks_make_deal():
+    entries = [_entry("a")]
+    driver = FakeDriver()
+    report, _, game = _run(entries, driver=driver, cancelled=lambda: len(game_drags(driver)) >= 1)
+    assert _make_deal_clicks(driver) == 0 and game.deals == []
+    assert report.stopped_reason.startswith("Cancelled") and "Escape" in report.stopped_reason
+
+
+def test_focus_lost_after_the_last_drag_never_clicks_make_deal():
+    entries = [_entry("a")]
+    report, driver, game = _run(entries, safety=Safety(fail_after=2))  # start, drag ok; the deal check fails
+    assert _make_deal_clicks(driver) == 0 and game.deals == []
+    assert "the game lost focus" in report.stopped_reason and "Escape" in report.stopped_reason
+
+
+def test_mouse_taken_after_the_last_drag_never_clicks_make_deal():
+    entries = [_entry("a")]
+    driver = FakeDriver()
+    driver.after_drag = lambda d: setattr(d, "pos", (d.pos[0] + CURSOR_DEVIATION_PX + 50, d.pos[1]))
+    report, _, game = _run(entries, driver=driver)
+    assert _make_deal_clicks(driver) == 0 and game.deals == []
+    assert report.stopped_reason.startswith(MOUSE_MOVED) and "Escape" in report.stopped_reason
+
+
+def test_dry_run_never_sends_escape_after_focus_is_lost():
+    entries = [_entry("a")]
+    report, driver, _ = _run(entries, dry_run=True, safety=Safety(fail_after=2))
+    assert ("escape",) not in driver.actions
+    assert "the game lost focus" in report.stopped_reason and "Escape" in report.stopped_reason
+
+
+def test_cancelled_dry_run_puts_the_items_back_and_says_so():
+    entries = [_entry("a")]
+    driver = FakeDriver()
+    report, _, _ = _run(entries, driver=driver, dry_run=True, cancelled=lambda: len(game_drags(driver)) >= 1)
+    assert driver.actions[-1] == ("escape",)
+    assert report.stopped_reason.startswith("Cancelled")
+
+
+def test_dry_run_reports_items_beyond_the_first_sell_box():
+    count = SELL_BOX_COLUMNS * SELL_BOX_ROWS + 1
+    entries = [_entry(str(i), slot=i) for i in range(count)]
+    report, _, _ = _run(entries, dry_run=True)
+    assert len(report.results) == count
+    assert report.results[-1].status == "skipped" and report.results[-1].message == DRY_RUN_FIRST_BOX
+
+
+def test_nothing_sellable_is_a_stop_not_a_success():
+    report, driver, _ = _run([_entry("eq", stash="3")])
+    assert report.stopped_reason == NOTHING_SELLABLE
+    assert driver.actions == []

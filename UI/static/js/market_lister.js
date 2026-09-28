@@ -325,6 +325,7 @@
     };
 
     // --- Sell to merchant: skipped items a merchant pays more for (or not worth listing) ---
+    const UNPRICED_REASON = 'below minimum rarity'; // never priced on the market: opt in, don't pre-tick
     let merchantRows = [];
 
     const checkedMerchantRows = () => [...document.querySelectorAll('.mlMerchantInclude:checked')]
@@ -343,23 +344,28 @@
         include.type = 'checkbox';
         include.className = 'mlMerchantInclude';
         include.dataset.index = index;
-        include.checked = row.value > 0;  // selling for 0g only clears the slot: opt in
+        // Selling for 0g only clears the slot, and unpriced items may be worth more listed: opt in.
+        include.checked = row.value > 0 && row.reason !== UNPRICED_REASON;
         include.addEventListener('change', updateMerchantTotal);
-        const name = row.quantity > 1 ? `${row.name} ×${row.quantity}` : row.name;
-        const cells = [include, text('span', name), text('span', STASH_NAMES[row.stash_id] || row.stash_id),
+        const nameCell = document.createElement('div');
+        nameCell.append(text('span', row.quantity > 1 ? `${row.name} ×${row.quantity}` : row.name));
+        if (row.reason) nameCell.append(text('div', row.reason, 'ml-muted ml-small'));
+        const cells = [include, nameCell, text('span', STASH_NAMES[row.stash_id] || row.stash_id),
             text('span', `${row.value}g`)];
         tr.replaceChildren(...cells.map((c) => { const td = document.createElement('td'); td.append(c); return td; }));
         return tr;
     };
 
     const renderMerchant = async () => {
-        const ids = plan.skipped.filter((s) => s.merchant && s.unique_id).map((s) => s.unique_id);
+        const offered = plan.skipped.filter((s) => s.merchant && s.unique_id);
+        const reasonById = new Map(offered.map((s) => [s.unique_id, s.reason]));
+        const ids = offered.map((s) => s.unique_id);
         merchantRows = [];
         $('mlMerchantCard').hidden = true;
         if (!ids.length) return;
         try {
             const data = await post('/merchant-plan', { character_id: $('mlCharacter').value, unique_ids: ids });
-            merchantRows = data.entries;
+            merchantRows = data.entries.map((row) => ({ ...row, reason: reasonById.get(row.unique_id) || '' }));
             $('mlMerchantName').textContent = data.merchant;
             $('mlMerchantWarnings').replaceChildren(...data.warnings.map((w) => text('li', w)));
             $('mlMerchantRows').replaceChildren(...merchantRows.map(merchantRow));

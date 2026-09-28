@@ -43,11 +43,12 @@ def test_quest_list_names_the_opened_merchant():
     assert not state.wait_for_merchant("Weaponsmith", since=100.5, timeout=0.01)
 
 
-def test_required_merchant_id_also_names_the_merchant():
+def test_a_quest_that_only_requires_the_merchant_does_not_name_it():
+    # requiredQuestMerchantId is a prerequisite (Alchemist_01 requires TavernMaster_01), not the owner.
     state = MerchantState(Clock())
-    state.handle_quest_list(_quests("QuestData:Id_Quest_Other_01",
+    state.handle_quest_list(_quests("QuestData:Id_Quest_Alchemist_01",
                                     required="DesignDataMerchant:Id_Merchant_TheCollector"))
-    assert state.wait_for_merchant("TheCollector", since=99.0, timeout=0.01)
+    assert not state.wait_for_merchant("TheCollector", since=99.0, timeout=0.01)
 
 
 def test_merchant_key_must_match_whole_name():
@@ -102,3 +103,12 @@ def test_failed_sell_reply_is_reported():
     reply = state.wait_for_sell_back(since=100.0, timeout=0.01)
     assert reply.result == 7
     assert reply.deleted_ids == ()
+
+
+def test_signed_ids_are_read_as_the_unsigned_item_ids():
+    # deleteUniqueIds is int64 while itemUniqueId is uint64: ids from 2**63 arrive negative.
+    clock = Clock()
+    state = MerchantState(clock)
+    clock.t = 101.0
+    state.handle_sell_back(_sold(-1))
+    assert state.wait_for_sell_back(since=100.0, timeout=0.01).deleted_ids == (str(2 ** 64 - 1),)

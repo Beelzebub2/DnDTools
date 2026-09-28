@@ -535,3 +535,43 @@ def test_merchant_sell_refused_while_sort_running(client_and_deps):
     deps.is_sort_running = lambda: True
     resp = client.post("/api/market-lister/merchant-sell", json={"character_id": "c1", "unique_ids": ["a"]})
     assert resp.status_code == 409
+
+
+def test_merchant_sell_refuses_while_the_stash_still_shows_items_already_sold(client_and_deps):
+    client, deps, _ = client_and_deps
+    assert client.post("/api/market-lister/merchant-sell",
+                       json={"character_id": "c1", "unique_ids": ["a"]}).status_code == 200
+    _wait_done(deps.job)
+    assert deps.job.sold_ids() == frozenset({"a"})
+    # The capture has not refreshed yet, so "a" still sits in its old slot: positions can't be trusted.
+    resp = client.post("/api/market-lister/merchant-sell", json={"character_id": "c1", "unique_ids": ["a"]})
+    assert resp.status_code == 409
+    assert "reopen your character" in resp.get_json()["error"]
+    plan = client.post("/api/market-lister/merchant-plan", json={"character_id": "c1", "unique_ids": ["a"]}).get_json()
+    assert plan["entries"] == []
+    assert plan["refused"] == [{"unique_id": "a", "reason": "already sold"}]
+
+
+def test_merchant_sell_needs_a_real_boolean_for_dry_run(client_and_deps):
+    client, deps, _ = client_and_deps
+    for bad in ("true", 1, "yes", None):
+        resp = client.post("/api/market-lister/merchant-sell",
+                           json={"character_id": "c1", "unique_ids": ["a"], "dry_run": bad})
+        assert resp.status_code == 400
+    assert not deps.job.is_running()
+
+
+def test_merchant_job_errors_remind_to_empty_the_sell_box(client_and_deps):
+    client, deps, _ = client_and_deps
+
+    class Broken:
+        def __init__(self, event):
+            pass
+
+        def sell(self, entries, dry_run=False, on_progress=None):
+            raise RuntimeError("could not read the mouse position")
+    deps.job._merchant_factory = Broken
+    client.post("/api/market-lister/merchant-sell", json={"character_id": "c1", "unique_ids": ["a"]})
+    _wait_done(deps.job)
+    reason = client.get("/api/market-lister/status").get_json()["stopped_reason"]
+    assert "could not read the mouse position" in reason and "Escape" in reason
