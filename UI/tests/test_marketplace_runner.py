@@ -847,3 +847,71 @@ def test_a_search_that_never_opened_still_returns_to_a_confirmed_my_listings():
     assert report.stopped_reason is None and rows["a"]["degraded"] is True
     clicks = [a[1] for a in driver.actions if a[0] == "click"]
     assert clicks[-2:] == VERIFY_CLICKS
+
+
+class PagedListingsGame(MarketplaceState):
+    """My Listings across pages: the game shows one page at a time, listings shift up when collected."""
+
+    def __init__(self, listings, shown_page=0, spots=30):
+        super().__init__()
+        self.listings = list(listings)  # [(state, item_id, price)] in spot order
+        self.page, self.spots, self.selected = shown_page, spots, None
+        self._snap = self._page_snapshot(self.now())
+
+    def _page_snapshot(self, received_at):
+        from src.models.marketplace_state import ListingsSnapshot
+        first = self.page * 10
+        payouts = tuple((i, s, item, price) for i, (s, item, price) in enumerate(self.listings)
+                        if first <= i < first + 10 and s in (2, 3))
+        return ListingsSnapshot(received_at=received_at, available=tuple(range(len(self.listings), self.spots)),
+                                current_page=FIRST_PAGE + self.page, payouts=payouts)
+
+    def on_click(self, point):
+        if point == LAYOUT.point("next_page_arrow"):
+            self.page += 1
+        elif point == LAYOUT.point("prev_page_arrow"):
+            self.page -= 1
+        elif point in [LAYOUT.spot_row(r) for r in range(10)]:
+            self.selected = self.page * 10 + [LAYOUT.spot_row(r) for r in range(10)].index(point)
+        elif point == LAYOUT.point("transfer_all_button") and self.selected is not None:
+            if self.listings[self.selected][0] in (2, 3):
+                del self.listings[self.selected]
+            self.selected = None
+
+    def snapshot(self):
+        return self._snap
+
+    def wait_for_fresh_snapshot(self, since, timeout):
+        self._snap = self._page_snapshot(since + 0.001)
+        return self._snap
+
+    def wait_for_transfer(self, timeout):
+        return 1
+
+
+def test_collect_payouts_checks_every_page_with_listings():
+    # Verified in game: My Listings only reports the page on screen, so a sale on page 2 was missed.
+    listings = [(1, f"Item{i}", 100) for i in range(10)] + [(1, "Bolt_2001", 80), (3, "ArcaneEssence_3001", 57)]
+    game = PagedListingsGame(listings)
+    report = _runner(FakeDriver(), game).collect_payouts()
+    assert [(r.name, r.message) for r in report.results] == [("ArcaneEssence_3001", "57g collected")]
+    assert report.stopped_reason is None
+    assert [s for s, _, _ in game.listings].count(3) == 0
+
+
+def test_collect_payouts_on_several_pages_in_one_run():
+    listings = ([(1, f"Item{i}", 100) for i in range(3)] + [(3, "GemRing_4001", 57)]
+                + [(1, f"More{i}", 100) for i in range(8)] + [(3, "ArcaneEssence_3001", 57)])
+    game = PagedListingsGame(listings, shown_page=1)  # the game reopens on the page last used
+    report = _runner(FakeDriver(), game).collect_payouts()
+    assert sorted(r.name for r in report.results) == ["ArcaneEssence_3001", "GemRing_4001"]
+    assert report.stopped_reason is None
+    assert len(game.listings) == 11
+
+
+def test_collect_payouts_with_nothing_sold_reads_each_page_once():
+    game = PagedListingsGame([(1, f"Item{i}", 100) for i in range(15)])
+    driver = FakeDriver()
+    report = _runner(driver, game).collect_payouts()
+    assert report.results == () and report.stopped_reason is None
+    assert [a[1] for a in driver.actions if a[0] == "click"].count(LAYOUT.point("next_page_arrow")) == 1

@@ -3,7 +3,7 @@ from dataclasses import asdict, dataclass, replace
 from typing import Protocol
 
 from src.models.market_rules import listing_fee
-from src.models.marketplace_layout import spot_location, tab_icon_index
+from src.models.marketplace_layout import SPOTS_PER_PAGE, spot_location, tab_icon_index
 from src.models.marketplace_state import (
     FIRST_PAGE, ITEM_LEVEL_FAIL_CODES, MAX_SNAPSHOT_AGE_S, MY_ITEM_SOLD, REGISTER_SUCCESS, describe_fail_code,
 )
@@ -35,7 +35,14 @@ SAFETY_REASON_TEXT = {
 }
 
 
-def _friendly_reason(reason):
+def listing_pages(snapshot) -> range:
+    """My Listings pages that hold listings. Listings fill spots from the first one (they shift up
+    when one is collected), so every spot before the first free one is taken."""
+    used = min(snapshot.available) if snapshot.available else MAX_PAGES * SPOTS_PER_PAGE
+    return range(-(-used // SPOTS_PER_PAGE))
+
+
+def friendly_reason(reason):
     return SAFETY_REASON_TEXT.get(reason, reason)
 
 
@@ -53,7 +60,7 @@ class Safety(Protocol):
     def snapshot_position(self) -> None: ...
 
 
-class _NullSafety:
+class NullSafety:
     reason = None
 
     def checkpoint(self) -> bool:
@@ -100,7 +107,7 @@ class MarketplaceRunner:
         self._tab_mapping = list(tab_mapping)
         self._is_cancelled = is_cancelled
         self._pause = pause
-        self._safety = safety or _NullSafety()
+        self._safety = safety or NullSafety()
         self._register_timeout = register_timeout
         self._confirm_timeout = confirm_timeout
         self._scan_observer = scan_observer  # (item_id, started_at, rows, complete) after each item scan
@@ -128,7 +135,7 @@ class MarketplaceRunner:
         if refusal is None and need_spot and not snapshot.available:
             refusal = NO_FREE_SPOTS
         if refusal is None and not self._safety.checkpoint():
-            refusal = f"Stopped for safety: {_friendly_reason(self._safety.reason) or 'the game lost focus'}"
+            refusal = f"Stopped for safety: {friendly_reason(self._safety.reason) or 'the game lost focus'}"
         if refusal:
             return refusal
         try:
@@ -220,16 +227,23 @@ class MarketplaceRunner:
 
         The game destroys uncollected payouts after 7 days. Listings shift up after each
         transfer, so My Listings is re-opened (and confirmed) for fresh positions every time.
+        The game only reports the page on screen, so every page holding listings is visited.
         """
         refusal = self._start()
         if refusal:
             return RunReport((), refusal)
         results = []
         snapshot = self._state.snapshot()  # the fresh one _start waited for
+        visited = set()
         try:
-            for _ in range(MAX_PAYOUTS_PER_RUN):
+            for _ in range(MAX_PAYOUTS_PER_RUN + MAX_PAGES):
+                visited.add(self._page)
                 if not snapshot.payouts:
-                    break
+                    unvisited = [page for page in listing_pages(snapshot) if page not in visited]
+                    if not unvisited:
+                        break
+                    snapshot = self._show_page(unvisited[0])
+                    continue
                 order_index, state, item_id, price = min(snapshot.payouts)
                 self._go_to_spot(order_index)
                 self._state.begin_transfer()
@@ -374,7 +388,7 @@ class MarketplaceRunner:
 
     def _safety_checkpoint(self):
         if not self._safety.checkpoint():
-            raise _Stop(f"Stopped for safety: {_friendly_reason(self._safety.reason) or 'the game lost focus'}")
+            raise _Stop(f"Stopped for safety: {friendly_reason(self._safety.reason) or 'the game lost focus'}")
 
     def _settle(self):
         for _ in range(SEARCH_SETTLE_PAUSES):
@@ -452,7 +466,7 @@ class MarketplaceRunner:
     def _check(self):
         if self._is_cancelled():
             reason = self._safety.reason
-            raise _Stop(f"Stopped for safety: {_friendly_reason(reason)}" if reason else "Cancelled")
+            raise _Stop(f"Stopped for safety: {friendly_reason(reason)}" if reason else "Cancelled")
 
     def _click(self, point):
         self._check()
@@ -472,6 +486,12 @@ class MarketplaceRunner:
         page, row = spot_location(index)
         if page >= MAX_PAGES:
             raise _Stop(NO_FREE_SPOTS)
+        self._show_page(page)
+        self._click(self._layout.spot_row(row))
+
+    def _show_page(self, page):
+        """Turn My Listings to `page` with the arrows, each turn confirmed by the game; its snapshot."""
+        snapshot = self._state.snapshot()
         while self._page != page:
             step = 1 if self._page < page else -1
             since = self._state.now()
@@ -480,7 +500,7 @@ class MarketplaceRunner:
             if snapshot is None or snapshot.current_page != FIRST_PAGE + self._page + step:
                 raise _Stop(f"Couldn't turn My Listings to page {self._page + step + 1}, so nothing was clicked there.")
             self._page += step
-        self._click(self._layout.spot_row(row))
+        return snapshot
 
     def _select_item(self, entry):
         icon = tab_icon_index(entry.stash_id, self._tab_mapping)
