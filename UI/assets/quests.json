@@ -2,10 +2,10 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-10-09T03:10:17.988214Z",
-  "timestamp": 1791515417.988214,
+  "generated_at": "2026-10-10T02:49:21.799656Z",
+  "timestamp": 1791600561.799656,
   "build": "0.17.153.9762",
-  "patch": 134,
+  "patch": 136,
   "quests": [
     {
       "id": "Alchemist_01",
@@ -24676,8 +24676,8 @@
           "type": "Kill",
           "count": 7,
           "monster": "Pirate Axe Thrower",
-          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
-          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
+          "icon": "77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07",
+          "icon_url": "https://cdn.darkerdb.com/codex/77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07"
         },
         {
           "type": "Kill",
