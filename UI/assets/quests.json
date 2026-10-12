@@ -2,8 +2,8 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-10-11T02:18:06.043523Z",
-  "timestamp": 1791685086.043523,
+  "generated_at": "2026-10-12T02:42:18.934575Z",
+  "timestamp": 1791772938.934575,
   "build": "0.18.155.10192",
   "patch": 136,
   "quests": [
@@ -3899,8 +3899,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Crossbowman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
+          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
         },
         {
           "type": "Kill",
@@ -4656,8 +4656,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Giant Centipede",
-          "icon": "3d76a94dd3f4de6161bdc83945fc09ddb55d66eb333035edb471304635c59d82",
-          "icon_url": "https://cdn.darkerdb.com/codex/3d76a94dd3f4de6161bdc83945fc09ddb55d66eb333035edb471304635c59d82"
+          "icon": "237a0571db307a54cc3016c34d376426f4c3249af2449c2a61e8b81f7e8241e8",
+          "icon_url": "https://cdn.darkerdb.com/codex/237a0571db307a54cc3016c34d376426f4c3249af2449c2a61e8b81f7e8241e8"
         }
       ],
       "rewards": [
@@ -6193,8 +6193,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Crossbowman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
+          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
         }
       ],
       "rewards": [
@@ -6265,8 +6265,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Mage",
-          "icon": "693cca977d1c746cf7afb204df2dc38f70694c45df1f2025133fef8335e8de62",
-          "icon_url": "https://cdn.darkerdb.com/codex/693cca977d1c746cf7afb204df2dc38f70694c45df1f2025133fef8335e8de62"
+          "icon": "3811bdc1446b7fd244427d19246c1dc002be50c52e267e81adcdc3c1814a7ba4",
+          "icon_url": "https://cdn.darkerdb.com/codex/3811bdc1446b7fd244427d19246c1dc002be50c52e267e81adcdc3c1814a7ba4"
         }
       ],
       "rewards": [
@@ -13303,8 +13303,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Giant Centipede",
-          "icon": "3d76a94dd3f4de6161bdc83945fc09ddb55d66eb333035edb471304635c59d82",
-          "icon_url": "https://cdn.darkerdb.com/codex/3d76a94dd3f4de6161bdc83945fc09ddb55d66eb333035edb471304635c59d82"
+          "icon": "237a0571db307a54cc3016c34d376426f4c3249af2449c2a61e8b81f7e8241e8",
+          "icon_url": "https://cdn.darkerdb.com/codex/237a0571db307a54cc3016c34d376426f4c3249af2449c2a61e8b81f7e8241e8"
         }
       ],
       "rewards": [
@@ -22685,8 +22685,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Mage",
-          "icon": "693cca977d1c746cf7afb204df2dc38f70694c45df1f2025133fef8335e8de62",
-          "icon_url": "https://cdn.darkerdb.com/codex/693cca977d1c746cf7afb204df2dc38f70694c45df1f2025133fef8335e8de62"
+          "icon": "3811bdc1446b7fd244427d19246c1dc002be50c52e267e81adcdc3c1814a7ba4",
+          "icon_url": "https://cdn.darkerdb.com/codex/3811bdc1446b7fd244427d19246c1dc002be50c52e267e81adcdc3c1814a7ba4"
         }
       ],
       "rewards": [
@@ -23260,8 +23260,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Crossbowman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
+          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
         }
       ],
       "rewards": [
@@ -25974,8 +25974,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Giant Centipede",
-          "icon": "3d76a94dd3f4de6161bdc83945fc09ddb55d66eb333035edb471304635c59d82",
-          "icon_url": "https://cdn.darkerdb.com/codex/3d76a94dd3f4de6161bdc83945fc09ddb55d66eb333035edb471304635c59d82"
+          "icon": "237a0571db307a54cc3016c34d376426f4c3249af2449c2a61e8b81f7e8241e8",
+          "icon_url": "https://cdn.darkerdb.com/codex/237a0571db307a54cc3016c34d376426f4c3249af2449c2a61e8b81f7e8241e8"
         }
       ],
       "rewards": [
