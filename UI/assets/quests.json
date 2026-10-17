@@ -2,10 +2,10 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-10-16T01:45:29.184151Z",
-  "timestamp": 1792115129.184151,
-  "build": "0.18.155.10192",
-  "patch": 136,
+  "generated_at": "2026-10-17T01:39:49.887918Z",
+  "timestamp": 1792201189.887918,
+  "build": "0.18.156.10253",
+  "patch": 138,
   "quests": [
     {
       "id": "Alchemist_01",
@@ -2407,8 +2407,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 292,
@@ -2462,8 +2462,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 293,
@@ -2517,8 +2517,8 @@
           "type": "Affinity",
           "count": 15,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 294,
@@ -2565,8 +2565,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 295,
@@ -2613,8 +2613,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 296,
@@ -2661,8 +2661,8 @@
           "type": "Affinity",
           "count": 15,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 297,
@@ -2709,8 +2709,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 298,
@@ -2757,8 +2757,8 @@
           "type": "Affinity",
           "count": 5,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 299,
@@ -2805,8 +2805,8 @@
           "type": "Affinity",
           "count": 15,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 300,
@@ -2853,8 +2853,8 @@
           "type": "Affinity",
           "count": 25,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         },
         {
           "type": "Item",
@@ -2936,8 +2936,8 @@
           "type": "Affinity",
           "count": 25,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         }
       ],
       "order": 302,
@@ -2984,8 +2984,8 @@
           "type": "Affinity",
           "count": 25,
           "merchant": "Cockatrice",
-          "icon": "9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b",
-          "icon_url": "https://cdn.darkerdb.com/codex/9d3bcf30b656fa13a9ed592223ce1fad28552a102c6f4af9d6ee2ff0b30c8b5b"
+          "icon": "2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d",
+          "icon_url": "https://cdn.darkerdb.com/codex/2cd0b574f7c55a537f43f8132813bc713f8a7995c842149054a89dc1a3e8144d"
         },
         {
           "type": "Item",
@@ -3899,8 +3899,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Crossbowman",
-          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
-          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         },
         {
           "type": "Kill",
@@ -5455,9 +5455,9 @@
         {
           "type": "Fetch",
           "count": 1,
-          "item_id": "SilverOres",
-          "icon": "44f85427e1e0c70e70222a68d31b4deb68350cf5aab26d44f373519539812ab3",
-          "icon_url": "https://cdn.darkerdb.com/codex/44f85427e1e0c70e70222a68d31b4deb68350cf5aab26d44f373519539812ab3"
+          "item_id": "SilverIngots",
+          "icon": "2c058f13d3b292d01b0810044105dd9496f7dbf9fdd4f506795ad734e8ed8bc8",
+          "icon_url": "https://cdn.darkerdb.com/codex/2c058f13d3b292d01b0810044105dd9496f7dbf9fdd4f506795ad734e8ed8bc8"
         },
         {
           "type": "Fetch",
@@ -6193,8 +6193,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Crossbowman",
-          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
-          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
@@ -10003,8 +10003,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Frost Skeleton Axeman",
-          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
-          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
+          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
         }
       ],
       "rewards": [
@@ -10501,8 +10501,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Frost Skeleton Footman",
-          "icon": "781ac213194e0bf123c66b623aa5e729b7ab81a8c875f50099f29fafd0cc797c",
-          "icon_url": "https://cdn.darkerdb.com/codex/781ac213194e0bf123c66b623aa5e729b7ab81a8c875f50099f29fafd0cc797c"
+          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
+          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
         }
       ],
       "rewards": [
@@ -10573,8 +10573,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Frost Skeleton Guardman",
-          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
-          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
+          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
         }
       ],
       "rewards": [
@@ -19545,8 +19545,8 @@
           "type": "Kill",
           "count": 7,
           "monster": "Pirate Axe Thrower",
-          "icon": "77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07",
-          "icon_url": "https://cdn.darkerdb.com/codex/77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07"
+          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
+          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
         },
         {
           "type": "Kill",
@@ -22040,15 +22040,15 @@
           "type": "Kill",
           "count": 10,
           "monster": "Frost Skeleton Footman",
-          "icon": "781ac213194e0bf123c66b623aa5e729b7ab81a8c875f50099f29fafd0cc797c",
-          "icon_url": "https://cdn.darkerdb.com/codex/781ac213194e0bf123c66b623aa5e729b7ab81a8c875f50099f29fafd0cc797c"
+          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
+          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
         },
         {
           "type": "Kill",
           "count": 7,
           "monster": "Frost Skeleton Guardman",
-          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
-          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
+          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
         },
         {
           "type": "Kill",
@@ -22061,8 +22061,8 @@
           "type": "Kill",
           "count": 5,
           "monster": "Frost Skeleton Axeman",
-          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
-          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
+          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
         },
         {
           "type": "Kill",
@@ -23260,8 +23260,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Crossbowman",
-          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
-          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
@@ -23315,8 +23315,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Frost Skeleton Axeman",
-          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
-          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
+          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
         },
         {
           "type": "Kill",
