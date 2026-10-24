@@ -2,10 +2,10 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-10-23T02:03:33.908792Z",
-  "timestamp": 1792721013.908792,
-  "build": "0.18.156.10253",
-  "patch": 138,
+  "generated_at": "2026-10-24T02:02:10.752360Z",
+  "timestamp": 1792807330.75236,
+  "build": "0.18.157.10335",
+  "patch": 140,
   "quests": [
     {
       "id": "Alchemist_01",
@@ -311,8 +311,8 @@
           "type": "Kill",
           "count": 2,
           "monster": "Skeleton Swordman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         }
       ],
       "rewards": [
@@ -426,8 +426,8 @@
           "type": "Kill",
           "count": 2,
           "monster": "Ice Kobold Axeman",
-          "icon": "7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0",
-          "icon_url": "https://cdn.darkerdb.com/codex/7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0"
+          "icon": "86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224",
+          "icon_url": "https://cdn.darkerdb.com/codex/86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224"
         },
         {
           "type": "Kill",
@@ -4993,8 +4993,8 @@
           "type": "Kill",
           "count": 5,
           "monster": "Goblin Archer",
-          "icon": "33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7",
-          "icon_url": "https://cdn.darkerdb.com/codex/33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7"
+          "icon": "dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213",
+          "icon_url": "https://cdn.darkerdb.com/codex/dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213"
         },
         {
           "type": "Kill",
@@ -8719,8 +8719,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Swordman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         }
       ],
       "rewards": [
@@ -9219,8 +9219,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Goblin Archer",
-          "icon": "33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7",
-          "icon_url": "https://cdn.darkerdb.com/codex/33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7"
+          "icon": "dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213",
+          "icon_url": "https://cdn.darkerdb.com/codex/dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213"
         }
       ],
       "rewards": [
@@ -9859,8 +9859,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Ice Kobold Axeman",
-          "icon": "7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0",
-          "icon_url": "https://cdn.darkerdb.com/codex/7c670f7e5f6e966d7ce84717bdda5294fa339ed6c857bb1e5158b533aff784c0"
+          "icon": "86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224",
+          "icon_url": "https://cdn.darkerdb.com/codex/86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224"
         }
       ],
       "rewards": [
@@ -10573,8 +10573,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Frost Skeleton Guardman",
-          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
-          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
+          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
+          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
         }
       ],
       "rewards": [
@@ -18992,8 +18992,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Pirate Swordman",
-          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
-          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
+          "icon": "68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da",
+          "icon_url": "https://cdn.darkerdb.com/codex/68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da"
         },
         {
           "type": "Kill",
@@ -19559,8 +19559,8 @@
           "type": "Kill",
           "count": 15,
           "monster": "Pirate Swordman",
-          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
-          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
+          "icon": "68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da",
+          "icon_url": "https://cdn.darkerdb.com/codex/68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da"
         }
       ],
       "rewards": [
@@ -22047,8 +22047,8 @@
           "type": "Kill",
           "count": 7,
           "monster": "Frost Skeleton Guardman",
-          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
-          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
+          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
+          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
         },
         {
           "type": "Kill",
