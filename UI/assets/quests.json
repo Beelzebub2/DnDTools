@@ -2,8 +2,8 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-10-24T02:02:10.752360Z",
-  "timestamp": 1792807330.75236,
+  "generated_at": "2026-10-25T01:49:40.406036Z",
+  "timestamp": 1792892980.406036,
   "build": "0.18.157.10335",
   "patch": 140,
   "quests": [
@@ -426,8 +426,8 @@
           "type": "Kill",
           "count": 2,
           "monster": "Ice Kobold Axeman",
-          "icon": "86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224",
-          "icon_url": "https://cdn.darkerdb.com/codex/86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224"
+          "icon": "c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d",
+          "icon_url": "https://cdn.darkerdb.com/codex/c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d"
         },
         {
           "type": "Kill",
@@ -928,8 +928,8 @@
           "type": "Kill",
           "count": 2,
           "monster": "Demon Berserker",
-          "icon": "93e0a2ed4f63a4efc26b3069d2f55a5df6b16aebb9001bccc86f18ac513b6469",
-          "icon_url": "https://cdn.darkerdb.com/codex/93e0a2ed4f63a4efc26b3069d2f55a5df6b16aebb9001bccc86f18ac513b6469"
+          "icon": "cd120ece7ed1ac8e3b8e602919a70f19df4ccc66808ea2ff04fa37fa911dad1e",
+          "icon_url": "https://cdn.darkerdb.com/codex/cd120ece7ed1ac8e3b8e602919a70f19df4ccc66808ea2ff04fa37fa911dad1e"
         }
       ],
       "rewards": [
@@ -4993,8 +4993,8 @@
           "type": "Kill",
           "count": 5,
           "monster": "Goblin Archer",
-          "icon": "dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213",
-          "icon_url": "https://cdn.darkerdb.com/codex/dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213"
+          "icon": "33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7",
+          "icon_url": "https://cdn.darkerdb.com/codex/33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7"
         },
         {
           "type": "Kill",
@@ -8176,8 +8176,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Axeman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         }
       ],
       "rewards": [
@@ -9219,8 +9219,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Goblin Archer",
-          "icon": "dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213",
-          "icon_url": "https://cdn.darkerdb.com/codex/dcd2639633a94608f5c1582fc92be054c0319c67c82eec9e3f52228b842fb213"
+          "icon": "33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7",
+          "icon_url": "https://cdn.darkerdb.com/codex/33a5ac1257305a925bc52149317b0c7b3e6829f7aa711deccfca774369e703c7"
         }
       ],
       "rewards": [
@@ -9859,8 +9859,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Ice Kobold Axeman",
-          "icon": "86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224",
-          "icon_url": "https://cdn.darkerdb.com/codex/86baf2994937b2b128c5c7ab36ec5eaa1dbd0a9638d9b69e318c82e1e2c19224"
+          "icon": "c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d",
+          "icon_url": "https://cdn.darkerdb.com/codex/c38d231020489c866b27d5c305688bba7ff503a917331e22e361e19c84fcf61d"
         }
       ],
       "rewards": [
@@ -10003,8 +10003,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Frost Skeleton Axeman",
-          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
-          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
+          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
+          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
         }
       ],
       "rewards": [
@@ -13238,8 +13238,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Demon Berserker",
-          "icon": "93e0a2ed4f63a4efc26b3069d2f55a5df6b16aebb9001bccc86f18ac513b6469",
-          "icon_url": "https://cdn.darkerdb.com/codex/93e0a2ed4f63a4efc26b3069d2f55a5df6b16aebb9001bccc86f18ac513b6469"
+          "icon": "cd120ece7ed1ac8e3b8e602919a70f19df4ccc66808ea2ff04fa37fa911dad1e",
+          "icon_url": "https://cdn.darkerdb.com/codex/cd120ece7ed1ac8e3b8e602919a70f19df4ccc66808ea2ff04fa37fa911dad1e"
         }
       ],
       "rewards": [
@@ -18992,8 +18992,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Pirate Swordman",
-          "icon": "68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da",
-          "icon_url": "https://cdn.darkerdb.com/codex/68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da"
+          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
+          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
         },
         {
           "type": "Kill",
@@ -19559,8 +19559,8 @@
           "type": "Kill",
           "count": 15,
           "monster": "Pirate Swordman",
-          "icon": "68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da",
-          "icon_url": "https://cdn.darkerdb.com/codex/68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da"
+          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
+          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
         }
       ],
       "rewards": [
@@ -22061,8 +22061,8 @@
           "type": "Kill",
           "count": 5,
           "monster": "Frost Skeleton Axeman",
-          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
-          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
+          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
+          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
         },
         {
           "type": "Kill",
@@ -23014,8 +23014,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Axeman",
-          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
-          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
+          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
+          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
         }
       ],
       "rewards": [
@@ -23315,8 +23315,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Frost Skeleton Axeman",
-          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
-          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
+          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
+          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
         },
         {
           "type": "Kill",
@@ -28191,15 +28191,15 @@
           "type": "Kill",
           "count": 1,
           "monster": "Demon Berserker",
-          "icon": "93e0a2ed4f63a4efc26b3069d2f55a5df6b16aebb9001bccc86f18ac513b6469",
-          "icon_url": "https://cdn.darkerdb.com/codex/93e0a2ed4f63a4efc26b3069d2f55a5df6b16aebb9001bccc86f18ac513b6469"
+          "icon": "cd120ece7ed1ac8e3b8e602919a70f19df4ccc66808ea2ff04fa37fa911dad1e",
+          "icon_url": "https://cdn.darkerdb.com/codex/cd120ece7ed1ac8e3b8e602919a70f19df4ccc66808ea2ff04fa37fa911dad1e"
         },
         {
           "type": "Kill",
           "count": 2,
           "monster": "Demon Dog",
-          "icon": "49af8e13507c699973d4cb292b30d53fee8ab3a154c78744513f170c3e077325",
-          "icon_url": "https://cdn.darkerdb.com/codex/49af8e13507c699973d4cb292b30d53fee8ab3a154c78744513f170c3e077325"
+          "icon": "345d4e624ee604ee745282babd10b026d3a9612d1d8e6d89dc538e138af4f29d",
+          "icon_url": "https://cdn.darkerdb.com/codex/345d4e624ee604ee745282babd10b026d3a9612d1d8e6d89dc538e138af4f29d"
         }
       ],
       "rewards": [
