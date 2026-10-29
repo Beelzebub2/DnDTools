@@ -1,39 +1,17 @@
 {
-  "generated_at": "2026-10-24T02:03:24.035146Z",
-  "display_date": "24/10/2026",
+  "generated_at": "2026-10-29T02:58:46.371050Z",
+  "display_date": "29/10/2026",
   "total_items": 2463,
-  "previous_total": 2462,
-  "added_count": 1,
+  "previous_total": 2463,
+  "added_count": 0,
   "removed_count": 0,
-  "has_added": true,
+  "has_added": false,
   "has_removed": false,
-  "added_items": [
-    {
-      "id": "FineCuirass_8001",
-      "name": "Solaris Cuirass"
-    }
-  ],
+  "added_items": [],
   "removed_items": [],
   "icon_changes": {
-    "added": [
-      "UI/assets/icons/Armor/FineCuirass_8001.webp"
-    ],
-    "modified": [
-      "UI/assets/icons/Weapon/Glaive_1001.webp",
-      "UI/assets/icons/Weapon/Glaive_2001.webp",
-      "UI/assets/icons/Weapon/Glaive_3001.webp",
-      "UI/assets/icons/Weapon/Glaive_4001.webp",
-      "UI/assets/icons/Weapon/Glaive_5001.webp",
-      "UI/assets/icons/Weapon/Glaive_6001.webp",
-      "UI/assets/icons/Weapon/Glaive_7001.webp",
-      "UI/assets/icons/Weapon/HandCrossbow_1001.webp",
-      "UI/assets/icons/Weapon/HandCrossbow_2001.webp",
-      "UI/assets/icons/Weapon/HandCrossbow_3001.webp",
-      "UI/assets/icons/Weapon/HandCrossbow_4001.webp",
-      "UI/assets/icons/Weapon/HandCrossbow_5001.webp",
-      "UI/assets/icons/Weapon/HandCrossbow_6001.webp",
-      "UI/assets/icons/Weapon/HandCrossbow_7001.webp"
-    ],
+    "added": [],
+    "modified": [],
     "removed": []
   }
 }
