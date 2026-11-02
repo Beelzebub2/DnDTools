@@ -2,8 +2,8 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-11-01T02:41:14.460140Z",
-  "timestamp": 1793500874.46014,
+  "generated_at": "2026-11-02T02:49:56.653591Z",
+  "timestamp": 1793587796.653591,
   "build": "0.18.158.10393",
   "patch": 141,
   "quests": [
@@ -699,7 +699,7 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Hidden Lever"
+          "interact": "Statue Lever"
         },
         {
           "type": "Kill",
@@ -757,7 +757,9 @@
         {
           "type": "Props",
           "count": 2,
-          "interact": "Destroy Spider Pot"
+          "interact": "Spider Pot",
+          "icon": "6504ccecf2d9987043ec3497383634cb1b6035954b25feea6e016ecca66fb79b",
+          "icon_url": "https://cdn.darkerdb.com/codex/6504ccecf2d9987043ec3497383634cb1b6035954b25feea6e016ecca66fb79b"
         }
       ],
       "rewards": [
@@ -1982,7 +1984,7 @@
         {
           "type": "Props",
           "count": 5,
-          "interact": "Wall Spikes"
+          "interact": "Wall Spike"
         },
         {
           "type": "Props",
@@ -2174,22 +2176,30 @@
         {
           "type": "Props",
           "count": 5,
-          "interact": "Health Statue"
+          "interact": "Statue Health",
+          "icon": "aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f",
+          "icon_url": "https://cdn.darkerdb.com/codex/aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f"
         },
         {
           "type": "Props",
           "count": 5,
-          "interact": "Power Statue"
+          "interact": "Statue Power",
+          "icon": "ece6c342d3da92c1b7718f670379c5d7fcb45a85878ad2d15addf989901b4374",
+          "icon_url": "https://cdn.darkerdb.com/codex/ece6c342d3da92c1b7718f670379c5d7fcb45a85878ad2d15addf989901b4374"
         },
         {
           "type": "Props",
           "count": 5,
-          "interact": "Speed Statue"
+          "interact": "Statue Speed",
+          "icon": "d60fc168942028f5b6b2655fd6813bfc29373d5b25d1e1cd2fa279920adbd24e",
+          "icon_url": "https://cdn.darkerdb.com/codex/d60fc168942028f5b6b2655fd6813bfc29373d5b25d1e1cd2fa279920adbd24e"
         },
         {
           "type": "Props",
           "count": 5,
-          "interact": "Protection Statue"
+          "interact": "Statue Protection",
+          "icon": "99889c8263192b1e3a7d34ddb1cc9b210803636881b91197bbe472097b347cd0",
+          "icon_url": "https://cdn.darkerdb.com/codex/99889c8263192b1e3a7d34ddb1cc9b210803636881b91197bbe472097b347cd0"
         }
       ],
       "rewards": [
@@ -3214,7 +3224,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Destroy Spider Pot"
+          "interact": "Spider Pot",
+          "icon": "6504ccecf2d9987043ec3497383634cb1b6035954b25feea6e016ecca66fb79b",
+          "icon_url": "https://cdn.darkerdb.com/codex/6504ccecf2d9987043ec3497383634cb1b6035954b25feea6e016ecca66fb79b"
         }
       ],
       "rewards": [
@@ -3726,7 +3738,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Golden Hoard"
+          "interact": "Hoard",
+          "icon": "edb7c61d5522380d0aad46a3cc1b416caac995a44421a21e6c5097647a36715b",
+          "icon_url": "https://cdn.darkerdb.com/codex/edb7c61d5522380d0aad46a3cc1b416caac995a44421a21e6c5097647a36715b"
         }
       ],
       "rewards": [
@@ -3779,7 +3793,7 @@
         {
           "type": "Props",
           "count": 3,
-          "interact": "Wall Spikes"
+          "interact": "Wall Spike"
         },
         {
           "type": "Use Item",
@@ -4158,7 +4172,9 @@
         {
           "type": "Props",
           "count": 3,
-          "interact": "Destroy Small Crates"
+          "interact": "Wooden Crate Small",
+          "icon": "75ac366f0b06e9c8fadf37db941734378617059f46187f9640abb7c21973ce29",
+          "icon_url": "https://cdn.darkerdb.com/codex/75ac366f0b06e9c8fadf37db941734378617059f46187f9640abb7c21973ce29"
         }
       ],
       "rewards": [
@@ -4436,7 +4452,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Ash Pile"
+          "interact": "Ash Pile",
+          "icon": "9c3c20c0d85e69b32ea1f384fe4e5578420e366057e6268e8c82f6ffdc7863cb",
+          "icon_url": "https://cdn.darkerdb.com/codex/9c3c20c0d85e69b32ea1f384fe4e5578420e366057e6268e8c82f6ffdc7863cb"
         }
       ],
       "rewards": [
@@ -4609,7 +4627,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Ornate Chest Large"
+          "interact": "Ornate Chest Large",
+          "icon": "a86b641d9bc2ca2c5d2dbe9f828c8332e1c2b940e39bb1035d402e6d9bdbf38b",
+          "icon_url": "https://cdn.darkerdb.com/codex/a86b641d9bc2ca2c5d2dbe9f828c8332e1c2b940e39bb1035d402e6d9bdbf38b"
         }
       ],
       "rewards": [
@@ -4820,7 +4840,9 @@
         {
           "type": "Props",
           "count": 10,
-          "interact": "Stone Tomb"
+          "interact": "Stone Tomb",
+          "icon": "4cc67a441ec11ffd5487db2ebc5580204b14ad827f0d049b416bb4d0f7d0d5bc",
+          "icon_url": "https://cdn.darkerdb.com/codex/4cc67a441ec11ffd5487db2ebc5580204b14ad827f0d049b416bb4d0f7d0d5bc"
         }
       ],
       "rewards": [
@@ -17388,7 +17410,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Health Statue"
+          "interact": "Statue Health",
+          "icon": "aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f",
+          "icon_url": "https://cdn.darkerdb.com/codex/aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f"
         }
       ],
       "rewards": [
@@ -17485,7 +17509,9 @@
         {
           "type": "Props",
           "count": 2,
-          "interact": "Medium Chest"
+          "interact": "Simple Chest Medium",
+          "icon": "39351b450f2bffb0fa11f7144578401b1b977ff74f208605bc3529f209e40325",
+          "icon_url": "https://cdn.darkerdb.com/codex/39351b450f2bffb0fa11f7144578401b1b977ff74f208605bc3529f209e40325"
         }
       ],
       "rewards": [
@@ -17995,7 +18021,9 @@
         {
           "type": "Props",
           "count": 20,
-          "interact": "Destroy Small Crates"
+          "interact": "Wooden Crate Small",
+          "icon": "75ac366f0b06e9c8fadf37db941734378617059f46187f9640abb7c21973ce29",
+          "icon_url": "https://cdn.darkerdb.com/codex/75ac366f0b06e9c8fadf37db941734378617059f46187f9640abb7c21973ce29"
         }
       ],
       "rewards": [
@@ -18094,7 +18122,9 @@
         {
           "type": "Props",
           "count": 3,
-          "interact": "Gold Chest"
+          "interact": "Gold Chest",
+          "icon": "980e3f061cafee4ad8b2be44d6cd12223e1d5b1438a2b5fd156cf4ab0e4de247",
+          "icon_url": "https://cdn.darkerdb.com/codex/980e3f061cafee4ad8b2be44d6cd12223e1d5b1438a2b5fd156cf4ab0e4de247"
         }
       ],
       "rewards": [
@@ -18351,7 +18381,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Statue Fire Magic Resistance"
+          "interact": "Statue Fire Magic Resistance",
+          "icon": "331f73d9b9eaccac0113fa8390fff2c13be1e4a8db3c66b9c5fab25ac7b79425",
+          "icon_url": "https://cdn.darkerdb.com/codex/331f73d9b9eaccac0113fa8390fff2c13be1e4a8db3c66b9c5fab25ac7b79425"
         }
       ],
       "rewards": [
@@ -18527,7 +18559,9 @@
         {
           "type": "Props",
           "count": 3,
-          "interact": "Fallen Dwarf"
+          "interact": "Fallen Dwarf",
+          "icon": "7a0203b702e8e1b3e197a57585025de271608f66769ed6516cf2fd84be83bf32",
+          "icon_url": "https://cdn.darkerdb.com/codex/7a0203b702e8e1b3e197a57585025de271608f66769ed6516cf2fd84be83bf32"
         }
       ],
       "rewards": [
@@ -19046,7 +19080,9 @@
         {
           "type": "Props",
           "count": 5,
-          "interact": "Mermaid Coffin"
+          "interact": "Mermaid Coffin",
+          "icon": "0da8b6c3b2896b5bcbfea15bd347db9a7bcabfcefb49c3599ece389d19949252",
+          "icon_url": "https://cdn.darkerdb.com/codex/0da8b6c3b2896b5bcbfea15bd347db9a7bcabfcefb49c3599ece389d19949252"
         }
       ],
       "rewards": [
@@ -19859,7 +19895,9 @@
         {
           "type": "Props",
           "count": 10,
-          "interact": "Old Coffin"
+          "interact": "Coffin",
+          "icon": "e2ed904d1fc2b8caaf7f7e9f635bd0eb6f4c5aafd2cad8e7ef0326c33b14bc40",
+          "icon_url": "https://cdn.darkerdb.com/codex/e2ed904d1fc2b8caaf7f7e9f635bd0eb6f4c5aafd2cad8e7ef0326c33b14bc40"
         }
       ],
       "rewards": [
@@ -21081,7 +21119,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Health Statue"
+          "interact": "Statue Health",
+          "icon": "aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f",
+          "icon_url": "https://cdn.darkerdb.com/codex/aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f"
         }
       ],
       "rewards": [
@@ -21779,7 +21819,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Health Statue"
+          "interact": "Statue Health",
+          "icon": "aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f",
+          "icon_url": "https://cdn.darkerdb.com/codex/aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f"
         }
       ],
       "rewards": [
@@ -23112,22 +23154,30 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Protection Statue"
+          "interact": "Statue Protection",
+          "icon": "99889c8263192b1e3a7d34ddb1cc9b210803636881b91197bbe472097b347cd0",
+          "icon_url": "https://cdn.darkerdb.com/codex/99889c8263192b1e3a7d34ddb1cc9b210803636881b91197bbe472097b347cd0"
         },
         {
           "type": "Props",
           "count": 1,
-          "interact": "Health Statue"
+          "interact": "Statue Health",
+          "icon": "aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f",
+          "icon_url": "https://cdn.darkerdb.com/codex/aaf67254821763813b7f839bfd836dcf8b6cc21fee05c25f69a85fdf2a9f8d4f"
         },
         {
           "type": "Props",
           "count": 1,
-          "interact": "Speed Statue"
+          "interact": "Statue Speed",
+          "icon": "d60fc168942028f5b6b2655fd6813bfc29373d5b25d1e1cd2fa279920adbd24e",
+          "icon_url": "https://cdn.darkerdb.com/codex/d60fc168942028f5b6b2655fd6813bfc29373d5b25d1e1cd2fa279920adbd24e"
         },
         {
           "type": "Props",
           "count": 1,
-          "interact": "Power Statue"
+          "interact": "Statue Power",
+          "icon": "ece6c342d3da92c1b7718f670379c5d7fcb45a85878ad2d15addf989901b4374",
+          "icon_url": "https://cdn.darkerdb.com/codex/ece6c342d3da92c1b7718f670379c5d7fcb45a85878ad2d15addf989901b4374"
         }
       ],
       "rewards": [
@@ -23728,7 +23778,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Simple Chest Small"
+          "interact": "Simple Chest Small",
+          "icon": "c5a1544dd5c1cfe2f6ea8da3d321e6f3ea333759179db39125fdc8440d8963e1",
+          "icon_url": "https://cdn.darkerdb.com/codex/c5a1544dd5c1cfe2f6ea8da3d321e6f3ea333759179db39125fdc8440d8963e1"
         }
       ],
       "rewards": [
@@ -24487,7 +24539,9 @@
         {
           "type": "Props",
           "count": 2,
-          "interact": "Ornate Chest Large"
+          "interact": "Ornate Chest Large",
+          "icon": "a86b641d9bc2ca2c5d2dbe9f828c8332e1c2b940e39bb1035d402e6d9bdbf38b",
+          "icon_url": "https://cdn.darkerdb.com/codex/a86b641d9bc2ca2c5d2dbe9f828c8332e1c2b940e39bb1035d402e6d9bdbf38b"
         }
       ],
       "rewards": [
@@ -25397,7 +25451,7 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Iron Door"
+          "interact": "Reinforced Dungeon Door"
         }
       ],
       "rewards": [
@@ -25457,7 +25511,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Boss Casket"
+          "interact": "Marvelous Chest",
+          "icon": "890e5191f07896328af4f0390ad1339b16309d3819750eee00f1c68171334bbc",
+          "icon_url": "https://cdn.darkerdb.com/codex/890e5191f07896328af4f0390ad1339b16309d3819750eee00f1c68171334bbc"
         }
       ],
       "rewards": [
@@ -25562,7 +25618,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Gold Chest"
+          "interact": "Gold Chest",
+          "icon": "980e3f061cafee4ad8b2be44d6cd12223e1d5b1438a2b5fd156cf4ab0e4de247",
+          "icon_url": "https://cdn.darkerdb.com/codex/980e3f061cafee4ad8b2be44d6cd12223e1d5b1438a2b5fd156cf4ab0e4de247"
         }
       ],
       "rewards": [
@@ -25723,7 +25781,9 @@
         {
           "type": "Props",
           "count": 2,
-          "interact": "Golden Hoard"
+          "interact": "Hoard",
+          "icon": "edb7c61d5522380d0aad46a3cc1b416caac995a44421a21e6c5097647a36715b",
+          "icon_url": "https://cdn.darkerdb.com/codex/edb7c61d5522380d0aad46a3cc1b416caac995a44421a21e6c5097647a36715b"
         }
       ],
       "rewards": [
@@ -26194,7 +26254,9 @@
         {
           "type": "Props",
           "count": 1,
-          "interact": "Stone Tomb"
+          "interact": "Stone Tomb",
+          "icon": "4cc67a441ec11ffd5487db2ebc5580204b14ad827f0d049b416bb4d0f7d0d5bc",
+          "icon_url": "https://cdn.darkerdb.com/codex/4cc67a441ec11ffd5487db2ebc5580204b14ad827f0d049b416bb4d0f7d0d5bc"
         }
       ],
       "rewards": [
@@ -26676,7 +26738,9 @@
         {
           "type": "Props",
           "count": 3,
-          "interact": "Destroy Pot"
+          "interact": "Pot",
+          "icon": "1554ef6ee58afbf1fe9f1d5b0a736976414e6409c52192ae19c98c989194f846",
+          "icon_url": "https://cdn.darkerdb.com/codex/1554ef6ee58afbf1fe9f1d5b0a736976414e6409c52192ae19c98c989194f846"
         }
       ],
       "rewards": [
@@ -26722,7 +26786,9 @@
         {
           "type": "Props",
           "count": 10,
-          "interact": "Small Chest"
+          "interact": "Simple Chest Small",
+          "icon": "c5a1544dd5c1cfe2f6ea8da3d321e6f3ea333759179db39125fdc8440d8963e1",
+          "icon_url": "https://cdn.darkerdb.com/codex/c5a1544dd5c1cfe2f6ea8da3d321e6f3ea333759179db39125fdc8440d8963e1"
         }
       ],
       "rewards": [
@@ -26768,7 +26834,9 @@
         {
           "type": "Props",
           "count": 2,
-          "interact": "Gold Chest"
+          "interact": "Gold Chest",
+          "icon": "980e3f061cafee4ad8b2be44d6cd12223e1d5b1438a2b5fd156cf4ab0e4de247",
+          "icon_url": "https://cdn.darkerdb.com/codex/980e3f061cafee4ad8b2be44d6cd12223e1d5b1438a2b5fd156cf4ab0e4de247"
         }
       ],
       "rewards": [
