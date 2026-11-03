@@ -2,8 +2,8 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-11-02T02:49:56.653591Z",
-  "timestamp": 1793587796.653591,
+  "generated_at": "2026-11-03T04:06:22.784497Z",
+  "timestamp": 1793678782.784497,
   "build": "0.18.158.10393",
   "patch": 141,
   "quests": [
@@ -311,8 +311,8 @@
           "type": "Kill",
           "count": 2,
           "monster": "Skeleton Swordman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
@@ -8198,8 +8198,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Axeman",
-          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
-          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
@@ -8741,8 +8741,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Swordman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
@@ -10667,8 +10667,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Frost Skeleton Halberdier",
-          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
-          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
+          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
         }
       ],
       "rewards": [
@@ -19026,15 +19026,15 @@
           "type": "Kill",
           "count": 3,
           "monster": "Pirate Swordman",
-          "icon": "77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07",
-          "icon_url": "https://cdn.darkerdb.com/codex/77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07"
+          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
+          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
         },
         {
           "type": "Kill",
           "count": 3,
           "monster": "Pirate Bowman",
-          "icon": "77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07",
-          "icon_url": "https://cdn.darkerdb.com/codex/77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07"
+          "icon": "68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da",
+          "icon_url": "https://cdn.darkerdb.com/codex/68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da"
         }
       ],
       "rewards": [
@@ -19195,8 +19195,8 @@
           "type": "Kill",
           "count": 5,
           "monster": "Tidewalker Slinger",
-          "icon": "a7b791a802dca22d7966a78e020e488422ebc057ac800bd49bd0cd25543da3e1",
-          "icon_url": "https://cdn.darkerdb.com/codex/a7b791a802dca22d7966a78e020e488422ebc057ac800bd49bd0cd25543da3e1"
+          "icon": "0cd63368baf4e68fcde961852975aceb987d52a023a558f93b641ad038d90122",
+          "icon_url": "https://cdn.darkerdb.com/codex/0cd63368baf4e68fcde961852975aceb987d52a023a558f93b641ad038d90122"
         },
         {
           "type": "Kill",
@@ -19588,15 +19588,15 @@
           "type": "Kill",
           "count": 7,
           "monster": "Pirate Bowman",
-          "icon": "77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07",
-          "icon_url": "https://cdn.darkerdb.com/codex/77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07"
+          "icon": "68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da",
+          "icon_url": "https://cdn.darkerdb.com/codex/68d396672f8f0bc2a966de907d1676b3566e35e438371cce4aa79874863348da"
         },
         {
           "type": "Kill",
           "count": 15,
           "monster": "Pirate Swordman",
-          "icon": "77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07",
-          "icon_url": "https://cdn.darkerdb.com/codex/77f88a6ca30eca3ec6abf69af00d90086c12eda484ba5ebc9b58e68abd214a07"
+          "icon": "8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1",
+          "icon_url": "https://cdn.darkerdb.com/codex/8183ec606d2408bd3dbb4486c2fe350bf20e2b4f83c82b790aecf8f67e4077c1"
         }
       ],
       "rewards": [
@@ -22124,8 +22124,8 @@
           "type": "Kill",
           "count": 7,
           "monster": "Frost Skeleton Halberdier",
-          "icon": "4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a",
-          "icon_url": "https://cdn.darkerdb.com/codex/4ed13cd5f02145751873bf979f3bc04ca82449f5cb8c67f03420fee1f1a18d7a"
+          "icon": "1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5",
+          "icon_url": "https://cdn.darkerdb.com/codex/1b1d53ecc0c2d0be47326f9f765173abca5afe2ee8a4269f68010251c6d7aea5"
         }
       ],
       "rewards": [
@@ -23056,8 +23056,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Axeman",
-          "icon": "ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702",
-          "icon_url": "https://cdn.darkerdb.com/codex/ed81c52007a9bde7acaf90e340d4074a1c74103bdca137c7a19b0aae4b1da702"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
