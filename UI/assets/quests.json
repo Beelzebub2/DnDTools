@@ -2,10 +2,10 @@
   "version": 2,
   "source": "darkerdb-v2",
   "api_version": "2026-08-03",
-  "generated_at": "2026-11-12T04:24:20.463299Z",
-  "timestamp": 1794457460.463299,
-  "build": "0.18.159.10507",
-  "patch": 142,
+  "generated_at": "2026-11-13T03:40:42.042934Z",
+  "timestamp": 1794541242.042934,
+  "build": "0.18.160.10688",
+  "patch": 143,
   "quests": [
     {
       "id": "Alchemist_01",
@@ -3477,8 +3477,8 @@
           "count": 1,
           "item_id": "CrystalBall",
           "rarity": "Rare",
-          "icon": "8f3560a62c48ce2a0ab6168185c7229b21e3287d384432aa32fef096e0a8afa5",
-          "icon_url": "https://cdn.darkerdb.com/codex/8f3560a62c48ce2a0ab6168185c7229b21e3287d384432aa32fef096e0a8afa5"
+          "icon": "03bf838603072e66f1419c6baac5fe07135bdb4602c83fc3133495089207a8b7",
+          "icon_url": "https://cdn.darkerdb.com/codex/03bf838603072e66f1419c6baac5fe07135bdb4602c83fc3133495089207a8b7"
         }
       ],
       "rewards": [
@@ -3683,9 +3683,7 @@
         {
           "type": "Use Item",
           "count": 2,
-          "item_id": "LuckPotionLarge",
-          "icon": "f8fea9d7c1b3871659a4fa5a485e90f01c19f0d08efed9f27a70a3725ed9579c",
-          "icon_url": "https://cdn.darkerdb.com/codex/f8fea9d7c1b3871659a4fa5a485e90f01c19f0d08efed9f27a70a3725ed9579c"
+          "item_id": "LuckPotionLarge"
         },
         {
           "type": "Fetch",
@@ -3799,9 +3797,7 @@
           "type": "Use Item",
           "count": 1,
           "item_id": "LuckPotionSmall",
-          "rarity": "Uncommon",
-          "icon": "a853e84176ef52c8db7231f7e7cb43256cc4d23e06c25bc08f01d5b19da4ae5d",
-          "icon_url": "https://cdn.darkerdb.com/codex/a853e84176ef52c8db7231f7e7cb43256cc4d23e06c25bc08f01d5b19da4ae5d"
+          "rarity": "Uncommon"
         }
       ],
       "rewards": [
@@ -3920,8 +3916,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Spearman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
@@ -5172,11 +5168,9 @@
       ],
       "rewards": [
         {
-          "type": "Item",
+          "type": "Emote",
           "count": 1,
-          "item_id": "GoldCoinChest",
-          "icon": "833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85",
-          "icon_url": "https://cdn.darkerdb.com/codex/833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85"
+          "emote_id": "id.emote.sneeze"
         },
         {
           "type": "Experience",
@@ -8483,8 +8477,8 @@
           "type": "Kill",
           "count": 1,
           "monster": "Skeleton Spearman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         }
       ],
       "rewards": [
@@ -12570,9 +12564,7 @@
         {
           "type": "Item",
           "count": 1,
-          "item_id": "GoldCoinChest",
-          "icon": "833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85",
-          "icon_url": "https://cdn.darkerdb.com/codex/833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85"
+          "item_id": "GoldCoinChest"
         }
       ],
       "order": 557,
@@ -16947,9 +16939,7 @@
         {
           "type": "Item",
           "count": 9,
-          "item_id": "LuckPotion_3001",
-          "icon": "a853e84176ef52c8db7231f7e7cb43256cc4d23e06c25bc08f01d5b19da4ae5d",
-          "icon_url": "https://cdn.darkerdb.com/codex/a853e84176ef52c8db7231f7e7cb43256cc4d23e06c25bc08f01d5b19da4ae5d"
+          "item_id": "LuckPotion_3001"
         }
       ],
       "order": 307,
@@ -17324,9 +17314,7 @@
         {
           "type": "Item",
           "count": 1,
-          "item_id": "GoldCoinChest",
-          "icon": "833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85",
-          "icon_url": "https://cdn.darkerdb.com/codex/833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85"
+          "item_id": "GoldCoinChest"
         },
         {
           "type": "Affinity",
@@ -17845,9 +17833,7 @@
           "type": "Fetch",
           "count": 1,
           "item_id": "TroubadourOutfit",
-          "rarity": "Rare",
-          "icon": "0bd33e0e341caafb5c4ae81e83bc685b9961e6598747230ace5524b6fa0238d3",
-          "icon_url": "https://cdn.darkerdb.com/codex/0bd33e0e341caafb5c4ae81e83bc685b9961e6598747230ace5524b6fa0238d3"
+          "rarity": "Rare"
         },
         {
           "type": "Fetch",
@@ -19404,9 +19390,7 @@
         {
           "type": "Fetch",
           "count": 1,
-          "item_id": "PearlShining",
-          "icon": "d3799d942c4ebce3c4e4d18d61a14ae09892b61a6a2559382de44b9db965e297",
-          "icon_url": "https://cdn.darkerdb.com/codex/d3799d942c4ebce3c4e4d18d61a14ae09892b61a6a2559382de44b9db965e297"
+          "item_id": "PearlShining"
         }
       ],
       "rewards": [
@@ -23303,8 +23287,8 @@
           "type": "Kill",
           "count": 3,
           "monster": "Skeleton Spearman",
-          "icon": "b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88",
-          "icon_url": "https://cdn.darkerdb.com/codex/b3c8a321ce0baf6eb7d2b77e4172223b4f7d364f96de45d77142fd27b582ae88"
+          "icon": "3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962",
+          "icon_url": "https://cdn.darkerdb.com/codex/3a0a3855cf8f69513401ad5f4e50d4635655c321cbcddb3bef4ebaf22ecdd962"
         },
         {
           "type": "Kill",
@@ -23705,8 +23689,9 @@
       ],
       "rewards": [
         {
-          "type": "Stash",
-          "count": 1
+          "type": "Emote",
+          "count": 1,
+          "emote_id": "id.emote.stretch_it_out"
         },
         {
           "type": "Experience",
@@ -24959,11 +24944,9 @@
       ],
       "rewards": [
         {
-          "type": "Item",
+          "type": "Item Skin",
           "count": 1,
-          "item_id": "GoldCoinChest",
-          "icon": "833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85",
-          "icon_url": "https://cdn.darkerdb.com/codex/833b57ba8a38472cfa8c8bc40e9ebcde72a5614d88ade66c71bf6fe25cf52e85"
+          "item_skin_id": "id.item_skin.fairy_mushroom_torch"
         },
         {
           "type": "Experience",
@@ -25309,9 +25292,7 @@
         {
           "type": "Item",
           "count": 3,
-          "item_id": "LuckPotion_4001",
-          "icon": "f8fea9d7c1b3871659a4fa5a485e90f01c19f0d08efed9f27a70a3725ed9579c",
-          "icon_url": "https://cdn.darkerdb.com/codex/f8fea9d7c1b3871659a4fa5a485e90f01c19f0d08efed9f27a70a3725ed9579c"
+          "item_id": "LuckPotion_4001"
         },
         {
           "type": "Random",
@@ -27587,9 +27568,7 @@
         {
           "type": "Item",
           "count": 1,
-          "item_id": "LuckPotion_3001",
-          "icon": "a853e84176ef52c8db7231f7e7cb43256cc4d23e06c25bc08f01d5b19da4ae5d",
-          "icon_url": "https://cdn.darkerdb.com/codex/a853e84176ef52c8db7231f7e7cb43256cc4d23e06c25bc08f01d5b19da4ae5d"
+          "item_id": "LuckPotion_3001"
         },
         {
           "type": "Random",
